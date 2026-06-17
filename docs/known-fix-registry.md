@@ -59,3 +59,10 @@ Each entry contains:
 
 *Last updated: Sprint 1, June 2026*
 *Add new entries above this line in the same format.*
+
+## KFR-004 — Docker socket on newer Docker Desktop for Mac
+Run once: `sudo ln -sf /Users/marchecentral1/.docker/run/docker.sock /var/run/docker.sock`
+Re-apply after Mac restart. Test: `docker ps` works without error.
+
+## KFR-005 — Sprint files: use shell scripts not zip files
+Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc shell scripts pasted directly into Terminal.
