@@ -7,6 +7,8 @@ import { healthRouter }     from './routes/health/health.router';
 import { assetsRouter }     from './routes/assets/assets.router';
 import { categoriesRouter } from './routes/categories/categories.router';
 import { sitesRouter }      from './routes/sites/sites.router';
+import { auditsRouter }     from './routes/audits/audits.router';
+import { checkoutsRouter }  from './routes/checkouts/checkouts.router';
 import { logger } from './lib/logger';
 
 export function createApp(): Application {
@@ -24,6 +26,8 @@ export function createApp(): Application {
   app.use('/api/v1/assets',       assetsRouter);
   app.use('/api/v1/categories',   categoriesRouter);
   app.use('/api/v1/sites',        sitesRouter);
+  app.use('/api/v1/audits',       auditsRouter);
+  app.use('/api/v1/checkouts',    checkoutsRouter);
   app.use((_req: Request, res: Response) => { res.status(404).json({ error: 'Not found' }); });
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

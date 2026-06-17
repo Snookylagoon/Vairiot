@@ -23,6 +23,8 @@ model Tenant {
   categories  Category[]
   sites       Site[]
   assets      Asset[]
+  auditCampaigns AuditCampaign[]
+  checkouts   Checkout[]
 
   @@map("tenants")
 }
@@ -188,7 +190,8 @@ model Asset {
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
   category Category? @relation(fields: [categoryId], references: [id])
   site     Site?     @relation(fields: [siteId], references: [id])
-  location Location? @relation(fields: [locationId], references: [id])
+  location  Location?  @relation(fields: [locationId], references: [id])
+  checkouts Checkout[]
 
   @@unique([tenantId, assetNumber])
   @@index([tenantId, status])
@@ -197,4 +200,66 @@ model Asset {
   @@index([rfidTag])
   @@index([barcode])
   @@map("assets")
+}
+
+// ─── Audit Campaigns ─────────────────────────────────────────────────────────
+model AuditCampaign {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  siteId      String?
+  locationId  String?
+  status      String   @default("draft")
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  scanEvents AuditScanEvent[]
+
+  @@index([tenantId, status])
+  @@map("audit_campaigns")
+}
+
+model AuditScanEvent {
+  id         String   @id @default(cuid())
+  campaignId String
+  tenantId   String
+  tagValue   String
+  assetId    String?
+  scannedBy  String
+  deviceId   String?
+  result     String   @default("found")
+  scannedAt  DateTime @default(now())
+
+  campaign AuditCampaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+  @@index([tenantId, tagValue])
+  @@map("audit_scan_events")
+}
+
+// ─── Check-in / Check-out ─────────────────────────────────────────────────────
+model Checkout {
+  id             String    @id @default(cuid())
+  tenantId       String
+  assetId        String
+  custodianId    String
+  checkedOutBy   String
+  checkedInBy    String?
+  expectedReturn DateTime?
+  checkedOutAt   DateTime  @default(now())
+  checkedInAt    DateTime?
+  notes          String?
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  asset     Asset  @relation(fields: [assetId], references: [id])
+
+  @@index([tenantId, assetId])
+  @@index([tenantId, custodianId])
+  @@index([tenantId, checkedInAt])
+  @@map("checkouts")
 }
