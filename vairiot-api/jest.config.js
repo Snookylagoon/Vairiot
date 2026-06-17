@@ -1,5 +1,5 @@
-import type { Config } from 'jest';
-const config: Config = {
+/** @type {import('jest').Config} */
+module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   rootDir: '.',
@@ -7,4 +7,3 @@ const config: Config = {
   collectCoverageFrom: ['src/**/*.ts','!src/index.ts','!src/**/*.d.ts'],
   coverageThreshold: { global: { lines: 80 } },
 };
-export default config;

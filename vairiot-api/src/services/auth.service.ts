@@ -10,7 +10,7 @@ export async function login({ email, password, tenantId }: LoginInput): Promise<
     include: { roles: { include: { role: true } } },
   });
   if (!user || !user.active) {
-    await bcrypt.compare(password, '$2b$12$invalidhashpadding000000000000000000000000000000000000');
+    await bcrypt.compare(password, '$2b$12$LRrFB3HlpUGi3as4IuSJKuBIURsOQKzkxmBiCO3bHFbvBYuCfmXty').catch(() => false);
     throw new Error('INVALID_CREDENTIALS');
   }
   if (!user.passwordHash) throw new Error('SSO_ONLY');

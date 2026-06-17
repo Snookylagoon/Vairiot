@@ -10,32 +10,33 @@
     "vairiot-shared"
   ],
   "scripts": {
-    "dev":         "docker compose -f infra/docker-compose.yml up",
-    "dev:api":     "npm run dev --workspace=vairiot-api",
-    "dev:web":     "npm run dev --workspace=vairiot-web",
-    "build":       "npm run build --workspaces --if-present",
-    "lint":        "eslint \"**/*.{js,ts,tsx}\" --ignore-path .eslintignore",
-    "lint:fix":    "eslint \"**/*.{js,ts,tsx}\" --ignore-path .eslintignore --fix",
-    "format":      "prettier --write \"**/*.{js,ts,tsx,json,css,md}\"",
-    "format:check":"prettier --check \"**/*.{js,ts,tsx,json,css,md}\"",
-    "typecheck":   "npm run typecheck --workspaces --if-present",
-    "test":        "npm run test --workspaces --if-present",
-    "db:migrate":  "npm run db:migrate --workspace=vairiot-api",
-    "db:studio":   "npm run db:studio --workspace=vairiot-api"
+    "dev": "docker compose -f infra/docker-compose.yml up",
+    "dev:api": "npm run dev --workspace=vairiot-api",
+    "dev:web": "npm run dev --workspace=vairiot-web",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "eslint \"**/*.{js,ts,tsx}\" --ignore-path .eslintignore",
+    "lint:fix": "eslint \"**/*.{js,ts,tsx}\" --ignore-path .eslintignore --fix",
+    "format": "prettier --write \"**/*.{js,ts,tsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{js,ts,tsx,json,css,md}\"",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:migrate": "npm run db:migrate --workspace=vairiot-api",
+    "db:studio": "npm run db:studio --workspace=vairiot-api"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser":        "^7.0.0",
-    "eslint":                           "^8.57.0",
-    "eslint-config-prettier":           "^9.1.0",
-    "eslint-plugin-import":             "^2.29.0",
-    "eslint-plugin-react":              "^7.34.0",
-    "eslint-plugin-react-hooks":        "^4.6.0",
-    "prettier":                         "^3.2.0",
-    "typescript":                       "^5.4.0"
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "prettier": "^3.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
   },
   "engines": {
     "node": ">=22.0.0",
-    "npm":  ">=10.0.0"
+    "npm": ">=10.0.0"
   }
 }

@@ -31,7 +31,7 @@ describe('POST /api/v1/auth/login', () => {
     expect(r.status).toBe(200); expect(r.body).toHaveProperty('accessToken');
   });
   it('rejects wrong password', async () => {
-    expect((await request(app).post('/api/v1/auth/login').send({ email: EMAIL, password: 'wrong', tenantId: TID })).status).toBe(401);
+    expect((await request(app).post('/api/v1/auth/login').send({ email: EMAIL, password: 'wrongpassword123', tenantId: TID })).status).toBe(401);
   });
   it('rejects bad input', async () => {
     expect((await request(app).post('/api/v1/auth/login').send({ email: 'bad' })).status).toBe(400);
