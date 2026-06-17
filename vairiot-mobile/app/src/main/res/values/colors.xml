@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Vairiot brand colour tokens — confirmed v1.5
+    Gradient: #FF0DCC → #A05B97 → #615AA0 (pixel-sampled from logo)
+    Font: Montserrat
+-->
+<resources>
+    <!-- ── Primary brand colours ─────────────────────────────────────────── -->
+    <color name="v_pink">#FF0DCC</color>     <!-- Gradient start — Pantone 807C   -->
+    <color name="v_mauve">#A05B97</color>    <!-- Gradient midpoint                -->
+    <color name="v_violet">#615AA0</color>   <!-- Gradient end                     -->
+    <color name="v_charcoal">#2B3132</color> <!-- Body text — Pantone 533C         -->
+    <color name="v_wash">#F8F0FA</color>     <!-- Light tint — fills / backgrounds -->
+    <color name="white">#FFFFFF</color>
+
+    <!-- ── Semantic aliases ───────────────────────────────────────────────── -->
+    <color name="colorPrimary">@color/v_violet</color>
+    <color name="colorPrimaryVariant">@color/v_mauve</color>
+    <color name="colorSecondary">@color/v_pink</color>
+    <color name="colorBackground">@color/white</color>
+    <color name="colorSurface">@color/v_wash</color>
+    <color name="colorOnPrimary">@color/white</color>
+    <color name="colorOnBackground">@color/v_charcoal</color>
+    <color name="colorOnSurface">@color/v_charcoal</color>
+</resources>

@@ -1,0 +1,83 @@
+/* ─── Vairiot Global Styles ─────────────────────────────────────────────────
+   Gradient: #FF0DCC → #A05B97 → #615AA0 (pixel-sampled from logo)
+   Font: Montserrat (sans) + IBM Plex Mono (mono)
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS Custom Properties ──────────────────────────────────────────────── */
+:root {
+  /* Brand colours */
+  --v-pink:     #FF0DCC;
+  --v-mauve:    #A05B97;
+  --v-violet:   #615AA0;
+  --v-charcoal: #2B3132;
+  --v-wash:     #F8F0FA;
+  --v-white:    #FFFFFF;
+
+  /* Gradient */
+  --v-gradient: linear-gradient(90deg, #FF0DCC 0%, #A05B97 50%, #615AA0 100%);
+
+  /* Typography */
+  --font-sans: 'Montserrat', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  /* Shadows */
+  --v-shadow-card:  0 2px 8px 0 rgba(97, 90, 160, 0.12);
+  --v-shadow-focus: 0 0 0 3px rgba(255, 13, 204, 0.25);
+}
+
+/* ─── Base resets ─────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  color: var(--v-charcoal);
+  background-color: var(--v-white);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Gradient utility classes ────────────────────────────────────────────── */
+.v-gradient-bg {
+  background: var(--v-gradient);
+}
+
+.v-gradient-text {
+  background: var(--v-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.v-gradient-border {
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+}
+
+.v-gradient-border::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: var(--v-gradient);
+  z-index: -1;
+}
+
+/* ─── Focus ring (accessibility) ─────────────────────────────────────────── */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--v-shadow-focus);
+}
+
+/* ─── Scrollbar (subtle, branded) ────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--v-wash); }
+::-webkit-scrollbar-thumb { background: var(--v-mauve); border-radius: 3px; }

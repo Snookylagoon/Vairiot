@@ -1,0 +1,104 @@
+// vairiot-api/prisma/schema.prisma
+// PostgreSQL baseline schema — Sprint 1
+// Run:  npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Tenants (one per organisation — SaaS isolation) ─────────────────────────
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique   // URL-safe identifier e.g. "acme-corp"
+  plan        String   @default("standalone")  // standalone | saas | hybrid
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  roles       Role[]
+  auditEvents AuditEvent[]
+
+  @@map("tenants")
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+model User {
+  id           String    @id @default(cuid())
+  tenantId     String
+  email        String
+  name         String
+  passwordHash String?   // null when using SSO only
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  roles        UserRole[]
+  auditEvents  AuditEvent[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+// ─── Roles ────────────────────────────────────────────────────────────────────
+model Role {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String   // e.g. "Administrator", "Asset Manager", "Auditor", "Read Only"
+  permissions String[] // e.g. ["asset:read", "asset:write", "audit:run"]
+  isSystem    Boolean  @default(false)  // system roles cannot be deleted
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  users       UserRole[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("roles")
+}
+
+// ─── User ↔ Role join ─────────────────────────────────────────────────────────
+model UserRole {
+  userId    String
+  roleId    String
+  grantedAt DateTime @default(now())
+  grantedBy String?  // userId of admin who assigned the role
+
+  user      User     @relation(fields: [userId], references: [id])
+  role      Role     @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// ─── Audit Events — append-only, never deleted ───────────────────────────────
+model AuditEvent {
+  id         String   @id @default(cuid())
+  tenantId   String
+  actorId    String?  // null for system-generated events
+  entityType String   // e.g. "asset", "user", "role", "audit_campaign"
+  entityId   String
+  action     String   // e.g. "created", "updated", "deleted", "scanned", "checked_out"
+  before     Json?    // state before change (null for creates)
+  after      Json?    // state after change (null for deletes)
+  metadata   Json?    // extra context: device id, scan symbology, IP address etc.
+  occurredAt DateTime @default(now())
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  actor      User?    @relation(fields: [actorId], references: [id])
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, occurredAt])
+  @@index([actorId])
+  @@map("audit_events")
+}
