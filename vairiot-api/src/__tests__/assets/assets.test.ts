@@ -14,7 +14,8 @@ let assetId: string;
 
 beforeAll(async () => {
   await prisma.tenant.upsert({ where: { id: TID }, update: {}, create: { id: TID, name: 'Asset Test Tenant', slug: 'asset-test-tenant' } });
-  const role = await prisma.role.upsert({ where: { tenantId_name: { tenantId: TID, name: 'Administrator' } }, update: {}, create: { tenantId: TID, name: 'Administrator', permissions: ['asset:read', 'asset:write'] } });
+  const ADMIN_PERMS = ['asset:read', 'asset:write', 'asset:delete', 'site:write', 'category:write'];
+  const role = await prisma.role.upsert({ where: { tenantId_name: { tenantId: TID, name: 'Administrator' } }, update: { permissions: ADMIN_PERMS }, create: { tenantId: TID, name: 'Administrator', permissions: ADMIN_PERMS } });
   const hash = await bcrypt.hash(PASS, 12);
   const user = await prisma.user.upsert({ where: { tenantId_email: { tenantId: TID, email: EMAIL } }, update: {}, create: { tenantId: TID, email: EMAIL, name: 'Asset Tester', passwordHash: hash } });
   await prisma.userRole.upsert({ where: { userId_roleId: { userId: user.id, roleId: role.id } }, update: {}, create: { userId: user.id, roleId: role.id } });
