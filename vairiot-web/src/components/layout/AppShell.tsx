@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore, hasPermission } from '@/stores/auth.store';
 import clsx from 'clsx';
@@ -15,9 +15,12 @@ const nav = [
   { to: '/exceptions',  label: 'Exceptions',  icon: AlertTriangle },
   { to: '/reports',     label: 'Reports',    icon: BarChart3 },
   { to: '/alerts',      label: 'Alerts',     icon: Bell },
+  { to: '/import',      label: 'Import',     icon: Upload },
+  { to: '/labels',      label: 'Labels',     icon: QrCode },
   { to: '/admin/users',    label: 'Users',    icon: Users,    require: ['user:read', 'user:write'] },
   { to: '/admin/api-keys', label: 'API Keys', icon: KeyRound, require: ['apikey:read', 'apikey:write'] },
   { to: '/admin/webhooks', label: 'Webhooks', icon: Webhook,  require: ['apikey:write'] },
+  { to: '/admin/custom-fields', label: 'Custom Fields', icon: Settings2 },
   { to: '/admin/audit-log', label: 'Audit Log', icon: ScrollText, require: ['user:read', 'user:write', 'apikey:read', 'apikey:write'] },
 ] as const;
 

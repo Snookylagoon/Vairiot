@@ -126,7 +126,7 @@ export async function listAssets(tenantId: string, params: AssetListParams) {
 
 export async function getAssetStats(tenantId: string) {
   const notDeleted = { tenantId, deletedAt: null };
-  const [byStatus, byCondition, total, allAssets] = await Promise.all([
+  const [byStatus, byCondition, total, allAssets, byCategory, bySite] = await Promise.all([
     prisma.asset.groupBy({ by: ['status'],    where: notDeleted, _count: { _all: true } }),
     prisma.asset.groupBy({ by: ['condition'], where: notDeleted, _count: { _all: true } }),
     prisma.asset.count({ where: notDeleted }),
@@ -136,24 +136,68 @@ export async function getAssetStats(tenantId: string) {
         purchaseCost: true, freightCost: true, installationCost: true,
         customsDuties: true, otherCapitalizedCosts: true, residualValue: true,
         usefulLifeMonths: true, depreciationStartDate: true, depreciationMethod: true,
+        categoryId: true, siteId: true, createdAt: true,
       },
     }),
+    prisma.asset.groupBy({ by: ['categoryId'], where: { ...notDeleted, categoryId: { not: null } }, _count: { _all: true } }),
+    prisma.asset.groupBy({ by: ['siteId'],     where: { ...notDeleted, siteId: { not: null } },     _count: { _all: true } }),
   ]);
+
+  const [categories, sites] = await Promise.all([
+    prisma.category.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+    prisma.site.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+  ]);
+  const catNames = new Map(categories.map(c => [c.id, c.name]));
+  const siteNames = new Map(sites.map(s => [s.id, s.name]));
 
   let totalAssetValue = 0;
   let totalNetBookValue = 0;
+  let totalMonthlyDepreciation = 0;
+  const valueByCat: Record<string, number> = {};
+  const valueBySite: Record<string, number> = {};
+
   for (const a of allAssets) {
     const dep = computeDepreciation(a);
     totalAssetValue += dep.capitalizedCost;
     totalNetBookValue += dep.netBookValue;
+    totalMonthlyDepreciation += dep.monthlyDepreciation;
+
+    if (a.categoryId) {
+      const name = catNames.get(a.categoryId) ?? 'Other';
+      valueByCat[name] = (valueByCat[name] ?? 0) + dep.netBookValue;
+    }
+    if (a.siteId) {
+      const name = siteNames.get(a.siteId) ?? 'Other';
+      valueBySite[name] = (valueBySite[name] ?? 0) + dep.netBookValue;
+    }
+  }
+
+  // Monthly acquisition trend (last 12 months)
+  const now = new Date();
+  const monthlyTrend: Array<{ month: string; count: number; value: number }> = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const label = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+    const start = new Date(d.getFullYear(), d.getMonth(), 1);
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    const inMonth = allAssets.filter(a => a.createdAt >= start && a.createdAt < end);
+    let monthValue = 0;
+    for (const a of inMonth) monthValue += computeDepreciation(a).capitalizedCost;
+    monthlyTrend.push({ month: label, count: inMonth.length, value: Math.round(monthValue * 100) / 100 });
   }
 
   return {
     total,
     byStatus:    Object.fromEntries(byStatus.map(r    => [r.status,    r._count._all])),
     byCondition: Object.fromEntries(byCondition.map(r => [r.condition, r._count._all])),
+    byCategory:  byCategory.map(r => ({ name: catNames.get(r.categoryId!) ?? 'Unknown', count: r._count._all })),
+    bySite:      bySite.map(r => ({ name: siteNames.get(r.siteId!) ?? 'Unknown', count: r._count._all })),
+    valueByCat:  Object.entries(valueByCat).map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 })),
+    valueBySite: Object.entries(valueBySite).map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 })),
+    monthlyTrend,
     totalAssetValue: Math.round(totalAssetValue * 100) / 100,
     totalNetBookValue: Math.round(totalNetBookValue * 100) / 100,
+    totalMonthlyDepreciation: Math.round(totalMonthlyDepreciation * 100) / 100,
   };
 }
 

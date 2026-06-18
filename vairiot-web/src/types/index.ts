@@ -241,6 +241,41 @@ export interface Webhook {
   createdAt: string;
 }
 
+// ─── Custom Fields ───────────────────────────────────────────────────────────
+export interface CustomFieldDefinition {
+  id: string;
+  name: string;
+  label: string;
+  fieldType: string;
+  required: boolean;
+  options: string[];
+  sortOrder: number;
+  active: boolean;
+  createdAt: string;
+}
+
+// ─── Import ──────────────────────────────────────────────────────────────────
+export interface ImportResult {
+  created: number;
+  skipped: number;
+  errors: Array<{ row: number; message: string }>;
+}
+
+// ─── Dashboard Charts ────────────────────────────────────────────────────────
+export interface AssetStats {
+  total: number;
+  byStatus: Record<string, number>;
+  byCondition: Record<string, number>;
+  byCategory: Array<{ name: string; count: number }>;
+  bySite: Array<{ name: string; count: number }>;
+  valueByCat: Array<{ name: string; value: number }>;
+  valueBySite: Array<{ name: string; value: number }>;
+  monthlyTrend: Array<{ month: string; count: number; value: number }>;
+  totalAssetValue: number;
+  totalNetBookValue: number;
+  totalMonthlyDepreciation: number;
+}
+
 export interface ExceptionsData {
   summary: ExceptionsSummary;
   overdueMaintenanceEvents: Array<{

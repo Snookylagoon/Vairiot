@@ -28,6 +28,9 @@ import { AgingPage }          from '@/pages/reports/AgingPage';
 import { MaintenanceCostsPage } from '@/pages/reports/MaintenanceCostsPage';
 import { AlertsPage }         from '@/pages/alerts/AlertsPage';
 import { WebhooksPage }       from '@/pages/admin/WebhooksPage';
+import { ImportPage }         from '@/pages/import/ImportPage';
+import { LabelsPage }         from '@/pages/labels/LabelsPage';
+import { CustomFieldsPage }   from '@/pages/admin/CustomFieldsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -75,9 +78,12 @@ export default function App() {
             <Route path="reports/aging"        element={<AgingPage />} />
             <Route path="reports/maintenance-costs" element={<MaintenanceCostsPage />} />
             <Route path="alerts"         element={<AlertsPage />} />
+            <Route path="import"        element={<ImportPage />} />
+            <Route path="labels"        element={<LabelsPage />} />
             <Route path="admin/users"    element={<RequirePermission perms={['user:read', 'user:write']}><UsersPage /></RequirePermission>} />
             <Route path="admin/api-keys" element={<RequirePermission perms={['apikey:read', 'apikey:write']}><ApiKeysPage /></RequirePermission>} />
             <Route path="admin/webhooks" element={<RequirePermission perms={['apikey:write']}><WebhooksPage /></RequirePermission>} />
+            <Route path="admin/custom-fields" element={<CustomFieldsPage />} />
             <Route path="admin/audit-log" element={<RequirePermission perms={['user:read', 'user:write', 'apikey:read', 'apikey:write']}><AuditLogPage /></RequirePermission>} />
           </Route>
         </Routes>

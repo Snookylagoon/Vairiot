@@ -457,6 +457,25 @@ model ReportSchedule {
   @@map("report_schedules")
 }
 
+// ─── Custom Field Definitions ─────────────────────────────────────────────────
+model CustomFieldDefinition {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  label       String
+  fieldType   String   @default("text")
+  required    Boolean  @default(false)
+  options     String[]
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId, active])
+  @@map("custom_field_definitions")
+}
+
 // ─── Transfers (location / custodian changes) ─────────────────────────────────
 model Transfer {
   id              String   @id @default(cuid())

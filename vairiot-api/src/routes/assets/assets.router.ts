@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
 import { authenticate, requirePermission } from '../../middleware/authenticate';
 import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
+import { bulkImportAssets } from '../../services/import.service';
 import { toCsv } from '../../lib/csv';
 
 export const assetsRouter = Router();
@@ -102,6 +103,17 @@ assetsRouter.get('/export.csv', async (req: Request, res: Response): Promise<voi
     res.send(csv);
   } catch { res.status(500).json({ error: 'Failed to export assets' }); }
 });
+
+// POST /api/v1/assets/import — bulk CSV import
+assetsRouter.post('/import', requirePermission('asset:write'),
+  [body('rows').isArray({ min: 1 }).withMessage('At least one row is required')],
+  async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    try { res.json(await bulkImportAssets(req.user!.tenantId, req.user!.sub, req.body.rows)); }
+    catch { res.status(500).json({ error: 'Import failed' }); }
+  },
+);
 
 // GET /api/v1/assets/stats — counts grouped by status / condition (dashboard)
 assetsRouter.get('/stats', async (req: Request, res: Response): Promise<void> => {

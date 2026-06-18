@@ -21,6 +21,7 @@ import { reportsRouter }      from './routes/reports/reports.router';
 import { timelineRouter }     from './routes/timeline/timeline.router';
 import { alertsRouter }       from './routes/alerts/alerts.router';
 import { webhooksRouter }     from './routes/webhooks/webhooks.router';
+import { customFieldsRouter } from './routes/custom-fields/custom-fields.router';
 import { logger } from './lib/logger';
 import { globalLimiter } from './middleware/rate-limit';
 
@@ -55,6 +56,7 @@ export function createApp(): Application {
   app.use('/api/v1/timeline',     timelineRouter);
   app.use('/api/v1/alerts',       alertsRouter);
   app.use('/api/v1/webhooks',     webhooksRouter);
+  app.use('/api/v1/custom-fields', customFieldsRouter);
   app.use((_req: Request, res: Response) => { res.status(404).json({ error: 'Not found' }); });
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
