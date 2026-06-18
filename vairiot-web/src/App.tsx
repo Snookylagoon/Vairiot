@@ -18,6 +18,8 @@ import { CheckoutsPage }     from '@/pages/checkouts/CheckoutsPage';
 import { UsersPage }         from '@/pages/admin/UsersPage';
 import { ApiKeysPage }       from '@/pages/admin/ApiKeysPage';
 import { AuditLogPage }      from '@/pages/admin/AuditLogPage';
+import { MaintenancePage }    from '@/pages/maintenance/MaintenancePage';
+import { ExceptionsPage }     from '@/pages/exceptions/ExceptionsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -56,6 +58,8 @@ export default function App() {
             <Route path="audits"       element={<AuditsPage />} />
             <Route path="audits/:id/run" element={<AuditRunPage />} />
             <Route path="checkouts"      element={<CheckoutsPage />} />
+            <Route path="maintenance"    element={<MaintenancePage />} />
+            <Route path="exceptions"     element={<ExceptionsPage />} />
             <Route path="admin/users"    element={<RequirePermission perms={['user:read', 'user:write']}><UsersPage /></RequirePermission>} />
             <Route path="admin/api-keys" element={<RequirePermission perms={['apikey:read', 'apikey:write']}><ApiKeysPage /></RequirePermission>} />
             <Route path="admin/audit-log" element={<RequirePermission perms={['user:read', 'user:write', 'apikey:read', 'apikey:write']}><AuditLogPage /></RequirePermission>} />

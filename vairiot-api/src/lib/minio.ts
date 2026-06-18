@@ -2,6 +2,7 @@ import { Client } from 'minio';
 import { logger } from './logger';
 
 const PHOTO_BUCKET = process.env.MINIO_PHOTOS_BUCKET ?? 'vairiot-photos';
+const DOCUMENT_BUCKET = process.env.MINIO_DOCUMENTS_BUCKET ?? 'vairiot-documents';
 
 export const minioClient = new Client({
   endPoint:  process.env.MINIO_ENDPOINT  ?? 'localhost',
@@ -19,4 +20,12 @@ export async function ensurePhotosBucket(): Promise<void> {
   }
 }
 
-export { PHOTO_BUCKET };
+export async function ensureDocumentsBucket(): Promise<void> {
+  const exists = await minioClient.bucketExists(DOCUMENT_BUCKET).catch(() => false);
+  if (!exists) {
+    await minioClient.makeBucket(DOCUMENT_BUCKET);
+    logger.info(`MinIO bucket created: ${DOCUMENT_BUCKET}`);
+  }
+}
+
+export { PHOTO_BUCKET, DOCUMENT_BUCKET };

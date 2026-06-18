@@ -13,6 +13,10 @@ import { photosRouter }     from './routes/photos/photos.router';
 import { usersRouter }      from './routes/admin/users.router';
 import { apiKeysRouter }    from './routes/admin/api-keys.router';
 import { auditEventsRouter } from './routes/admin/audit-events.router';
+import { documentsRouter }   from './routes/documents/documents.router';
+import { maintenanceRouter }  from './routes/maintenance/maintenance.router';
+import { transfersRouter }    from './routes/transfers/transfers.router';
+import { exceptionsRouter }   from './routes/exceptions/exceptions.router';
 import { logger } from './lib/logger';
 import { globalLimiter } from './middleware/rate-limit';
 
@@ -39,6 +43,10 @@ export function createApp(): Application {
   app.use('/api/v1/users',        usersRouter);
   app.use('/api/v1/api-keys',     apiKeysRouter);
   app.use('/api/v1/audit-events', auditEventsRouter);
+  app.use('/api/v1',              documentsRouter);   // /assets/:id/documents, /documents/:id/download, /documents/:id
+  app.use('/api/v1/maintenance',  maintenanceRouter);
+  app.use('/api/v1/transfers',    transfersRouter);
+  app.use('/api/v1/exceptions',   exceptionsRouter);
   app.use((_req: Request, res: Response) => { res.status(404).json({ error: 'Not found' }); });
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
