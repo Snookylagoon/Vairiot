@@ -47,8 +47,19 @@ fun AssetListScreen(
                         color = White)
                 }
                 Spacer(Modifier.height(4.dp))
-                Text("Assets — ${state.total}", style = MaterialTheme.typography.bodySmall,
-                    color = White.copy(alpha = 0.6f))
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Assets — ${state.total}", style = MaterialTheme.typography.bodySmall,
+                        color = White.copy(alpha = 0.6f))
+                    if (state.offline) {
+                        Text("OFFLINE • cached",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = White,
+                            modifier = Modifier
+                                .background(VairiotPink.copy(alpha = 0.85f), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp))
+                    }
+                }
             }
         }
 
