@@ -1,13 +1,15 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import clsx from 'clsx';
 
 const nav = [
-  { to: '/dashboard',     label: 'Dashboard',  icon: LayoutDashboard },
-  { to: '/assets',        label: 'Assets',     icon: Package },
-  { to: '/audits',        label: 'Audits',     icon: ClipboardList },
+  { to: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
+  { to: '/assets',     label: 'Assets',     icon: Package },
+  { to: '/categories', label: 'Categories', icon: Tag },
+  { to: '/sites',      label: 'Sites',      icon: MapPin },
+  { to: '/audits',     label: 'Audits',     icon: ClipboardList },
 ];
 
 export function AppShell() {

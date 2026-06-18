@@ -6,7 +6,12 @@ import { AppShell } from '@/components/layout/AppShell';
 import { LoginPage }       from '@/pages/auth/LoginPage';
 import { DashboardPage }   from '@/pages/dashboard/DashboardPage';
 import { AssetsPage }      from '@/pages/assets/AssetsPage';
-import { AssetDetailPage } from '@/pages/assets/AssetDetailPage';
+import { AssetDetailPage }  from '@/pages/assets/AssetDetailPage';
+import { NewAssetPage }      from '@/pages/assets/NewAssetPage';
+import { EditAssetPage }     from '@/pages/assets/EditAssetPage';
+import { CategoriesPage }    from '@/pages/categories/CategoriesPage';
+import { SitesPage }         from '@/pages/sites/SitesPage';
+import { AuditsPage }        from '@/pages/audits/AuditsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -30,8 +35,13 @@ export default function App() {
           <Route path="/" element={<RequireAuth><AppShell /></RequireAuth>}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="assets"    element={<AssetsPage />} />
-            <Route path="assets/:id" element={<AssetDetailPage />} />
+            <Route path="assets"       element={<AssetsPage />} />
+            <Route path="assets/new"   element={<NewAssetPage />} />
+            <Route path="assets/:id"   element={<AssetDetailPage />} />
+            <Route path="assets/:id/edit" element={<EditAssetPage />} />
+            <Route path="categories"   element={<CategoriesPage />} />
+            <Route path="sites"        element={<SitesPage />} />
+            <Route path="audits"       element={<AuditsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
