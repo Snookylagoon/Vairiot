@@ -81,11 +81,11 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
             // Result area
             when (val s = state) {
                 is ScanUiState.Idle     -> IdleCard()
+                is ScanUiState.Scanning -> ScanningCard(onCancel = { viewModel.cancelScan() })
                 is ScanUiState.Loading  -> LoadingCard()
                 is ScanUiState.Found    -> AssetResultCard(s.asset, onReset = { viewModel.reset() })
                 is ScanUiState.NotFound -> NotFoundCard(s.tag, onReset = { viewModel.reset() })
                 is ScanUiState.Error    -> ErrorCard(s.message, onReset = { viewModel.reset() })
-                is ScanUiState.Scanning -> LoadingCard()
             }
         }
     }
@@ -114,6 +114,26 @@ fun LoadingCard() {
             horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             CircularProgressIndicator(color = VairiotViolet, modifier = Modifier.size(24.dp))
             Text("Looking up asset…", style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+fun ScanningCard(onCancel: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                CircularProgressIndicator(color = VairiotPink, modifier = Modifier.size(24.dp))
+                Text("Waiting for scanner…", style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold)
+            }
+            Text(
+                "Press the device's hardware trigger to capture a tag, or type the barcode / RFID into the field above and tap the search icon.",
+                style = MaterialTheme.typography.bodySmall,
+                color  = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            )
+            TextButton(onClick = onCancel) { Text("Cancel") }
         }
     }
 }
