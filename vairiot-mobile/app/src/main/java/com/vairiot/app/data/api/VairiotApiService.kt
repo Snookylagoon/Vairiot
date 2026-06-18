@@ -26,4 +26,23 @@ interface VairiotApiService {
 
     @GET("api/v1/assets/tag/{tag}")
     suspend fun getAssetByTag(@Path("tag") tag: String): AssetResponse
+
+    // ─── Audits ────────────────────────────────────────────────────────────
+    @GET("api/v1/audits")
+    suspend fun listAudits(): List<AuditCampaignResponse>
+
+    @POST("api/v1/audits/{id}/start")
+    suspend fun startAudit(@Path("id") id: String): AuditCampaignResponse
+
+    @POST("api/v1/audits/{id}/scans")
+    suspend fun recordAuditScan(
+        @Path("id") id: String,
+        @Body request: RecordScanRequest,
+    ): AuditScanEventResponse
+
+    @POST("api/v1/audits/{id}/complete")
+    suspend fun completeAudit(@Path("id") id: String): AuditReportResponse
+
+    @GET("api/v1/audits/{id}/report")
+    suspend fun getAuditReport(@Path("id") id: String): AuditReportResponse
 }

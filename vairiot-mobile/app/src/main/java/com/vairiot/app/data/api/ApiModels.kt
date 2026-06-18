@@ -45,3 +45,48 @@ data class AssetListResponse(
     val pageSize:   Int,
     val totalPages: Int,
 )
+
+// ─── Audits ────────────────────────────────────────────────────────────────
+data class AuditCampaignResponse(
+    val id:          String,
+    val name:        String,
+    val status:      String,
+    val siteId:      String?,
+    val locationId:  String?,
+    val scheduledAt: String?,
+    val startedAt:   String?,
+    val completedAt: String?,
+    val createdAt:   String,
+    val _count:      AuditCountResponse? = null,
+)
+
+data class AuditCountResponse(val scanEvents: Int)
+
+data class RecordScanRequest(
+    val tagValue: String,
+    val deviceId: String? = null,
+)
+
+data class AuditScanEventResponse(
+    val id:         String,
+    val campaignId: String,
+    val tagValue:   String,
+    val assetId:    String?,
+    val result:     String,
+    val scannedAt:  String,
+)
+
+data class AuditReportResponse(
+    val campaignId:    String,
+    val totalScanned:  Int,
+    val totalExpected: Int,
+    val found:         Int,
+    val missing:       List<MissingAssetResponse>,
+    val unknownTags:   List<String>,
+)
+
+data class MissingAssetResponse(
+    val id:          String,
+    val assetNumber: String,
+    val name:        String,
+)
