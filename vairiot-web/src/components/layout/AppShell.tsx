@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore, hasPermission } from '@/stores/auth.store';
 import clsx from 'clsx';
@@ -10,6 +10,7 @@ const nav = [
   { to: '/categories', label: 'Categories', icon: Tag },
   { to: '/sites',      label: 'Sites',      icon: MapPin },
   { to: '/audits',     label: 'Audits',     icon: ClipboardList },
+  { to: '/checkouts',  label: 'Checkouts',  icon: ArrowLeftRight },
   { to: '/admin/users',    label: 'Users',    icon: Users,    require: ['user:read', 'user:write'] },
   { to: '/admin/api-keys', label: 'API Keys', icon: KeyRound, require: ['apikey:read', 'apikey:write'] },
   { to: '/admin/audit-log', label: 'Audit Log', icon: ScrollText, require: ['user:read', 'user:write', 'apikey:read', 'apikey:write'] },

@@ -13,6 +13,7 @@ import { CategoriesPage }    from '@/pages/categories/CategoriesPage';
 import { SitesPage }         from '@/pages/sites/SitesPage';
 import { AuditsPage }        from '@/pages/audits/AuditsPage';
 import { AuditRunPage }      from '@/pages/audits/AuditRunPage';
+import { CheckoutsPage }     from '@/pages/checkouts/CheckoutsPage';
 import { UsersPage }         from '@/pages/admin/UsersPage';
 import { ApiKeysPage }       from '@/pages/admin/ApiKeysPage';
 import { AuditLogPage }      from '@/pages/admin/AuditLogPage';
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="sites"        element={<SitesPage />} />
             <Route path="audits"       element={<AuditsPage />} />
             <Route path="audits/:id/run" element={<AuditRunPage />} />
+            <Route path="checkouts"      element={<CheckoutsPage />} />
             <Route path="admin/users"    element={<RequirePermission perms={['user:read', 'user:write']}><UsersPage /></RequirePermission>} />
             <Route path="admin/api-keys" element={<RequirePermission perms={['apikey:read', 'apikey:write']}><ApiKeysPage /></RequirePermission>} />
             <Route path="admin/audit-log" element={<RequirePermission perms={['user:read', 'user:write', 'apikey:read', 'apikey:write']}><AuditLogPage /></RequirePermission>} />
