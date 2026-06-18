@@ -27,11 +27,22 @@ class AssetRepository @Inject constructor(
      * total reported by the server, or null if any page failed (cache stays
      * intact — a partial sync would leave the user staring at half a register).
      */
-    suspend fun refresh(query: String? = null): Int? {
+    suspend fun refresh(
+        query: String? = null,
+        status: String? = null,
+        condition: String? = null,
+        sortBy: String? = null,
+        sortOrder: String? = null,
+    ): Int? {
         val search = query?.takeIf { it.isNotBlank() }
+        val statusParam = status?.takeIf { it.isNotBlank() }
+        val conditionParam = condition?.takeIf { it.isNotBlank() }
         return try {
-            val firstPage = api.listAssets(search = search, page = 1, pageSize = PAGE_SIZE)
-            val fullSync  = search == null
+            val firstPage = api.listAssets(
+                search = search, status = statusParam, condition = conditionParam,
+                sortBy = sortBy, sortOrder = sortOrder, page = 1, pageSize = PAGE_SIZE,
+            )
+            val fullSync = search == null && statusParam == null && conditionParam == null
             if (fullSync) {
                 dao.replaceAll(firstPage.assets.map { it.toCached() })
             } else {
@@ -39,7 +50,10 @@ class AssetRepository @Inject constructor(
             }
             var page = 2
             while (page <= firstPage.totalPages) {
-                val next = api.listAssets(search = search, page = page, pageSize = PAGE_SIZE)
+                val next = api.listAssets(
+                    search = search, status = statusParam, condition = conditionParam,
+                    sortBy = sortBy, sortOrder = sortOrder, page = page, pageSize = PAGE_SIZE,
+                )
                 dao.upsertAll(next.assets.map { it.toCached() })
                 page++
             }

@@ -26,9 +26,13 @@ interface VairiotApiService {
 
     @GET("api/v1/assets")
     suspend fun listAssets(
-        @Query("search")   search:   String? = null,
-        @Query("page")     page:     Int     = 1,
-        @Query("pageSize") pageSize: Int     = 25,
+        @Query("search")    search:    String? = null,
+        @Query("status")    status:    String? = null,
+        @Query("condition") condition: String? = null,
+        @Query("sortBy")    sortBy:    String? = null,
+        @Query("sortOrder") sortOrder: String? = null,
+        @Query("page")      page:      Int     = 1,
+        @Query("pageSize")  pageSize:  Int     = 25,
     ): AssetListResponse
 
     @GET("api/v1/assets/{id}")
