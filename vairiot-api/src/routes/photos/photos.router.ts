@@ -6,12 +6,17 @@ import { listPhotos, uploadPhoto, getPhotoStream, deletePhoto } from '../../serv
 export const photosRouter = Router();
 photosRouter.use(authenticate);
 
+const ACCEPTED_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'];
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits:  { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const ok = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'].includes(file.mimetype.toLowerCase());
-    cb(ok ? null : new Error('UNSUPPORTED_MEDIA'), ok);
+    if (!ACCEPTED_MIMES.includes(file.mimetype.toLowerCase())) {
+      cb(new Error('UNSUPPORTED_MEDIA'));
+      return;
+    }
+    cb(null, true);
   },
 });
 
