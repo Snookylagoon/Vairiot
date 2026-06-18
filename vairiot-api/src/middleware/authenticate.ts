@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
 import { verifyAccessToken, type TokenPayload } from '../lib/jwt';
 import { prisma } from '../lib/prisma';
+import { isTokenBlacklisted } from '../lib/redis';
 
 declare global { namespace Express { interface Request { user?: TokenPayload; } } }
 
@@ -41,8 +42,14 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     } catch { res.status(401).json({ error: 'Invalid API key' }); }
     return;
   }
-  try { req.user = verifyAccessToken(token); next(); }
-  catch { res.status(401).json({ error: 'Invalid or expired token' }); }
+  try {
+    const payload = verifyAccessToken(token);
+    if (payload.jti && await isTokenBlacklisted(payload.jti)) {
+      res.status(401).json({ error: 'Token has been revoked' }); return;
+    }
+    req.user = payload;
+    next();
+  } catch { res.status(401).json({ error: 'Invalid or expired token' }); }
 }
 
 export function requirePermission(...perms: string[]) {

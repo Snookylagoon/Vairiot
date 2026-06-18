@@ -27,3 +27,11 @@ export async function createLocation(siteId: string, tenantId: string, data: { n
   if (!site) throw new Error('NOT_FOUND');
   return prisma.location.create({ data: { siteId, ...data } });
 }
+
+export async function deleteSite(siteId: string, tenantId: string) {
+  const site = await prisma.site.findFirst({ where: { id: siteId, tenantId }, include: { _count: { select: { assets: true } } } });
+  if (!site) throw new Error('NOT_FOUND');
+  if (site._count.assets > 0) throw new Error('HAS_ASSETS');
+  await prisma.location.deleteMany({ where: { siteId } });
+  return prisma.site.delete({ where: { id: siteId } });
+}

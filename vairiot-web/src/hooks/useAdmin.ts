@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 
 export interface AdminUser {
@@ -48,7 +49,8 @@ export function useInviteUser() {
   return useMutation({
     mutationFn: (data: { email: string; name: string; password: string; roleId?: string }) =>
       api.post('/api/v1/users', data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'users'] }); toast.success('User invited'); },
+    onError:   () => { toast.error('Failed to invite user'); },
   });
 }
 
@@ -57,7 +59,8 @@ export function useSetUserActive() {
   return useMutation({
     mutationFn: ({ userId, active }: { userId: string; active: boolean }) =>
       api.patch(`/api/v1/users/${userId}/active`, { active }).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+    onSuccess: (_data, { active }) => { qc.invalidateQueries({ queryKey: ['admin', 'users'] }); toast.success(active ? 'User enabled' : 'User disabled'); },
+    onError:   () => { toast.error('Failed to update user status'); },
   });
 }
 
@@ -66,7 +69,8 @@ export function useSetUserRole() {
   return useMutation({
     mutationFn: ({ userId, roleId }: { userId: string; roleId: string }) =>
       api.patch(`/api/v1/users/${userId}/role`, { roleId }).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'users'] }); toast.success('Role updated'); },
+    onError:   () => { toast.error('Failed to update role'); },
   });
 }
 
@@ -85,7 +89,8 @@ export function useCreateApiKey() {
     { name: string; scopes?: string[] }
   >({
     mutationFn: (data) => api.post('/api/v1/api-keys', data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'api-keys'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'api-keys'] }); toast.success('API key created'); },
+    onError:   () => { toast.error('Failed to create API key'); },
   });
 }
 
@@ -93,7 +98,8 @@ export function useRevokeApiKey() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (keyId: string) => api.delete(`/api/v1/api-keys/${keyId}`).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'api-keys'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'api-keys'] }); toast.success('API key revoked'); },
+    onError:   () => { toast.error('Failed to revoke API key'); },
   });
 }
 

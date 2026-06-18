@@ -1,19 +1,21 @@
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { loginSchema, type LoginFormData } from '@/lib/schemas';
 import { useState } from 'react';
-
-interface LoginForm { email: string; password: string; tenantId: string; }
 
 export function LoginPage() {
   const { login } = useAuthStore();
   const navigate   = useNavigate();
   const [error, setError] = useState('');
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>();
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: LoginFormData) => {
     try {
       setError('');
       await login(data.email, data.password, data.tenantId);
@@ -53,21 +55,21 @@ export function LoginPage() {
                 label="Organisation ID"
                 placeholder="your-organisation"
                 error={errors.tenantId?.message}
-                {...register('tenantId', { required: 'Organisation ID is required' })}
+                {...register('tenantId')}
               />
               <Input
                 label="Email address"
                 type="email"
                 placeholder="you@example.com"
                 error={errors.email?.message}
-                {...register('email', { required: 'Email is required' })}
+                {...register('email')}
               />
               <Input
                 label="Password"
                 type="password"
                 placeholder="••••••••"
                 error={errors.password?.message}
-                {...register('password', { required: 'Password is required' })}
+                {...register('password')}
               />
               <Button type="submit" size="lg" loading={isSubmitting} className="w-full mt-2">
                 Sign in

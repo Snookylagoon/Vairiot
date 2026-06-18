@@ -19,6 +19,14 @@ data class UserProfileResponse(
     val roles:    List<String>,
 )
 
+data class RefreshRequest(val refreshToken: String)
+
+data class RefreshResponse(
+    val accessToken:  String,
+    val refreshToken: String,
+    val expiresIn:    String,
+)
+
 data class AssetResponse(
     val id:           String,
     val assetNumber:  String,

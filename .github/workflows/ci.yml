@@ -7,7 +7,7 @@ on:
     branches: [main, develop]
 
 jobs:
-  # ── Lint & type-check (API only until web/worker packages exist) ─────────────
+  # ── Lint & type-check ─────────────────────────────────────────────────────────
   lint-typecheck:
     name: Lint & Type-check
     runs-on: ubuntu-latest
@@ -25,6 +25,10 @@ jobs:
 
       - name: Run TypeScript type-check (API)
         working-directory: vairiot-api
+        run: npx tsc --noEmit
+
+      - name: Run TypeScript type-check (Web)
+        working-directory: vairiot-web
         run: npx tsc --noEmit
 
   # ── API tests ────────────────────────────────────────────────────────────────

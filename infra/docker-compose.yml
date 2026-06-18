@@ -71,6 +71,7 @@ services:
       JWT_SECRET:    ${JWT_SECRET:-dev-secret-replace-in-production}
       API_PORT:      3001
       LOG_LEVEL:     ${LOG_LEVEL:-debug}
+    command: sh -c "rm -f .env && npm run dev"
     volumes:
       - ../vairiot-api:/app
       - /app/node_modules

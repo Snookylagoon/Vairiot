@@ -4,6 +4,7 @@ import { useApiKeys, useCreateApiKey, useRevokeApiKey } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 const AVAILABLE_SCOPES: Array<{ value: string; label: string; group: string }> = [
   { group: 'Assets',     value: 'asset:read',    label: 'Read assets' },
@@ -26,6 +27,7 @@ export function ApiKeysPage() {
   const [scopes, setScopes] = useState<string[]>([]);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [revokeId, setRevokeId] = useState<string | null>(null);
 
   const toggleScope = (s: string) =>
     setScopes(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
@@ -40,11 +42,6 @@ export function ApiKeysPage() {
       setName('');
       setScopes([]);
     } catch { setError('Failed to create API key'); }
-  };
-
-  const handleRevoke = (id: string) => {
-    if (!window.confirm('Revoke this API key? This cannot be undone.')) return;
-    revoke.mutate(id);
   };
 
   return (
@@ -126,7 +123,7 @@ export function ApiKeysPage() {
                 </p>
               </div>
               {!k.revokedAt && (
-                <Button size="sm" variant="danger" onClick={() => handleRevoke(k.id)}>
+                <Button size="sm" variant="danger" onClick={() => setRevokeId(k.id)}>
                   <Trash2 size={12} className="mr-1" /> Revoke
                 </Button>
               )}
@@ -134,6 +131,16 @@ export function ApiKeysPage() {
           ))}
         </CardBody>
       </Card>
+
+      <ConfirmDialog
+        open={revokeId !== null}
+        title="Revoke API Key"
+        description="This API key will be permanently revoked. Any integrations using it will stop working immediately."
+        confirmLabel="Revoke"
+        loading={revoke.isPending}
+        onConfirm={() => { if (revokeId) { revoke.mutate(revokeId); setRevokeId(null); } }}
+        onCancel={() => setRevokeId(null)}
+      />
     </div>
   );
 }

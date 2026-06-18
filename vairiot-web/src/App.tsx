@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
 import { useAuthStore, hasPermission } from '@/stores/auth.store';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoginPage }       from '@/pages/auth/LoginPage';
@@ -39,6 +40,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <Toaster position="top-right" richColors closeButton />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />

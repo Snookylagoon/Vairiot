@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Plus, LogIn, AlertTriangle, Package } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -43,10 +44,13 @@ function CheckoutForm({ onDone }: { onDone: () => void }) {
     }).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['checkouts'] });
+      toast.success('Asset checked out');
       onDone();
     },
     onError: (e: { response?: { data?: { error?: string } } }) => {
-      setError(e.response?.data?.error ?? 'Failed to check out asset');
+      const msg = e.response?.data?.error ?? 'Failed to check out asset';
+      setError(msg);
+      toast.error(msg);
     },
   });
 
@@ -90,7 +94,8 @@ export function CheckoutsPage() {
 
   const checkinMut = useMutation({
     mutationFn: (assetId: string) => api.post(`/api/v1/checkouts/${assetId}/checkin`).then(r => r.data),
-    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['checkouts'] }); },
+    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['checkouts'] }); toast.success('Asset checked in'); },
+    onError:    () => { toast.error('Failed to check in asset'); },
   });
 
   return (

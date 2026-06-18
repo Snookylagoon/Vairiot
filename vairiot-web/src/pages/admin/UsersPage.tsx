@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { UserPlus, User as UserIcon, ShieldCheck, Power } from 'lucide-react';
 import {
   useUsers, useRoles, useInviteUser, useSetUserActive, useSetUserRole,
@@ -6,6 +8,8 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { inviteUserSchema, type InviteUserFormData } from '@/lib/schemas';
 
 export function UsersPage() {
   const { data: users = [], isLoading } = useUsers();
@@ -14,27 +18,19 @@ export function UsersPage() {
   const setActive  = useSetUserActive();
   const setRole    = useSetUserRole();
 
-  const [form, setForm] = useState({ email: '', name: '', password: '', roleId: '' });
-  const [error, setError] = useState('');
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<InviteUserFormData>({
+    resolver: zodResolver(inviteUserSchema),
+  });
+  const [toggleTarget, setToggleTarget] = useState<{ userId: string; name: string; active: boolean } | null>(null);
 
-  const handleInvite = async () => {
-    if (!form.email.trim() || !form.name.trim() || form.password.length < 8) {
-      setError('Email, name, and an 8+ character password are required'); return;
-    }
-    try {
-      setError('');
-      await invite.mutateAsync({
-        email:    form.email.trim(),
-        name:     form.name.trim(),
-        password: form.password,
-        roleId:   form.roleId || undefined,
-      });
-      setForm({ email: '', name: '', password: '', roleId: '' });
-    } catch (e) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setError(msg ?? 'Failed to create user');
-    }
+  const onInvite = async (data: InviteUserFormData) => {
+    await invite.mutateAsync({
+      email:    data.email,
+      name:     data.name,
+      password: data.password,
+      roleId:   data.roleId || undefined,
+    });
+    reset();
   };
 
   return (
@@ -45,26 +41,27 @@ export function UsersPage() {
       </div>
 
       <Card>
-        <CardBody className="space-y-3">
-          <h3 className="font-semibold text-v-charcoal text-sm">Invite User</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Input label="Name *"     placeholder="Jane Doe"            value={form.name}     onChange={e => set('name', e.target.value)} />
-            <Input label="Email *"    placeholder="jane@company.com"    value={form.email}    onChange={e => set('email', e.target.value)} type="email" />
-            <Input label="Initial password *" placeholder="8+ characters" value={form.password} onChange={e => set('password', e.target.value)} type="password" />
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-v-charcoal">Role</label>
-              <select
-                className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-v-charcoal hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-v-pink focus:border-transparent"
-                value={form.roleId} onChange={e => set('roleId', e.target.value)}>
-                <option value="">— No role —</option>
-                {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
+        <CardBody>
+          <form onSubmit={handleSubmit(onInvite)} className="space-y-3">
+            <h3 className="font-semibold text-v-charcoal text-sm">Invite User</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Input label="Name *"     placeholder="Jane Doe"            error={errors.name?.message}     {...register('name')} />
+              <Input label="Email *"    placeholder="jane@company.com"    error={errors.email?.message}    {...register('email')} type="email" />
+              <Input label="Initial password *" placeholder="8+ characters" error={errors.password?.message} {...register('password')} type="password" />
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-v-charcoal">Role</label>
+                <select
+                  className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-v-charcoal hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-v-pink focus:border-transparent"
+                  {...register('roleId')}>
+                  <option value="">— No role —</option>
+                  {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
             </div>
-          </div>
-          {error && <p className="text-xs text-red-600">{error}</p>}
-          <Button onClick={handleInvite} loading={invite.isPending}>
-            <UserPlus size={15} className="mr-1.5" /> Invite User
-          </Button>
+            <Button type="submit" loading={invite.isPending}>
+              <UserPlus size={15} className="mr-1.5" /> Invite User
+            </Button>
+          </form>
         </CardBody>
       </Card>
 
@@ -99,7 +96,7 @@ export function UsersPage() {
                     {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
                   <Button size="sm" variant={u.active ? 'secondary' : 'primary'}
-                    onClick={() => setActive.mutate({ userId: u.id, active: !u.active })}>
+                    onClick={() => setToggleTarget({ userId: u.id, name: u.name, active: u.active })}>
                     <Power size={12} className="mr-1" />
                     {u.active ? 'Disable' : 'Enable'}
                   </Button>
@@ -109,6 +106,26 @@ export function UsersPage() {
           })}
         </CardBody>
       </Card>
+
+      <ConfirmDialog
+        open={toggleTarget !== null}
+        title={toggleTarget?.active ? 'Disable User' : 'Enable User'}
+        description={
+          toggleTarget?.active
+            ? `Disable "${toggleTarget.name}"? They will not be able to log in until re-enabled.`
+            : `Re-enable "${toggleTarget?.name}"? They will regain access immediately.`
+        }
+        confirmLabel={toggleTarget?.active ? 'Disable' : 'Enable'}
+        variant={toggleTarget?.active ? 'danger' : 'primary'}
+        loading={setActive.isPending}
+        onConfirm={() => {
+          if (toggleTarget) {
+            setActive.mutate({ userId: toggleTarget.userId, active: !toggleTarget.active });
+            setToggleTarget(null);
+          }
+        }}
+        onCancel={() => setToggleTarget(null)}
+      />
     </div>
   );
 }

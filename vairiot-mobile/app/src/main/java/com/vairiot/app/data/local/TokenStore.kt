@@ -33,8 +33,15 @@ class TokenStore @Inject constructor(
     suspend fun getAccessToken(): String? =
         context.dataStore.data.map { it[ACCESS_TOKEN] }.first()
 
+    suspend fun getRefreshToken(): String? =
+        context.dataStore.data.map { it[REFRESH_TOKEN] }.first()
+
     suspend fun getTenantId(): String? =
         context.dataStore.data.map { it[TENANT_ID] }.first()
+
+    suspend fun updateAccessToken(accessToken: String) {
+        context.dataStore.edit { prefs -> prefs[ACCESS_TOKEN] = accessToken }
+    }
 
     suspend fun clear() {
         context.dataStore.edit { it.clear() }

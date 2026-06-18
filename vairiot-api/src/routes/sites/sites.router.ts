@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { authenticate, requirePermission } from '../../middleware/authenticate';
-import { listSites, createSite, listLocations, createLocation } from '../../services/site.service';
+import { listSites, createSite, deleteSite, listLocations, createLocation } from '../../services/site.service';
 
 export const sitesRouter = Router();
 sitesRouter.use(authenticate);
@@ -18,6 +18,19 @@ sitesRouter.post('/', requirePermission('site:write'),
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     try { res.status(201).json(await createSite(req.user!.tenantId, req.body)); }
     catch { res.status(500).json({ error: 'Failed to create site' }); }
+  },
+);
+
+sitesRouter.delete('/:siteId', requirePermission('site:write'),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      await deleteSite(req.params.siteId, req.user!.tenantId);
+      res.json({ message: 'Site deleted' });
+    } catch (e) {
+      if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Site not found' }); return; }
+      if (e instanceof Error && e.message === 'HAS_ASSETS') { res.status(409).json({ error: 'Cannot delete site with assigned assets' }); return; }
+      res.status(500).json({ error: 'Failed to delete site' });
+    }
   },
 );
 

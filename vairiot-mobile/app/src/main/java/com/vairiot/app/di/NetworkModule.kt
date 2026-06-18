@@ -2,7 +2,10 @@ package com.vairiot.app.di
 
 import android.content.Context
 import coil.ImageLoader
+import com.google.gson.Gson
 import com.vairiot.app.BuildConfig
+import com.vairiot.app.data.api.RefreshRequest
+import com.vairiot.app.data.api.RefreshResponse
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.data.local.TokenStore
 import dagger.Module
@@ -11,8 +14,14 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.runBlocking
+import okhttp3.Authenticator
 import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import okhttp3.Route
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -32,11 +41,40 @@ object NetworkModule {
             }.build()
             chain.proceed(request)
         }
+
+        val tokenRefreshAuthenticator = object : Authenticator {
+            override fun authenticate(route: Route?, response: Response): Request? {
+                if (response.request.header("X-Retry") != null) return null
+                val refreshToken = runBlocking { tokenStore.getRefreshToken() } ?: return null
+                val json = Gson().toJson(RefreshRequest(refreshToken))
+                val body = json.toRequestBody("application/json".toMediaType())
+                val refreshRequest = Request.Builder()
+                    .url("${BuildConfig.API_BASE_URL}api/v1/auth/refresh")
+                    .post(body)
+                    .build()
+                val refreshResponse = OkHttpClient().newCall(refreshRequest).execute()
+                if (!refreshResponse.isSuccessful) {
+                    runBlocking { tokenStore.clear() }
+                    return null
+                }
+                val tokens = Gson().fromJson(refreshResponse.body?.string(), RefreshResponse::class.java)
+                runBlocking {
+                    tokenStore.saveTokens(tokens.accessToken, tokens.refreshToken,
+                        tokenStore.getTenantId() ?: "")
+                }
+                return response.request.newBuilder()
+                    .header("Authorization", "Bearer ${tokens.accessToken}")
+                    .header("X-Retry", "1")
+                    .build()
+            }
+        }
+
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
+            .authenticator(tokenRefreshAuthenticator)
             .addInterceptor(logging)
             .build()
     }

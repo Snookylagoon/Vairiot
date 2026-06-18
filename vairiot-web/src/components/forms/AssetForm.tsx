@@ -1,26 +1,12 @@
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useCategories } from '@/hooks/useCategories';
 import { useSites } from '@/hooks/useSites';
+import { assetSchema, type AssetFormData } from '@/lib/schemas';
 
-export interface AssetFormData {
-  name:          string;
-  description?:  string;
-  categoryId?:   string;
-  siteId?:       string;
-  serialNumber?: string;
-  modelNumber?:  string;
-  manufacturer?: string;
-  barcode?:      string;
-  rfidTag?:      string;
-  purchaseCost?: string;
-  purchaseDate?: string;
-  warrantyExpiry?: string;
-  supplier?:     string;
-  notes?:        string;
-  condition?:    string;
-}
+export type { AssetFormData } from '@/lib/schemas';
 
 interface AssetFormProps {
   defaultValues?: Partial<AssetFormData>;
@@ -33,7 +19,10 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
   const { data: categories = [] } = useCategories();
   const { data: sites      = [] } = useSites();
 
-  const { register, handleSubmit, formState: { errors } } = useForm<AssetFormData>({ defaultValues });
+  const { register, handleSubmit, formState: { errors } } = useForm<AssetFormData>({
+    resolver: zodResolver(assetSchema),
+    defaultValues,
+  });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -44,7 +33,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
           <div className="md:col-span-2">
             <Input label="Asset Name *" placeholder="e.g. Dell Laptop XPS 15"
               error={errors.name?.message}
-              {...register('name', { required: 'Asset name is required' })} />
+              {...register('name')} />
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-v-charcoal mb-1">Description</label>

@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, ClipboardList, Play, CheckCircle, Clock, ArrowRight } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { hasPermission, useAuthStore } from '@/stores/auth.store';
 
 const statusVariant: Record<string, 'active'|'inactive'|'default'> = {
   draft:       'inactive',
@@ -23,6 +25,8 @@ const statusIcon: Record<string, React.ElementType> = {
 export function AuditsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const user = useAuthStore(s => s.user);
+  const canWrite = hasPermission(user, 'audit:write');
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['audits'],
     queryFn:  () => api.get('/api/v1/audits').then(r => r.data),
@@ -30,12 +34,14 @@ export function AuditsPage() {
 
   const createCampaign = useMutation({
     mutationFn: (data: { name: string }) => api.post('/api/v1/audits', data).then(r => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['audits'] }),
+    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['audits'] }); toast.success('Campaign created'); },
+    onError:    () => { toast.error('Failed to create campaign'); },
   });
 
   const startCampaign = useMutation({
     mutationFn: (id: string) => api.post(`/api/v1/audits/${id}/start`).then(r => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['audits'] }),
+    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['audits'] }); toast.success('Campaign started'); },
+    onError:    () => { toast.error('Failed to start campaign'); },
   });
 
   const [name, setName] = useState('');
@@ -53,18 +59,19 @@ export function AuditsPage() {
         <p className="text-sm text-gray-500 mt-1">Create and manage asset audit campaigns.</p>
       </div>
 
-      {/* New campaign */}
-      <Card>
-        <CardBody className="flex items-end gap-3">
-          <div className="flex-1">
-            <Input label="New Campaign Name" placeholder="e.g. Q3 2026 Full Audit"
-              value={name} onChange={e => setName(e.target.value)} />
-          </div>
-          <Button onClick={handleCreate} loading={createCampaign.isPending}>
-            <Plus size={15} className="mr-1.5" /> Create
-          </Button>
-        </CardBody>
-      </Card>
+      {canWrite && (
+        <Card>
+          <CardBody className="flex items-end gap-3">
+            <div className="flex-1">
+              <Input label="New Campaign Name" placeholder="e.g. Q3 2026 Full Audit"
+                value={name} onChange={e => setName(e.target.value)} />
+            </div>
+            <Button onClick={handleCreate} loading={createCampaign.isPending}>
+              <Plus size={15} className="mr-1.5" /> Create
+            </Button>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Campaign list */}
       <Card>
@@ -93,7 +100,7 @@ export function AuditsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge label={c.status.replace('_', ' ')} variant={statusVariant[c.status] ?? 'default'} />
-                  {c.status === 'draft' && (
+                  {c.status === 'draft' && canWrite && (
                     <Button size="sm" variant="secondary"
                       loading={startCampaign.isPending}
                       onClick={async () => {

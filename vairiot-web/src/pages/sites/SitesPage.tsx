@@ -1,15 +1,21 @@
 import { useState } from 'react';
-import { Plus, MapPin } from 'lucide-react';
-import { useSites, useCreateSite } from '@/hooks/useSites';
+import { Plus, MapPin, Trash2 } from 'lucide-react';
+import { useSites, useCreateSite, useDeleteSite } from '@/hooks/useSites';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { hasPermission, useAuthStore } from '@/stores/auth.store';
 
 export function SitesPage() {
+  const user = useAuthStore(s => s.user);
+  const canWrite = hasPermission(user, 'site:write');
   const { data: sites = [], isLoading } = useSites();
   const createSite = useCreateSite();
+  const deleteSite = useDeleteSite();
   const [form, setForm] = useState({ name: '', address: '', city: '', country: '' });
   const [error, setError] = useState('');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -34,27 +40,27 @@ export function SitesPage() {
         <p className="text-sm text-gray-500 mt-1">Manage locations where assets are deployed.</p>
       </div>
 
-      {/* Add new */}
-      <Card>
-        <CardBody className="space-y-3">
-          <h3 className="font-semibold text-v-charcoal text-sm">Add New Site</h3>
-          <Input label="Site Name *" placeholder="e.g. Head Office" value={form.name}
-            onChange={e => set('name', e.target.value)} error={error} />
-          <Input label="Address"     placeholder="Street address"   value={form.address}
-            onChange={e => set('address', e.target.value)} />
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="City"    placeholder="City"    value={form.city}
-              onChange={e => set('city', e.target.value)} />
-            <Input label="Country" placeholder="Country" value={form.country}
-              onChange={e => set('country', e.target.value)} />
-          </div>
-          <Button onClick={handleCreate} loading={createSite.isPending}>
-            <Plus size={15} className="mr-1.5" /> Add Site
-          </Button>
-        </CardBody>
-      </Card>
+      {canWrite && (
+        <Card>
+          <CardBody className="space-y-3">
+            <h3 className="font-semibold text-v-charcoal text-sm">Add New Site</h3>
+            <Input label="Site Name *" placeholder="e.g. Head Office" value={form.name}
+              onChange={e => set('name', e.target.value)} error={error} />
+            <Input label="Address"     placeholder="Street address"   value={form.address}
+              onChange={e => set('address', e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="City"    placeholder="City"    value={form.city}
+                onChange={e => set('city', e.target.value)} />
+              <Input label="Country" placeholder="Country" value={form.country}
+                onChange={e => set('country', e.target.value)} />
+            </div>
+            <Button onClick={handleCreate} loading={createSite.isPending}>
+              <Plus size={15} className="mr-1.5" /> Add Site
+            </Button>
+          </CardBody>
+        </Card>
+      )}
 
-      {/* List */}
       <Card>
         <CardBody className="divide-y divide-gray-50">
           {isLoading && <p className="text-sm text-gray-400 py-4 text-center">Loading…</p>}
@@ -73,11 +79,26 @@ export function SitesPage() {
                 )}
                 <p className="text-xs text-v-mauve mt-0.5">{s._count?.assets ?? 0} assets</p>
               </div>
-              <MapPin size={15} className="text-gray-300" />
+              {canWrite && (
+                <button onClick={() => setDeleteId(s.id)}
+                  className="p-1.5 text-gray-300 hover:text-red-500 transition-colors rounded">
+                  <Trash2 size={15} />
+                </button>
+              )}
             </div>
           ))}
         </CardBody>
       </Card>
+
+      <ConfirmDialog
+        open={deleteId !== null}
+        title="Delete Site"
+        description="This site and its locations will be permanently deleted. Assets assigned to this site will become unassigned."
+        confirmLabel="Delete"
+        loading={deleteSite.isPending}
+        onConfirm={() => { if (deleteId) { deleteSite.mutate(deleteId); setDeleteId(null); } }}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 }

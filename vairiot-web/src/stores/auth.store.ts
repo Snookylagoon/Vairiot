@@ -18,7 +18,7 @@ interface AuthState {
   user:    UserProfile | null;
   loading: boolean;
   login:   (email: string, password: string, tenantId: string) => Promise<void>;
-  logout:  () => void;
+  logout:  () => Promise<void>;
   hydrate: () => Promise<void>;
 }
 
@@ -34,7 +34,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: me.data });
   },
 
-  logout: () => {
+  logout: async () => {
+    const refreshToken = localStorage.getItem('vairiot_refresh_token');
+    try {
+      await api.post('/api/v1/auth/logout', { refreshToken: refreshToken ?? undefined });
+    } catch { /* best-effort */ }
     localStorage.removeItem('vairiot_access_token');
     localStorage.removeItem('vairiot_refresh_token');
     set({ user: null });

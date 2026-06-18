@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Tag, MapPin, Calendar, DollarSign } from 'lucide-react';
+import { ArrowLeft, Tag, MapPin, Calendar, DollarSign, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { AssetPhotos } from '@/components/assets/AssetPhotos';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useDeleteAsset } from '@/hooks/useAssets';
+import { hasPermission, useAuthStore } from '@/stores/auth.store';
 import type { Asset } from '@/types';
 
 function Field({ label, value }: { label: string; value?: string | null }) {
@@ -20,6 +24,11 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 export function AssetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const user = useAuthStore(s => s.user);
+  const canWrite  = hasPermission(user, 'asset:write');
+  const canDelete = hasPermission(user, 'asset:delete');
+  const deleteAsset = useDeleteAsset();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: asset, isLoading } = useQuery<Asset>({
     queryKey: ['asset', id],
@@ -32,12 +41,10 @@ export function AssetDetailPage() {
 
   return (
     <div className="space-y-5 max-w-3xl">
-      {/* Back */}
       <button onClick={() => navigate('/assets')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-v-violet transition-colors">
         <ArrowLeft size={16} /> Back to Assets
       </button>
 
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <p className="font-mono text-sm text-v-violet">{asset.assetNumber}</p>
@@ -50,7 +57,6 @@ export function AssetDetailPage() {
         </div>
       </div>
 
-      {/* Detail cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="flex items-center gap-2">
@@ -106,8 +112,27 @@ export function AssetDetailPage() {
       <AssetPhotos assetId={asset.id} />
 
       <div className="flex gap-3">
-        <Button variant="secondary" onClick={() => navigate(`/assets/${id}/edit`)}>Edit Asset</Button>
+        {canWrite && <Button variant="secondary" onClick={() => navigate(`/assets/${id}/edit`)}>Edit Asset</Button>}
+        {canDelete && (
+          <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+            <Trash2 size={14} className="mr-1" /> Delete Asset
+          </Button>
+        )}
       </div>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Delete Asset"
+        description={`Permanently delete "${asset.name}" (${asset.assetNumber})? This cannot be undone.`}
+        confirmLabel="Delete"
+        loading={deleteAsset.isPending}
+        onConfirm={() => {
+          deleteAsset.mutate(asset.id, {
+            onSuccess: () => navigate('/assets'),
+          });
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }
