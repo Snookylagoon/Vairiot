@@ -402,6 +402,61 @@ model MaintenanceEvent {
   @@map("maintenance_events")
 }
 
+// ─── Alert Subscriptions ──────────────────────────────────────────────────────
+model AlertSubscription {
+  id            String   @id @default(cuid())
+  tenantId      String
+  userId        String
+  exceptionType String
+  channel       String   @default("email")
+  frequency     String   @default("daily")
+  active        Boolean  @default(true)
+  lastSentAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, userId, exceptionType])
+  @@index([tenantId, active])
+  @@map("alert_subscriptions")
+}
+
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
+model Webhook {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  url       String
+  events    String[]
+  secret    String?
+  active    Boolean   @default(true)
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([tenantId, active])
+  @@map("webhooks")
+}
+
+// ─── Report Schedules ─────────────────────────────────────────────────────────
+model ReportSchedule {
+  id             String    @id @default(cuid())
+  tenantId       String
+  reportType     String
+  format         String    @default("csv")
+  frequency      String    @default("monthly")
+  recipientEmail String
+  filters        Json?
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  active         Boolean   @default(true)
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([tenantId, active])
+  @@map("report_schedules")
+}
+
 // ─── Transfers (location / custodian changes) ─────────────────────────────────
 model Transfer {
   id              String   @id @default(cuid())

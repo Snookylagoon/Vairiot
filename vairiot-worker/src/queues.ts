@@ -3,7 +3,17 @@
 
 export const QUEUE_NAMES = {
   auditComplete: 'audit-complete',
+  alertDigest: 'alert-digest',
 } as const;
+
+export interface AlertDigestJob {
+  tenantId:       string;
+  userId:         string;
+  recipientEmail: string;
+  recipientName?: string;
+  frequency:      'daily' | 'weekly';
+  exceptionTypes: string[];
+}
 
 export interface AuditCompleteJob {
   tenantId:      string;

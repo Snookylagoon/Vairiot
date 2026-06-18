@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { AssetPhotos } from '@/components/assets/AssetPhotos';
 import { AssetDocuments } from '@/components/assets/AssetDocuments';
+import { AssetTimeline } from '@/components/assets/AssetTimeline';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useAsset, useDeleteAsset, useDisposeAsset } from '@/hooks/useAssets';
 import { hasPermission, useAuthStore } from '@/stores/auth.store';
@@ -252,6 +253,8 @@ export function AssetDetailPage() {
       <AssetPhotos assetId={asset.id} />
 
       <AssetDocuments assetId={asset.id} />
+
+      <AssetTimeline assetId={asset.id} />
 
       {/* Actions */}
       <div className="flex gap-3">
