@@ -1,6 +1,9 @@
 import { randomUUID } from 'crypto';
 import jwt from 'jsonwebtoken';
-const SECRET  = process.env.JWT_SECRET ?? 'dev-secret-CHANGE-IN-PRODUCTION';
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required');
+}
+const SECRET  = process.env.JWT_SECRET;
 const EXPIRY  = process.env.JWT_EXPIRY  ?? '8h';
 const REFRESH = process.env.JWT_REFRESH_EXPIRY ?? '30d';
 export interface TokenPayload { sub: string; tenantId: string; email: string; roles: string[]; permissions: string[]; jti?: string; exp?: number; }

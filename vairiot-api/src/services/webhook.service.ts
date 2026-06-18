@@ -1,6 +1,8 @@
 import { prisma } from '../lib/prisma';
 import { randomBytes, createHmac } from 'crypto';
 import { logger } from '../lib/logger';
+import { NotFoundError, ValidationError } from '../lib/errors';
+import { WEBHOOK_EVENTS } from 'vairiot-shared';
 
 export interface WebhookInput {
   name: string;
@@ -8,12 +10,6 @@ export interface WebhookInput {
   events: string[];
   secret?: string;
 }
-
-const VALID_EVENTS = [
-  'asset.created', 'asset.updated', 'asset.disposed', 'asset.archived',
-  'maintenance.created', 'maintenance.completed',
-  'transfer.created', 'checkout.created', 'checkout.returned',
-];
 
 export async function listWebhooks(tenantId: string) {
   return prisma.webhook.findMany({
@@ -23,8 +19,8 @@ export async function listWebhooks(tenantId: string) {
 }
 
 export async function createWebhook(tenantId: string, actorId: string, input: WebhookInput) {
-  const invalid = input.events.filter(e => !VALID_EVENTS.includes(e));
-  if (invalid.length) throw new Error(`INVALID_EVENTS: ${invalid.join(', ')}`);
+  const invalid = input.events.filter(e => !WEBHOOK_EVENTS.includes(e as any));
+  if (invalid.length) throw new ValidationError(`Invalid events: ${invalid.join(', ')}`);
 
   const secret = input.secret ?? randomBytes(32).toString('hex');
 
@@ -42,14 +38,14 @@ export async function createWebhook(tenantId: string, actorId: string, input: We
 
 export async function deleteWebhook(tenantId: string, id: string) {
   const wh = await prisma.webhook.findFirst({ where: { id, tenantId } });
-  if (!wh) throw new Error('NOT_FOUND');
+  if (!wh) throw new NotFoundError('Webhook not found');
   await prisma.webhook.delete({ where: { id } });
   return { id };
 }
 
 export async function toggleWebhook(tenantId: string, id: string, active: boolean) {
   const wh = await prisma.webhook.findFirst({ where: { id, tenantId } });
-  if (!wh) throw new Error('NOT_FOUND');
+  if (!wh) throw new NotFoundError('Webhook not found');
   return prisma.webhook.update({ where: { id }, data: { active } });
 }
 
@@ -71,5 +67,5 @@ export async function dispatchWebhookEvent(tenantId: string, event: string, payl
 }
 
 export function getValidEvents() {
-  return VALID_EVENTS;
+  return WEBHOOK_EVENTS;
 }

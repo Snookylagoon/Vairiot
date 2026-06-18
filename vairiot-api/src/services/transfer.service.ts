@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { NotFoundError } from '../lib/errors';
 
 export interface TransferCreateInput {
   assetId: string;
@@ -45,7 +46,7 @@ export async function listTransfers(tenantId: string, params: {
 
 export async function createTransfer(tenantId: string, actorId: string, input: TransferCreateInput) {
   const asset = await prisma.asset.findFirst({ where: { id: input.assetId, tenantId, deletedAt: null } });
-  if (!asset) throw new Error('ASSET_NOT_FOUND');
+  if (!asset) throw new NotFoundError('Asset not found');
 
   return prisma.$transaction(async (tx) => {
     const transfer = await tx.transfer.create({

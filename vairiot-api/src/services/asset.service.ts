@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { NotFoundError, ConflictError } from '../lib/errors';
 
 export interface AssetCreateInput {
   name: string; description?: string; categoryId?: string; siteId?: string;
@@ -203,7 +204,7 @@ export async function getAssetStats(tenantId: string) {
 
 export async function getAsset(tenantId: string, id: string) {
   const asset = await prisma.asset.findFirst({ where: { id, tenantId }, include: assetInclude });
-  if (!asset) throw new Error('NOT_FOUND');
+  if (!asset) throw new NotFoundError('Asset not found');
   return enrichAssetWithDepreciation(asset);
 }
 
@@ -264,7 +265,7 @@ const REF_FIELDS = ['categoryId', 'siteId', 'locationId'] as const;
 
 export async function updateAsset(tenantId: string, id: string, actorId: string, input: Partial<AssetCreateInput>) {
   const existing = await prisma.asset.findFirst({ where: { id, tenantId, deletedAt: null } });
-  if (!existing) throw new Error('NOT_FOUND');
+  if (!existing) throw new NotFoundError('Asset not found');
 
   const data: Record<string, any> = {};
   for (const f of STRING_FIELDS) if (input[f] !== undefined) data[f] = input[f];
@@ -284,7 +285,7 @@ export async function updateAsset(tenantId: string, id: string, actorId: string,
 
 export async function deleteAsset(tenantId: string, id: string, actorId: string) {
   const existing = await prisma.asset.findFirst({ where: { id, tenantId, deletedAt: null } });
-  if (!existing) throw new Error('NOT_FOUND');
+  if (!existing) throw new NotFoundError('Asset not found');
   await prisma.asset.update({ where: { id }, data: { deletedAt: new Date() } });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'archived', before: existing as unknown as Prisma.InputJsonValue } });
 }
@@ -300,8 +301,8 @@ export interface DisposalInput {
 
 export async function disposeAsset(tenantId: string, id: string, actorId: string, input: DisposalInput) {
   const asset = await prisma.asset.findFirst({ where: { id, tenantId, deletedAt: null }, include: assetInclude });
-  if (!asset) throw new Error('NOT_FOUND');
-  if (asset.status === 'disposed') throw new Error('ALREADY_DISPOSED');
+  if (!asset) throw new NotFoundError('Asset not found');
+  if (asset.status === 'disposed') throw new ConflictError('Asset is already disposed', 'ALREADY_DISPOSED');
 
   const dep = computeDepreciation(asset);
   const gainLoss = input.disposalValue != null
@@ -353,6 +354,6 @@ export async function getAssetByTag(tenantId: string, tag: string) {
     where: { tenantId, deletedAt: null, OR: [{ rfidTag: tag }, { barcode: tag }] },
     include: assetInclude,
   });
-  if (!asset) throw new Error('NOT_FOUND');
+  if (!asset) throw new NotFoundError('No asset found for this tag');
   return enrichAssetWithDepreciation(asset);
 }

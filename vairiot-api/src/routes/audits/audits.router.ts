@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate, requirePermission } from '../../middleware/authenticate';
+import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { asyncHandler } from '../../middleware/error-handler';
 import { listCampaigns, createCampaign, startCampaign, recordScan, completeCampaign, getCampaignReport, getCampaignReportRows } from '../../services/audit.service';
 import { toCsv } from '../../lib/csv';
 import { enqueueAuditComplete } from '../../lib/queue';
@@ -34,48 +35,39 @@ function buildReportCsv(rows: ReportRows): string {
 export const auditsRouter = Router();
 auditsRouter.use(authenticate);
 
-auditsRouter.get('/', async (req: Request, res: Response): Promise<void> => {
-  try { res.json(await listCampaigns(req.user!.tenantId)); }
-  catch { res.status(500).json({ error: 'Failed to fetch campaigns' }); }
-});
+auditsRouter.get('/',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listCampaigns(req.user!.tenantId));
+  }),
+);
 
-auditsRouter.post('/', requirePermission('audit:write'),
+auditsRouter.post('/', requireAnyPermission('audit:write'),
   [body('name').notEmpty()],
-  async (req: Request, res: Response): Promise<void> => {
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    try { res.status(201).json(await createCampaign(req.user!.tenantId, req.user!.sub, req.body)); }
-    catch { res.status(500).json({ error: 'Failed to create campaign' }); }
-  },
+    res.status(201).json(await createCampaign(req.user!.tenantId, req.user!.sub, req.body));
+  }),
 );
 
-auditsRouter.post('/:id/start', requirePermission('audit:write'), async (req: Request, res: Response): Promise<void> => {
-  try { res.json(await startCampaign(req.user!.tenantId, req.params.id)); }
-  catch (e) {
-    if (e instanceof Error && e.message === 'NOT_FOUND')       { res.status(404).json({ error: 'Campaign not found' }); return; }
-    if (e instanceof Error && e.message === 'ALREADY_STARTED') { res.status(409).json({ error: 'Campaign already started' }); return; }
-    res.status(500).json({ error: 'Failed to start campaign' });
-  }
-});
+auditsRouter.post('/:id/start', requireAnyPermission('audit:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await startCampaign(req.user!.tenantId, req.params.id));
+  }),
+);
 
-auditsRouter.post('/:id/scans', requirePermission('audit:write'),
+auditsRouter.post('/:id/scans', requireAnyPermission('audit:write'),
   [body('tagValue').notEmpty()],
-  async (req: Request, res: Response): Promise<void> => {
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    try { res.status(201).json(await recordScan(req.user!.tenantId, req.params.id, req.user!.sub, req.body)); }
-    catch (e) {
-      if (e instanceof Error && e.message === 'NOT_FOUND')           { res.status(404).json({ error: 'Campaign not found' }); return; }
-      if (e instanceof Error && e.message === 'CAMPAIGN_NOT_ACTIVE') { res.status(409).json({ error: 'Campaign is not in progress' }); return; }
-      res.status(500).json({ error: 'Failed to record scan' });
-    }
-  },
+    res.status(201).json(await recordScan(req.user!.tenantId, req.params.id, req.user!.sub, req.body));
+  }),
 );
 
-auditsRouter.post('/:id/complete', requirePermission('audit:write'), async (req: Request, res: Response): Promise<void> => {
-  try {
+auditsRouter.post('/:id/complete', requireAnyPermission('audit:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const summary = await completeCampaign(req.user!.tenantId, req.params.id);
-    // Fire-and-forget notification — never block the HTTP response on it.
     void (async () => {
       try {
         const rows = await getCampaignReportRows(req.user!.tenantId, req.params.id);
@@ -99,31 +91,21 @@ auditsRouter.post('/:id/complete', requirePermission('audit:write'), async (req:
       }
     })();
     res.json(summary);
-  }
-  catch (e) {
-    if (e instanceof Error && e.message === 'NOT_FOUND')           { res.status(404).json({ error: 'Campaign not found' }); return; }
-    if (e instanceof Error && e.message === 'CAMPAIGN_NOT_ACTIVE') { res.status(409).json({ error: 'Campaign is not in progress' }); return; }
-    res.status(500).json({ error: 'Failed to complete campaign' });
-  }
-});
+  }),
+);
 
-auditsRouter.get('/:id/export.csv', async (req: Request, res: Response): Promise<void> => {
-  try {
+auditsRouter.get('/:id/export.csv',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const rows = await getCampaignReportRows(req.user!.tenantId, req.params.id);
     const safeName = rows.campaign.name.replace(/[^a-z0-9-]+/gi, '_').slice(0, 40);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="audit-${safeName}-${rows.campaign.id.slice(0, 8)}.csv"`);
     res.send(buildReportCsv(rows));
-  } catch (e) {
-    if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Campaign not found' }); return; }
-    res.status(500).json({ error: 'Failed to export report' });
-  }
-});
+  }),
+);
 
-auditsRouter.get('/:id/report', async (req: Request, res: Response): Promise<void> => {
-  try { res.json(await getCampaignReport(req.user!.tenantId, req.params.id)); }
-  catch (e) {
-    if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Campaign not found' }); return; }
-    res.status(500).json({ error: 'Failed to fetch report' });
-  }
-});
+auditsRouter.get('/:id/report',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await getCampaignReport(req.user!.tenantId, req.params.id));
+  }),
+);

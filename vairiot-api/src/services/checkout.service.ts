@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { NotFoundError, ConflictError } from '../lib/errors';
 
 export interface CheckoutInput {
   assetId: string;
@@ -9,9 +10,9 @@ export interface CheckoutInput {
 
 export async function checkoutAsset(tenantId: string, actorId: string, input: CheckoutInput) {
   const asset = await prisma.asset.findFirst({ where: { id: input.assetId, tenantId } });
-  if (!asset) throw new Error('ASSET_NOT_FOUND');
+  if (!asset) throw new NotFoundError('Asset not found');
   const active = await prisma.checkout.findFirst({ where: { assetId: input.assetId, checkedInAt: null } });
-  if (active) throw new Error('ALREADY_CHECKED_OUT');
+  if (active) throw new ConflictError('Asset is already checked out', 'ALREADY_CHECKED_OUT');
   const checkout = await prisma.checkout.create({
     data: {
       tenantId,
@@ -31,7 +32,7 @@ export async function checkoutAsset(tenantId: string, actorId: string, input: Ch
 
 export async function checkinAsset(tenantId: string, actorId: string, assetId: string) {
   const checkout = await prisma.checkout.findFirst({ where: { assetId, tenantId, checkedInAt: null } });
-  if (!checkout) throw new Error('NOT_CHECKED_OUT');
+  if (!checkout) throw new ConflictError('Asset is not currently checked out', 'NOT_CHECKED_OUT');
   const updated = await prisma.checkout.update({
     where: { id: checkout.id },
     data: { checkedInAt: new Date(), checkedInBy: actorId },
@@ -45,7 +46,7 @@ export async function checkinAsset(tenantId: string, actorId: string, assetId: s
 
 export async function getCheckoutHistory(tenantId: string, assetId: string) {
   const asset = await prisma.asset.findFirst({ where: { id: assetId, tenantId } });
-  if (!asset) throw new Error('ASSET_NOT_FOUND');
+  if (!asset) throw new NotFoundError('Asset not found');
   return prisma.checkout.findMany({
     where: { assetId, tenantId },
     orderBy: { checkedOutAt: 'desc' },

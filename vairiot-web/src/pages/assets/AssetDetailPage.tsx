@@ -12,7 +12,7 @@ import { AssetDocuments } from '@/components/assets/AssetDocuments';
 import { AssetTimeline } from '@/components/assets/AssetTimeline';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useAsset, useDeleteAsset, useDisposeAsset } from '@/hooks/useAssets';
-import { hasPermission, useAuthStore } from '@/stores/auth.store';
+import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 import { useCurrency } from '@/hooks/useCurrency';
 import { disposalSchema, type DisposalFormData } from '@/lib/schemas';
 
@@ -98,8 +98,8 @@ export function AssetDetailPage() {
   const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
   const { fmt, symbol: currencySymbol } = useCurrency();
-  const canWrite  = hasPermission(user, 'asset:write');
-  const canDelete = hasPermission(user, 'asset:delete');
+  const canWrite  = hasAnyPermission(user, 'asset:write');
+  const canDelete = hasAnyPermission(user, 'asset:delete');
   const deleteAsset = useDeleteAsset();
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [showDisposal, setShowDisposal] = useState(false);

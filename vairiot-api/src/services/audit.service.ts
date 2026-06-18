@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { NotFoundError, ConflictError } from '../lib/errors';
 
 export interface CreateCampaignInput {
   name: string;
@@ -30,8 +31,8 @@ export async function createCampaign(tenantId: string, actorId: string, input: C
 
 export async function startCampaign(tenantId: string, id: string) {
   const c = await prisma.auditCampaign.findFirst({ where: { id, tenantId } });
-  if (!c) throw new Error('NOT_FOUND');
-  if (c.status !== 'draft') throw new Error('ALREADY_STARTED');
+  if (!c) throw new NotFoundError('Campaign not found');
+  if (c.status !== 'draft') throw new ConflictError('Campaign already started', 'ALREADY_STARTED');
   return prisma.auditCampaign.update({
     where: { id },
     data: { status: 'in_progress', startedAt: new Date() },
@@ -40,8 +41,8 @@ export async function startCampaign(tenantId: string, id: string) {
 
 export async function recordScan(tenantId: string, campaignId: string, actorId: string, input: { tagValue: string; deviceId?: string }) {
   const c = await prisma.auditCampaign.findFirst({ where: { id: campaignId, tenantId } });
-  if (!c) throw new Error('NOT_FOUND');
-  if (c.status !== 'in_progress') throw new Error('CAMPAIGN_NOT_ACTIVE');
+  if (!c) throw new NotFoundError('Campaign not found');
+  if (c.status !== 'in_progress') throw new ConflictError('Campaign is not in progress', 'CAMPAIGN_NOT_ACTIVE');
   const asset = await prisma.asset.findFirst({
     where: { tenantId, OR: [{ rfidTag: input.tagValue }, { barcode: input.tagValue }] },
   });
@@ -61,8 +62,8 @@ export async function recordScan(tenantId: string, campaignId: string, actorId: 
 
 export async function completeCampaign(tenantId: string, id: string) {
   const c = await prisma.auditCampaign.findFirst({ where: { id, tenantId } });
-  if (!c) throw new Error('NOT_FOUND');
-  if (c.status !== 'in_progress') throw new Error('CAMPAIGN_NOT_ACTIVE');
+  if (!c) throw new NotFoundError('Campaign not found');
+  if (c.status !== 'in_progress') throw new ConflictError('Campaign is not in progress', 'CAMPAIGN_NOT_ACTIVE');
   const scans = await prisma.auditScanEvent.findMany({ where: { campaignId: id } });
   const foundIds = new Set(scans.filter(s => s.assetId).map(s => s.assetId));
   const expected = await prisma.asset.findMany({
@@ -95,13 +96,13 @@ export async function getCampaignReport(tenantId: string, id: string) {
     where: { id, tenantId },
     include: { scanEvents: true },
   });
-  if (!c) throw new Error('NOT_FOUND');
+  if (!c) throw new NotFoundError('Campaign not found');
   return c;
 }
 
 export async function getCampaignReportRows(tenantId: string, id: string) {
   const c = await prisma.auditCampaign.findFirst({ where: { id, tenantId } });
-  if (!c) throw new Error('NOT_FOUND');
+  if (!c) throw new NotFoundError('Campaign not found');
   const scans = await prisma.auditScanEvent.findMany({
     where: { campaignId: id },
     orderBy: { scannedAt: 'asc' },

@@ -24,6 +24,7 @@ import { webhooksRouter }     from './routes/webhooks/webhooks.router';
 import { customFieldsRouter } from './routes/custom-fields/custom-fields.router';
 import { logger } from './lib/logger';
 import { globalLimiter } from './middleware/rate-limit';
+import { errorHandler } from './middleware/error-handler';
 
 export function createApp(): Application {
   const app = express();
@@ -58,10 +59,6 @@ export function createApp(): Application {
   app.use('/api/v1/webhooks',     webhooksRouter);
   app.use('/api/v1/custom-fields', customFieldsRouter);
   app.use((_req: Request, res: Response) => { res.status(404).json({ error: 'Not found' }); });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    logger.error('Unhandled error', { error: err.message });
-    res.status(500).json({ error: 'Internal server error' });
-  });
+  app.use(errorHandler);
   return app;
 }

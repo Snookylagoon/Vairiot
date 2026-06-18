@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { authenticate } from '../../middleware/authenticate';
+import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { asyncHandler } from '../../middleware/error-handler';
 import {
   depreciationRegister, fixedAssetRegister, disposalReport,
   assetAgingReport, maintenanceCostReport,
@@ -7,38 +8,39 @@ import {
 
 export const reportsRouter = Router();
 reportsRouter.use(authenticate);
+reportsRouter.use(requireAnyPermission('asset:read'));
 
-reportsRouter.get('/depreciation', async (req: Request, res: Response): Promise<void> => {
-  try {
+reportsRouter.get('/depreciation',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { categoryId, siteId, status } = req.query as Record<string, string>;
     res.json(await depreciationRegister(req.user!.tenantId, { categoryId, siteId, status }));
-  } catch { res.status(500).json({ error: 'Failed to generate depreciation register' }); }
-});
+  }),
+);
 
-reportsRouter.get('/fixed-assets', async (req: Request, res: Response): Promise<void> => {
-  try {
+reportsRouter.get('/fixed-assets',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { categoryId, siteId, status } = req.query as Record<string, string>;
     res.json(await fixedAssetRegister(req.user!.tenantId, { categoryId, siteId, status }));
-  } catch { res.status(500).json({ error: 'Failed to generate fixed asset register' }); }
-});
+  }),
+);
 
-reportsRouter.get('/disposals', async (req: Request, res: Response): Promise<void> => {
-  try {
+reportsRouter.get('/disposals',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { from, to } = req.query as Record<string, string>;
     res.json(await disposalReport(req.user!.tenantId, { from, to }));
-  } catch { res.status(500).json({ error: 'Failed to generate disposal report' }); }
-});
+  }),
+);
 
-reportsRouter.get('/aging', async (req: Request, res: Response): Promise<void> => {
-  try {
+reportsRouter.get('/aging',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { categoryId, siteId, status } = req.query as Record<string, string>;
     res.json(await assetAgingReport(req.user!.tenantId, { categoryId, siteId, status }));
-  } catch { res.status(500).json({ error: 'Failed to generate aging report' }); }
-});
+  }),
+);
 
-reportsRouter.get('/maintenance-costs', async (req: Request, res: Response): Promise<void> => {
-  try {
+reportsRouter.get('/maintenance-costs',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { from, to, assetId } = req.query as Record<string, string>;
     res.json(await maintenanceCostReport(req.user!.tenantId, { from, to, assetId }));
-  } catch { res.status(500).json({ error: 'Failed to generate maintenance cost report' }); }
-});
+  }),
+);

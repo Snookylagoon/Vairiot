@@ -76,10 +76,10 @@ export function formatCurrency(value: number | string | null | undefined, code: 
   if (value == null) return '—';
   const n = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(n)) return '—';
-  const info = getCurrencyInfo(code);
-  return n.toLocaleString(info.locale, {
+  return n.toLocaleString('en-US', {
     style: 'currency',
-    currency: info.code,
+    currency: code,
+    currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });

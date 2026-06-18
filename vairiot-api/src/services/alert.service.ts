@@ -1,14 +1,12 @@
 import { prisma } from '../lib/prisma';
+import { NotFoundError, ValidationError } from '../lib/errors';
+import { EXCEPTION_TYPES, ALERT_CHANNELS, ALERT_FREQUENCIES } from 'vairiot-shared';
 
 export interface AlertSubInput {
   exceptionType: string;
   channel?: string;
   frequency?: string;
 }
-
-const VALID_TYPES = ['missing_documents', 'overdue_maintenance', 'expired_warranty', 'unlocated_assets'];
-const VALID_CHANNELS = ['email'];
-const VALID_FREQUENCIES = ['daily', 'weekly'];
 
 export async function listSubscriptions(tenantId: string, userId: string) {
   return prisma.alertSubscription.findMany({
@@ -18,11 +16,11 @@ export async function listSubscriptions(tenantId: string, userId: string) {
 }
 
 export async function upsertSubscription(tenantId: string, userId: string, input: AlertSubInput) {
-  if (!VALID_TYPES.includes(input.exceptionType)) throw new Error('INVALID_TYPE');
+  if (!EXCEPTION_TYPES.includes(input.exceptionType as any)) throw new ValidationError('Invalid exception type');
   const channel = input.channel ?? 'email';
   const frequency = input.frequency ?? 'daily';
-  if (!VALID_CHANNELS.includes(channel)) throw new Error('INVALID_CHANNEL');
-  if (!VALID_FREQUENCIES.includes(frequency)) throw new Error('INVALID_FREQUENCY');
+  if (!ALERT_CHANNELS.includes(channel as any)) throw new ValidationError('Invalid channel');
+  if (!ALERT_FREQUENCIES.includes(frequency as any)) throw new ValidationError('Invalid frequency');
 
   return prisma.alertSubscription.upsert({
     where: { tenantId_userId_exceptionType: { tenantId, userId, exceptionType: input.exceptionType } },
@@ -35,7 +33,7 @@ export async function deleteSubscription(tenantId: string, userId: string, excep
   const sub = await prisma.alertSubscription.findFirst({
     where: { tenantId, userId, exceptionType },
   });
-  if (!sub) throw new Error('NOT_FOUND');
+  if (!sub) throw new NotFoundError('Subscription not found');
   await prisma.alertSubscription.delete({ where: { id: sub.id } });
   return { id: sub.id };
 }
@@ -44,7 +42,7 @@ export async function toggleSubscription(tenantId: string, userId: string, excep
   const sub = await prisma.alertSubscription.findFirst({
     where: { tenantId, userId, exceptionType },
   });
-  if (!sub) throw new Error('NOT_FOUND');
+  if (!sub) throw new NotFoundError('Subscription not found');
   return prisma.alertSubscription.update({
     where: { id: sub.id },
     data: { active },

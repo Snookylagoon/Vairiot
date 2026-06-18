@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { NotFoundError } from '../lib/errors';
 
 export interface MaintenanceCreateInput {
   assetId: string;
@@ -50,7 +51,7 @@ export async function getMaintenanceEvent(tenantId: string, id: string) {
 
 export async function createMaintenanceEvent(tenantId: string, actorId: string, input: MaintenanceCreateInput) {
   const asset = await prisma.asset.findFirst({ where: { id: input.assetId, tenantId, deletedAt: null } });
-  if (!asset) throw new Error('ASSET_NOT_FOUND');
+  if (!asset) throw new NotFoundError('Asset not found');
 
   return prisma.maintenanceEvent.create({
     data: {
@@ -73,7 +74,7 @@ export async function createMaintenanceEvent(tenantId: string, actorId: string, 
 
 export async function updateMaintenanceEvent(tenantId: string, id: string, input: Partial<MaintenanceCreateInput>) {
   const evt = await prisma.maintenanceEvent.findFirst({ where: { id, tenantId } });
-  if (!evt) throw new Error('NOT_FOUND');
+  if (!evt) throw new NotFoundError('Maintenance event not found');
 
   return prisma.maintenanceEvent.update({
     where: { id },
@@ -94,7 +95,7 @@ export async function updateMaintenanceEvent(tenantId: string, id: string, input
 
 export async function deleteMaintenanceEvent(tenantId: string, id: string) {
   const evt = await prisma.maintenanceEvent.findFirst({ where: { id, tenantId } });
-  if (!evt) throw new Error('NOT_FOUND');
+  if (!evt) throw new NotFoundError('Maintenance event not found');
   await prisma.maintenanceEvent.delete({ where: { id } });
   return { id };
 }

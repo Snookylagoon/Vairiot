@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
-import { authenticate, requirePermission } from '../../middleware/authenticate';
+import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { asyncHandler } from '../../middleware/error-handler';
 import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
 import { bulkImportAssets } from '../../services/import.service';
 import { toCsv } from '../../lib/csv';
@@ -8,30 +9,26 @@ import { toCsv } from '../../lib/csv';
 export const assetsRouter = Router();
 assetsRouter.use(authenticate);
 
-// GET /api/v1/assets?search=&categoryId=&siteId=&status=&condition=&sortBy=&sortOrder=&page=&pageSize=
 assetsRouter.get('/',
   [query('page').optional().isInt({ min: 1 }), query('pageSize').optional().isInt({ min: 1, max: 200 })],
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      res.json(await listAssets(req.user!.tenantId, {
-        search:     req.query.search as string,
-        categoryId: req.query.categoryId as string,
-        siteId:     req.query.siteId as string,
-        status:     req.query.status as string,
-        condition:  req.query.condition as string,
-        sortBy:     req.query.sortBy as string,
-        sortOrder:  req.query.sortOrder as string,
-        page:       Number(req.query.page) || 1,
-        pageSize:   Number(req.query.pageSize) || 50,
-        includeDeleted: req.query.includeDeleted === 'true',
-      }));
-    } catch { res.status(500).json({ error: 'Failed to fetch assets' }); }
-  },
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listAssets(req.user!.tenantId, {
+      search:     req.query.search as string,
+      categoryId: req.query.categoryId as string,
+      siteId:     req.query.siteId as string,
+      status:     req.query.status as string,
+      condition:  req.query.condition as string,
+      sortBy:     req.query.sortBy as string,
+      sortOrder:  req.query.sortOrder as string,
+      page:       Number(req.query.page) || 1,
+      pageSize:   Number(req.query.pageSize) || 50,
+      includeDeleted: req.query.includeDeleted === 'true',
+    }));
+  }),
 );
 
-// GET /api/v1/assets/export.csv — asset register download (respects current filters)
-assetsRouter.get('/export.csv', async (req: Request, res: Response): Promise<void> => {
-  try {
+assetsRouter.get('/export.csv', requireAnyPermission('asset:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const rows = await listAssetsForExport(req.user!.tenantId, {
       search:     req.query.search as string,
       categoryId: req.query.categoryId as string,
@@ -101,87 +98,66 @@ assetsRouter.get('/export.csv', async (req: Request, res: Response): Promise<voi
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="assets-${new Date().toISOString().slice(0,10)}.csv"`);
     res.send(csv);
-  } catch { res.status(500).json({ error: 'Failed to export assets' }); }
-});
+  }),
+);
 
-// POST /api/v1/assets/import — bulk CSV import
-assetsRouter.post('/import', requirePermission('asset:write'),
+assetsRouter.post('/import', requireAnyPermission('asset:write'),
   [body('rows').isArray({ min: 1 }).withMessage('At least one row is required')],
-  async (req: Request, res: Response): Promise<void> => {
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    try { res.json(await bulkImportAssets(req.user!.tenantId, req.user!.sub, req.body.rows)); }
-    catch { res.status(500).json({ error: 'Import failed' }); }
-  },
+    res.json(await bulkImportAssets(req.user!.tenantId, req.user!.sub, req.body.rows));
+  }),
 );
 
-// GET /api/v1/assets/stats — counts grouped by status / condition (dashboard)
-assetsRouter.get('/stats', async (req: Request, res: Response): Promise<void> => {
-  try { res.json(await getAssetStats(req.user!.tenantId)); }
-  catch { res.status(500).json({ error: 'Failed to fetch asset stats' }); }
-});
+assetsRouter.get('/stats', requireAnyPermission('asset:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await getAssetStats(req.user!.tenantId));
+  }),
+);
 
-// GET /api/v1/assets/tag/:tag — scan-to-lookup (barcode or RFID)
-assetsRouter.get('/tag/:tag', async (req: Request, res: Response): Promise<void> => {
-  try { res.json(await getAssetByTag(req.user!.tenantId, req.params.tag)); }
-  catch (e) {
-    if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'No asset found for this tag' }); return; }
-    res.status(500).json({ error: 'Tag lookup failed' });
-  }
-});
+assetsRouter.get('/tag/:tag',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await getAssetByTag(req.user!.tenantId, req.params.tag));
+  }),
+);
 
-// GET /api/v1/assets/:id
-assetsRouter.get('/:id', async (req: Request, res: Response): Promise<void> => {
-  try { res.json(await getAsset(req.user!.tenantId, req.params.id)); }
-  catch (e) {
-    if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Asset not found' }); return; }
-    res.status(500).json({ error: 'Failed to fetch asset' });
-  }
-});
+assetsRouter.get('/:id',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await getAsset(req.user!.tenantId, req.params.id));
+  }),
+);
 
-// POST /api/v1/assets
-assetsRouter.post('/', requirePermission('asset:write'),
+assetsRouter.post('/', requireAnyPermission('asset:write'),
   [body('name').notEmpty().withMessage('Asset name required')],
-  async (req: Request, res: Response): Promise<void> => {
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    try { res.status(201).json(await createAsset(req.user!.tenantId, req.user!.sub, req.body)); }
-    catch { res.status(500).json({ error: 'Failed to create asset' }); }
-  },
+    res.status(201).json(await createAsset(req.user!.tenantId, req.user!.sub, req.body));
+  }),
 );
 
-// PATCH /api/v1/assets/:id
-assetsRouter.patch('/:id', requirePermission('asset:write'), async (req: Request, res: Response): Promise<void> => {
-  try { res.json(await updateAsset(req.user!.tenantId, req.params.id, req.user!.sub, req.body)); }
-  catch (e) {
-    if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Asset not found' }); return; }
-    res.status(500).json({ error: 'Failed to update asset' });
-  }
-});
+assetsRouter.patch('/:id', requireAnyPermission('asset:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await updateAsset(req.user!.tenantId, req.params.id, req.user!.sub, req.body));
+  }),
+);
 
-// DELETE /api/v1/assets/:id  (soft delete / archive)
-assetsRouter.delete('/:id', requirePermission('asset:delete'), async (req: Request, res: Response): Promise<void> => {
-  try { await deleteAsset(req.user!.tenantId, req.params.id, req.user!.sub); res.status(204).send(); }
-  catch (e) {
-    if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Asset not found' }); return; }
-    res.status(500).json({ error: 'Failed to archive asset' });
-  }
-});
+assetsRouter.delete('/:id', requireAnyPermission('asset:delete'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    await deleteAsset(req.user!.tenantId, req.params.id, req.user!.sub);
+    res.status(204).send();
+  }),
+);
 
-// POST /api/v1/assets/:id/dispose — formal disposal with financial record
-assetsRouter.post('/:id/dispose', requirePermission('asset:write'),
+assetsRouter.post('/:id/dispose', requireAnyPermission('asset:write'),
   [
     body('disposalDate').notEmpty().withMessage('Disposal date is required'),
     body('disposalMethod').notEmpty().withMessage('Disposal method is required'),
   ],
-  async (req: Request, res: Response): Promise<void> => {
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    try { res.json(await disposeAsset(req.user!.tenantId, req.params.id, req.user!.sub, req.body)); }
-    catch (e) {
-      if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Asset not found' }); return; }
-      if (e instanceof Error && e.message === 'ALREADY_DISPOSED') { res.status(409).json({ error: 'Asset is already disposed' }); return; }
-      res.status(500).json({ error: 'Failed to dispose asset' });
-    }
-  },
+    res.json(await disposeAsset(req.user!.tenantId, req.params.id, req.user!.sub, req.body));
+  }),
 );

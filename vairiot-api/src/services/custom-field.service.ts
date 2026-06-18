@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { NotFoundError, ValidationError } from '../lib/errors';
 
 export interface CustomFieldInput {
   name: string;
@@ -20,8 +21,8 @@ export async function listCustomFields(tenantId: string) {
 
 export async function createCustomField(tenantId: string, input: CustomFieldInput) {
   const fieldType = input.fieldType ?? 'text';
-  if (!VALID_TYPES.includes(fieldType as any)) throw new Error('INVALID_TYPE');
-  if (fieldType === 'select' && (!input.options || input.options.length === 0)) throw new Error('OPTIONS_REQUIRED');
+  if (!VALID_TYPES.includes(fieldType as any)) throw new ValidationError('Invalid field type');
+  if (fieldType === 'select' && (!input.options || input.options.length === 0)) throw new ValidationError('Options are required for select fields');
 
   return prisma.customFieldDefinition.create({
     data: {
@@ -38,12 +39,12 @@ export async function createCustomField(tenantId: string, input: CustomFieldInpu
 
 export async function updateCustomField(tenantId: string, id: string, input: Partial<CustomFieldInput>) {
   const existing = await prisma.customFieldDefinition.findFirst({ where: { id, tenantId } });
-  if (!existing) throw new Error('NOT_FOUND');
+  if (!existing) throw new NotFoundError('Custom field not found');
 
   const data: Record<string, any> = {};
   if (input.label !== undefined) data.label = input.label;
   if (input.fieldType !== undefined) {
-    if (!VALID_TYPES.includes(input.fieldType as any)) throw new Error('INVALID_TYPE');
+    if (!VALID_TYPES.includes(input.fieldType as any)) throw new ValidationError('Invalid field type');
     data.fieldType = input.fieldType;
   }
   if (input.required !== undefined) data.required = input.required;
@@ -55,6 +56,6 @@ export async function updateCustomField(tenantId: string, id: string, input: Par
 
 export async function deleteCustomField(tenantId: string, id: string) {
   const existing = await prisma.customFieldDefinition.findFirst({ where: { id, tenantId } });
-  if (!existing) throw new Error('NOT_FOUND');
+  if (!existing) throw new NotFoundError('Custom field not found');
   await prisma.customFieldDefinition.update({ where: { id }, data: { active: false } });
 }

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useMaintenanceEvents, useCreateMaintenanceEvent, useUpdateMaintenanceEvent } from '@/hooks/useMaintenance';
 import { useAssets } from '@/hooks/useAssets';
-import { hasPermission, useAuthStore } from '@/stores/auth.store';
+import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
 const PAGE_SIZE = 25;
 
@@ -39,7 +39,7 @@ export function MaintenancePage() {
   const navigate = useNavigate();
   const { symbol: currencySymbol, fmt } = useCurrency();
   const user = useAuthStore(s => s.user);
-  const canWrite = hasPermission(user, 'asset:write');
+  const canWrite = hasAnyPermission(user, 'asset:write');
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [showForm, setShowForm] = useState(false);

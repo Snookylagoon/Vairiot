@@ -8,7 +8,7 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { hasPermission, useAuthStore } from '@/stores/auth.store';
+import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
 interface Checkout {
   id: string;
@@ -85,7 +85,7 @@ function CheckoutForm({ onDone }: { onDone: () => void }) {
 export function CheckoutsPage() {
   const qc = useQueryClient();
   const user = useAuthStore(s => s.user);
-  const canWrite = hasPermission(user, 'asset:write');
+  const canWrite = hasAnyPermission(user, 'asset:write');
   const [showForm, setShowForm] = useState(false);
 
   const { data: active   = [] } = useQuery<Checkout[]>({ queryKey: ['checkouts', 'active'],  queryFn: () => api.get('/api/v1/checkouts').then(r => r.data) });

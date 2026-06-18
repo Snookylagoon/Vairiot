@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { hasPermission, useAuthStore } from '@/stores/auth.store';
+import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
 export function SitesPage() {
   const user = useAuthStore(s => s.user);
-  const canWrite = hasPermission(user, 'site:write');
+  const canWrite = hasAnyPermission(user, 'site:write');
   const { data: sites = [], isLoading } = useSites();
   const createSite = useCreateSite();
   const deleteSite = useDeleteSite();

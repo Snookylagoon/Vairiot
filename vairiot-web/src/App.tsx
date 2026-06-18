@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
-import { useAuthStore, hasPermission } from '@/stores/auth.store';
+import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoginPage }       from '@/pages/auth/LoginPage';
 import { DashboardPage }   from '@/pages/dashboard/DashboardPage';
@@ -44,7 +45,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 function RequirePermission({ perms, children }: { perms: string[]; children: React.ReactNode }) {
   const user = useAuthStore(s => s.user);
-  return hasPermission(user, ...perms) ? <>{children}</> : <Navigate to="/dashboard" replace />;
+  return hasAnyPermission(user, ...perms) ? <>{children}</> : <Navigate to="/dashboard" replace />;
 }
 
 export default function App() {
@@ -52,6 +53,7 @@ export default function App() {
   useEffect(() => { hydrate(); }, [hydrate]);
 
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <Toaster position="top-right" richColors closeButton />
       <BrowserRouter>
@@ -83,11 +85,12 @@ export default function App() {
             <Route path="admin/users"    element={<RequirePermission perms={['user:read', 'user:write']}><UsersPage /></RequirePermission>} />
             <Route path="admin/api-keys" element={<RequirePermission perms={['apikey:read', 'apikey:write']}><ApiKeysPage /></RequirePermission>} />
             <Route path="admin/webhooks" element={<RequirePermission perms={['apikey:write']}><WebhooksPage /></RequirePermission>} />
-            <Route path="admin/custom-fields" element={<CustomFieldsPage />} />
+            <Route path="admin/custom-fields" element={<RequirePermission perms={['asset:write']}><CustomFieldsPage /></RequirePermission>} />
             <Route path="admin/audit-log" element={<RequirePermission perms={['user:read', 'user:write', 'apikey:read', 'apikey:write']}><AuditLogPage /></RequirePermission>} />
           </Route>
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

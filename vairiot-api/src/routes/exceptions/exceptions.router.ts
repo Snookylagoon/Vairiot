@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { authenticate } from '../../middleware/authenticate';
+import { asyncHandler } from '../../middleware/error-handler';
 import { prisma } from '../../lib/prisma';
 
 export const exceptionsRouter = Router();
 exceptionsRouter.use(authenticate);
 
-exceptionsRouter.get('/', async (req: Request, res: Response): Promise<void> => {
-  try {
+exceptionsRouter.get('/',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const tenantId = req.user!.tenantId;
 
     const [
@@ -85,5 +86,5 @@ exceptionsRouter.get('/', async (req: Request, res: Response): Promise<void> => 
       expiredWarrantyAssets,
       unlocatedAssets,
     });
-  } catch { res.status(500).json({ error: 'Failed to load exceptions' }); }
-});
+  }),
+);

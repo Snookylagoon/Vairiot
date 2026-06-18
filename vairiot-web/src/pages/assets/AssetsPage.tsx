@@ -9,7 +9,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useSites } from '@/hooks/useSites';
 import { useAssets } from '@/hooks/useAssets';
 import { useDebounce } from '@/hooks/useDebounce';
-import { hasPermission, useAuthStore } from '@/stores/auth.store';
+import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 import type { Asset } from '@/types';
 
 const PAGE_SIZE = 25;
@@ -41,7 +41,7 @@ function useUrlState() {
 export function AssetsPage() {
   const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
-  const canWrite = hasPermission(user, 'asset:write');
+  const canWrite = hasAnyPermission(user, 'asset:write');
   const { get, set } = useUrlState();
 
   const search     = get('search');

@@ -2,12 +2,13 @@ import { Bell, BellOff, Plus, Trash2 } from 'lucide-react';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAlertSubscriptions, useSubscribeAlert, useToggleAlert, useUnsubscribeAlert } from '@/hooks/useAlerts';
+import { ExceptionType } from 'vairiot-shared';
 
 const EXCEPTION_TYPES = [
-  { value: 'missing_documents', label: 'Missing Documents', desc: 'Assets without any attached documents' },
-  { value: 'overdue_maintenance', label: 'Overdue Maintenance', desc: 'Maintenance events past their scheduled date' },
-  { value: 'expired_warranty', label: 'Expired Warranty', desc: 'Assets with expired warranty dates' },
-  { value: 'unlocated_assets', label: 'Unlocated Assets', desc: 'Assets with no site assigned' },
+  { value: ExceptionType.MissingDocuments,   label: 'Missing Documents',   desc: 'Assets without any attached documents' },
+  { value: ExceptionType.OverdueMaintenance, label: 'Overdue Maintenance', desc: 'Maintenance events past their scheduled date' },
+  { value: ExceptionType.ExpiredWarranty,    label: 'Expired Warranty',    desc: 'Assets with expired warranty dates' },
+  { value: ExceptionType.UnlocatedAssets,    label: 'Unlocated Assets',    desc: 'Assets with no site assigned' },
 ];
 
 export function AlertsPage() {

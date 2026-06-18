@@ -1,6 +1,7 @@
 import { Readable } from 'stream';
 import { prisma } from '../lib/prisma';
 import { minioClient, DOCUMENT_BUCKET } from '../lib/minio';
+import { NotFoundError } from '../lib/errors';
 
 export async function listDocuments(tenantId: string, assetId: string) {
   return prisma.document.findMany({
@@ -21,7 +22,7 @@ export async function uploadDocument(params: {
   notes?: string;
 }) {
   const asset = await prisma.asset.findFirst({ where: { id: params.assetId, tenantId: params.tenantId } });
-  if (!asset) throw new Error('ASSET_NOT_FOUND');
+  if (!asset) throw new NotFoundError('Asset not found');
 
   const storageKey = `${params.tenantId}/${params.assetId}/${Date.now()}-${randomHex(8)}-${params.fileName}`;
 
@@ -51,14 +52,14 @@ export async function uploadDocument(params: {
 
 export async function getDocumentStream(tenantId: string, docId: string): Promise<{ stream: Readable; mimeType: string; fileName: string }> {
   const doc = await prisma.document.findFirst({ where: { id: docId, tenantId } });
-  if (!doc) throw new Error('NOT_FOUND');
+  if (!doc) throw new NotFoundError('Document not found');
   const stream = await minioClient.getObject(DOCUMENT_BUCKET, doc.storageKey);
   return { stream, mimeType: doc.mimeType, fileName: doc.fileName };
 }
 
 export async function deleteDocument(tenantId: string, docId: string) {
   const doc = await prisma.document.findFirst({ where: { id: docId, tenantId } });
-  if (!doc) throw new Error('NOT_FOUND');
+  if (!doc) throw new NotFoundError('Document not found');
   await minioClient.removeObject(DOCUMENT_BUCKET, doc.storageKey).catch(() => {});
   await prisma.document.delete({ where: { id: docId } });
   return { id: docId };

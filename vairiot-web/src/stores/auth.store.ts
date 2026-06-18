@@ -1,15 +1,8 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api';
+import type { UserProfile } from 'vairiot-shared';
 
-interface UserProfile {
-  userId:      string;
-  email:       string;
-  tenantId:    string;
-  roles:       string[];
-  permissions: string[];
-}
-
-export function hasPermission(user: UserProfile | null, ...required: string[]): boolean {
+export function hasAnyPermission(user: UserProfile | null, ...required: string[]): boolean {
   if (!user) return false;
   return required.some((p) => user.permissions.includes(p));
 }

@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { body, validationResult } from 'express-validator';
-import { authenticate, requirePermission } from '../../middleware/authenticate';
+import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { asyncHandler } from '../../middleware/error-handler';
 import { listPhotos, uploadPhoto, getPhotoStream, deletePhoto, updatePhoto } from '../../services/photo.service';
 
 export const photosRouter = Router();
@@ -21,69 +22,49 @@ const upload = multer({
   },
 });
 
-// List photos for an asset
-photosRouter.get('/assets/:assetId/photos', async (req: Request, res: Response): Promise<void> => {
-  try { res.json(await listPhotos(req.user!.tenantId, req.params.assetId)); }
-  catch { res.status(500).json({ error: 'Failed to list photos' }); }
-});
-
-// Upload photo for an asset (multipart field: "photo")
-photosRouter.post(
-  '/assets/:assetId/photos',
-  requirePermission('asset:write'),
-  upload.single('photo'),
-  async (req: Request, res: Response): Promise<void> => {
-    if (!req.file) { res.status(400).json({ error: 'No file uploaded (field name "photo")' }); return; }
-    try {
-      const photo = await uploadPhoto({
-        tenantId: req.user!.tenantId,
-        assetId:  req.params.assetId,
-        actorId:  req.user!.sub,
-        buffer:   req.file.buffer,
-        mimeType: req.file.mimetype,
-      });
-      res.status(201).json(photo);
-    } catch (e) {
-      if (e instanceof Error && e.message === 'ASSET_NOT_FOUND') { res.status(404).json({ error: 'Asset not found' }); return; }
-      res.status(500).json({ error: 'Failed to upload photo' });
-    }
-  },
+photosRouter.get('/assets/:assetId/photos',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listPhotos(req.user!.tenantId, req.params.assetId));
+  }),
 );
 
-// Download photo binary
-photosRouter.get('/photos/:id/download', async (req: Request, res: Response): Promise<void> => {
-  try {
+photosRouter.post('/assets/:assetId/photos',
+  requireAnyPermission('asset:write'),
+  upload.single('photo'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    if (!req.file) { res.status(400).json({ error: 'No file uploaded (field name "photo")' }); return; }
+    const photo = await uploadPhoto({
+      tenantId: req.user!.tenantId,
+      assetId:  req.params.assetId,
+      actorId:  req.user!.sub,
+      buffer:   req.file.buffer,
+      mimeType: req.file.mimetype,
+    });
+    res.status(201).json(photo);
+  }),
+);
+
+photosRouter.get('/photos/:id/download',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { stream, mimeType } = await getPhotoStream(req.user!.tenantId, req.params.id);
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Cache-Control', 'private, max-age=300');
     stream.pipe(res);
-  } catch (e) {
-    if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Photo not found' }); return; }
-    res.status(500).json({ error: 'Failed to fetch photo' });
-  }
-});
-
-// PATCH photo metadata (caption)
-photosRouter.patch(
-  '/photos/:id',
-  requirePermission('asset:write'),
-  [body('caption').optional({ nullable: true }).isString().isLength({ max: 500 })],
-  async (req: Request, res: Response): Promise<void> => {
-    const errs = validationResult(req);
-    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    try { res.json(await updatePhoto(req.user!.tenantId, req.params.id, { caption: req.body.caption })); }
-    catch (e) {
-      if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Photo not found' }); return; }
-      res.status(500).json({ error: 'Failed to update photo' });
-    }
-  },
+  }),
 );
 
-// Delete photo
-photosRouter.delete('/photos/:id', requirePermission('asset:delete'), async (req: Request, res: Response): Promise<void> => {
-  try { res.json(await deletePhoto(req.user!.tenantId, req.params.id)); }
-  catch (e) {
-    if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Photo not found' }); return; }
-    res.status(500).json({ error: 'Failed to delete photo' });
-  }
-});
+photosRouter.patch('/photos/:id',
+  requireAnyPermission('asset:write'),
+  [body('caption').optional({ nullable: true }).isString().isLength({ max: 500 })],
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    res.json(await updatePhoto(req.user!.tenantId, req.params.id, { caption: req.body.caption }));
+  }),
+);
+
+photosRouter.delete('/photos/:id', requireAnyPermission('asset:delete'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await deletePhoto(req.user!.tenantId, req.params.id));
+  }),
+);

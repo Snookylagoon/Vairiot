@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { NotFoundError, ConflictError } from '../lib/errors';
 
 export async function listCategories(tenantId: string) {
   return prisma.category.findMany({
@@ -16,14 +17,14 @@ export async function createCategory(tenantId: string, data: { name: string; des
 
 export async function updateCategory(tenantId: string, id: string, data: { name?: string; description?: string; parentId?: string }) {
   const existing = await prisma.category.findFirst({ where: { id, tenantId } });
-  if (!existing) throw new Error('NOT_FOUND');
+  if (!existing) throw new NotFoundError('Category not found');
   return prisma.category.update({ where: { id }, data });
 }
 
 export async function deleteCategory(tenantId: string, id: string) {
   const existing = await prisma.category.findFirst({ where: { id, tenantId } });
-  if (!existing) throw new Error('NOT_FOUND');
+  if (!existing) throw new NotFoundError('Category not found');
   const assetCount = await prisma.asset.count({ where: { categoryId: id } });
-  if (assetCount > 0) throw new Error('HAS_ASSETS');
+  if (assetCount > 0) throw new ConflictError('Category has assets assigned — reassign them first', 'HAS_ASSETS');
   return prisma.category.delete({ where: { id } });
 }

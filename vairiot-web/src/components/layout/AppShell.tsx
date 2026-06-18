@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2 } from 'lucide-react';
 import { useState } from 'react';
-import { useAuthStore, hasPermission } from '@/stores/auth.store';
+import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
 import { useCurrencyStore, CURRENCIES } from '@/stores/currency.store';
 import clsx from 'clsx';
 
@@ -29,7 +29,7 @@ export function AppShell() {
   const { user, logout } = useAuthStore();
   const { currencyCode, setCurrency } = useCurrencyStore();
   const [open, setOpen] = useState(false);
-  const visibleNav = nav.filter(item => !('require' in item) || hasPermission(user, ...item.require));
+  const visibleNav = nav.filter(item => !('require' in item) || hasAnyPermission(user, ...item.require));
 
   return (
     <div className="min-h-screen flex bg-gray-50">

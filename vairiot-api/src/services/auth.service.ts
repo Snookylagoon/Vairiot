@@ -2,8 +2,9 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt';
 import { logger } from '../lib/logger';
-export interface LoginInput { email: string; password: string; tenantId: string; }
-export interface AuthTokens { accessToken: string; refreshToken: string; expiresIn: string; }
+import { UnauthorizedError, ValidationError } from '../lib/errors';
+import type { LoginRequest as LoginInput, AuthTokens } from 'vairiot-shared';
+export type { LoginInput, AuthTokens };
 export async function login({ email, password, tenantId }: LoginInput): Promise<AuthTokens> {
   const user = await prisma.user.findUnique({
     where: { tenantId_email: { tenantId, email } },
@@ -11,10 +12,10 @@ export async function login({ email, password, tenantId }: LoginInput): Promise<
   });
   if (!user || !user.active) {
     await bcrypt.compare(password, '$2b$12$LRrFB3HlpUGi3as4IuSJKuBIURsOQKzkxmBiCO3bHFbvBYuCfmXty').catch(() => false);
-    throw new Error('INVALID_CREDENTIALS');
+    throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
   }
-  if (!user.passwordHash) throw new Error('SSO_ONLY');
-  if (!await bcrypt.compare(password, user.passwordHash)) throw new Error('INVALID_CREDENTIALS');
+  if (!user.passwordHash) throw new ValidationError('This account uses single sign-on');
+  if (!await bcrypt.compare(password, user.passwordHash)) throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
   const roles       = user.roles.map((ur) => ur.role.name);
   const permissions = Array.from(new Set(user.roles.flatMap((ur) => ur.role.permissions)));
   const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
@@ -26,7 +27,7 @@ export async function login({ email, password, tenantId }: LoginInput): Promise<
 export async function refreshTokens(token: string): Promise<AuthTokens> {
   const p = verifyRefreshToken(token);
   const user = await prisma.user.findUnique({ where: { id: p.sub }, include: { roles: { include: { role: true } } } });
-  if (!user || !user.active) throw new Error('USER_NOT_FOUND');
+  if (!user || !user.active) throw new UnauthorizedError('Invalid or expired refresh token');
   const roles       = user.roles.map((ur) => ur.role.name);
   const permissions = Array.from(new Set(user.roles.flatMap((ur) => ur.role.permissions)));
   return {

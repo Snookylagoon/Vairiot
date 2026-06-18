@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { hasPermission, useAuthStore } from '@/stores/auth.store';
+import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
 const statusVariant: Record<string, 'active'|'inactive'|'default'> = {
   draft:       'inactive',
@@ -26,7 +26,7 @@ export function AuditsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
-  const canWrite = hasPermission(user, 'audit:write');
+  const canWrite = hasAnyPermission(user, 'audit:write');
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['audits'],
     queryFn:  () => api.get('/api/v1/audits').then(r => r.data),

@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "vairiot-shared": "*",
     "@hookform/resolvers": "^5.4.0",
     "@tanstack/react-query": "^5.45.0",
     "@tanstack/react-table": "^8.17.0",

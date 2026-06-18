@@ -4,7 +4,7 @@ import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useDocuments, useUploadDocument, useDeleteDocument } from '@/hooks/useDocuments';
-import { hasPermission, useAuthStore } from '@/stores/auth.store';
+import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 import { api } from '@/lib/api';
 
 const DOC_TYPES = [
@@ -26,8 +26,8 @@ function fmtSize(bytes: number) {
 
 export function AssetDocuments({ assetId }: { assetId: string }) {
   const user = useAuthStore(s => s.user);
-  const canWrite = hasPermission(user, 'asset:write');
-  const canDelete = hasPermission(user, 'asset:delete');
+  const canWrite = hasAnyPermission(user, 'asset:write');
+  const canDelete = hasAnyPermission(user, 'asset:delete');
   const { data: documents = [], isLoading } = useDocuments(assetId);
   const uploadDoc = useUploadDocument(assetId);
   const deleteDoc = useDeleteDocument(assetId);

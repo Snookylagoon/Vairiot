@@ -1,6 +1,7 @@
 import { Readable } from 'stream';
 import { prisma } from '../lib/prisma';
 import { minioClient, PHOTO_BUCKET } from '../lib/minio';
+import { NotFoundError } from '../lib/errors';
 
 export async function listPhotos(tenantId: string, assetId: string) {
   return prisma.photo.findMany({
@@ -12,7 +13,7 @@ export async function listPhotos(tenantId: string, assetId: string) {
 
 export async function updatePhoto(tenantId: string, photoId: string, patch: { caption?: string | null }) {
   const photo = await prisma.photo.findFirst({ where: { id: photoId, tenantId } });
-  if (!photo) throw new Error('NOT_FOUND');
+  if (!photo) throw new NotFoundError('Photo not found');
   return prisma.photo.update({
     where: { id: photoId },
     data:  { caption: patch.caption ?? null },
@@ -28,7 +29,7 @@ export async function uploadPhoto(params: {
   mimeType: string;
 }) {
   const asset = await prisma.asset.findFirst({ where: { id: params.assetId, tenantId: params.tenantId } });
-  if (!asset) throw new Error('ASSET_NOT_FOUND');
+  if (!asset) throw new NotFoundError('Asset not found');
 
   const ext       = mimeToExt(params.mimeType);
   const storageKey = `${params.tenantId}/${params.assetId}/${Date.now()}-${randomHex(8)}${ext}`;
@@ -56,14 +57,14 @@ export async function uploadPhoto(params: {
 
 export async function getPhotoStream(tenantId: string, photoId: string): Promise<{ stream: Readable; mimeType: string }> {
   const photo = await prisma.photo.findFirst({ where: { id: photoId, tenantId } });
-  if (!photo) throw new Error('NOT_FOUND');
+  if (!photo) throw new NotFoundError('Photo not found');
   const stream = await minioClient.getObject(PHOTO_BUCKET, photo.storageKey);
   return { stream, mimeType: photo.mimeType };
 }
 
 export async function deletePhoto(tenantId: string, photoId: string) {
   const photo = await prisma.photo.findFirst({ where: { id: photoId, tenantId } });
-  if (!photo) throw new Error('NOT_FOUND');
+  if (!photo) throw new NotFoundError('Photo not found');
   await minioClient.removeObject(PHOTO_BUCKET, photo.storageKey).catch(() => {});
   await prisma.photo.delete({ where: { id: photoId } });
   return { id: photoId };
