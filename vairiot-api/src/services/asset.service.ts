@@ -14,10 +14,45 @@ async function nextAssetNumber(tenantId: string): Promise<string> {
   return 'AST-' + String(count + 1).padStart(6, '0');
 }
 
-export async function listAssets(tenantId: string, params: { search?: string; categoryId?: string; siteId?: string; status?: string; page?: number; pageSize?: number }) {
-  const { search, categoryId, siteId, status, page = 1, pageSize = 50 } = params;
-  const where: Prisma.AssetWhereInput = { tenantId, ...(status && { status }), ...(categoryId && { categoryId }), ...(siteId && { siteId }), ...(search && { OR: [{ name: { contains: search, mode: 'insensitive' } }, { assetNumber: { contains: search, mode: 'insensitive' } }, { serialNumber: { contains: search, mode: 'insensitive' } }, { barcode: { contains: search, mode: 'insensitive' } }, { rfidTag: { contains: search, mode: 'insensitive' } }] }) };
-  const [assets, total] = await Promise.all([prisma.asset.findMany({ where, include: { category: true, site: true, location: true }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }), prisma.asset.count({ where })]);
+const SORTABLE_COLUMNS: Record<string, string> = {
+  assetNumber: 'assetNumber', name: 'name', status: 'status', condition: 'condition',
+  createdAt: 'createdAt', purchaseCost: 'purchaseCost', purchaseDate: 'purchaseDate',
+};
+
+export interface AssetListParams {
+  search?: string; categoryId?: string; siteId?: string; status?: string; condition?: string;
+  sortBy?: string; sortOrder?: string; page?: number; pageSize?: number;
+}
+
+function buildAssetWhere(tenantId: string, params: AssetListParams): Prisma.AssetWhereInput {
+  const { search, categoryId, siteId, status, condition } = params;
+  return {
+    tenantId,
+    ...(status && { status }),
+    ...(condition && { condition }),
+    ...(categoryId && { categoryId }),
+    ...(siteId && { siteId }),
+    ...(search && {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { assetNumber: { contains: search, mode: 'insensitive' } },
+        { serialNumber: { contains: search, mode: 'insensitive' } },
+        { barcode: { contains: search, mode: 'insensitive' } },
+        { rfidTag: { contains: search, mode: 'insensitive' } },
+      ],
+    }),
+  };
+}
+
+export async function listAssets(tenantId: string, params: AssetListParams) {
+  const { sortBy, sortOrder, page = 1, pageSize = 50 } = params;
+  const where = buildAssetWhere(tenantId, params);
+  const col = (sortBy && SORTABLE_COLUMNS[sortBy]) || 'createdAt';
+  const dir = sortOrder === 'asc' ? 'asc' : 'desc';
+  const [assets, total] = await Promise.all([
+    prisma.asset.findMany({ where, include: { category: true, site: true, location: true }, orderBy: { [col]: dir }, skip: (page - 1) * pageSize, take: pageSize }),
+    prisma.asset.count({ where }),
+  ]);
   return { assets, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
 
@@ -98,9 +133,10 @@ export async function deleteAsset(tenantId: string, id: string, actorId: string)
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'deleted', before: existing as unknown as Prisma.InputJsonValue } });
 }
 
-export async function listAssetsForExport(tenantId: string) {
+export async function listAssetsForExport(tenantId: string, params: Omit<AssetListParams, 'page' | 'pageSize' | 'sortBy' | 'sortOrder'> = {}) {
+  const where = buildAssetWhere(tenantId, params);
   return prisma.asset.findMany({
-    where: { tenantId },
+    where,
     include: { category: true, site: true, location: true },
     orderBy: { assetNumber: 'asc' },
   });

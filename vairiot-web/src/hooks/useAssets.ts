@@ -3,10 +3,17 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import type { AssetListResponse, Asset } from '@/types';
 
-export function useAssets(params: { search?: string; page?: number; pageSize?: number; categoryId?: string; siteId?: string } = {}) {
+export interface AssetListParams {
+  search?: string; page?: number; pageSize?: number;
+  categoryId?: string; siteId?: string; status?: string; condition?: string;
+  sortBy?: string; sortOrder?: string;
+}
+
+export function useAssets(params: AssetListParams = {}) {
   return useQuery<AssetListResponse>({
     queryKey: ['assets', params],
     queryFn:  () => api.get('/api/v1/assets', { params }).then(r => r.data),
+    placeholderData: (prev) => prev,
   });
 }
 

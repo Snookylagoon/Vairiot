@@ -7,7 +7,7 @@ import { toCsv } from '../../lib/csv';
 export const assetsRouter = Router();
 assetsRouter.use(authenticate);
 
-// GET /api/v1/assets?search=&categoryId=&siteId=&status=&page=&pageSize=
+// GET /api/v1/assets?search=&categoryId=&siteId=&status=&condition=&sortBy=&sortOrder=&page=&pageSize=
 assetsRouter.get('/',
   [query('page').optional().isInt({ min: 1 }), query('pageSize').optional().isInt({ min: 1, max: 200 })],
   async (req: Request, res: Response): Promise<void> => {
@@ -17,6 +17,9 @@ assetsRouter.get('/',
         categoryId: req.query.categoryId as string,
         siteId:     req.query.siteId as string,
         status:     req.query.status as string,
+        condition:  req.query.condition as string,
+        sortBy:     req.query.sortBy as string,
+        sortOrder:  req.query.sortOrder as string,
         page:       Number(req.query.page) || 1,
         pageSize:   Number(req.query.pageSize) || 50,
       }));
@@ -24,10 +27,16 @@ assetsRouter.get('/',
   },
 );
 
-// GET /api/v1/assets/export.csv — full asset register download
+// GET /api/v1/assets/export.csv — asset register download (respects current filters)
 assetsRouter.get('/export.csv', async (req: Request, res: Response): Promise<void> => {
   try {
-    const rows = await listAssetsForExport(req.user!.tenantId);
+    const rows = await listAssetsForExport(req.user!.tenantId, {
+      search:     req.query.search as string,
+      categoryId: req.query.categoryId as string,
+      siteId:     req.query.siteId as string,
+      status:     req.query.status as string,
+      condition:  req.query.condition as string,
+    });
     const flat = rows.map(a => ({
       assetNumber: a.assetNumber, name: a.name, status: a.status, condition: a.condition,
       category: a.category?.name ?? '', site: a.site?.name ?? '', location: a.location?.name ?? '',
