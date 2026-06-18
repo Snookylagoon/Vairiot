@@ -1,7 +1,25 @@
 package com.vairiot.app
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import com.vairiot.app.sync.ScanSyncScheduler
 import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
 @HiltAndroidApp
-class VairiotApp : Application()
+class VairiotApp : Application(), Configuration.Provider {
+
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var scanSyncScheduler: ScanSyncScheduler
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+
+    override fun onCreate() {
+        super.onCreate()
+        scanSyncScheduler.ensurePeriodic()
+    }
+}

@@ -1,0 +1,27 @@
+package com.vairiot.app.data.local
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface QueuedScanDao {
+    @Insert
+    suspend fun insert(scan: QueuedScan): Long
+
+    @Query("SELECT * FROM queued_scans ORDER BY id ASC LIMIT :limit")
+    suspend fun takeBatch(limit: Int = 50): List<QueuedScan>
+
+    @Query("DELETE FROM queued_scans WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("UPDATE queued_scans SET attempts = attempts + 1, lastError = :error WHERE id = :id")
+    suspend fun markFailure(id: Long, error: String)
+
+    @Query("SELECT COUNT(*) FROM queued_scans WHERE campaignId = :campaignId")
+    fun pendingCountByCampaign(campaignId: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM queued_scans")
+    suspend fun totalPending(): Int
+}

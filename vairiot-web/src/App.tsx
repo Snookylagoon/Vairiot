@@ -13,6 +13,8 @@ import { CategoriesPage }    from '@/pages/categories/CategoriesPage';
 import { SitesPage }         from '@/pages/sites/SitesPage';
 import { AuditsPage }        from '@/pages/audits/AuditsPage';
 import { AuditRunPage }      from '@/pages/audits/AuditRunPage';
+import { UsersPage }         from '@/pages/admin/UsersPage';
+import { ApiKeysPage }       from '@/pages/admin/ApiKeysPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -44,6 +46,8 @@ export default function App() {
             <Route path="sites"        element={<SitesPage />} />
             <Route path="audits"       element={<AuditsPage />} />
             <Route path="audits/:id/run" element={<AuditRunPage />} />
+            <Route path="admin/users"    element={<UsersPage />} />
+            <Route path="admin/api-keys" element={<ApiKeysPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -25,8 +25,29 @@ model Tenant {
   assets      Asset[]
   auditCampaigns AuditCampaign[]
   checkouts   Checkout[]
+  apiKeys     ApiKey[]
 
   @@map("tenants")
+}
+
+// ─── API Keys ─────────────────────────────────────────────────────────────────
+model ApiKey {
+  id         String    @id @default(cuid())
+  tenantId   String
+  name       String
+  prefix     String
+  hash       String
+  scopes     String[]
+  createdBy  String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([prefix])
+  @@map("api_keys")
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────

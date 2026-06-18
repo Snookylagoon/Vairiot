@@ -10,6 +10,8 @@ import { sitesRouter }      from './routes/sites/sites.router';
 import { auditsRouter }     from './routes/audits/audits.router';
 import { checkoutsRouter }  from './routes/checkouts/checkouts.router';
 import { photosRouter }     from './routes/photos/photos.router';
+import { usersRouter }      from './routes/admin/users.router';
+import { apiKeysRouter }    from './routes/admin/api-keys.router';
 import { logger } from './lib/logger';
 
 export function createApp(): Application {
@@ -30,6 +32,8 @@ export function createApp(): Application {
   app.use('/api/v1/audits',       auditsRouter);
   app.use('/api/v1/checkouts',    checkoutsRouter);
   app.use('/api/v1',               photosRouter);   // /assets/:id/photos, /photos/:id/download, /photos/:id
+  app.use('/api/v1/users',        usersRouter);
+  app.use('/api/v1/api-keys',     apiKeysRouter);
   app.use((_req: Request, res: Response) => { res.status(404).json({ error: 'Not found' }); });
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
