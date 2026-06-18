@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
@@ -37,13 +36,12 @@ android {
         jvmTarget = "11"
     }
     buildFeatures {
-        compose    = true
+        compose     = true
         buildConfig = true
     }
 }
 
 dependencies {
-    // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -54,31 +52,17 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-
-    // Navigation
     implementation(libs.androidx.navigation.compose)
-
-    // Hilt — using KSP (not KAPT)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
-
-    // Retrofit + OkHttp
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
-
-    // DataStore
     implementation(libs.datastore.preferences)
-
-    // Coroutines
     implementation(libs.kotlinx.coroutines.android)
-
-    // Material icons extended
     implementation(libs.material.icons.extended)
-
-    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
