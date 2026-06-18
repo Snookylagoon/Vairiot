@@ -98,8 +98,13 @@ data class PhotoResponse(
     val sizeBytes: Int,
     val width:     Int? = null,
     val height:    Int? = null,
+    val caption:   String? = null,
     val createdAt: String,
     val createdBy: String? = null,
+)
+
+data class PhotoUpdateRequest(
+    val caption: String?,
 )
 
 // ─── Asset update ──────────────────────────────────────────────────────────

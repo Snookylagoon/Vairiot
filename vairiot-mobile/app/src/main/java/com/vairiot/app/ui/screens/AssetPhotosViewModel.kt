@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.api.PhotoResponse
+import com.vairiot.app.data.api.PhotoUpdateRequest
 import com.vairiot.app.data.api.VairiotApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -65,6 +66,19 @@ class AssetPhotosViewModel @Inject constructor(
                 _state.value = _state.value.copy(isUploading = false)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isUploading = false, error = "Upload failed: ${e.message}")
+            }
+        }
+    }
+
+    fun updateCaption(photoId: String, caption: String) {
+        viewModelScope.launch {
+            try {
+                val updated = api.updatePhoto(photoId, PhotoUpdateRequest(caption.ifBlank { null }))
+                _state.value = _state.value.copy(
+                    photos = _state.value.photos.map { if (it.id == photoId) updated else it },
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(error = "Caption update failed: ${e.message}")
             }
         }
     }

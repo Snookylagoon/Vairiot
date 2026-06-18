@@ -6,7 +6,17 @@ export async function listPhotos(tenantId: string, assetId: string) {
   return prisma.photo.findMany({
     where: { tenantId, assetId },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, mimeType: true, sizeBytes: true, width: true, height: true, createdAt: true, createdBy: true },
+    select: { id: true, mimeType: true, sizeBytes: true, width: true, height: true, caption: true, createdAt: true, createdBy: true },
+  });
+}
+
+export async function updatePhoto(tenantId: string, photoId: string, patch: { caption?: string | null }) {
+  const photo = await prisma.photo.findFirst({ where: { id: photoId, tenantId } });
+  if (!photo) throw new Error('NOT_FOUND');
+  return prisma.photo.update({
+    where: { id: photoId },
+    data:  { caption: patch.caption ?? null },
+    select: { id: true, mimeType: true, sizeBytes: true, width: true, height: true, caption: true, createdAt: true, createdBy: true },
   });
 }
 
@@ -40,7 +50,7 @@ export async function uploadPhoto(params: {
       sizeBytes:  params.buffer.length,
       createdBy:  params.actorId,
     },
-    select: { id: true, mimeType: true, sizeBytes: true, createdAt: true },
+    select: { id: true, mimeType: true, sizeBytes: true, caption: true, createdAt: true },
   });
 }
 

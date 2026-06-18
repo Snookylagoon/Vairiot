@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
+import { body, validationResult } from 'express-validator';
 import { authenticate, requirePermission } from '../../middleware/authenticate';
-import { listPhotos, uploadPhoto, getPhotoStream, deletePhoto } from '../../services/photo.service';
+import { listPhotos, uploadPhoto, getPhotoStream, deletePhoto, updatePhoto } from '../../services/photo.service';
 
 export const photosRouter = Router();
 photosRouter.use(authenticate);
@@ -61,6 +62,22 @@ photosRouter.get('/photos/:id/download', async (req: Request, res: Response): Pr
     res.status(500).json({ error: 'Failed to fetch photo' });
   }
 });
+
+// PATCH photo metadata (caption)
+photosRouter.patch(
+  '/photos/:id',
+  requirePermission('asset:write'),
+  [body('caption').optional({ nullable: true }).isString().isLength({ max: 500 })],
+  async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    try { res.json(await updatePhoto(req.user!.tenantId, req.params.id, { caption: req.body.caption })); }
+    catch (e) {
+      if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Photo not found' }); return; }
+      res.status(500).json({ error: 'Failed to update photo' });
+    }
+  },
+);
 
 // Delete photo
 photosRouter.delete('/photos/:id', requirePermission('asset:delete'), async (req: Request, res: Response): Promise<void> => {

@@ -8,10 +8,18 @@ import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.text.input.ImeAction
+import com.vairiot.app.data.api.PhotoResponse
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Close
@@ -51,6 +59,7 @@ fun AssetPhotosSection(
 
     var captureUri by remember { mutableStateOf<Uri?>(null) }
     var localError by remember { mutableStateOf<String?>(null) }
+    var viewingPhoto by remember { mutableStateOf<PhotoResponse?>(null) }
 
     val takePicture = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture(),
@@ -143,31 +152,123 @@ fun AssetPhotosSection(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(state.photos, key = { it.id }) { photo ->
-                        Box(modifier = Modifier.size(100.dp)) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data("${BuildConfig.API_BASE_URL}api/v1/photos/${photo.id}/download")
-                                    .crossfade(true)
-                                    .build(),
-                                imageLoader = imageLoader,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                                    .clip(RoundedCornerShape(8.dp)),
-                            )
-                            IconButton(
-                                onClick = { viewModel.delete(photo.id) },
-                                modifier = Modifier.align(Alignment.TopEnd).size(28.dp),
-                            ) {
-                                Surface(shape = RoundedCornerShape(50),
-                                    color = White.copy(alpha = 0.85f)) {
-                                    Icon(Icons.Default.Close,
-                                        contentDescription = "Delete",
-                                        tint = ErrorRed,
-                                        modifier = Modifier.padding(2.dp).size(16.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Box(modifier = Modifier.size(100.dp).clickable { viewingPhoto = photo }) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data("${BuildConfig.API_BASE_URL}api/v1/photos/${photo.id}/download")
+                                        .crossfade(true)
+                                        .build(),
+                                    imageLoader = imageLoader,
+                                    contentDescription = photo.caption ?: "Asset photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                        .clip(RoundedCornerShape(8.dp)),
+                                )
+                                IconButton(
+                                    onClick = { viewModel.delete(photo.id) },
+                                    modifier = Modifier.align(Alignment.TopEnd).size(28.dp),
+                                ) {
+                                    Surface(shape = RoundedCornerShape(50),
+                                        color = White.copy(alpha = 0.85f)) {
+                                        Icon(Icons.Default.Close,
+                                            contentDescription = "Delete",
+                                            tint = ErrorRed,
+                                            modifier = Modifier.padding(2.dp).size(16.dp))
+                                    }
                                 }
                             }
+                            if (!photo.caption.isNullOrBlank()) {
+                                Text(
+                                    text = photo.caption,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                    maxLines = 1,
+                                    modifier = Modifier.width(100.dp),
+                                )
+                            }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    viewingPhoto?.let { photo ->
+        PhotoViewerDialog(
+            photo = photo,
+            imageLoader = imageLoader,
+            onDismiss = { viewingPhoto = null },
+            onSaveCaption = { caption ->
+                viewModel.updateCaption(photo.id, caption)
+                viewingPhoto = photo.copy(caption = caption.ifBlank { null })
+            },
+            onDelete = {
+                viewModel.delete(photo.id)
+                viewingPhoto = null
+            },
+        )
+    }
+}
+
+@Composable
+private fun PhotoViewerDialog(
+    photo: PhotoResponse,
+    imageLoader: ImageLoader,
+    onDismiss: () -> Unit,
+    onSaveCaption: (String) -> Unit,
+    onDelete: () -> Unit,
+) {
+    val context = LocalContext.current
+    var caption by remember(photo.id) { mutableStateOf(photo.caption.orEmpty()) }
+    val dirty = caption.trim() != (photo.caption ?: "").trim()
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.85f),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data("${BuildConfig.API_BASE_URL}api/v1/photos/${photo.id}/download")
+                        .crossfade(true)
+                        .build(),
+                    imageLoader = imageLoader,
+                    contentDescription = photo.caption ?: "Asset photo",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+                )
+                OutlinedTextField(
+                    value = caption,
+                    onValueChange = { caption = it.take(500) },
+                    label = { Text("Caption") },
+                    placeholder = { Text("Describe this photo…") },
+                    singleLine = false,
+                    maxLines = 3,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = onDelete) {
+                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Delete")
+                    }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = onDismiss) { Text("Close") }
+                    Button(
+                        onClick = { onSaveCaption(caption.trim()) },
+                        enabled = dirty,
+                        colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Save")
                     }
                 }
             }

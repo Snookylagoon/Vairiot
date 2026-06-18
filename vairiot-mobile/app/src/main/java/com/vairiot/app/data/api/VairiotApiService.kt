@@ -75,6 +75,12 @@ interface VairiotApiService {
     @GET("api/v1/photos/{id}/download")
     suspend fun downloadPhoto(@Path("id") id: String): ResponseBody
 
+    @PATCH("api/v1/photos/{id}")
+    suspend fun updatePhoto(
+        @Path("id") id: String,
+        @Body update: PhotoUpdateRequest,
+    ): PhotoResponse
+
     @DELETE("api/v1/photos/{id}")
     suspend fun deletePhoto(@Path("id") id: String): Map<String, String>
 }
