@@ -98,3 +98,29 @@ export async function getCampaignReport(tenantId: string, id: string) {
   if (!c) throw new Error('NOT_FOUND');
   return c;
 }
+
+export async function getCampaignReportRows(tenantId: string, id: string) {
+  const c = await prisma.auditCampaign.findFirst({ where: { id, tenantId } });
+  if (!c) throw new Error('NOT_FOUND');
+  const scans = await prisma.auditScanEvent.findMany({
+    where: { campaignId: id },
+    orderBy: { scannedAt: 'asc' },
+  });
+  const scannedAssetIds = scans.filter(s => s.assetId).map(s => s.assetId!);
+  const scannedAssets = await prisma.asset.findMany({
+    where: { id: { in: scannedAssetIds }, tenantId },
+    include: { category: true, site: true, location: true },
+  });
+  const assetById = new Map(scannedAssets.map(a => [a.id, a]));
+  const scansWithAsset = scans.map(s => ({ ...s, asset: s.assetId ? assetById.get(s.assetId) ?? null : null }));
+  const foundIds = new Set(scannedAssetIds);
+  const expected = await prisma.asset.findMany({
+    where: { tenantId, status: 'active',
+      ...(c.siteId     && { siteId:     c.siteId }),
+      ...(c.locationId && { locationId: c.locationId }),
+    },
+    include: { category: true, site: true, location: true },
+  });
+  const missing = expected.filter(a => !foundIds.has(a.id));
+  return { campaign: c, scans: scansWithAsset, missing };
+}

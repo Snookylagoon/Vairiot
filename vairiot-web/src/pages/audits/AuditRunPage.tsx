@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CheckCircle2, Plus, SearchX, Flag } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Plus, SearchX, Flag, Download } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -126,7 +126,18 @@ function ReportView({ report, onBack }: { report: Report; onBack: () => void }) 
         <ArrowLeft size={16} /> Back to audits
       </button>
 
-      <h1 className="text-2xl font-bold text-v-charcoal">Audit complete</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-v-charcoal">Audit complete</h1>
+        <Button variant="secondary" onClick={async () => {
+          const r = await api.get(`/api/v1/audits/${report.campaignId}/export.csv`, { responseType: 'blob' });
+          const url = URL.createObjectURL(r.data);
+          const a = document.createElement('a');
+          a.href = url; a.download = `audit-${report.campaignId.slice(0,8)}.csv`;
+          a.click(); URL.revokeObjectURL(url);
+        }}>
+          <Download size={16} className="mr-1.5" /> Export CSV
+        </Button>
+      </div>
 
       <Card>
         <CardBody className="grid grid-cols-2 md:grid-cols-5 gap-4">

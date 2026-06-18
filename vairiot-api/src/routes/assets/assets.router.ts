@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
 import { authenticate } from '../../middleware/authenticate';
-import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, getAssetByTag } from '../../services/asset.service';
+import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, getAssetByTag, listAssetsForExport } from '../../services/asset.service';
+import { toCsv } from '../../lib/csv';
 
 export const assetsRouter = Router();
 assetsRouter.use(authenticate);
@@ -22,6 +23,48 @@ assetsRouter.get('/',
     } catch { res.status(500).json({ error: 'Failed to fetch assets' }); }
   },
 );
+
+// GET /api/v1/assets/export.csv — full asset register download
+assetsRouter.get('/export.csv', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await listAssetsForExport(req.user!.tenantId);
+    const flat = rows.map(a => ({
+      assetNumber: a.assetNumber, name: a.name, status: a.status, condition: a.condition,
+      category: a.category?.name ?? '', site: a.site?.name ?? '', location: a.location?.name ?? '',
+      serialNumber: a.serialNumber ?? '', modelNumber: a.modelNumber ?? '', manufacturer: a.manufacturer ?? '',
+      barcode: a.barcode ?? '', rfidTag: a.rfidTag ?? '',
+      purchaseDate: a.purchaseDate ? a.purchaseDate.toISOString().slice(0, 10) : '',
+      purchaseCost: a.purchaseCost ? a.purchaseCost.toString() : '',
+      warrantyExpiry: a.warrantyExpiry ? a.warrantyExpiry.toISOString().slice(0, 10) : '',
+      supplier: a.supplier ?? '', notes: a.notes ?? '',
+      createdAt: a.createdAt.toISOString(), updatedAt: a.updatedAt.toISOString(),
+    }));
+    const csv = toCsv(flat, [
+      { key: 'assetNumber',    header: 'Asset Number' },
+      { key: 'name',           header: 'Name' },
+      { key: 'status',         header: 'Status' },
+      { key: 'condition',      header: 'Condition' },
+      { key: 'category',       header: 'Category' },
+      { key: 'site',           header: 'Site' },
+      { key: 'location',       header: 'Location' },
+      { key: 'serialNumber',   header: 'Serial Number' },
+      { key: 'modelNumber',    header: 'Model Number' },
+      { key: 'manufacturer',   header: 'Manufacturer' },
+      { key: 'barcode',        header: 'Barcode' },
+      { key: 'rfidTag',        header: 'RFID Tag' },
+      { key: 'purchaseDate',   header: 'Purchase Date' },
+      { key: 'purchaseCost',   header: 'Purchase Cost' },
+      { key: 'warrantyExpiry', header: 'Warranty Expiry' },
+      { key: 'supplier',       header: 'Supplier' },
+      { key: 'notes',          header: 'Notes' },
+      { key: 'createdAt',      header: 'Created' },
+      { key: 'updatedAt',      header: 'Updated' },
+    ]);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="assets-${new Date().toISOString().slice(0,10)}.csv"`);
+    res.send(csv);
+  } catch { res.status(500).json({ error: 'Failed to export assets' }); }
+});
 
 // GET /api/v1/assets/tag/:tag — scan-to-lookup (barcode or RFID)
 assetsRouter.get('/tag/:tag', async (req: Request, res: Response): Promise<void> => {

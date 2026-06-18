@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Package } from 'lucide-react';
+import { Search, Plus, Package, Download } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -27,9 +27,20 @@ export function AssetsPage() {
           <h1 className="text-2xl font-bold text-v-charcoal">Assets</h1>
           <p className="text-sm text-gray-500 mt-1">{data?.total ?? 0} total assets</p>
         </div>
-        <Button onClick={() => navigate('/assets/new')}>
-          <Plus size={16} className="mr-1.5" /> New Asset
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={async () => {
+            const r = await api.get('/api/v1/assets/export.csv', { responseType: 'blob' });
+            const url = URL.createObjectURL(r.data);
+            const a = document.createElement('a');
+            a.href = url; a.download = `assets-${new Date().toISOString().slice(0,10)}.csv`;
+            a.click(); URL.revokeObjectURL(url);
+          }}>
+            <Download size={16} className="mr-1.5" /> Export CSV
+          </Button>
+          <Button onClick={() => navigate('/assets/new')}>
+            <Plus size={16} className="mr-1.5" /> New Asset
+          </Button>
+        </div>
       </div>
 
       {/* Search */}

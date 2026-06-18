@@ -85,6 +85,14 @@ export async function deleteAsset(tenantId: string, id: string, actorId: string)
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'deleted', before: existing as unknown as Prisma.InputJsonValue } });
 }
 
+export async function listAssetsForExport(tenantId: string) {
+  return prisma.asset.findMany({
+    where: { tenantId },
+    include: { category: true, site: true, location: true },
+    orderBy: { assetNumber: 'asc' },
+  });
+}
+
 export async function getAssetByTag(tenantId: string, tag: string) {
   const asset = await prisma.asset.findFirst({ where: { tenantId, OR: [{ rfidTag: tag }, { barcode: tag }] }, include: { category: true, site: true, location: true } });
   if (!asset) throw new Error('NOT_FOUND');
