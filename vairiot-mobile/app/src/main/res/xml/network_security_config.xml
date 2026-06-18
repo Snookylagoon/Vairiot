@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+        Pre-production: permit cleartext HTTP for local dev (emulator at 10.0.2.2
+        and physical devices hitting a Mac on the LAN by IP).
+        TODO: before release, replace with a base-config that rejects cleartext
+        and an explicit domain-config for any HTTPS-exempt internal hosts only.
+    -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
