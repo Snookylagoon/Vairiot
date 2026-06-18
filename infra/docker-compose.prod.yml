@@ -81,7 +81,7 @@ services:
   worker:
     build:
       context: ../vairiot-worker
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: vairiot_worker
     restart: always
     depends_on:

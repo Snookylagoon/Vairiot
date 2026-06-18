@@ -58,7 +58,7 @@ function StatusBar({ counts }: { counts: Record<string, number> }) {
 
 interface AuditEvent {
   id: string; entityType: string; entityId: string; action: string;
-  createdAt: string; actorId?: string | null;
+  occurredAt: string; actorId?: string | null;
 }
 
 export function DashboardPage() {
@@ -145,7 +145,7 @@ export function DashboardPage() {
                     <span className="text-gray-500">{ev.entityType}</span>
                     <span className="text-gray-400 text-xs font-mono">{ev.entityId.slice(0, 8)}</span>
                   </div>
-                  <span className="text-xs text-gray-400">{new Date(ev.createdAt).toLocaleString('en-GB')}</span>
+                  <span className="text-xs text-gray-400">{new Date(ev.occurredAt).toLocaleString('en-GB')}</span>
                 </div>
               ))}
             </div>
