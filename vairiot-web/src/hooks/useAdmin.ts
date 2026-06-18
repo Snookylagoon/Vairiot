@@ -96,3 +96,25 @@ export function useRevokeApiKey() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'api-keys'] }),
   });
 }
+
+export interface AuditEvent {
+  id:         string;
+  entityType: string;
+  entityId:   string;
+  action:     string;
+  actorId:    string | null;
+  occurredAt: string;
+  before:     unknown;
+  after:      unknown;
+  metadata:   { actorKey?: string; email?: string; name?: string; prefix?: string } | null;
+  actor:      { name: string; email: string } | null;
+}
+
+export function useAuditEvents(entityType?: string) {
+  return useQuery<AuditEvent[]>({
+    queryKey: ['admin', 'audit-events', entityType ?? 'all'],
+    queryFn:  () => api.get('/api/v1/audit-events', {
+      params: entityType ? { entityType } : undefined,
+    }).then(r => r.data),
+  });
+}

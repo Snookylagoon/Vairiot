@@ -15,6 +15,7 @@ import { AuditsPage }        from '@/pages/audits/AuditsPage';
 import { AuditRunPage }      from '@/pages/audits/AuditRunPage';
 import { UsersPage }         from '@/pages/admin/UsersPage';
 import { ApiKeysPage }       from '@/pages/admin/ApiKeysPage';
+import { AuditLogPage }      from '@/pages/admin/AuditLogPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="audits/:id/run" element={<AuditRunPage />} />
             <Route path="admin/users"    element={<RequirePermission perms={['user:read', 'user:write']}><UsersPage /></RequirePermission>} />
             <Route path="admin/api-keys" element={<RequirePermission perms={['apikey:read', 'apikey:write']}><ApiKeysPage /></RequirePermission>} />
+            <Route path="admin/audit-log" element={<RequirePermission perms={['user:read', 'user:write', 'apikey:read', 'apikey:write']}><AuditLogPage /></RequirePermission>} />
           </Route>
         </Routes>
       </BrowserRouter>

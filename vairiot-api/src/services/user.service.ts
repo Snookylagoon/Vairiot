@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
+import { recordAuditEvent } from './audit-event.service';
 
 export async function listUsers(tenantId: string) {
   return prisma.user.findMany({
@@ -27,6 +28,7 @@ export async function listRoles(tenantId: string) {
 
 export async function inviteUser(
   tenantId: string,
+  actor: string,
   data: { email: string; name: string; password: string; roleId?: string },
 ) {
   const existing = await prisma.user.findFirst({ where: { tenantId, email: data.email } });
@@ -35,11 +37,18 @@ export async function inviteUser(
   const user = await prisma.user.create({
     data: { tenantId, email: data.email, name: data.name, passwordHash, active: true },
   });
+  let roleName: string | undefined;
   if (data.roleId) {
     const role = await prisma.role.findFirst({ where: { id: data.roleId, tenantId } });
     if (!role) throw new Error('ROLE_NOT_FOUND');
     await prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
+    roleName = role.name;
   }
+  recordAuditEvent({
+    tenantId, actor,
+    entityType: 'user', entityId: user.id, action: 'invite',
+    after: { email: user.email, name: user.name, role: roleName ?? null },
+  });
   return prisma.user.findUnique({
     where: { id: user.id },
     select: {
@@ -49,19 +58,41 @@ export async function inviteUser(
   });
 }
 
-export async function setUserActive(tenantId: string, userId: string, active: boolean) {
+export async function setUserActive(tenantId: string, actor: string, userId: string, active: boolean) {
   const user = await prisma.user.findFirst({ where: { id: userId, tenantId } });
   if (!user) throw new Error('NOT_FOUND');
-  return prisma.user.update({ where: { id: userId }, data: { active }, select: { id: true, active: true } });
+  const updated = await prisma.user.update({
+    where: { id: userId }, data: { active },
+    select: { id: true, active: true },
+  });
+  if (user.active !== active) {
+    recordAuditEvent({
+      tenantId, actor,
+      entityType: 'user', entityId: userId, action: active ? 'enable' : 'disable',
+      before: { active: user.active }, after: { active },
+      metadata: { email: user.email },
+    });
+  }
+  return updated;
 }
 
-export async function setUserRole(tenantId: string, userId: string, roleId: string) {
-  const user = await prisma.user.findFirst({ where: { id: userId, tenantId } });
+export async function setUserRole(tenantId: string, actor: string, userId: string, roleId: string) {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, tenantId },
+    include: { roles: { include: { role: { select: { id: true, name: true } } } } },
+  });
   if (!user) throw new Error('NOT_FOUND');
   const role = await prisma.role.findFirst({ where: { id: roleId, tenantId } });
   if (!role) throw new Error('ROLE_NOT_FOUND');
+  const previous = user.roles.map((ur) => ur.role.name);
   await prisma.userRole.deleteMany({ where: { userId } });
   await prisma.userRole.create({ data: { userId, roleId } });
+  recordAuditEvent({
+    tenantId, actor,
+    entityType: 'user', entityId: userId, action: 'role-change',
+    before: { roles: previous }, after: { roles: [role.name] },
+    metadata: { email: user.email },
+  });
   return prisma.user.findUnique({
     where: { id: userId },
     select: {

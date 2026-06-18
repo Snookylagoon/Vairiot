@@ -20,7 +20,7 @@ beforeAll(async () => {
   activeToken = active.token;
   const toRevoke = await createApiKey(TID, 'apikey-test-suite', { name: 'Revoked key' });
   revokedToken = toRevoke.token;
-  await revokeApiKey(TID, toRevoke.id);
+  await revokeApiKey(TID, 'apikey-test-suite', toRevoke.id);
 });
 
 afterAll(async () => {

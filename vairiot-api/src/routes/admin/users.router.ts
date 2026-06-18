@@ -29,7 +29,7 @@ usersRouter.post('/', requirePermission('user:write'),
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     try {
-      res.status(201).json(await inviteUser(req.user!.tenantId, req.body));
+      res.status(201).json(await inviteUser(req.user!.tenantId, req.user!.sub, req.body));
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
       if (msg === 'EMAIL_EXISTS')    { res.status(409).json({ error: 'A user with that email already exists' }); return; }
@@ -45,7 +45,7 @@ usersRouter.patch('/:userId/active', requirePermission('user:write'),
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     try {
-      res.json(await setUserActive(req.user!.tenantId, req.params.userId, req.body.active));
+      res.json(await setUserActive(req.user!.tenantId, req.user!.sub, req.params.userId, req.body.active));
     } catch (e) {
       if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'User not found' }); return; }
       res.status(500).json({ error: 'Failed to update user' });
@@ -59,7 +59,7 @@ usersRouter.patch('/:userId/role', requirePermission('user:write'),
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     try {
-      res.json(await setUserRole(req.user!.tenantId, req.params.userId, req.body.roleId));
+      res.json(await setUserRole(req.user!.tenantId, req.user!.sub, req.params.userId, req.body.roleId));
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
       if (msg === 'NOT_FOUND')      { res.status(404).json({ error: 'User not found' }); return; }

@@ -29,7 +29,7 @@ apiKeysRouter.post('/', requirePermission('apikey:write'),
 
 apiKeysRouter.delete('/:keyId', requirePermission('apikey:write'), async (req: Request, res: Response): Promise<void> => {
   try {
-    res.json(await revokeApiKey(req.user!.tenantId, req.params.keyId));
+    res.json(await revokeApiKey(req.user!.tenantId, req.user!.sub, req.params.keyId));
   } catch (e) {
     if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'API key not found' }); return; }
     res.status(500).json({ error: 'Failed to revoke API key' });

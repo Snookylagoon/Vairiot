@@ -1,5 +1,6 @@
 import { randomBytes, createHash } from 'crypto';
 import { prisma } from '../lib/prisma';
+import { recordAuditEvent } from './audit-event.service';
 
 const PREFIX = 'vai_';
 
@@ -34,16 +35,28 @@ export async function createApiKey(
     },
     select: { id: true, name: true, prefix: true, scopes: true, createdAt: true },
   });
+  recordAuditEvent({
+    tenantId, actor: createdBy,
+    entityType: 'api-key', entityId: key.id, action: 'create',
+    after: { name: key.name, prefix: key.prefix, scopes: key.scopes },
+  });
   return { ...key, token };
 }
 
-export async function revokeApiKey(tenantId: string, keyId: string) {
+export async function revokeApiKey(tenantId: string, actor: string, keyId: string) {
   const key = await prisma.apiKey.findFirst({ where: { id: keyId, tenantId } });
   if (!key) throw new Error('NOT_FOUND');
   if (key.revokedAt) return { id: key.id, revokedAt: key.revokedAt };
-  return prisma.apiKey.update({
+  const updated = await prisma.apiKey.update({
     where: { id: keyId },
     data: { revokedAt: new Date() },
     select: { id: true, revokedAt: true },
   });
+  recordAuditEvent({
+    tenantId, actor,
+    entityType: 'api-key', entityId: keyId, action: 'revoke',
+    after: { revokedAt: updated.revokedAt },
+    metadata: { name: key.name, prefix: key.prefix },
+  });
+  return updated;
 }
