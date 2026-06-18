@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, MapPin, Trash2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, MapPin, Trash2, Search } from 'lucide-react';
 import { useSites, useCreateSite, useDeleteSite } from '@/hooks/useSites';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -16,6 +16,14 @@ export function SitesPage() {
   const [form, setForm] = useState({ name: '', address: '', city: '', country: '' });
   const [error, setError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return sites;
+    const q = search.toLowerCase();
+    return sites.filter((s: { name: string; city?: string; country?: string }) =>
+      s.name.toLowerCase().includes(q) || s.city?.toLowerCase().includes(q) || s.country?.toLowerCase().includes(q));
+  }, [sites, search]);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -61,16 +69,23 @@ export function SitesPage() {
         </Card>
       )}
 
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search sites…"
+          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-v-pink" />
+      </div>
+
       <Card>
         <CardBody className="divide-y divide-gray-50">
           {isLoading && <p className="text-sm text-gray-400 py-4 text-center">Loading…</p>}
-          {sites.length === 0 && !isLoading && (
+          {filtered.length === 0 && !isLoading && (
             <div className="py-8 text-center">
               <MapPin size={28} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-sm text-gray-400">No sites yet — add one above.</p>
+              <p className="text-sm text-gray-400">{search ? 'No matching sites.' : 'No sites yet — add one above.'}</p>
             </div>
           )}
-          {sites.map((s: { id: string; name: string; city?: string; country?: string; _count?: { assets: number } }) => (
+          {filtered.map((s: { id: string; name: string; city?: string; country?: string; _count?: { assets: number } }) => (
             <div key={s.id} className="flex items-center justify-between py-3">
               <div>
                 <p className="text-sm font-medium text-v-charcoal">{s.name}</p>

@@ -82,6 +82,7 @@ export async function createAsset(tenantId: string, actorId: string, input: Asse
       tenantId, assetNumber, name: input.name, description: input.description,
       serialNumber: input.serialNumber, modelNumber: input.modelNumber, manufacturer: input.manufacturer,
       barcode: input.barcode, rfidTag: input.rfidTag, supplier: input.supplier, notes: input.notes,
+      condition: input.condition, status: input.status,
       customFields: (input.customFields ?? undefined) as Prisma.InputJsonValue | undefined,
       purchaseCost: input.purchaseCost != null ? new Prisma.Decimal(input.purchaseCost) : undefined,
       purchaseDate: input.purchaseDate ? new Date(input.purchaseDate) : undefined,

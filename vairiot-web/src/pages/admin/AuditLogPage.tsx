@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ScrollText, User as UserIcon, KeyRound } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { ScrollText, User as UserIcon, KeyRound, Search } from 'lucide-react';
 import { useAuditEvents, type AuditEvent } from '@/hooks/useAdmin';
 import { Card, CardBody } from '@/components/ui/Card';
 
@@ -43,12 +43,27 @@ function entityLabel(ev: AuditEvent): string {
 export function AuditLogPage() {
   const [filter, setFilter] = useState<string | undefined>(undefined);
   const { data: events = [], isLoading } = useAuditEvents(filter);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return events;
+    const q = search.toLowerCase();
+    return events.filter(ev =>
+      actorLabel(ev).toLowerCase().includes(q) || entityLabel(ev).toLowerCase().includes(q) || ev.action.toLowerCase().includes(q));
+  }, [events, search]);
 
   return (
     <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-v-charcoal">Audit Log</h1>
         <p className="text-sm text-gray-500 mt-1">Who did what, and when.</p>
+      </div>
+
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search by user, entity, or action…"
+          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-v-pink" />
       </div>
 
       <div className="flex gap-2">
@@ -65,13 +80,13 @@ export function AuditLogPage() {
       <Card>
         <CardBody className="divide-y divide-gray-50">
           {isLoading && <p className="text-sm text-gray-400 py-4 text-center">Loading…</p>}
-          {events.length === 0 && !isLoading && (
+          {filtered.length === 0 && !isLoading && (
             <div className="py-8 text-center">
               <ScrollText size={28} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-sm text-gray-400">No events yet.</p>
+              <p className="text-sm text-gray-400">{search ? 'No matching events.' : 'No events yet.'}</p>
             </div>
           )}
-          {events.map(ev => {
+          {filtered.map(ev => {
             const Icon = ev.entityType === 'api-key' ? KeyRound : UserIcon;
             const action = ACTION_LABEL[ev.action] ?? ev.action;
             return (

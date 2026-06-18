@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { UserPlus, User as UserIcon, ShieldCheck, Power } from 'lucide-react';
+import { UserPlus, User as UserIcon, ShieldCheck, Power, Search } from 'lucide-react';
 import {
   useUsers, useRoles, useInviteUser, useSetUserActive, useSetUserRole,
 } from '@/hooks/useAdmin';
@@ -22,6 +22,13 @@ export function UsersPage() {
     resolver: zodResolver(inviteUserSchema),
   });
   const [toggleTarget, setToggleTarget] = useState<{ userId: string; name: string; active: boolean } | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return users;
+    const q = search.toLowerCase();
+    return users.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+  }, [users, search]);
 
   const onInvite = async (data: InviteUserFormData) => {
     await invite.mutateAsync({
@@ -65,16 +72,23 @@ export function UsersPage() {
         </CardBody>
       </Card>
 
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name or email…"
+          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-v-pink" />
+      </div>
+
       <Card>
         <CardBody className="divide-y divide-gray-50">
           {isLoading && <p className="text-sm text-gray-400 py-4 text-center">Loading…</p>}
-          {users.length === 0 && !isLoading && (
+          {filtered.length === 0 && !isLoading && (
             <div className="py-8 text-center">
               <UserIcon size={28} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-sm text-gray-400">No users yet.</p>
+              <p className="text-sm text-gray-400">{search ? 'No matching users.' : 'No users yet.'}</p>
             </div>
           )}
-          {users.map(u => {
+          {filtered.map(u => {
             const currentRoleId = u.roles[0]?.role.id ?? '';
             return (
               <div key={u.id} className="flex flex-col md:flex-row md:items-center md:justify-between py-3 gap-2">

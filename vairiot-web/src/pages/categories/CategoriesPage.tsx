@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, Tag } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Trash2, Tag, Search } from 'lucide-react';
 import { useCategories, useCreateCategory, useDeleteCategory } from '@/hooks/useCategories';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -17,6 +17,14 @@ export function CategoriesPage() {
   const [desc, setDesc]   = useState('');
   const [error, setError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return categories;
+    const q = search.toLowerCase();
+    return categories.filter((c: { name: string; description?: string }) =>
+      c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q));
+  }, [categories, search]);
 
   const handleCreate = async () => {
     if (!name.trim()) { setError('Name is required'); return; }
@@ -51,16 +59,23 @@ export function CategoriesPage() {
         </Card>
       )}
 
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search categories…"
+          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-v-pink" />
+      </div>
+
       <Card>
         <CardBody className="divide-y divide-gray-50">
           {isLoading && <p className="text-sm text-gray-400 py-4 text-center">Loading…</p>}
-          {categories.length === 0 && !isLoading && (
+          {filtered.length === 0 && !isLoading && (
             <div className="py-8 text-center">
               <Tag size={28} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-sm text-gray-400">No categories yet — add one above.</p>
+              <p className="text-sm text-gray-400">{search ? 'No matching categories.' : 'No categories yet — add one above.'}</p>
             </div>
           )}
-          {categories.map((c: { id: string; name: string; description?: string; _count?: { assets: number } }) => (
+          {filtered.map((c: { id: string; name: string; description?: string; _count?: { assets: number } }) => (
             <div key={c.id} className="flex items-center justify-between py-3">
               <div>
                 <p className="text-sm font-medium text-v-charcoal">{c.name}</p>
