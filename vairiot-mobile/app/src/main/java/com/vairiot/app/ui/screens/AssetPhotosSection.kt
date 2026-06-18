@@ -1,9 +1,12 @@
 package com.vairiot.app.ui.screens
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -12,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,6 +50,7 @@ fun AssetPhotosSection(
     }
 
     var captureUri by remember { mutableStateOf<Uri?>(null) }
+    var localError by remember { mutableStateOf<String?>(null) }
 
     val takePicture = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture(),
@@ -55,47 +60,77 @@ fun AssetPhotosSection(
         captureUri = null
     }
 
+    val pickFromGallery = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) viewModel.uploadFromUri(uri)
+    }
+
+    fun launchCamera() {
+        val pm = context.packageManager
+        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        if (intent.resolveActivity(pm) == null) {
+            localError = "No camera app available. Use Gallery instead."
+            return
+        }
+        localError = null
+        val uri = newCaptureUri(context)
+        captureUri = uri
+        takePicture.launch(uri)
+    }
+
     val requestCameraPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        if (granted) {
-            val uri = newCaptureUri(context)
-            captureUri = uri
-            takePicture.launch(uri)
-        }
+        if (granted) launchCamera()
+        else localError = "Camera permission denied."
     }
 
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Photos (${state.photos.size})",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold, color = VairiotCharcoal)
+
             Row(modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically) {
-                Text("Photos (${state.photos.size})",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold, color = VairiotCharcoal)
-                Button(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
                     onClick = {
                         val hasPerm = ContextCompat.checkSelfPermission(
                             context, Manifest.permission.CAMERA,
                         ) == PackageManager.PERMISSION_GRANTED
-                        if (hasPerm) {
-                            val uri = newCaptureUri(context)
-                            captureUri = uri
-                            takePicture.launch(uri)
-                        } else {
-                            requestCameraPermission.launch(Manifest.permission.CAMERA)
-                        }
+                        if (hasPerm) launchCamera()
+                        else requestCameraPermission.launch(Manifest.permission.CAMERA)
                     },
                     enabled = !state.isUploading,
-                    colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+                    modifier = Modifier.weight(1f),
                 ) {
                     Icon(Icons.Default.AddAPhoto, contentDescription = null,
                         modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Add")
+                    Text("Camera")
+                }
+                Button(
+                    onClick = {
+                        localError = null
+                        pickFromGallery.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
+                    enabled = !state.isUploading,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+                ) {
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = null,
+                        modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Gallery")
                 }
             }
 
+            localError?.let {
+                Text(it, color = ErrorRed, style = MaterialTheme.typography.bodySmall)
+            }
             state.error?.let {
                 Text(it, color = ErrorRed, style = MaterialTheme.typography.bodySmall)
             }
