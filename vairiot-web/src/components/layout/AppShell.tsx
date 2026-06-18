@@ -37,7 +37,7 @@ export function AppShell() {
       <aside className={clsx(
         'fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-v-charcoal transform transition-transform duration-200',
         open ? 'translate-x-0' : '-translate-x-full',
-        'lg:relative lg:translate-x-0',
+        'lg:sticky lg:top-0 lg:h-screen lg:translate-x-0',
       )}>
         {/* Logo band — gradient */}
         <div className="h-16 flex items-center px-4 bg-gradient-to-r from-v-pink via-v-mauve to-v-violet">
@@ -45,7 +45,7 @@ export function AppShell() {
         </div>
 
         {/* Nav links */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-1">
           {visibleNav.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} onClick={() => setOpen(false)}
               className={({ isActive }) => clsx(
@@ -71,7 +71,7 @@ export function AppShell() {
             >
               {CURRENCIES.map(c => (
                 <option key={c.code} value={c.code} className="bg-v-charcoal text-gray-300">
-                  {c.symbol} {c.code} — {c.name}
+                  {c.code} — {c.name}
                 </option>
               ))}
             </select>
