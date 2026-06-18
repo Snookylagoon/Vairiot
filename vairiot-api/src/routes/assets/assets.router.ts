@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
-import { authenticate } from '../../middleware/authenticate';
+import { authenticate, requirePermission } from '../../middleware/authenticate';
 import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, getAssetByTag, listAssetsForExport } from '../../services/asset.service';
 import { toCsv } from '../../lib/csv';
 
@@ -85,7 +85,7 @@ assetsRouter.get('/:id', async (req: Request, res: Response): Promise<void> => {
 });
 
 // POST /api/v1/assets
-assetsRouter.post('/',
+assetsRouter.post('/', requirePermission('asset:write'),
   [body('name').notEmpty().withMessage('Asset name required')],
   async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
@@ -96,7 +96,7 @@ assetsRouter.post('/',
 );
 
 // PATCH /api/v1/assets/:id
-assetsRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => {
+assetsRouter.patch('/:id', requirePermission('asset:write'), async (req: Request, res: Response): Promise<void> => {
   try { res.json(await updateAsset(req.user!.tenantId, req.params.id, req.user!.sub, req.body)); }
   catch (e) {
     if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Asset not found' }); return; }
@@ -105,7 +105,7 @@ assetsRouter.patch('/:id', async (req: Request, res: Response): Promise<void> =>
 });
 
 // DELETE /api/v1/assets/:id
-assetsRouter.delete('/:id', async (req: Request, res: Response): Promise<void> => {
+assetsRouter.delete('/:id', requirePermission('asset:delete'), async (req: Request, res: Response): Promise<void> => {
   try { await deleteAsset(req.user!.tenantId, req.params.id, req.user!.sub); res.status(204).send(); }
   catch (e) {
     if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Asset not found' }); return; }

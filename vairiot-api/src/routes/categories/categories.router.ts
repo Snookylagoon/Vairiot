@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate } from '../../middleware/authenticate';
+import { authenticate, requirePermission } from '../../middleware/authenticate';
 import { listCategories, createCategory, updateCategory, deleteCategory } from '../../services/category.service';
 
 export const categoriesRouter = Router();
@@ -11,7 +11,7 @@ categoriesRouter.get('/', async (req: Request, res: Response): Promise<void> => 
   catch { res.status(500).json({ error: 'Failed to fetch categories' }); }
 });
 
-categoriesRouter.post('/',
+categoriesRouter.post('/', requirePermission('category:write'),
   [body('name').notEmpty().withMessage('Name required')],
   async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
@@ -27,7 +27,7 @@ categoriesRouter.post('/',
   },
 );
 
-categoriesRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => {
+categoriesRouter.patch('/:id', requirePermission('category:write'), async (req: Request, res: Response): Promise<void> => {
   try {
     res.json(await updateCategory(req.user!.tenantId, req.params.id, req.body));
   } catch (e) {
@@ -36,7 +36,7 @@ categoriesRouter.patch('/:id', async (req: Request, res: Response): Promise<void
   }
 });
 
-categoriesRouter.delete('/:id', async (req: Request, res: Response): Promise<void> => {
+categoriesRouter.delete('/:id', requirePermission('category:write'), async (req: Request, res: Response): Promise<void> => {
   try {
     await deleteCategory(req.user!.tenantId, req.params.id);
     res.status(204).send();

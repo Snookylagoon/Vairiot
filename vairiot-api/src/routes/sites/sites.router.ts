@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate } from '../../middleware/authenticate';
+import { authenticate, requirePermission } from '../../middleware/authenticate';
 import { listSites, createSite, listLocations, createLocation } from '../../services/site.service';
 
 export const sitesRouter = Router();
@@ -11,7 +11,7 @@ sitesRouter.get('/', async (req: Request, res: Response): Promise<void> => {
   catch { res.status(500).json({ error: 'Failed to fetch sites' }); }
 });
 
-sitesRouter.post('/',
+sitesRouter.post('/', requirePermission('site:write'),
   [body('name').notEmpty()],
   async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
@@ -29,7 +29,7 @@ sitesRouter.get('/:siteId/locations', async (req: Request, res: Response): Promi
   }
 });
 
-sitesRouter.post('/:siteId/locations',
+sitesRouter.post('/:siteId/locations', requirePermission('site:write'),
   [body('name').notEmpty()],
   async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);

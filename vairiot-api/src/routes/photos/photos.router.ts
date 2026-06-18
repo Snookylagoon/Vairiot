@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { authenticate } from '../../middleware/authenticate';
+import { authenticate, requirePermission } from '../../middleware/authenticate';
 import { listPhotos, uploadPhoto, getPhotoStream, deletePhoto } from '../../services/photo.service';
 
 export const photosRouter = Router();
@@ -29,6 +29,7 @@ photosRouter.get('/assets/:assetId/photos', async (req: Request, res: Response):
 // Upload photo for an asset (multipart field: "photo")
 photosRouter.post(
   '/assets/:assetId/photos',
+  requirePermission('asset:write'),
   upload.single('photo'),
   async (req: Request, res: Response): Promise<void> => {
     if (!req.file) { res.status(400).json({ error: 'No file uploaded (field name "photo")' }); return; }
@@ -62,7 +63,7 @@ photosRouter.get('/photos/:id/download', async (req: Request, res: Response): Pr
 });
 
 // Delete photo
-photosRouter.delete('/photos/:id', async (req: Request, res: Response): Promise<void> => {
+photosRouter.delete('/photos/:id', requirePermission('asset:delete'), async (req: Request, res: Response): Promise<void> => {
   try { res.json(await deletePhoto(req.user!.tenantId, req.params.id)); }
   catch (e) {
     if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Photo not found' }); return; }

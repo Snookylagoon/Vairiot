@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate } from '../../middleware/authenticate';
+import { authenticate, requirePermission } from '../../middleware/authenticate';
 import { listCampaigns, createCampaign, startCampaign, recordScan, completeCampaign, getCampaignReport, getCampaignReportRows } from '../../services/audit.service';
 import { toCsv } from '../../lib/csv';
 import { enqueueAuditComplete } from '../../lib/queue';
@@ -39,7 +39,7 @@ auditsRouter.get('/', async (req: Request, res: Response): Promise<void> => {
   catch { res.status(500).json({ error: 'Failed to fetch campaigns' }); }
 });
 
-auditsRouter.post('/',
+auditsRouter.post('/', requirePermission('audit:write'),
   [body('name').notEmpty()],
   async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
@@ -49,7 +49,7 @@ auditsRouter.post('/',
   },
 );
 
-auditsRouter.post('/:id/start', async (req: Request, res: Response): Promise<void> => {
+auditsRouter.post('/:id/start', requirePermission('audit:write'), async (req: Request, res: Response): Promise<void> => {
   try { res.json(await startCampaign(req.user!.tenantId, req.params.id)); }
   catch (e) {
     if (e instanceof Error && e.message === 'NOT_FOUND')       { res.status(404).json({ error: 'Campaign not found' }); return; }
@@ -58,7 +58,7 @@ auditsRouter.post('/:id/start', async (req: Request, res: Response): Promise<voi
   }
 });
 
-auditsRouter.post('/:id/scans',
+auditsRouter.post('/:id/scans', requirePermission('audit:write'),
   [body('tagValue').notEmpty()],
   async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
@@ -72,7 +72,7 @@ auditsRouter.post('/:id/scans',
   },
 );
 
-auditsRouter.post('/:id/complete', async (req: Request, res: Response): Promise<void> => {
+auditsRouter.post('/:id/complete', requirePermission('audit:write'), async (req: Request, res: Response): Promise<void> => {
   try {
     const summary = await completeCampaign(req.user!.tenantId, req.params.id);
     // Fire-and-forget notification — never block the HTTP response on it.
