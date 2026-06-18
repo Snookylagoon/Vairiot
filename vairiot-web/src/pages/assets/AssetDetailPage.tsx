@@ -13,6 +13,7 @@ import { AssetTimeline } from '@/components/assets/AssetTimeline';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useAsset, useDeleteAsset, useDisposeAsset } from '@/hooks/useAssets';
 import { hasPermission, useAuthStore } from '@/stores/auth.store';
+import { useCurrency } from '@/hooks/useCurrency';
 import { disposalSchema, type DisposalFormData } from '@/lib/schemas';
 
 function Field({ label, value }: { label: string; value?: string | null }) {
@@ -24,17 +25,11 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function fmtCurrency(v?: string | number | null) {
-  if (v == null) return undefined;
-  const n = typeof v === 'string' ? parseFloat(v) : v;
-  return isNaN(n) ? undefined : `£${n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 function fmtDate(d?: string | null) {
   return d ? new Date(d).toLocaleDateString('en-GB') : undefined;
 }
 
-function DisposalDialog({ open, assetId, onClose }: { open: boolean; assetId: string; onClose: () => void }) {
+function DisposalDialog({ open, assetId, onClose, currencySymbol }: { open: boolean; assetId: string; onClose: () => void; currencySymbol: string }) {
   const navigate = useNavigate();
   const disposeAsset = useDisposeAsset(assetId);
   const { register, handleSubmit, formState: { errors } } = useForm<DisposalFormData>({
@@ -73,7 +68,7 @@ function DisposalDialog({ open, assetId, onClose }: { open: boolean; assetId: st
               </select>
               {errors.disposalMethod && <p className="text-xs text-red-500 mt-1">{errors.disposalMethod.message}</p>}
             </div>
-            <Input label="Disposal Value (£)" type="number" step="0.01" placeholder="0.00" {...register('disposalValue')} />
+            <Input label={`Disposal Value (${currencySymbol})`} type="number" step="0.01" placeholder="0.00" {...register('disposalValue')} />
             <Input label="Approved By" placeholder="Name or employee ID" {...register('approvedBy')} />
           </div>
           <div>
@@ -102,6 +97,7 @@ export function AssetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
+  const { fmt, symbol: currencySymbol } = useCurrency();
   const canWrite  = hasPermission(user, 'asset:write');
   const canDelete = hasPermission(user, 'asset:delete');
   const deleteAsset = useDeleteAsset();
@@ -172,7 +168,7 @@ export function AssetDetailPage() {
             <span className="font-semibold text-v-charcoal text-sm">Procurement</span>
           </CardHeader>
           <CardBody className="grid grid-cols-2 gap-4">
-            <Field label="Purchase Cost"    value={fmtCurrency(asset.purchaseCost)} />
+            <Field label="Purchase Cost"    value={fmt(asset.purchaseCost)} />
             <Field label="Supplier"         value={asset.supplier} />
             <Field label="Purchase Date"    value={fmtDate(asset.purchaseDate)} />
             <Field label="PO Number"        value={asset.purchaseOrderNumber} />
@@ -191,13 +187,13 @@ export function AssetDetailPage() {
             <span className="font-semibold text-v-charcoal text-sm">Cost Components</span>
           </CardHeader>
           <CardBody className="grid grid-cols-2 gap-4">
-            <Field label="Purchase Cost"       value={fmtCurrency(asset.purchaseCost)} />
-            <Field label="Freight"             value={fmtCurrency(asset.freightCost)} />
-            <Field label="Installation"        value={fmtCurrency(asset.installationCost)} />
-            <Field label="Customs Duties"      value={fmtCurrency(asset.customsDuties)} />
-            <Field label="Other Capitalized"   value={fmtCurrency(asset.otherCapitalizedCosts)} />
-            <Field label="Capitalized Cost"    value={fmtCurrency(dep?.capitalizedCost)} />
-            <Field label="Residual Value"      value={fmtCurrency(asset.residualValue)} />
+            <Field label="Purchase Cost"       value={fmt(asset.purchaseCost)} />
+            <Field label="Freight"             value={fmt(asset.freightCost)} />
+            <Field label="Installation"        value={fmt(asset.installationCost)} />
+            <Field label="Customs Duties"      value={fmt(asset.customsDuties)} />
+            <Field label="Other Capitalized"   value={fmt(asset.otherCapitalizedCosts)} />
+            <Field label="Capitalized Cost"    value={fmt(dep?.capitalizedCost)} />
+            <Field label="Residual Value"      value={fmt(asset.residualValue)} />
           </CardBody>
         </Card>
 
@@ -211,9 +207,9 @@ export function AssetDetailPage() {
             <Field label="Method" value={asset.depreciationMethod === 'straight_line' ? 'Straight Line' : asset.depreciationMethod ?? 'Not set'} />
             <Field label="Useful Life" value={asset.usefulLifeMonths ? `${asset.usefulLifeMonths} months` : undefined} />
             <Field label="Start Date"  value={fmtDate(asset.depreciationStartDate)} />
-            <Field label="Monthly Depreciation" value={fmtCurrency(dep?.monthlyDepreciation)} />
-            <Field label="Accumulated Depreciation" value={fmtCurrency(dep?.accumulatedDepreciation)} />
-            <Field label="Net Book Value" value={fmtCurrency(dep?.netBookValue)} />
+            <Field label="Monthly Depreciation" value={fmt(dep?.monthlyDepreciation)} />
+            <Field label="Accumulated Depreciation" value={fmt(dep?.accumulatedDepreciation)} />
+            <Field label="Net Book Value" value={fmt(dep?.netBookValue)} />
           </CardBody>
         </Card>
 
@@ -240,9 +236,9 @@ export function AssetDetailPage() {
           <CardBody className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Field label="Disposal Date"   value={fmtDate(asset.disposal.disposalDate)} />
             <Field label="Method"          value={asset.disposal.disposalMethod} />
-            <Field label="Disposal Value"  value={fmtCurrency(asset.disposal.disposalValue)} />
-            <Field label="NBV at Disposal" value={fmtCurrency(asset.disposal.netBookValueAtDisposal)} />
-            <Field label="Gain / Loss"     value={fmtCurrency(asset.disposal.gainLoss)} />
+            <Field label="Disposal Value"  value={fmt(asset.disposal.disposalValue)} />
+            <Field label="NBV at Disposal" value={fmt(asset.disposal.netBookValueAtDisposal)} />
+            <Field label="Gain / Loss"     value={fmt(asset.disposal.gainLoss)} />
             <Field label="Approved By"     value={asset.disposal.approvedBy} />
             <Field label="Reason"          value={asset.disposal.disposalReason} />
             {asset.disposal.notes && <div className="col-span-2"><Field label="Notes" value={asset.disposal.notes} /></div>}
@@ -289,7 +285,7 @@ export function AssetDetailPage() {
       />
 
       {/* Disposal dialog */}
-      <DisposalDialog open={showDisposal} assetId={asset.id} onClose={() => setShowDisposal(false)} />
+      <DisposalDialog open={showDisposal} assetId={asset.id} onClose={() => setShowDisposal(false)} currencySymbol={currencySymbol} />
     </div>
   );
 }

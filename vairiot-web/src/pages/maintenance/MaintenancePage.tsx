@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { useCurrency } from '@/hooks/useCurrency';
 import { useMaintenanceEvents, useCreateMaintenanceEvent, useUpdateMaintenanceEvent } from '@/hooks/useMaintenance';
 import { useAssets } from '@/hooks/useAssets';
 import { hasPermission, useAuthStore } from '@/stores/auth.store';
@@ -36,6 +37,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function MaintenancePage() {
   const navigate = useNavigate();
+  const { symbol: currencySymbol, fmt } = useCurrency();
   const user = useAuthStore(s => s.user);
   const canWrite = hasPermission(user, 'asset:write');
   const [page, setPage] = useState(1);
@@ -115,7 +117,7 @@ export function MaintenancePage() {
               </div>
               <Input label="Vendor" {...register('vendor')} />
               <Input label="Work Order #" {...register('workOrderNumber')} />
-              <Input label="Cost (£)" type="number" step="0.01" {...register('cost')} />
+              <Input label={`Cost (${currencySymbol})`} type="number" step="0.01" {...register('cost')} />
               <Input label="Scheduled Date" type="date" {...register('scheduledDate')} />
               <Input label="Completed Date" type="date" {...register('completedDate')} />
             </div>
@@ -170,7 +172,7 @@ export function MaintenancePage() {
                       {evt.status.replace('_', ' ')}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{evt.cost ? `£${Number(evt.cost).toFixed(2)}` : '—'}</td>
+                  <td className="px-4 py-3 text-gray-500">{evt.cost ? fmt(evt.cost) : '—'}</td>
                 </tr>
               ))}
             </tbody>

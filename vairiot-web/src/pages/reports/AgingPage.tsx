@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { useAgingReport } from '@/hooks/useReports';
 import { useCategories } from '@/hooks/useCategories';
 import { useSites } from '@/hooks/useSites';
+import { useCurrency } from '@/hooks/useCurrency';
 
 const BUCKET_COLOURS: Record<string, string> = {
   '0-1y': 'bg-emerald-500', '1-3y': 'bg-sky-500', '3-5y': 'bg-amber-500',
@@ -14,6 +15,7 @@ const BUCKET_COLOURS: Record<string, string> = {
 
 export function AgingPage() {
   const navigate = useNavigate();
+  const { fmt } = useCurrency();
   const [categoryId, setCategoryId] = useState('');
   const [siteId, setSiteId] = useState('');
   const filters = { ...(categoryId && { categoryId }), ...(siteId && { siteId }) };
@@ -109,7 +111,7 @@ export function AgingPage() {
                     <td className="py-2 text-gray-600">{r.site ?? '—'}</td>
                     <td className="py-2 text-gray-600">{new Date(r.purchaseDate).toLocaleDateString('en-GB')}</td>
                     <td className="py-2 text-right font-mono">{r.ageMonths}</td>
-                    <td className="py-2 text-right font-mono">£{r.purchaseCost.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</td>
+                    <td className="py-2 text-right font-mono">{fmt(r.purchaseCost)}</td>
                   </tr>
                 ))}
               </tbody>

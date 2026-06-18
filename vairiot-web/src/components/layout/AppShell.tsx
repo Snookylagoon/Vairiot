@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore, hasPermission } from '@/stores/auth.store';
+import { useCurrencyStore, CURRENCIES } from '@/stores/currency.store';
 import clsx from 'clsx';
 
 const nav = [
@@ -26,6 +27,7 @@ const nav = [
 
 export function AppShell() {
   const { user, logout } = useAuthStore();
+  const { currencyCode, setCurrency } = useCurrencyStore();
   const [open, setOpen] = useState(false);
   const visibleNav = nav.filter(item => !('require' in item) || hasPermission(user, ...item.require));
 
@@ -43,7 +45,7 @@ export function AppShell() {
         </div>
 
         {/* Nav links */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {visibleNav.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} onClick={() => setOpen(false)}
               className={({ isActive }) => clsx(
@@ -58,9 +60,23 @@ export function AppShell() {
           ))}
         </nav>
 
-        {/* User + logout */}
-        <div className="px-3 py-4 border-t border-white/10">
-          <p className="text-xs text-gray-500 px-3 mb-2 truncate">{user?.email}</p>
+        {/* Currency + User + logout */}
+        <div className="px-3 py-4 border-t border-white/10 space-y-2">
+          <div className="px-3">
+            <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1">Currency</label>
+            <select
+              value={currencyCode}
+              onChange={e => setCurrency(e.target.value)}
+              className="w-full text-xs rounded-lg border border-white/10 bg-white/5 text-gray-300 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-v-pink appearance-none cursor-pointer"
+            >
+              {CURRENCIES.map(c => (
+                <option key={c.code} value={c.code} className="bg-v-charcoal text-gray-300">
+                  {c.symbol} {c.code} — {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-xs text-gray-500 px-3 truncate">{user?.email}</p>
           <button onClick={logout}
             className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
             <LogOut size={18} />

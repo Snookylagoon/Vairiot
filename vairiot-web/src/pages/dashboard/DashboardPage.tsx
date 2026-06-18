@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Package, ClipboardList, AlertTriangle, CheckCircle, Activity, TrendingDown, PoundSterling } from 'lucide-react';
+import { Package, ClipboardList, AlertTriangle, CheckCircle, Activity, TrendingDown, Coins } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -7,6 +7,7 @@ import {
 import { api } from '@/lib/api';
 import { Card, CardBody } from '@/components/ui/Card';
 import { useAuthStore } from '@/stores/auth.store';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { AssetStats } from '@/types';
 
 function StatCard({ icon: Icon, label, value, colour }: { icon: React.ElementType; label: string; value: string | number; colour: string }) {
@@ -27,10 +28,6 @@ function StatCard({ icon: Icon, label, value, colour }: { icon: React.ElementTyp
 
 const CHART_COLOURS = ['#FF0DCC', '#A05B97', '#615AA0', '#2B3132', '#10b981', '#f59e0b', '#3b82f6', '#ef4444'];
 
-function fmtGBP(v: number) {
-  return `£${v.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-
 const STATUS_COLOURS: Record<string, string> = {
   active: '#10b981', in_repair: '#f59e0b', retired: '#9ca3af',
   lost: '#ef4444', in_storage: '#3b82f6', disposed: '#6b7280',
@@ -43,6 +40,7 @@ interface AuditEvent {
 
 export function DashboardPage() {
   const { user } = useAuthStore();
+  const { fmt } = useCurrency();
 
   const { data: assetData }    = useQuery({ queryKey: ['assets', 'summary'], queryFn: () => api.get('/api/v1/assets?pageSize=1').then(r => r.data) });
   const { data: assetStats }   = useQuery<AssetStats>({ queryKey: ['assets', 'stats'], queryFn: () => api.get('/api/v1/assets/stats').then(r => r.data) });
@@ -69,8 +67,8 @@ export function DashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard icon={Package}        label="Total Assets"          value={assetData?.total ?? '—'}       colour="bg-v-violet" />
-        <StatCard icon={PoundSterling}  label="Total Asset Value"     value={assetStats ? fmtGBP(assetStats.totalAssetValue) : '—'} colour="bg-v-pink" />
-        <StatCard icon={TrendingDown}   label="Net Book Value"        value={assetStats ? fmtGBP(assetStats.totalNetBookValue) : '—'} colour="bg-v-mauve" />
+        <StatCard icon={Coins}            label="Total Asset Value"     value={assetStats ? fmt(assetStats.totalAssetValue, 0) : '—'} colour="bg-v-pink" />
+        <StatCard icon={TrendingDown}   label="Net Book Value"        value={assetStats ? fmt(assetStats.totalNetBookValue, 0) : '—'} colour="bg-v-mauve" />
         <StatCard icon={AlertTriangle}  label="Overdue Returns"       value={overdueData?.length ?? '—'}    colour="bg-amber-500" />
       </div>
 
@@ -92,7 +90,7 @@ export function DashboardPage() {
                   <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#9ca3af' }} />
                   <Tooltip
                     contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
-                    formatter={(v: any, name: any) => [name === 'value' ? fmtGBP(Number(v)) : v, name === 'value' ? 'Value' : 'Count']}
+                    formatter={(v: any, name: any) => [name === 'value' ? fmt(Number(v)) : v, name === 'value' ? 'Value' : 'Count']}
                   />
                   <Bar dataKey="count" fill="#615AA0" radius={[4, 4, 0, 0]} name="Assets" />
                 </BarChart>
@@ -139,9 +137,9 @@ export function DashboardPage() {
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={assetStats.valueByCat} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={v => fmtGBP(v)} />
+                  <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={v => fmt(v)} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af' }} width={100} />
-                  <Tooltip formatter={(v: any) => [fmtGBP(Number(v)), 'NBV']} contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                  <Tooltip formatter={(v: any) => [fmt(Number(v)), 'NBV']} contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
                   <Bar dataKey="value" fill="#FF0DCC" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -160,9 +158,9 @@ export function DashboardPage() {
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={assetStats.valueBySite} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={v => fmtGBP(v)} />
+                  <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={v => fmt(v)} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af' }} width={100} />
-                  <Tooltip formatter={(v: any) => [fmtGBP(Number(v)), 'NBV']} contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                  <Tooltip formatter={(v: any) => [fmt(Number(v)), 'NBV']} contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
                   <Bar dataKey="value" fill="#A05B97" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -185,8 +183,8 @@ export function DashboardPage() {
               <LineChart data={assetStats.monthlyTrend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={v => fmtGBP(v)} />
-                <Tooltip formatter={(v: any) => [fmtGBP(Number(v)), 'Value']} contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={v => fmt(v)} />
+                <Tooltip formatter={(v: any) => [fmt(Number(v)), 'Value']} contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
                 <Line type="monotone" dataKey="value" stroke="#FF0DCC" strokeWidth={2} dot={{ r: 3, fill: '#FF0DCC' }} />
               </LineChart>
             </ResponsiveContainer>

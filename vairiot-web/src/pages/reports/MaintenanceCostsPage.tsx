@@ -4,13 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useMaintenanceCostReport } from '@/hooks/useReports';
-
-function fmtCurrency(v: number) {
-  return `£${v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+import { useCurrency } from '@/hooks/useCurrency';
 
 export function MaintenanceCostsPage() {
   const navigate = useNavigate();
+  const { fmt: fmtCurrency } = useCurrency();
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const filters = { ...(from && { from }), ...(to && { to }) };

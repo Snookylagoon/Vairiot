@@ -6,13 +6,11 @@ import { Button } from '@/components/ui/Button';
 import { useDepreciationRegister } from '@/hooks/useReports';
 import { useCategories } from '@/hooks/useCategories';
 import { useSites } from '@/hooks/useSites';
-
-function fmtCurrency(v: number) {
-  return `£${v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+import { useCurrency } from '@/hooks/useCurrency';
 
 export function DepreciationPage() {
   const navigate = useNavigate();
+  const { fmt: fmtCurrency } = useCurrency();
   const [categoryId, setCategoryId] = useState('');
   const [siteId, setSiteId] = useState('');
   const filters = { ...(categoryId && { categoryId }), ...(siteId && { siteId }) };
