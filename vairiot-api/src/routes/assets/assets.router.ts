@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
 import { authenticate, requirePermission } from '../../middleware/authenticate';
-import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, getAssetByTag, listAssetsForExport } from '../../services/asset.service';
+import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
 import { toCsv } from '../../lib/csv';
 
 export const assetsRouter = Router();
@@ -64,6 +64,12 @@ assetsRouter.get('/export.csv', async (req: Request, res: Response): Promise<voi
     res.setHeader('Content-Disposition', `attachment; filename="assets-${new Date().toISOString().slice(0,10)}.csv"`);
     res.send(csv);
   } catch { res.status(500).json({ error: 'Failed to export assets' }); }
+});
+
+// GET /api/v1/assets/stats — counts grouped by status / condition (dashboard)
+assetsRouter.get('/stats', async (req: Request, res: Response): Promise<void> => {
+  try { res.json(await getAssetStats(req.user!.tenantId)); }
+  catch { res.status(500).json({ error: 'Failed to fetch asset stats' }); }
 });
 
 // GET /api/v1/assets/tag/:tag — scan-to-lookup (barcode or RFID)

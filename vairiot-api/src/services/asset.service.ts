@@ -21,6 +21,19 @@ export async function listAssets(tenantId: string, params: { search?: string; ca
   return { assets, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
 
+export async function getAssetStats(tenantId: string) {
+  const [byStatus, byCondition, total] = await Promise.all([
+    prisma.asset.groupBy({ by: ['status'],    where: { tenantId }, _count: { _all: true } }),
+    prisma.asset.groupBy({ by: ['condition'], where: { tenantId }, _count: { _all: true } }),
+    prisma.asset.count({ where: { tenantId } }),
+  ]);
+  return {
+    total,
+    byStatus:    Object.fromEntries(byStatus.map(r    => [r.status,    r._count._all])),
+    byCondition: Object.fromEntries(byCondition.map(r => [r.condition, r._count._all])),
+  };
+}
+
 export async function getAsset(tenantId: string, id: string) {
   const asset = await prisma.asset.findFirst({ where: { id, tenantId }, include: { category: true, site: true, location: true } });
   if (!asset) throw new Error('NOT_FOUND');
