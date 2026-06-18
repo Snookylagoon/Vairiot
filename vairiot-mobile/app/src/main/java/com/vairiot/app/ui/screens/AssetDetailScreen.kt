@@ -2,7 +2,9 @@ package com.vairiot.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
@@ -30,6 +32,7 @@ fun AssetDetailScreen(
         Box(
             modifier = Modifier.fillMaxWidth()
                 .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
+                .statusBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -57,7 +60,7 @@ fun AssetDetailScreen(
 
 @Composable
 private fun AssetBody(asset: AssetResponse) {
-    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
         Card(modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),

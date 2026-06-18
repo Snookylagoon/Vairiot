@@ -51,6 +51,8 @@ class AssetListViewModel @Inject constructor(
     private val searchQuery = MutableStateFlow("")
     private val statusFilter = MutableStateFlow("")
     private val conditionFilter = MutableStateFlow("")
+    private val sortFieldFlow = MutableStateFlow(SortField.NAME)
+    private val sortDirFlow = MutableStateFlow(SortDir.ASC)
     private var searchJob: Job? = null
 
     private val localAssets: StateFlow<List<AssetResponse>> = searchQuery
@@ -59,13 +61,12 @@ class AssetListViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            combine(localAssets, statusFilter, conditionFilter) { assets, status, condition ->
-                Triple(assets, status, condition)
-            }.collect { (assets, status, condition) ->
+            combine(localAssets, statusFilter, conditionFilter, sortFieldFlow, sortDirFlow) { assets, status, condition, field, dir ->
                 val filtered = assets
                     .filter { a -> status.isBlank() || a.status.equals(status, ignoreCase = true) }
                     .filter { a -> condition.isBlank() || a.condition.equals(condition, ignoreCase = true) }
-                val sorted = sortList(filtered)
+                sortList(filtered, field, dir)
+            }.collect { sorted ->
                 _state.value = _state.value.copy(
                     assets = sorted,
                     total = if (_state.value.offline) sorted.size else _state.value.total,
@@ -105,6 +106,8 @@ class AssetListViewModel @Inject constructor(
             if (current.sortDir == SortDir.ASC) SortDir.DESC else SortDir.ASC
         } else SortDir.ASC
         _state.value = current.copy(sortField = field, sortDir = dir)
+        sortFieldFlow.value = field
+        sortDirFlow.value = dir
         refresh()
     }
 
@@ -132,15 +135,14 @@ class AssetListViewModel @Inject constructor(
         }
     }
 
-    private fun sortList(list: List<AssetResponse>): List<AssetResponse> {
-        val s = _state.value
-        val comparator: Comparator<AssetResponse> = when (s.sortField) {
+    private fun sortList(list: List<AssetResponse>, field: SortField, dir: SortDir): List<AssetResponse> {
+        val comparator: Comparator<AssetResponse> = when (field) {
             SortField.NAME -> compareBy { it.name.lowercase() }
             SortField.ASSET_NUMBER -> compareBy { it.assetNumber.lowercase() }
             SortField.STATUS -> compareBy { it.status.lowercase() }
             SortField.CONDITION -> compareBy { it.condition.lowercase() }
-            SortField.CREATED -> compareBy { it.assetNumber } // fallback, created isn't in cached model
+            SortField.CREATED -> compareBy { it.assetNumber }
         }
-        return if (s.sortDir == SortDir.DESC) list.sortedWith(comparator.reversed()) else list.sortedWith(comparator)
+        return if (dir == SortDir.DESC) list.sortedWith(comparator.reversed()) else list.sortedWith(comparator)
     }
 }

@@ -36,6 +36,7 @@ fun AssetEditScreen(
 
         Box(modifier = Modifier.fillMaxWidth()
             .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
+            .statusBarsPadding()
             .padding(horizontal = 8.dp, vertical = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {

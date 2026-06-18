@@ -1,7 +1,6 @@
 package com.vairiot.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -75,7 +74,7 @@ fun AuditListScreen(
 
 @Composable
 private fun AuditRow(campaign: AuditCampaignResponse, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable { onClick() },
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp)) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(modifier = Modifier.fillMaxWidth(),

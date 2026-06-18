@@ -2,7 +2,6 @@ package com.vairiot.app.ui.screens
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -124,7 +123,7 @@ fun AssetListScreen(
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(state.assets, key = { it.id }) { asset ->
@@ -160,9 +159,9 @@ private fun FilterChipRow(
                 label = "chipFg",
             )
             Surface(
+                onClick = { onSelect(option) },
                 color = bg,
                 shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.clickable { onSelect(option) },
             ) {
                 Text(
                     option.replaceFirstChar { it.uppercase() },
@@ -201,9 +200,9 @@ private fun SortRow(
                 label = "sortFg",
             )
             Surface(
+                onClick = { onSelect(field) },
                 color = bg,
                 shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.clickable { onSelect(field) },
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -230,7 +229,7 @@ private fun SortRow(
 
 @Composable
 private fun AssetRow(asset: AssetResponse, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable { onClick() },
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp)) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(modifier = Modifier.fillMaxWidth(),
