@@ -64,7 +64,20 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("home")                        { HomeScaffold(rootNav = rootNav) }
-                    composable("asset/{assetId}")             { AssetDetailScreen(onBack = { rootNav.popBackStack() }) }
+                    composable("asset/{assetId}")             {
+                        val backStackEntry = it
+                        val assetId = backStackEntry.arguments?.getString("assetId").orEmpty()
+                        AssetDetailScreen(
+                            onBack = { rootNav.popBackStack() },
+                            onEdit = { rootNav.navigate("asset/$assetId/edit") },
+                        )
+                    }
+                    composable("asset/{assetId}/edit")        {
+                        AssetEditScreen(
+                            onBack  = { rootNav.popBackStack() },
+                            onSaved = { rootNav.popBackStack() },
+                        )
+                    }
                     composable("audit/{campaignId}/run")      { AuditRunScreen(onBack    = { rootNav.popBackStack() }) }
                 }
             }

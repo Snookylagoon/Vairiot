@@ -12,6 +12,7 @@ import { EditAssetPage }     from '@/pages/assets/EditAssetPage';
 import { CategoriesPage }    from '@/pages/categories/CategoriesPage';
 import { SitesPage }         from '@/pages/sites/SitesPage';
 import { AuditsPage }        from '@/pages/audits/AuditsPage';
+import { AuditRunPage }      from '@/pages/audits/AuditRunPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="categories"   element={<CategoriesPage />} />
             <Route path="sites"        element={<SitesPage />} />
             <Route path="audits"       element={<AuditsPage />} />
+            <Route path="audits/:id/run" element={<AuditRunPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

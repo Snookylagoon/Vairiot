@@ -1,11 +1,14 @@
 package com.vairiot.app.di
 
+import android.content.Context
+import coil.ImageLoader
 import com.vairiot.app.BuildConfig
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.data.local.TokenStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
@@ -51,4 +54,14 @@ object NetworkModule {
     @Singleton
     fun provideApiService(retrofit: Retrofit): VairiotApiService =
         retrofit.create(VairiotApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideImageLoader(
+        @ApplicationContext context: Context,
+        okHttpClient: OkHttpClient,
+    ): ImageLoader = ImageLoader.Builder(context)
+        .okHttpClient(okHttpClient)
+        .crossfade(true)
+        .build()
 }

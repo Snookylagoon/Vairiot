@@ -192,6 +192,7 @@ model Asset {
   site     Site?     @relation(fields: [siteId], references: [id])
   location  Location?  @relation(fields: [locationId], references: [id])
   checkouts Checkout[]
+  photos    Photo[]
 
   @@unique([tenantId, assetNumber])
   @@index([tenantId, status])
@@ -200,6 +201,25 @@ model Asset {
   @@index([rfidTag])
   @@index([barcode])
   @@map("assets")
+}
+
+// ─── Photos ───────────────────────────────────────────────────────────────────
+model Photo {
+  id          String   @id @default(cuid())
+  tenantId    String
+  assetId     String
+  storageKey  String   @unique
+  mimeType    String
+  sizeBytes   Int
+  width       Int?
+  height      Int?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, assetId])
+  @@map("photos")
 }
 
 // ─── Audit Campaigns ─────────────────────────────────────────────────────────

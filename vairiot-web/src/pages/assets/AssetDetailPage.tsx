@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { AssetPhotos } from '@/components/assets/AssetPhotos';
 import type { Asset } from '@/types';
 
 function Field({ label, value }: { label: string; value?: string | null }) {
@@ -101,6 +102,8 @@ export function AssetDetailPage() {
           </CardBody>
         </Card>
       </div>
+
+      <AssetPhotos assetId={asset.id} />
 
       <div className="flex gap-3">
         <Button variant="secondary" onClick={() => navigate(`/assets/${id}/edit`)}>Edit Asset</Button>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, ClipboardList, Play, CheckCircle, Clock } from 'lucide-react';
+import { Plus, ClipboardList, Play, CheckCircle, Clock, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -21,6 +22,7 @@ const statusIcon: Record<string, React.ElementType> = {
 
 export function AuditsPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['audits'],
     queryFn:  () => api.get('/api/v1/audits').then(r => r.data),
@@ -94,8 +96,17 @@ export function AuditsPage() {
                   {c.status === 'draft' && (
                     <Button size="sm" variant="secondary"
                       loading={startCampaign.isPending}
-                      onClick={() => startCampaign.mutate(c.id)}>
+                      onClick={async () => {
+                        await startCampaign.mutateAsync(c.id);
+                        navigate(`/audits/${c.id}/run`);
+                      }}>
                       Start
+                    </Button>
+                  )}
+                  {(c.status === 'in_progress' || c.status === 'completed') && (
+                    <Button size="sm" variant="secondary"
+                      onClick={() => navigate(`/audits/${c.id}/run`)}>
+                      {c.status === 'completed' ? 'Report' : 'Run'} <ArrowRight size={14} className="ml-1" />
                     </Button>
                   )}
                 </div>

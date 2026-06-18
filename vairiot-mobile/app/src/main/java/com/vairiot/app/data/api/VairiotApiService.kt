@@ -1,10 +1,17 @@
 package com.vairiot.app.data.api
 
+import okhttp3.MultipartBody
+import okhttp3.ResponseBody
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
+import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 interface VairiotApiService {
 
@@ -45,4 +52,29 @@ interface VairiotApiService {
 
     @GET("api/v1/audits/{id}/report")
     suspend fun getAuditReport(@Path("id") id: String): AuditReportResponse
+
+    // ─── Asset update ──────────────────────────────────────────────────────
+    @PATCH("api/v1/assets/{id}")
+    suspend fun updateAsset(
+        @Path("id") id: String,
+        @Body update: AssetUpdateRequest,
+    ): AssetResponse
+
+    // ─── Photos ────────────────────────────────────────────────────────────
+    @GET("api/v1/assets/{id}/photos")
+    suspend fun listAssetPhotos(@Path("id") id: String): List<PhotoResponse>
+
+    @Multipart
+    @POST("api/v1/assets/{id}/photos")
+    suspend fun uploadAssetPhoto(
+        @Path("id") id: String,
+        @Part photo: MultipartBody.Part,
+    ): PhotoResponse
+
+    @Streaming
+    @GET("api/v1/photos/{id}/download")
+    suspend fun downloadPhoto(@Path("id") id: String): ResponseBody
+
+    @DELETE("api/v1/photos/{id}")
+    suspend fun deletePhoto(@Path("id") id: String): Map<String, String>
 }

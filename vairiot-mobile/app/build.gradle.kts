@@ -67,6 +67,7 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.material.icons.extended)
+    implementation(libs.coil.compose)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

@@ -90,3 +90,26 @@ data class MissingAssetResponse(
     val assetNumber: String,
     val name:        String,
 )
+
+// ─── Photos ────────────────────────────────────────────────────────────────
+data class PhotoResponse(
+    val id:        String,
+    val mimeType:  String,
+    val sizeBytes: Int,
+    val width:     Int? = null,
+    val height:    Int? = null,
+    val createdAt: String,
+    val createdBy: String? = null,
+)
+
+// ─── Asset update ──────────────────────────────────────────────────────────
+data class AssetUpdateRequest(
+    val name:         String?  = null,
+    val description:  String?  = null,
+    val status:       String?  = null,
+    val condition:    String?  = null,
+    val serialNumber: String?  = null,
+    val barcode:      String?  = null,
+    val rfidTag:      String?  = null,
+    val notes:        String?  = null,
+)
