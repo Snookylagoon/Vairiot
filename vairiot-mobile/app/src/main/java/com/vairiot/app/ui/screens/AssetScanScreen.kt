@@ -67,7 +67,7 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
 
             // Scan trigger button
             Button(
-                onClick = { /* ScannerService.startScan() — wired in MainActivity */ },
+                onClick = { viewModel.triggerScan() },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = VairiotPink),

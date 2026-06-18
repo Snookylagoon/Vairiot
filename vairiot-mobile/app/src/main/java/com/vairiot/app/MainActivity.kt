@@ -1,6 +1,7 @@
 package com.vairiot.app
 
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -9,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.vairiot.app.data.local.TokenStore
+import com.vairiot.app.scanner.ScannerService
 import com.vairiot.app.ui.screens.AssetScanScreen
 import com.vairiot.app.ui.screens.LoginScreen
 import com.vairiot.app.ui.theme.VairiotTheme
@@ -19,14 +21,13 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @Inject
-    lateinit var tokenStore: TokenStore
+    @Inject lateinit var tokenStore: TokenStore
+    @Inject lateinit var scanner: ScannerService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Check if already logged in
         val hasToken = runBlocking { tokenStore.getAccessToken() != null }
 
         setContent {
@@ -50,5 +51,24 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode in HARDWARE_SCAN_KEYS && event?.repeatCount == 0) {
+            scanner.startScan()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    companion object {
+        private val HARDWARE_SCAN_KEYS = setOf(
+            KeyEvent.KEYCODE_F1,
+            KeyEvent.KEYCODE_F2,
+            KeyEvent.KEYCODE_FOCUS,
+            KeyEvent.KEYCODE_CAMERA,
+            KeyEvent.KEYCODE_BUTTON_L2,
+            KeyEvent.KEYCODE_BUTTON_R2,
+        )
     }
 }

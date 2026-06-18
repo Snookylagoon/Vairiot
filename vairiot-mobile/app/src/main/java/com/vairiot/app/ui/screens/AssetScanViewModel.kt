@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.scanner.ScannerService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,12 +23,25 @@ sealed class ScanUiState {
 @HiltViewModel
 class AssetScanViewModel @Inject constructor(
     private val api: VairiotApiService,
+    private val scanner: ScannerService,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
     val state: StateFlow<ScanUiState> = _state
 
-    // Called by ScannerService when a barcode or RFID tag is scanned
+    init {
+        viewModelScope.launch {
+            scanner.scanResults.collect { result ->
+                onTagScanned(result.value)
+            }
+        }
+    }
+
+    fun triggerScan() {
+        _state.value = ScanUiState.Scanning
+        scanner.startScan()
+    }
+
     fun onTagScanned(tagValue: String) {
         viewModelScope.launch {
             _state.value = ScanUiState.Loading
