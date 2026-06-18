@@ -2,10 +2,16 @@ import { create } from 'zustand';
 import { api } from '@/lib/api';
 
 interface UserProfile {
-  userId:   string;
-  email:    string;
-  tenantId: string;
-  roles:    string[];
+  userId:      string;
+  email:       string;
+  tenantId:    string;
+  roles:       string[];
+  permissions: string[];
+}
+
+export function hasPermission(user: UserProfile | null, ...required: string[]): boolean {
+  if (!user) return false;
+  return required.some((p) => user.permissions.includes(p));
 }
 
 interface AuthState {

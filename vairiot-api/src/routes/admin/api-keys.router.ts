@@ -1,17 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate } from '../../middleware/authenticate';
+import { authenticate, requirePermission } from '../../middleware/authenticate';
 import { listApiKeys, createApiKey, revokeApiKey } from '../../services/api-key.service';
 
 export const apiKeysRouter = Router();
 apiKeysRouter.use(authenticate);
+apiKeysRouter.use(requirePermission('apikey:read', 'apikey:write'));
 
 apiKeysRouter.get('/', async (req: Request, res: Response): Promise<void> => {
   try { res.json(await listApiKeys(req.user!.tenantId)); }
   catch { res.status(500).json({ error: 'Failed to fetch API keys' }); }
 });
 
-apiKeysRouter.post('/',
+apiKeysRouter.post('/', requirePermission('apikey:write'),
   [
     body('name').notEmpty(),
     body('scopes').optional().isArray(),
@@ -26,7 +27,7 @@ apiKeysRouter.post('/',
   },
 );
 
-apiKeysRouter.delete('/:keyId', async (req: Request, res: Response): Promise<void> => {
+apiKeysRouter.delete('/:keyId', requirePermission('apikey:write'), async (req: Request, res: Response): Promise<void> => {
   try {
     res.json(await revokeApiKey(req.user!.tenantId, req.params.keyId));
   } catch (e) {

@@ -28,7 +28,7 @@ authRouter.post('/refresh',
   },
 );
 authRouter.get('/me', authenticate, (req: Request, res: Response): void => {
-  res.status(200).json({ userId: req.user!.sub, email: req.user!.email, tenantId: req.user!.tenantId, roles: req.user!.roles });
+  res.status(200).json({ userId: req.user!.sub, email: req.user!.email, tenantId: req.user!.tenantId, roles: req.user!.roles, permissions: req.user!.permissions });
 });
 authRouter.post('/logout', authenticate, (_req: Request, res: Response): void => {
   res.status(200).json({ message: 'Logged out successfully' });

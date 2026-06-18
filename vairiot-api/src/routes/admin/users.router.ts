@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate } from '../../middleware/authenticate';
+import { authenticate, requirePermission } from '../../middleware/authenticate';
 import {
   listUsers, listRoles, inviteUser, setUserActive, setUserRole,
 } from '../../services/user.service';
@@ -8,17 +8,17 @@ import {
 export const usersRouter = Router();
 usersRouter.use(authenticate);
 
-usersRouter.get('/', async (req: Request, res: Response): Promise<void> => {
+usersRouter.get('/', requirePermission('user:read', 'user:write'), async (req: Request, res: Response): Promise<void> => {
   try { res.json(await listUsers(req.user!.tenantId)); }
   catch { res.status(500).json({ error: 'Failed to fetch users' }); }
 });
 
-usersRouter.get('/roles', async (req: Request, res: Response): Promise<void> => {
+usersRouter.get('/roles', requirePermission('user:read', 'user:write'), async (req: Request, res: Response): Promise<void> => {
   try { res.json(await listRoles(req.user!.tenantId)); }
   catch { res.status(500).json({ error: 'Failed to fetch roles' }); }
 });
 
-usersRouter.post('/',
+usersRouter.post('/', requirePermission('user:write'),
   [
     body('email').isEmail().normalizeEmail(),
     body('name').notEmpty(),
@@ -39,7 +39,7 @@ usersRouter.post('/',
   },
 );
 
-usersRouter.patch('/:userId/active',
+usersRouter.patch('/:userId/active', requirePermission('user:write'),
   [body('active').isBoolean()],
   async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
@@ -53,7 +53,7 @@ usersRouter.patch('/:userId/active',
   },
 );
 
-usersRouter.patch('/:userId/role',
+usersRouter.patch('/:userId/role', requirePermission('user:write'),
   [body('roleId').notEmpty()],
   async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);

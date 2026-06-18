@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useAuthStore } from '@/stores/auth.store';
+import { useAuthStore, hasPermission } from '@/stores/auth.store';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoginPage }       from '@/pages/auth/LoginPage';
 import { DashboardPage }   from '@/pages/dashboard/DashboardPage';
@@ -26,6 +26,11 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return user ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
+function RequirePermission({ perms, children }: { perms: string[]; children: React.ReactNode }) {
+  const user = useAuthStore(s => s.user);
+  return hasPermission(user, ...perms) ? <>{children}</> : <Navigate to="/dashboard" replace />;
+}
+
 export default function App() {
   const hydrate = useAuthStore(s => s.hydrate);
   useEffect(() => { hydrate(); }, [hydrate]);
@@ -46,8 +51,8 @@ export default function App() {
             <Route path="sites"        element={<SitesPage />} />
             <Route path="audits"       element={<AuditsPage />} />
             <Route path="audits/:id/run" element={<AuditRunPage />} />
-            <Route path="admin/users"    element={<UsersPage />} />
-            <Route path="admin/api-keys" element={<ApiKeysPage />} />
+            <Route path="admin/users"    element={<RequirePermission perms={['user:read', 'user:write']}><UsersPage /></RequirePermission>} />
+            <Route path="admin/api-keys" element={<RequirePermission perms={['apikey:read', 'apikey:write']}><ApiKeysPage /></RequirePermission>} />
           </Route>
         </Routes>
       </BrowserRouter>

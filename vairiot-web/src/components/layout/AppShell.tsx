@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound } from 'lucide-react';
 import { useState } from 'react';
-import { useAuthStore } from '@/stores/auth.store';
+import { useAuthStore, hasPermission } from '@/stores/auth.store';
 import clsx from 'clsx';
 
 const nav = [
@@ -10,13 +10,14 @@ const nav = [
   { to: '/categories', label: 'Categories', icon: Tag },
   { to: '/sites',      label: 'Sites',      icon: MapPin },
   { to: '/audits',     label: 'Audits',     icon: ClipboardList },
-  { to: '/admin/users',    label: 'Users',    icon: Users },
-  { to: '/admin/api-keys', label: 'API Keys', icon: KeyRound },
-];
+  { to: '/admin/users',    label: 'Users',    icon: Users,    require: ['user:read', 'user:write'] },
+  { to: '/admin/api-keys', label: 'API Keys', icon: KeyRound, require: ['apikey:read', 'apikey:write'] },
+] as const;
 
 export function AppShell() {
   const { user, logout } = useAuthStore();
   const [open, setOpen] = useState(false);
+  const visibleNav = nav.filter(item => !('require' in item) || hasPermission(user, ...item.require));
 
   return (
     <div className="min-h-screen flex bg-gray-50">
@@ -33,7 +34,7 @@ export function AppShell() {
 
         {/* Nav links */}
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {nav.map(({ to, label, icon: Icon }) => (
+          {visibleNav.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} onClick={() => setOpen(false)}
               className={({ isActive }) => clsx(
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',

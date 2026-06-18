@@ -17,6 +17,7 @@ const ROLE_PERMISSIONS = [
   'category:read', 'category:write',
   'site:read', 'site:write',
   'user:read', 'user:write',
+  'apikey:read', 'apikey:write',
 ];
 
 const DEMO_ASSETS = [

@@ -20,10 +20,11 @@ async function verifyApiKey(token: string): Promise<TokenPayload | null> {
   prisma.apiKey.update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
     .catch(() => { /* ignore */ });
   return {
-    sub:      `apikey:${key.id}`,
-    tenantId: key.tenantId,
-    email:    `apikey-${key.id}@vairiot.local`,
-    roles:    key.scopes,
+    sub:         `apikey:${key.id}`,
+    tenantId:    key.tenantId,
+    email:       `apikey-${key.id}@vairiot.local`,
+    roles:       [],
+    permissions: key.scopes,
   };
 }
 
@@ -47,7 +48,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 export function requirePermission(...perms: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) { res.status(401).json({ error: 'Authorisation required' }); return; }
-    if (!perms.some((p) => req.user!.roles.includes(p))) { res.status(403).json({ error: 'Insufficient permissions' }); return; }
+    if (!perms.some((p) => req.user!.permissions.includes(p))) { res.status(403).json({ error: 'Insufficient permissions' }); return; }
     next();
   };
 }
