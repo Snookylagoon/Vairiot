@@ -83,14 +83,49 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
         </div>
       </div>
 
-      {/* Financial */}
+      {/* Financial & Procurement */}
       <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
         <h3 className="font-semibold text-v-charcoal text-sm uppercase tracking-wider">Financial & Procurement</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input label="Purchase Cost (£)"  type="number" step="0.01" placeholder="0.00"      {...register('purchaseCost')} />
+          <Input label="Purchase Cost"  type="number" step="0.01" placeholder="0.00"      {...register('purchaseCost')} />
           <Input label="Supplier"           placeholder="Supplier name"                        {...register('supplier')} />
           <Input label="Purchase Date"      type="date"                                        {...register('purchaseDate')} />
           <Input label="Warranty Expiry"    type="date"                                        {...register('warrantyExpiry')} />
+          <Input label="PO Number"          placeholder="PO-XXXXX"                             {...register('purchaseOrderNumber')} />
+          <Input label="Invoice Number"     placeholder="INV-XXXXX"                            {...register('invoiceNumber')} />
+          <Input label="Invoice Date"       type="date"                                        {...register('invoiceDate')} />
+          <Input label="Receipt Date"       type="date"                                        {...register('receiptDate')} />
+          <Input label="Capitalization Date" type="date"                                       {...register('capitalizationDate')} />
+        </div>
+      </div>
+
+      {/* Cost Components */}
+      <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
+        <h3 className="font-semibold text-v-charcoal text-sm uppercase tracking-wider">Cost Components</h3>
+        <p className="text-xs text-gray-400">Additional costs capitalized into the asset value</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input label="Freight Cost"       type="number" step="0.01" placeholder="0.00" {...register('freightCost')} />
+          <Input label="Installation Cost"  type="number" step="0.01" placeholder="0.00" {...register('installationCost')} />
+          <Input label="Customs Duties"     type="number" step="0.01" placeholder="0.00" {...register('customsDuties')} />
+          <Input label="Other Capitalized Costs" type="number" step="0.01" placeholder="0.00" {...register('otherCapitalizedCosts')} />
+        </div>
+      </div>
+
+      {/* Depreciation */}
+      <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
+        <h3 className="font-semibold text-v-charcoal text-sm uppercase tracking-wider">Depreciation</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-v-charcoal mb-1">Method</label>
+            <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink bg-white"
+              {...register('depreciationMethod')}>
+              <option value="straight_line">Straight Line</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+          <Input label="Residual Value"     type="number" step="0.01" placeholder="0.00"  {...register('residualValue')} />
+          <Input label="Useful Life (Months)" type="number" step="1" placeholder="e.g. 60" {...register('usefulLifeMonths')} />
+          <Input label="Depreciation Start Date" type="date"                               {...register('depreciationStartDate')} />
         </div>
       </div>
 

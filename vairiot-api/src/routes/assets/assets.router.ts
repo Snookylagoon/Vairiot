@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
 import { authenticate, requirePermission } from '../../middleware/authenticate';
-import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
+import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
 import { toCsv } from '../../lib/csv';
 
 export const assetsRouter = Router();
@@ -22,6 +22,7 @@ assetsRouter.get('/',
         sortOrder:  req.query.sortOrder as string,
         page:       Number(req.query.page) || 1,
         pageSize:   Number(req.query.pageSize) || 50,
+        includeDeleted: req.query.includeDeleted === 'true',
       }));
     } catch { res.status(500).json({ error: 'Failed to fetch assets' }); }
   },
@@ -37,15 +38,26 @@ assetsRouter.get('/export.csv', async (req: Request, res: Response): Promise<voi
       status:     req.query.status as string,
       condition:  req.query.condition as string,
     });
-    const flat = rows.map(a => ({
+    const fmtDate = (d: Date | null | undefined) => d ? d.toISOString().slice(0, 10) : '';
+    const fmtDec = (d: any) => d ? d.toString() : '';
+    const flat = rows.map((a: any) => ({
       assetNumber: a.assetNumber, name: a.name, status: a.status, condition: a.condition,
       category: a.category?.name ?? '', site: a.site?.name ?? '', location: a.location?.name ?? '',
       serialNumber: a.serialNumber ?? '', modelNumber: a.modelNumber ?? '', manufacturer: a.manufacturer ?? '',
       barcode: a.barcode ?? '', rfidTag: a.rfidTag ?? '',
-      purchaseDate: a.purchaseDate ? a.purchaseDate.toISOString().slice(0, 10) : '',
-      purchaseCost: a.purchaseCost ? a.purchaseCost.toString() : '',
-      warrantyExpiry: a.warrantyExpiry ? a.warrantyExpiry.toISOString().slice(0, 10) : '',
-      supplier: a.supplier ?? '', notes: a.notes ?? '',
+      purchaseDate: fmtDate(a.purchaseDate), purchaseCost: fmtDec(a.purchaseCost),
+      purchaseOrderNumber: a.purchaseOrderNumber ?? '', invoiceNumber: a.invoiceNumber ?? '',
+      invoiceDate: fmtDate(a.invoiceDate), receiptDate: fmtDate(a.receiptDate),
+      capitalizationDate: fmtDate(a.capitalizationDate),
+      freightCost: fmtDec(a.freightCost), installationCost: fmtDec(a.installationCost),
+      customsDuties: fmtDec(a.customsDuties), otherCapitalizedCosts: fmtDec(a.otherCapitalizedCosts),
+      capitalizedCost: a.depreciation?.capitalizedCost?.toString() ?? '',
+      residualValue: fmtDec(a.residualValue), usefulLifeMonths: a.usefulLifeMonths?.toString() ?? '',
+      depreciationMethod: a.depreciationMethod ?? '',
+      monthlyDepreciation: a.depreciation?.monthlyDepreciation?.toString() ?? '',
+      accumulatedDepreciation: a.depreciation?.accumulatedDepreciation?.toString() ?? '',
+      netBookValue: a.depreciation?.netBookValue?.toString() ?? '',
+      warrantyExpiry: fmtDate(a.warrantyExpiry), supplier: a.supplier ?? '', notes: a.notes ?? '',
       createdAt: a.createdAt.toISOString(), updatedAt: a.updatedAt.toISOString(),
     }));
     const csv = toCsv(flat, [
@@ -63,6 +75,22 @@ assetsRouter.get('/export.csv', async (req: Request, res: Response): Promise<voi
       { key: 'rfidTag',        header: 'RFID Tag' },
       { key: 'purchaseDate',   header: 'Purchase Date' },
       { key: 'purchaseCost',   header: 'Purchase Cost' },
+      { key: 'purchaseOrderNumber', header: 'PO Number' },
+      { key: 'invoiceNumber',  header: 'Invoice Number' },
+      { key: 'invoiceDate',    header: 'Invoice Date' },
+      { key: 'receiptDate',    header: 'Receipt Date' },
+      { key: 'capitalizationDate', header: 'Capitalization Date' },
+      { key: 'freightCost',    header: 'Freight Cost' },
+      { key: 'installationCost', header: 'Installation Cost' },
+      { key: 'customsDuties',  header: 'Customs Duties' },
+      { key: 'otherCapitalizedCosts', header: 'Other Capitalized Costs' },
+      { key: 'capitalizedCost', header: 'Capitalized Cost' },
+      { key: 'residualValue',  header: 'Residual Value' },
+      { key: 'depreciationMethod', header: 'Depreciation Method' },
+      { key: 'usefulLifeMonths', header: 'Useful Life (Months)' },
+      { key: 'monthlyDepreciation', header: 'Monthly Depreciation' },
+      { key: 'accumulatedDepreciation', header: 'Accumulated Depreciation' },
+      { key: 'netBookValue',   header: 'Net Book Value' },
       { key: 'warrantyExpiry', header: 'Warranty Expiry' },
       { key: 'supplier',       header: 'Supplier' },
       { key: 'notes',          header: 'Notes' },
@@ -119,11 +147,29 @@ assetsRouter.patch('/:id', requirePermission('asset:write'), async (req: Request
   }
 });
 
-// DELETE /api/v1/assets/:id
+// DELETE /api/v1/assets/:id  (soft delete / archive)
 assetsRouter.delete('/:id', requirePermission('asset:delete'), async (req: Request, res: Response): Promise<void> => {
   try { await deleteAsset(req.user!.tenantId, req.params.id, req.user!.sub); res.status(204).send(); }
   catch (e) {
     if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Asset not found' }); return; }
-    res.status(500).json({ error: 'Failed to delete asset' });
+    res.status(500).json({ error: 'Failed to archive asset' });
   }
 });
+
+// POST /api/v1/assets/:id/dispose — formal disposal with financial record
+assetsRouter.post('/:id/dispose', requirePermission('asset:write'),
+  [
+    body('disposalDate').notEmpty().withMessage('Disposal date is required'),
+    body('disposalMethod').notEmpty().withMessage('Disposal method is required'),
+  ],
+  async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    try { res.json(await disposeAsset(req.user!.tenantId, req.params.id, req.user!.sub, req.body)); }
+    catch (e) {
+      if (e instanceof Error && e.message === 'NOT_FOUND') { res.status(404).json({ error: 'Asset not found' }); return; }
+      if (e instanceof Error && e.message === 'ALREADY_DISPOSED') { res.status(409).json({ error: 'Asset is already disposed' }); return; }
+      res.status(500).json({ error: 'Failed to dispose asset' });
+    }
+  },
+);

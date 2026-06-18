@@ -7,10 +7,18 @@ export function NewAssetPage() {
   const navigate    = useNavigate();
   const createAsset = useCreateAsset();
 
+  const toNum = (v?: string) => v ? Number(v) : undefined;
+
   const onSubmit = async (data: AssetFormData) => {
     await createAsset.mutateAsync({
       ...data,
-      purchaseCost: data.purchaseCost ? Number(data.purchaseCost) : undefined,
+      purchaseCost: toNum(data.purchaseCost),
+      freightCost: toNum(data.freightCost),
+      installationCost: toNum(data.installationCost),
+      customsDuties: toNum(data.customsDuties),
+      otherCapitalizedCosts: toNum(data.otherCapitalizedCosts),
+      residualValue: toNum(data.residualValue),
+      usefulLifeMonths: data.usefulLifeMonths ? Number(data.usefulLifeMonths) : undefined,
     });
     navigate('/assets');
   };

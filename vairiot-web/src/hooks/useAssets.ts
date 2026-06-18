@@ -6,7 +6,7 @@ import type { AssetListResponse, Asset } from '@/types';
 export interface AssetListParams {
   search?: string; page?: number; pageSize?: number;
   categoryId?: string; siteId?: string; status?: string; condition?: string;
-  sortBy?: string; sortOrder?: string;
+  sortBy?: string; sortOrder?: string; includeDeleted?: boolean;
 }
 
 export function useAssets(params: AssetListParams = {}) {
@@ -47,7 +47,20 @@ export function useDeleteAsset() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/assets/${id}`),
-    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['assets'] }); toast.success('Asset deleted'); },
-    onError:    () => { toast.error('Failed to delete asset'); },
+    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['assets'] }); toast.success('Asset archived'); },
+    onError:    () => { toast.error('Failed to archive asset'); },
+  });
+}
+
+export function useDisposeAsset(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => api.post(`/api/v1/assets/${id}/dispose`, data).then(r => r.data),
+    onSuccess:  () => {
+      qc.invalidateQueries({ queryKey: ['assets'] });
+      qc.invalidateQueries({ queryKey: ['asset', id] });
+      toast.success('Asset disposed');
+    },
+    onError:    () => { toast.error('Failed to dispose asset'); },
   });
 }

@@ -3,6 +3,14 @@ import { AssetForm, AssetFormData } from '@/components/forms/AssetForm';
 import { useAsset, useUpdateAsset } from '@/hooks/useAssets';
 import { ArrowLeft } from 'lucide-react';
 
+function fmtDate(d?: string | null) {
+  return d ? d.slice(0, 10) : '';
+}
+
+function toNum(v?: string) {
+  return v ? Number(v) : undefined;
+}
+
 export function EditAssetPage() {
   const { id }      = useParams<{ id: string }>();
   const navigate    = useNavigate();
@@ -12,7 +20,13 @@ export function EditAssetPage() {
   const onSubmit = async (data: AssetFormData) => {
     await updateAsset.mutateAsync({
       ...data,
-      purchaseCost: data.purchaseCost ? Number(data.purchaseCost) : undefined,
+      purchaseCost: toNum(data.purchaseCost),
+      freightCost: toNum(data.freightCost),
+      installationCost: toNum(data.installationCost),
+      customsDuties: toNum(data.customsDuties),
+      otherCapitalizedCosts: toNum(data.otherCapitalizedCosts),
+      residualValue: toNum(data.residualValue),
+      usefulLifeMonths: data.usefulLifeMonths ? Number(data.usefulLifeMonths) : undefined,
     });
     navigate(`/assets/${id}`);
   };
@@ -36,9 +50,30 @@ export function EditAssetPage() {
           description:   asset.description ?? '',
           categoryId:    asset.category?.id ?? '',
           siteId:        asset.site?.id ?? '',
+          condition:     asset.condition ?? 'good',
           serialNumber:  asset.serialNumber ?? '',
+          modelNumber:   asset.modelNumber ?? '',
+          manufacturer:  asset.manufacturer ?? '',
           barcode:       asset.barcode ?? '',
           rfidTag:       asset.rfidTag ?? '',
+          purchaseCost:  asset.purchaseCost ?? '',
+          supplier:      asset.supplier ?? '',
+          purchaseDate:  fmtDate(asset.purchaseDate),
+          warrantyExpiry: fmtDate(asset.warrantyExpiry),
+          purchaseOrderNumber: asset.purchaseOrderNumber ?? '',
+          invoiceNumber: asset.invoiceNumber ?? '',
+          invoiceDate:   fmtDate(asset.invoiceDate),
+          receiptDate:   fmtDate(asset.receiptDate),
+          capitalizationDate: fmtDate(asset.capitalizationDate),
+          freightCost:   asset.freightCost ?? '',
+          installationCost: asset.installationCost ?? '',
+          customsDuties: asset.customsDuties ?? '',
+          otherCapitalizedCosts: asset.otherCapitalizedCosts ?? '',
+          residualValue: asset.residualValue ?? '',
+          depreciationMethod: asset.depreciationMethod ?? 'straight_line',
+          usefulLifeMonths: asset.usefulLifeMonths?.toString() ?? '',
+          depreciationStartDate: fmtDate(asset.depreciationStartDate),
+          notes:         asset.notes ?? '',
         }}
         onSubmit={onSubmit}
         isLoading={updateAsset.isPending}

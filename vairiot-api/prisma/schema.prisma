@@ -199,21 +199,45 @@ model Asset {
   manufacturer String?
   barcode      String?
   rfidTag      String?
-  purchaseDate DateTime?
-  purchaseCost Decimal?  @db.Decimal(12, 2)
-  supplier     String?
+
+  // ── Financial: Procurement ──
+  purchaseDate       DateTime?
+  purchaseCost       Decimal?  @db.Decimal(12, 2)
+  supplier           String?
+  purchaseOrderNumber String?
+  invoiceNumber      String?
+  invoiceDate        DateTime?
+  receiptDate        DateTime?
+  capitalizationDate DateTime?
+
+  // ── Financial: Cost Components ──
+  freightCost        Decimal?  @db.Decimal(12, 2)
+  installationCost   Decimal?  @db.Decimal(12, 2)
+  customsDuties      Decimal?  @db.Decimal(12, 2)
+  otherCapitalizedCosts Decimal? @db.Decimal(12, 2)
+
+  // ── Financial: Valuation ──
+  residualValue      Decimal?  @db.Decimal(12, 2)
+
+  // ── Depreciation ──
+  depreciationMethod String?   @default("straight_line")
+  usefulLifeMonths   Int?
+  depreciationStartDate DateTime?
+
   warrantyExpiry DateTime?
   notes        String?
   customFields Json?
+  deletedAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id])
-  category Category? @relation(fields: [categoryId], references: [id])
-  site     Site?     @relation(fields: [siteId], references: [id])
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  category  Category?  @relation(fields: [categoryId], references: [id])
+  site      Site?      @relation(fields: [siteId], references: [id])
   location  Location?  @relation(fields: [locationId], references: [id])
   checkouts Checkout[]
   photos    Photo[]
+  disposal  Disposal?
 
   @@unique([tenantId, assetNumber])
   @@index([tenantId, status])
@@ -222,6 +246,28 @@ model Asset {
   @@index([rfidTag])
   @@index([barcode])
   @@map("assets")
+}
+
+// ─── Disposals ────────────────────────────────────────────────────────────────
+model Disposal {
+  id              String   @id @default(cuid())
+  tenantId        String
+  assetId         String   @unique
+  disposalDate    DateTime
+  disposalMethod  String
+  disposalValue   Decimal? @db.Decimal(12, 2)
+  disposalReason  String?
+  netBookValueAtDisposal Decimal? @db.Decimal(12, 2)
+  gainLoss        Decimal? @db.Decimal(12, 2)
+  approvedBy      String?
+  notes           String?
+  createdBy       String
+  createdAt       DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id])
+
+  @@index([tenantId])
+  @@map("disposals")
 }
 
 // ─── Photos ───────────────────────────────────────────────────────────────────

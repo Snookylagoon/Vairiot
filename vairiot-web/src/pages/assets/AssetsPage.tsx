@@ -73,6 +73,8 @@ export function AssetsPage() {
 
   const activeFilterCount = [categoryId, siteId, status, condition].filter(Boolean).length;
 
+  const includeDeleted = get('archived') === '1';
+
   const { data, isLoading, isPlaceholderData } = useAssets({
     search: search || undefined,
     page,
@@ -83,6 +85,7 @@ export function AssetsPage() {
     condition: condition || undefined,
     sortBy: sortBy || undefined,
     sortOrder: sortOrder || undefined,
+    includeDeleted,
   });
 
   const toggleSort = (col: string) => {
@@ -197,7 +200,10 @@ export function AssetsPage() {
                 <option value="">All statuses</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-                <option value="maintenance">Maintenance</option>
+                <option value="in_storage">In Storage</option>
+                <option value="maintenance">Under Maintenance</option>
+                <option value="in_repair">In Repair</option>
+                <option value="lost">Lost</option>
                 <option value="disposed">Disposed</option>
               </select>
             </div>
@@ -209,10 +215,22 @@ export function AssetsPage() {
                 className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink">
                 <option value="">All conditions</option>
                 <option value="good">Good</option>
+                <option value="excellent">Excellent</option>
                 <option value="fair">Fair</option>
                 <option value="poor">Poor</option>
                 <option value="damaged">Damaged</option>
               </select>
+            </div>
+            <div className="space-y-1 flex items-end">
+              <label className="flex items-center gap-2 text-xs font-medium text-gray-500 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeDeleted}
+                  onChange={e => set({ archived: e.target.checked ? '1' : '', page: '' })}
+                  className="rounded border-gray-300 text-v-violet focus:ring-v-pink"
+                />
+                Show archived
+              </label>
             </div>
           </div>
         )}

@@ -18,13 +18,40 @@ export const assetSchema = z.object({
   manufacturer:   z.string().optional(),
   barcode:        z.string().optional(),
   rfidTag:        z.string().optional(),
+  // Financial: Procurement
   purchaseCost:   z.string().optional(),
   purchaseDate:   z.string().optional(),
   warrantyExpiry: z.string().optional(),
   supplier:       z.string().optional(),
+  purchaseOrderNumber: z.string().optional(),
+  invoiceNumber:  z.string().optional(),
+  invoiceDate:    z.string().optional(),
+  receiptDate:    z.string().optional(),
+  capitalizationDate: z.string().optional(),
+  // Financial: Cost Components
+  freightCost:    z.string().optional(),
+  installationCost: z.string().optional(),
+  customsDuties:  z.string().optional(),
+  otherCapitalizedCosts: z.string().optional(),
+  // Financial: Valuation
+  residualValue:  z.string().optional(),
+  // Depreciation
+  depreciationMethod: z.string().optional(),
+  usefulLifeMonths: z.string().optional(),
+  depreciationStartDate: z.string().optional(),
   notes:          z.string().optional(),
 });
 export type AssetFormData = z.infer<typeof assetSchema>;
+
+export const disposalSchema = z.object({
+  disposalDate:   z.string().min(1, 'Disposal date is required'),
+  disposalMethod: z.string().min(1, 'Disposal method is required'),
+  disposalValue:  z.string().optional(),
+  disposalReason: z.string().optional(),
+  approvedBy:     z.string().optional(),
+  notes:          z.string().optional(),
+});
+export type DisposalFormData = z.infer<typeof disposalSchema>;
 
 export const inviteUserSchema = z.object({
   name:     z.string().min(1, 'Name is required'),
