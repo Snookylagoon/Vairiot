@@ -99,6 +99,14 @@ describe('Assets', () => {
     const r = await request(app).get('/api/v1/assets/nonexistent-id').set('Authorization', `Bearer ${token}`);
     expect(r.status).toBe(404);
   });
+  it('returns stats grouped by status and condition', async () => {
+    const r = await request(app).get('/api/v1/assets/stats').set('Authorization', `Bearer ${token}`);
+    expect(r.status).toBe(200);
+    expect(r.body).toHaveProperty('total');
+    expect(r.body).toHaveProperty('byStatus');
+    expect(r.body).toHaveProperty('byCondition');
+    expect(typeof r.body.byStatus).toBe('object');
+  });
   it('deletes an asset', async () => {
     const r = await request(app).delete(`/api/v1/assets/${assetId}`).set('Authorization', `Bearer ${token}`);
     expect(r.status).toBe(204);
