@@ -23,26 +23,33 @@ class AssetRepository @Inject constructor(
             .map { rows -> rows.map { it.toApiResponse() } }
 
     /**
-     * Pull a fresh page from the API and replace the local cache. Returns the
-     * total reported by the server, or null if the call failed (cache stays
-     * intact).
+     * Pull every page from the API and replace the local cache. Returns the
+     * total reported by the server, or null if any page failed (cache stays
+     * intact — a partial sync would leave the user staring at half a register).
      */
     suspend fun refresh(query: String? = null): Int? {
+        val search = query?.takeIf { it.isNotBlank() }
         return try {
-            val resp = api.listAssets(search = query?.takeIf { it.isNotBlank() }, page = 1, pageSize = 200)
-            // Only replace the cache on a "full" sync (no search), so a typed
-            // query doesn't blow away previously-cached rows the user might
-            // need offline.
-            if (query.isNullOrBlank()) {
-                dao.replaceAll(resp.assets.map { it.toCached() })
+            val firstPage = api.listAssets(search = search, page = 1, pageSize = PAGE_SIZE)
+            val fullSync  = search == null
+            if (fullSync) {
+                dao.replaceAll(firstPage.assets.map { it.toCached() })
             } else {
-                dao.upsertAll(resp.assets.map { it.toCached() })
+                dao.upsertAll(firstPage.assets.map { it.toCached() })
             }
-            resp.total
+            var page = 2
+            while (page <= firstPage.totalPages) {
+                val next = api.listAssets(search = search, page = page, pageSize = PAGE_SIZE)
+                dao.upsertAll(next.assets.map { it.toCached() })
+                page++
+            }
+            firstPage.total
         } catch (e: Exception) {
             null
         }
     }
+
+    private companion object { const val PAGE_SIZE = 200 }
 }
 
 private fun CachedAsset.toApiResponse(): AssetResponse = AssetResponse(
