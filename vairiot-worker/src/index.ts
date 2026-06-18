@@ -2,6 +2,7 @@ import { Worker, ConnectionOptions } from 'bullmq';
 import { logger } from './logger';
 import { QUEUE_NAMES, AuditCompleteJob } from './queues';
 import { handleAuditComplete } from './processors/audit-complete';
+import { verifyMailer } from './mailer';
 
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const u = new URL(redisUrl);
@@ -26,6 +27,7 @@ auditCompleteWorker.on('completed', (job) => {
 });
 
 logger.info('Vairiot worker started. Queues: ' + Object.values(QUEUE_NAMES).join(', '));
+void verifyMailer();
 
 async function shutdown(signal: string): Promise<void> {
   logger.info(`Received ${signal}, shutting down…`);
