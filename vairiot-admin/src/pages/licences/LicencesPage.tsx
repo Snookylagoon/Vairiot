@@ -3,10 +3,11 @@ import {
   useLicences, useRenewLicence, useSuspendLicence,
   useRevokeLicence, useReactivateLicence, useAddDeviceSlot,
 } from '@/hooks/useLicences';
-import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { useUrlTableState } from '@/hooks/useUrlTableState';
 
 const STATUS_OPTIONS = ['', 'active', 'expiring', 'expired', 'suspended', 'revoked'];
 
@@ -17,9 +18,30 @@ const statusVariant = (s: string) => {
   return 'red' as const;
 };
 
+interface LicenceRow {
+  id: string;
+  licenceNumber: string;
+  status: string;
+  durationMonths: number;
+  activatedAt?: string | null;
+  expiresAt?: string | null;
+  paymentConfirmed: boolean;
+  tenant?: { name: string; slug: string };
+  tier?: { name: string; displayName?: string; baseDevices: number };
+  deviceSlots?: unknown[];
+}
+
 export function LicencesPage() {
-  const [statusFilter, setStatusFilter] = useState('');
-  const { data: licences = [], isLoading } = useLicences(statusFilter ? { status: statusFilter } : {});
+  const { search, searchInput, setSearchInput, sortBy, sortOrder, toggleSort, extras, setExtra } =
+    useUrlTableState(['status']);
+  const statusFilter = extras.status;
+
+  const params: Record<string, string> = {};
+  if (search) params.search = search;
+  if (statusFilter) params.status = statusFilter;
+  if (sortBy) { params.sortBy = sortBy; params.sortOrder = sortOrder; }
+
+  const { data: licences = [], isLoading } = useLicences(params);
 
   const renew = useRenewLicence();
   const suspend = useSuspendLicence();
@@ -42,6 +64,105 @@ export function LicencesPage() {
 
   const anyPending = renew.isPending || suspend.isPending || revoke.isPending || reactivate.isPending || addSlot.isPending;
 
+  const columns: DataTableColumn<LicenceRow>[] = [
+    {
+      key: 'licenceNumber', label: 'Licence #',
+      render: l => <code className="font-mono text-xs text-v-charcoal">{l.licenceNumber}</code>,
+    },
+    {
+      key: 'tenant.name', label: 'Tenant',
+      render: l => (
+        <>
+          <p className="font-medium text-v-charcoal">{l.tenant?.name}</p>
+          <p className="text-xs text-gray-400 font-mono">{l.tenant?.slug}</p>
+        </>
+      ),
+    },
+    {
+      key: 'tier.name', label: 'Tier',
+      render: l => <Badge variant="default">{l.tier?.displayName ?? l.tier?.name}</Badge>,
+    },
+    {
+      key: 'status', label: 'Status',
+      render: l => <Badge variant={statusVariant(l.status)}>{l.status}</Badge>,
+    },
+    {
+      key: 'durationMonths', label: 'Duration',
+      render: l => <span className="text-gray-600">{l.durationMonths}m</span>,
+    },
+    {
+      key: 'activatedAt', label: 'Start date',
+      render: l => (
+        <span className="text-gray-600 text-xs">
+          {l.activatedAt ? new Date(l.activatedAt).toLocaleDateString() : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'expiresAt', label: 'Expires',
+      render: l => (
+        <span className="text-gray-600 text-xs">
+          {l.expiresAt ? new Date(l.expiresAt).toLocaleDateString() : 'Perpetual'}
+        </span>
+      ),
+    },
+    {
+      key: 'paymentConfirmed', label: 'Payment',
+      render: l => (
+        <Badge variant={l.paymentConfirmed ? 'green' : 'yellow'}>
+          {l.paymentConfirmed ? 'Confirmed' : 'Pending'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'devices', label: 'Devices', sortable: false,
+      render: l => <span className="text-gray-600">{(l.tier?.baseDevices ?? 0) + (l.deviceSlots?.length ?? 0)}</span>,
+    },
+    {
+      key: 'actions', label: 'Actions', sortable: false,
+      render: l => (
+        <div className="flex gap-1">
+          {(l.status === 'active' || l.status === 'expiring' || l.status === 'expired') && (
+            <Button size="sm" variant="ghost" onClick={() => setConfirm({ action: 'renew', licenceId: l.id })}>
+              Renew
+            </Button>
+          )}
+          {(l.status === 'active' || l.status === 'expiring') && (
+            <Button size="sm" variant="ghost" onClick={() => setConfirm({ action: 'suspend', licenceId: l.id })}>
+              Suspend
+            </Button>
+          )}
+          {l.status === 'suspended' && (
+            <Button size="sm" variant="ghost" onClick={() => setConfirm({ action: 'reactivate', licenceId: l.id })}>
+              Reactivate
+            </Button>
+          )}
+          {l.status !== 'revoked' && (
+            <Button size="sm" variant="ghost" onClick={() => setConfirm({ action: 'addSlot', licenceId: l.id })}>
+              +Slot
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const toolbar = (
+    <div className="flex gap-2">
+      {STATUS_OPTIONS.map(s => (
+        <button
+          key={s || 'all'}
+          onClick={() => setExtra('status', s)}
+          className={`px-3 py-1.5 text-xs rounded-full font-medium transition-colors ${
+            statusFilter === s ? 'bg-v-violet text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          {s || 'All'}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -49,107 +170,16 @@ export function LicencesPage() {
         <span className="text-sm text-gray-400">{licences.length} total</span>
       </div>
 
-      <div className="flex gap-2">
-        {STATUS_OPTIONS.map(s => (
-          <button
-            key={s || 'all'}
-            onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 text-xs rounded-full font-medium transition-colors ${
-              statusFilter === s
-                ? 'bg-v-violet text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {s || 'All'}
-          </button>
-        ))}
-      </div>
-
-      {isLoading ? (
-        <p className="text-sm text-gray-400">Loading...</p>
-      ) : (
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left">
-                  <th className="px-6 py-3 font-medium text-gray-500">Licence #</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Tenant</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Tier</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Status</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Duration</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Start date</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Expires</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Payment</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Devices</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {licences.map((l: any) => (
-                  <tr key={l.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="px-6 py-3">
-                      <code className="font-mono text-xs text-v-charcoal">{l.licenceNumber}</code>
-                    </td>
-                    <td className="px-6 py-3">
-                      <p className="font-medium text-v-charcoal">{l.tenant?.name}</p>
-                      <p className="text-xs text-gray-400 font-mono">{l.tenant?.slug}</p>
-                    </td>
-                    <td className="px-6 py-3">
-                      <Badge variant="default">{l.tier?.displayName ?? l.tier?.name}</Badge>
-                    </td>
-                    <td className="px-6 py-3">
-                      <Badge variant={statusVariant(l.status)}>{l.status}</Badge>
-                    </td>
-                    <td className="px-6 py-3 text-gray-600">{l.durationMonths}m</td>
-                    <td className="px-6 py-3 text-gray-600 text-xs">
-                      {l.activatedAt ? new Date(l.activatedAt).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="px-6 py-3 text-gray-600 text-xs">
-                      {l.expiresAt ? new Date(l.expiresAt).toLocaleDateString() : 'Perpetual'}
-                    </td>
-                    <td className="px-6 py-3">
-                      <Badge variant={l.paymentConfirmed ? 'green' : 'yellow'}>
-                        {l.paymentConfirmed ? 'Confirmed' : 'Pending'}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-3 text-gray-600">
-                      {l.tier?.baseDevices + (l.deviceSlots?.length ?? 0)}
-                    </td>
-                    <td className="px-6 py-3">
-                      <div className="flex gap-1">
-                        {(l.status === 'active' || l.status === 'expiring' || l.status === 'expired') && (
-                          <Button size="sm" variant="ghost" onClick={() => setConfirm({ action: 'renew', licenceId: l.id })}>
-                            Renew
-                          </Button>
-                        )}
-                        {(l.status === 'active' || l.status === 'expiring') && (
-                          <Button size="sm" variant="ghost" onClick={() => setConfirm({ action: 'suspend', licenceId: l.id })}>
-                            Suspend
-                          </Button>
-                        )}
-                        {l.status === 'suspended' && (
-                          <Button size="sm" variant="ghost" onClick={() => setConfirm({ action: 'reactivate', licenceId: l.id })}>
-                            Reactivate
-                          </Button>
-                        )}
-                        {l.status !== 'revoked' && (
-                          <Button size="sm" variant="ghost" onClick={() => setConfirm({ action: 'addSlot', licenceId: l.id })}>
-                            +Slot
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {licences.length === 0 && (
-                  <tr><td colSpan={10} className="px-6 py-8 text-center text-gray-400">No licences found</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+      <DataTable<LicenceRow>
+        columns={columns}
+        rows={licences as LicenceRow[]}
+        getRowKey={l => l.id}
+        isLoading={isLoading}
+        emptyMessage="No licences found"
+        search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Search licence # or tenant…' }}
+        sort={{ sortBy, sortOrder, onToggle: toggleSort }}
+        toolbar={toolbar}
+      />
 
       <ConfirmDialog
         open={!!confirm}

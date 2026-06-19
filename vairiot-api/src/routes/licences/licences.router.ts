@@ -50,10 +50,13 @@ licencesRouter.get(
   '/all',
   authorityOnly,
   asyncHandler(async (req: Request, res: Response) => {
-    const { status, tenantId } = req.query;
+    const { status, tenantId, search, sortBy, sortOrder } = req.query;
     const licences = await listLicences({
       status: status as string | undefined,
       tenantId: tenantId as string | undefined,
+      search: search as string | undefined,
+      sortBy: sortBy as string | undefined,
+      sortOrder: sortOrder as string | undefined,
     });
     res.json(licences);
   }),

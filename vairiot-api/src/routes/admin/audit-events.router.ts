@@ -8,11 +8,11 @@ auditEventsRouter.use(requireAnyPermission('user:read', 'user:write', 'apikey:re
 
 auditEventsRouter.get('/',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { entityType, limit, from, to, search } = req.query as Record<string, string>;
+    const { entityType, limit, from, to, search, sortBy, sortOrder } = req.query as Record<string, string>;
     res.json(await listAuditEvents(req.user!.tenantId, {
       entityType,
       limit: limit ? Number(limit) : undefined,
-      from, to, search,
+      from, to, search, sortBy, sortOrder,
     }));
   }),
 );

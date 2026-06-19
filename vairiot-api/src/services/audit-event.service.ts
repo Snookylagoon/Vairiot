@@ -1,6 +1,9 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
+import { buildOrderBy } from '../lib/sort';
+
+const AUDIT_SORT_KEYS = ['occurredAt', 'action', 'entityType', 'entityId'] as const;
 
 export interface RecordEventInput {
   tenantId:   string;
@@ -46,6 +49,8 @@ interface ListOpts {
   from?: string;
   to?: string;
   search?: string;
+  sortBy?: string;
+  sortOrder?: string;
 }
 
 function buildWhere(tenantId: string, opts: ListOpts): Prisma.AuditEventWhereInput {
@@ -72,7 +77,7 @@ export async function listAuditEvents(tenantId: string, opts: ListOpts = {}) {
   const limit = Math.min(opts.limit ?? 100, 500);
   return prisma.auditEvent.findMany({
     where: buildWhere(tenantId, opts),
-    orderBy: { occurredAt: 'desc' },
+    orderBy: buildOrderBy(opts.sortBy, opts.sortOrder, AUDIT_SORT_KEYS, { occurredAt: 'desc' as const }),
     take: limit,
     select: {
       id: true, entityType: true, entityId: true, action: true,

@@ -3,6 +3,10 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { NotFoundError } from '../lib/errors';
+import { buildOrderBy } from '../lib/sort';
+
+const TENANT_SORT_KEYS = ['name', 'slug', 'deploymentMode', 'onboardingComplete', 'createdAt', 'active'] as const;
+const USER_SORT_KEYS   = ['name', 'email', 'active', 'twoFactorEnabled', 'lastLoginAt', 'createdAt', 'tenant.name'] as const;
 
 // ─── Dashboard Stats ────────────────────────────────────────────────────────
 
@@ -56,6 +60,8 @@ interface TenantListFilters {
   search?: string;
   deploymentMode?: string;
   onboardingComplete?: string;
+  sortBy?: string;
+  sortOrder?: string;
 }
 
 export async function listTenants(filters: TenantListFilters = {}) {
@@ -76,7 +82,7 @@ export async function listTenants(filters: TenantListFilters = {}) {
 
   return prisma.tenant.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
+    orderBy: buildOrderBy(filters.sortBy, filters.sortOrder, TENANT_SORT_KEYS, { createdAt: 'desc' as const }),
     select: {
       id: true,
       name: true,
@@ -155,6 +161,8 @@ interface UserListFilters {
   tenantId?: string;
   role?: string;
   active?: string;
+  sortBy?: string;
+  sortOrder?: string;
 }
 
 export async function listAllUsers(filters: UserListFilters = {}) {
@@ -174,7 +182,7 @@ export async function listAllUsers(filters: UserListFilters = {}) {
 
   return prisma.user.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
+    orderBy: buildOrderBy(filters.sortBy, filters.sortOrder, USER_SORT_KEYS, { createdAt: 'desc' as const }),
     select: {
       id: true,
       tenantId: true,

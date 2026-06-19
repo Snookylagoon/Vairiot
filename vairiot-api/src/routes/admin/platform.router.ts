@@ -28,6 +28,8 @@ platformRouter.get('/tenants', async (req: Request, res: Response) => {
     search: req.query.search as string | undefined,
     deploymentMode: req.query.deploymentMode as string | undefined,
     onboardingComplete: req.query.onboardingComplete as string | undefined,
+    sortBy: req.query.sortBy as string | undefined,
+    sortOrder: req.query.sortOrder as string | undefined,
   });
   res.json(tenants);
 });
@@ -45,6 +47,8 @@ platformRouter.get('/users', async (req: Request, res: Response) => {
     tenantId: req.query.tenantId as string | undefined,
     role: req.query.role as string | undefined,
     active: req.query.active as string | undefined,
+    sortBy: req.query.sortBy as string | undefined,
+    sortOrder: req.query.sortOrder as string | undefined,
   });
   res.json(users);
 });

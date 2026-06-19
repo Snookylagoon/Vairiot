@@ -1,7 +1,9 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { AppError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors';
 import { generateLicenceNumber } from '../lib/licence-number';
+import { buildOrderBy } from '../lib/sort';
 import {
   DEFAULT_GRACE_PERIOD_DAYS,
   DEFAULT_EXPIRY_WARNING_DAYS,
@@ -449,10 +451,37 @@ async function validateViaCentralService(tenantId: string): Promise<boolean> {
 
 // ─── List all licences (for Licensing Authority console) ─────────────────────
 
-export async function listLicences(filters?: { status?: string; tenantId?: string }) {
+const LICENCE_SORT_KEYS = [
+  'licenceNumber', 'status', 'durationMonths', 'activatedAt', 'expiresAt',
+  'createdAt', 'paymentConfirmed', 'tenant.name', 'tier.name',
+] as const;
+
+export async function listLicences(filters?: {
+  status?: string;
+  tenantId?: string;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: string;
+}) {
   const where: Record<string, unknown> = {};
   if (filters?.status) where.status = filters.status;
   if (filters?.tenantId) where.tenantId = filters.tenantId;
+  if (filters?.search) {
+    where.OR = [
+      { licenceNumber: { contains: filters.search, mode: 'insensitive' as const } },
+      { tenant: { name: { contains: filters.search, mode: 'insensitive' as const } } },
+      { tenant: { slug: { contains: filters.search, mode: 'insensitive' as const } } },
+    ];
+  }
+
+  // buildOrderBy returns a generic Record; Prisma is happy with that shape at runtime,
+  // but the orderBy field is typed narrowly — cast at the call site.
+  const orderBy = buildOrderBy(
+    filters?.sortBy,
+    filters?.sortOrder,
+    LICENCE_SORT_KEYS,
+    { createdAt: 'desc' as const },
+  ) as Prisma.LicenceOrderByWithRelationInput;
 
   return prisma.licence.findMany({
     where,
@@ -461,7 +490,7 @@ export async function listLicences(filters?: { status?: string; tenantId?: strin
       tenant: { select: { id: true, name: true, slug: true } },
       deviceSlots: true,
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy,
   });
 }
 
