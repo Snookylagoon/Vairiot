@@ -115,6 +115,26 @@ data class PhotoUpdateRequest(
     val caption: String?,
 )
 
+// ─── Maintenance ───────────────────────────────────────────────────────────
+data class MaintenanceCreateRequest(
+    val assetId:         String,
+    val maintenanceType: String,
+    val description:     String? = null,
+    val notes:           String? = null,
+    val status:          String? = null,
+)
+
+data class MaintenanceEventResponse(
+    val id:              String,
+    val assetId:         String,
+    val maintenanceType: String,
+    val workOrderNumber: String?,
+    val description:     String?,
+    val notes:           String?,
+    val status:          String,
+    val createdAt:       String,
+)
+
 // ─── Asset update ──────────────────────────────────────────────────────────
 data class AssetUpdateRequest(
     val name:         String?  = null,

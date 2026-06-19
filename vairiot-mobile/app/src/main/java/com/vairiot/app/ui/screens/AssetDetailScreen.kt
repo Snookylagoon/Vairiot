@@ -91,5 +91,7 @@ private fun AssetBody(asset: AssetResponse) {
         }
 
         AssetPhotosSection()
+
+        MaintenanceRequestSection()
     }
 }
