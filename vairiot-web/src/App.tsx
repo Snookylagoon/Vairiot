@@ -33,6 +33,9 @@ const ApiKeysPage          = lazy(() => import('@/pages/admin/ApiKeysPage').then
 const AuditLogPage         = lazy(() => import('@/pages/admin/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
 const WebhooksPage         = lazy(() => import('@/pages/admin/WebhooksPage').then(m => ({ default: m.WebhooksPage })));
 const CustomFieldsPage     = lazy(() => import('@/pages/admin/CustomFieldsPage').then(m => ({ default: m.CustomFieldsPage })));
+const OnboardingPage       = lazy(() => import('@/pages/onboarding/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
+const LicensingPage        = lazy(() => import('@/pages/licensing/LicensingPage').then(m => ({ default: m.LicensingPage })));
+const TwoFactorPage        = lazy(() => import('@/pages/settings/TwoFactorPage').then(m => ({ default: m.TwoFactorPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -45,6 +48,14 @@ const PageSpinner = () => (
 );
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { user, loading, onboardingRequired } = useAuthStore();
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-v-pink border-t-transparent" /></div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (onboardingRequired) return <Navigate to="/onboarding" replace />;
+  return <>{children}</>;
+}
+
+function RequireAuthOnly({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthStore();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-v-pink border-t-transparent" /></div>;
   return user ? <>{children}</> : <Navigate to="/login" replace />;
@@ -67,6 +78,7 @@ export default function App() {
         <Suspense fallback={<PageSpinner />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/onboarding" element={<RequireAuthOnly><OnboardingPage /></RequireAuthOnly>} />
           <Route path="/" element={<RequireAuth><AppShell /></RequireAuth>}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
@@ -90,6 +102,8 @@ export default function App() {
             <Route path="alerts"         element={<AlertsPage />} />
             <Route path="import"        element={<ImportPage />} />
             <Route path="labels"        element={<LabelsPage />} />
+            <Route path="licensing"     element={<LicensingPage />} />
+            <Route path="settings/2fa"  element={<TwoFactorPage />} />
             <Route path="admin/users"    element={<RequirePermission perms={['user:read', 'user:write']}><UsersPage /></RequirePermission>} />
             <Route path="admin/api-keys" element={<RequirePermission perms={['apikey:read', 'apikey:write']}><ApiKeysPage /></RequirePermission>} />
             <Route path="admin/webhooks" element={<RequirePermission perms={['apikey:write']}><WebhooksPage /></RequirePermission>} />

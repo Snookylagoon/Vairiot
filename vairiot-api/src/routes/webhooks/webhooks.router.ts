@@ -1,13 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import {
   listWebhooks, createWebhook, deleteWebhook, toggleWebhook, getValidEvents,
 } from '../../services/webhook.service';
 
 export const webhooksRouter = Router();
-webhooksRouter.use(authenticate);
 webhooksRouter.use(requireAnyPermission('apikey:write'));
 
 webhooksRouter.get('/',

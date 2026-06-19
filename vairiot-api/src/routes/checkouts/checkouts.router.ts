@@ -1,11 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { checkoutAsset, checkinAsset, getCheckoutHistory, listActiveCheckouts, getOverdueCheckouts } from '../../services/checkout.service';
 
 export const checkoutsRouter = Router();
-checkoutsRouter.use(authenticate);
 
 checkoutsRouter.get('/',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {

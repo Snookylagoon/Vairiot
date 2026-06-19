@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { recordAuditEvent } from './audit-event.service';
 import { NotFoundError, ConflictError } from '../lib/errors';
+import { validatePasswordPolicy } from './password-policy.service';
 
 export async function listUsers(tenantId: string) {
   return prisma.user.findMany({
@@ -34,6 +35,7 @@ export async function inviteUser(
 ) {
   const existing = await prisma.user.findFirst({ where: { tenantId, email: data.email } });
   if (existing) throw new ConflictError('A user with that email already exists', 'EMAIL_EXISTS');
+  validatePasswordPolicy(data.password);
   const passwordHash = await bcrypt.hash(data.password, 12);
   const user = await prisma.user.create({
     data: { tenantId, email: data.email, name: data.name, passwordHash, active: true },

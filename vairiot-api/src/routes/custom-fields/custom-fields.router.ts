@@ -1,11 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { listCustomFields, createCustomField, updateCustomField, deleteCustomField } from '../../services/custom-field.service';
 
 export const customFieldsRouter = Router();
-customFieldsRouter.use(authenticate);
 
 customFieldsRouter.get('/',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {

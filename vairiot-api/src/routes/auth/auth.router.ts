@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { login, refreshTokens } from '../../services/auth.service';
+import { login, loginWithTwoFactor, refreshTokens } from '../../services/auth.service';
 import { authenticate } from '../../middleware/authenticate';
 import { asyncHandler } from '../../middleware/error-handler';
 import { blacklistToken } from '../../lib/redis';
@@ -14,7 +14,20 @@ authRouter.post('/login', loginLimiter,
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    res.json(await login({ email: req.body.email, password: req.body.password, tenantId: req.body.tenantId }));
+    const ipAddress = req.ip ?? req.socket.remoteAddress ?? '0.0.0.0';
+    const result = await login({ email: req.body.email, password: req.body.password, tenantId: req.body.tenantId }, ipAddress);
+    res.json(result);
+  }),
+);
+
+authRouter.post('/login/2fa', loginLimiter,
+  [body('userId').notEmpty(), body('token').notEmpty()],
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    const ipAddress = req.ip ?? req.socket.remoteAddress ?? '0.0.0.0';
+    const result = await loginWithTwoFactor(req.body.userId, req.body.token, ipAddress);
+    res.json(result);
   }),
 );
 

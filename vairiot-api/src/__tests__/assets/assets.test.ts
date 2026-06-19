@@ -13,12 +13,24 @@ let siteId: string;
 let assetId: string;
 
 beforeAll(async () => {
-  await prisma.tenant.upsert({ where: { id: TID }, update: {}, create: { id: TID, name: 'Asset Test Tenant', slug: 'asset-test-tenant' } });
+  await prisma.tenant.upsert({ where: { id: TID }, update: { onboardingComplete: true }, create: { id: TID, name: 'Asset Test Tenant', slug: 'asset-test-tenant', onboardingComplete: true } });
   const ADMIN_PERMS = ['asset:read', 'asset:write', 'asset:delete', 'site:write', 'category:write'];
   const role = await prisma.role.upsert({ where: { tenantId_name: { tenantId: TID, name: 'Administrator' } }, update: { permissions: ADMIN_PERMS }, create: { tenantId: TID, name: 'Administrator', permissions: ADMIN_PERMS } });
   const hash = await bcrypt.hash(PASS, 12);
   const user = await prisma.user.upsert({ where: { tenantId_email: { tenantId: TID, email: EMAIL } }, update: {}, create: { tenantId: TID, email: EMAIL, name: 'Asset Tester', passwordHash: hash } });
   await prisma.userRole.upsert({ where: { userId_roleId: { userId: user.id, roleId: role.id } }, update: {}, create: { userId: user.id, roleId: role.id } });
+  // Seed a FREE licence tier and activate a licence for the test tenant
+  const tier = await prisma.licenceTier.upsert({
+    where: { name: 'FREE' },
+    update: {},
+    create: { name: 'FREE', displayName: 'Free', maxAssets: 500, baseDevices: 1, pricePerYear: 0, isPerpetual: true },
+  });
+  await prisma.licence.upsert({
+    where: { id: `test-licence-${TID}` },
+    update: { status: 'active' },
+    create: { id: `test-licence-${TID}`, tenantId: TID, tierId: tier.id, status: 'active', activatedAt: new Date(), paymentConfirmed: true },
+  });
+
   const login = await request(app).post('/api/v1/auth/login').send({ email: EMAIL, password: PASS, tenantId: TID });
   token = login.body.accessToken;
 });
@@ -29,6 +41,8 @@ afterAll(async () => {
   await prisma.category.deleteMany({ where: { tenantId: TID } });
   await prisma.location.deleteMany({ where: { site: { tenantId: TID } } });
   await prisma.site.deleteMany({ where: { tenantId: TID } });
+  await prisma.deviceSlot.deleteMany({ where: { licence: { tenantId: TID } } });
+  await prisma.licence.deleteMany({ where: { tenantId: TID } });
   await prisma.userRole.deleteMany({ where: { user: { tenantId: TID } } });
   await prisma.user.deleteMany({ where: { tenantId: TID } });
   await prisma.role.deleteMany({ where: { tenantId: TID } });

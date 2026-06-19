@@ -13,3 +13,5 @@ export * from './constants/audit.constants';
 export * from './constants/alert.constants';
 export * from './constants/webhook.constants';
 export * from './constants/permissions.constants';
+export * from './constants/roles.constants';
+export * from './constants/licence.constants';

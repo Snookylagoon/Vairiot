@@ -8,4 +8,7 @@ module.exports = {
   // Coverage floor reflects current router-level test gaps (categories, sites,
   // checkouts, photos). Raise back to 80% as those gain dedicated suites.
   coverageThreshold: { global: { lines: 70 } },
+  moduleNameMapper: {
+    '^otplib$': '<rootDir>/src/__mocks__/otplib.ts',
+  },
 };

@@ -52,10 +52,5 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   } catch { res.status(401).json({ error: 'Invalid or expired token' }); }
 }
 
-export function requireAnyPermission(...perms: string[]) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) { res.status(401).json({ error: 'Authorisation required' }); return; }
-    if (!perms.some((p) => req.user!.permissions.includes(p))) { res.status(403).json({ error: 'Insufficient permissions' }); return; }
-    next();
-  };
-}
+// Re-export from authorise.ts for backwards compatibility
+export { requireAnyPermission } from './authorise';

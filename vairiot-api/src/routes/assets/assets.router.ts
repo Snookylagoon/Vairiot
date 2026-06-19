@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
-import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
+import { enforceAssetCap } from '../../services/licence.service';
 import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
 import { bulkImportAssets } from '../../services/import.service';
 import { toCsv } from '../../lib/csv';
 
 export const assetsRouter = Router();
-assetsRouter.use(authenticate);
 
 assetsRouter.get('/',
   [query('page').optional().isInt({ min: 1 }), query('pageSize').optional().isInt({ min: 1, max: 200 })],
@@ -133,6 +133,7 @@ assetsRouter.post('/', requireAnyPermission('asset:write'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    await enforceAssetCap(req.user!.tenantId);
     res.status(201).json(await createAsset(req.user!.tenantId, req.user!.sub, req.body));
   }),
 );

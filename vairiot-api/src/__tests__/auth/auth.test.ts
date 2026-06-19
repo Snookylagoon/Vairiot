@@ -7,7 +7,7 @@ const TID = 'test-tenant-001';
 const EMAIL = 'test@vairiot.test';
 const PASS = 'TestPassword123!';
 beforeAll(async () => {
-  await prisma.tenant.upsert({ where: { id: TID }, update: {}, create: { id: TID, name: 'Test Tenant', slug: 'test-tenant' } });
+  await prisma.tenant.upsert({ where: { id: TID }, update: { onboardingComplete: true }, create: { id: TID, name: 'Test Tenant', slug: 'test-tenant', onboardingComplete: true } });
   const role = await prisma.role.upsert({ where: { tenantId_name: { tenantId: TID, name: 'Administrator' } }, update: {}, create: { tenantId: TID, name: 'Administrator', permissions: ['asset:read'] } });
   const hash = await bcrypt.hash(PASS, 12);
   const user = await prisma.user.upsert({ where: { tenantId_email: { tenantId: TID, email: EMAIL } }, update: {}, create: { tenantId: TID, email: EMAIL, name: 'Test User', passwordHash: hash } });

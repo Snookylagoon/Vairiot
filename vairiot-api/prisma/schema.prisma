@@ -7,25 +7,60 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Enums ────────────────────────────────────────────────────────────────────
+enum DeploymentMode {
+  standalone
+  saas
+  hybrid
+}
+
+enum LicenceStatus {
+  active
+  expiring
+  expired
+  suspended
+  revoked
+}
+
+enum LicenceTierName {
+  FREE
+  TIER_2
+  TIER_3
+}
+
+enum OnboardingStep {
+  user_registration
+  company_registration
+  client_registration
+  licence_activation
+}
+
 // ─── Tenants ──────────────────────────────────────────────────────────────────
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  plan      String   @default("standalone")
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String         @id @default(cuid())
+  name             String
+  slug             String         @unique
+  plan             String         @default("standalone")
+  deploymentMode   DeploymentMode @default(standalone)
+  onboardingComplete Boolean      @default(false)
+  active           Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
-  users       User[]
-  roles       Role[]
-  auditEvents AuditEvent[]
-  categories  Category[]
-  sites       Site[]
-  assets      Asset[]
-  auditCampaigns AuditCampaign[]
-  checkouts   Checkout[]
-  apiKeys     ApiKey[]
+  users              User[]
+  roles              Role[]
+  auditEvents        AuditEvent[]
+  categories         Category[]
+  sites              Site[]
+  assets             Asset[]
+  auditCampaigns     AuditCampaign[]
+  checkouts          Checkout[]
+  apiKeys            ApiKey[]
+  licences           Licence[]
+  devices            Device[]
+  company            Company?
+  clientCompanies    ClientCompany[]
+  onboardingProgress OnboardingProgress[]
 
   @@map("tenants")
 }
@@ -52,19 +87,25 @@ model ApiKey {
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 model User {
-  id           String    @id @default(cuid())
-  tenantId     String
-  email        String
-  name         String
-  passwordHash String?
-  active       Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  tenantId         String
+  email            String
+  name             String
+  phone            String?
+  passwordHash     String?
+  active           Boolean   @default(true)
+  twoFactorEnabled Boolean   @default(false)
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  lastLoginAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  tenant      Tenant       @relation(fields: [tenantId], references: [id])
-  roles       UserRole[]
-  auditEvents AuditEvent[]
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  roles         UserRole[]
+  auditEvents   AuditEvent[]
+  twoFactor     UserTwoFactor?
+  loginAttempts LoginAttempt[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -501,4 +542,209 @@ model Transfer {
 
   @@index([tenantId, assetId])
   @@map("transfers")
+}
+
+// ─── Licence Tiers (reference data) ──────────────────────────────────────────
+model LicenceTier {
+  id             String          @id @default(cuid())
+  name           LicenceTierName @unique
+  displayName    String
+  maxAssets      Int
+  baseDevices    Int             @default(1)
+  pricePerYear   Decimal         @db.Decimal(10, 2)
+  pricePerDevice Decimal         @default(10.00) @db.Decimal(10, 2)
+  isPerpetual    Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  licences Licence[]
+
+  @@map("licence_tiers")
+}
+
+// ─── Licences ─────────────────────────────────────────────────────────────────
+model Licence {
+  id                String        @id @default(cuid())
+  tenantId          String
+  tierId            String
+  status            LicenceStatus @default(active)
+  durationMonths    Int           @default(12)
+  activatedAt       DateTime?
+  expiresAt         DateTime?
+  gracePeriodDays   Int           @default(14)
+  expiryWarningDays Int           @default(30)
+  paymentConfirmed  Boolean       @default(false)
+  paymentConfirmedAt DateTime?
+  paymentConfirmedBy String?
+  suspendedAt       DateTime?
+  suspendedBy       String?
+  revokedAt         DateTime?
+  revokedBy         String?
+  notes             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  tier        LicenceTier  @relation(fields: [tierId], references: [id])
+  deviceSlots DeviceSlot[]
+
+  @@index([tenantId, status])
+  @@map("licences")
+}
+
+// ─── Devices (registered scanning hardware) ──────────────────────────────────
+model Device {
+  id           String    @id @default(cuid())
+  tenantId     String
+  deviceName   String
+  deviceType   String    @default("handheld")
+  serialNumber String?
+  hardwareId   String?
+  active       Boolean   @default(false)
+  activatedAt  DateTime?
+  lastSeenAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, hardwareId])
+  @@index([tenantId, active])
+  @@map("devices")
+}
+
+// ─── Device Slots (paid allowances per licence) ──────────────────────────────
+model DeviceSlot {
+  id          String   @id @default(cuid())
+  licenceId   String
+  addedBy     String
+  paidAmount  Decimal  @default(10.00) @db.Decimal(10, 2)
+  addedAt     DateTime @default(now())
+
+  licence Licence @relation(fields: [licenceId], references: [id])
+
+  @@index([licenceId])
+  @@map("device_slots")
+}
+
+// ─── Company Registration (tenant's own company) ─────────────────────────────
+model Company {
+  id                 String   @id @default(cuid())
+  tenantId           String   @unique
+  legalName          String
+  tradingName        String?
+  registrationNumber String?
+  addressLine1       String
+  addressLine2       String?
+  city               String
+  stateProvince      String?
+  postalCode         String?
+  country            String
+  primaryContactName  String
+  primaryContactEmail String
+  primaryContactPhone String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("companies")
+}
+
+// ─── Client Companies (external clients for project work) ────────────────────
+model ClientCompany {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  legalName          String
+  tradingName        String?
+  registrationNumber String?
+  addressLine1       String
+  addressLine2       String?
+  city               String
+  stateProvince      String?
+  postalCode         String?
+  country            String
+  primaryContactName  String
+  primaryContactEmail String
+  primaryContactPhone String?
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  authorities ClientAuthority[]
+
+  @@unique([tenantId, legalName])
+  @@index([tenantId])
+  @@map("client_companies")
+}
+
+// ─── Client Authority (engagement signatory contact) ─────────────────────────
+model ClientAuthority {
+  id              String   @id @default(cuid())
+  clientCompanyId String
+  name            String
+  email           String
+  phone           String?
+  jobTitle        String?
+  isSignatory     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  clientCompany ClientCompany @relation(fields: [clientCompanyId], references: [id])
+
+  @@index([clientCompanyId])
+  @@map("client_authorities")
+}
+
+// ─── Onboarding Progress ─────────────────────────────────────────────────────
+model OnboardingProgress {
+  id          String         @id @default(cuid())
+  tenantId    String
+  step        OnboardingStep
+  completed   Boolean        @default(false)
+  completedAt DateTime?
+  completedBy String?
+  data        Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, step])
+  @@index([tenantId])
+  @@map("onboarding_progress")
+}
+
+// ─── Two-Factor Authentication ───────────────────────────────────────────────
+model UserTwoFactor {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  secret      String
+  backupCodes String[]
+  verifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_two_factor")
+}
+
+// ─── Login Attempts (for progressive lockout) ────────────────────────────────
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String
+  ipAddress String
+  success   Boolean
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([email, createdAt])
+  @@index([ipAddress, createdAt])
+  @@map("login_attempts")
 }

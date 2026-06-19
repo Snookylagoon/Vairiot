@@ -12,7 +12,7 @@ let assetId: string;
 let campaignId: string;
 
 beforeAll(async () => {
-  await prisma.tenant.upsert({ where: { id: TID }, update: {}, create: { id: TID, name: 'Audit Test Tenant', slug: 'audit-test-tenant' } });
+  await prisma.tenant.upsert({ where: { id: TID }, update: { onboardingComplete: true }, create: { id: TID, name: 'Audit Test Tenant', slug: 'audit-test-tenant', onboardingComplete: true } });
   const ADMIN_PERMS = ['asset:read', 'asset:write', 'asset:delete', 'site:write', 'category:write', 'audit:write'];
   const role = await prisma.role.upsert({ where: { tenantId_name: { tenantId: TID, name: 'Administrator' } }, update: { permissions: ADMIN_PERMS }, create: { tenantId: TID, name: 'Administrator', permissions: ADMIN_PERMS } });
   const hash = await bcrypt.hash(PASS, 12);

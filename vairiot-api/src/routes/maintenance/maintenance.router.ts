@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import {
   listMaintenanceEvents, getMaintenanceEvent, createMaintenanceEvent,
@@ -8,7 +8,6 @@ import {
 } from '../../services/maintenance.service';
 
 export const maintenanceRouter = Router();
-maintenanceRouter.use(authenticate);
 
 maintenanceRouter.get('/',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {

@@ -1,10 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { listAuditEvents, listAuditEventsForExport } from '../../services/audit-event.service';
 
 export const auditEventsRouter = Router();
-auditEventsRouter.use(authenticate);
 auditEventsRouter.use(requireAnyPermission('user:read', 'user:write', 'apikey:read', 'apikey:write'));
 
 auditEventsRouter.get('/',

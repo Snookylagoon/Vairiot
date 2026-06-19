@@ -1,13 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate } from '../../middleware/authenticate';
+
 import { asyncHandler } from '../../middleware/error-handler';
 import {
   listSubscriptions, upsertSubscription, deleteSubscription, toggleSubscription,
 } from '../../services/alert.service';
 
 export const alertsRouter = Router();
-alertsRouter.use(authenticate);
 
 alertsRouter.get('/subscriptions',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {

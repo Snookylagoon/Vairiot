@@ -1,12 +1,11 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { body, validationResult } from 'express-validator';
-import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { listPhotos, uploadPhoto, getPhotoStream, deletePhoto, updatePhoto } from '../../services/photo.service';
 
 export const photosRouter = Router();
-photosRouter.use(authenticate);
 
 const ACCEPTED_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'];
 

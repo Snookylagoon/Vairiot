@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { listCampaigns, createCampaign, startCampaign, recordScan, completeCampaign, getCampaignReport, getCampaignReportRows } from '../../services/audit.service';
 import { toCsv } from '../../lib/csv';
@@ -33,7 +33,6 @@ function buildReportCsv(rows: ReportRows): string {
 }
 
 export const auditsRouter = Router();
-auditsRouter.use(authenticate);
 
 auditsRouter.get('/',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {

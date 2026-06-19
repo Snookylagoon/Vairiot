@@ -10,12 +10,13 @@ interface ConfirmDialogProps {
   loading?:    boolean;
   onConfirm:   () => void;
   onCancel:    () => void;
+  children?:   React.ReactNode;
 }
 
 export function ConfirmDialog({
   open, title, description,
   confirmLabel = 'Confirm', variant = 'danger',
-  loading, onConfirm, onCancel,
+  loading, onConfirm, onCancel, children,
 }: ConfirmDialogProps) {
   useEffect(() => {
     if (!open) return;
@@ -32,6 +33,7 @@ export function ConfirmDialog({
       <div className="relative bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 p-6 space-y-4">
         <h3 className="text-lg font-bold text-v-charcoal">{title}</h3>
         <p className="text-sm text-gray-600">{description}</p>
+        {children}
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" size="sm" onClick={onCancel} autoFocus>
             Cancel

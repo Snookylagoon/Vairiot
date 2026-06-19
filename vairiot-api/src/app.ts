@@ -23,10 +23,15 @@ import { timelineRouter }     from './routes/timeline/timeline.router';
 import { alertsRouter }       from './routes/alerts/alerts.router';
 import { webhooksRouter }     from './routes/webhooks/webhooks.router';
 import { customFieldsRouter } from './routes/custom-fields/custom-fields.router';
+import { licencesRouter }    from './routes/licences/licences.router';
+import { onboardingRouter } from './routes/onboarding/onboarding.router';
+import { twoFactorRouter } from './routes/two-factor/two-factor.router';
 import { globalLimiter } from './middleware/rate-limit';
 import { errorHandler } from './middleware/error-handler';
 import { requestId } from './middleware/request-id';
 import { requestLogger } from './middleware/request-logger';
+import { authenticate } from './middleware/authenticate';
+import { requireOnboardingComplete } from './middleware/onboarding-guard';
 
 export function createApp(): Application {
   const app = express();
@@ -41,26 +46,40 @@ export function createApp(): Application {
   app.use((_req, res, next) => { res.setHeader('X-API-Version', '1.0.0'); next(); });
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, { customSiteTitle: 'Vairiot API Docs' }));
   app.get('/api/openapi.json', (_req, res) => { res.json(openApiSpec); });
+  // ── Ungated routes (no onboarding requirement) ──
   app.use('/health',              healthRouter);
   app.use('/api/v1/auth',         authRouter);
-  app.use('/api/v1/assets',       assetsRouter);
-  app.use('/api/v1/categories',   categoriesRouter);
-  app.use('/api/v1/sites',        sitesRouter);
-  app.use('/api/v1/audits',       auditsRouter);
-  app.use('/api/v1/checkouts',    checkoutsRouter);
-  app.use('/api/v1',               photosRouter);   // /assets/:id/photos, /photos/:id/download, /photos/:id
-  app.use('/api/v1/users',        usersRouter);
-  app.use('/api/v1/api-keys',     apiKeysRouter);
-  app.use('/api/v1/audit-events', auditEventsRouter);
-  app.use('/api/v1',              documentsRouter);   // /assets/:id/documents, /documents/:id/download, /documents/:id
-  app.use('/api/v1/maintenance',  maintenanceRouter);
-  app.use('/api/v1/transfers',    transfersRouter);
-  app.use('/api/v1/exceptions',   exceptionsRouter);
-  app.use('/api/v1/reports',      reportsRouter);
-  app.use('/api/v1/timeline',     timelineRouter);
-  app.use('/api/v1/alerts',       alertsRouter);
-  app.use('/api/v1/webhooks',     webhooksRouter);
-  app.use('/api/v1/custom-fields', customFieldsRouter);
+
+  // ── Auth-required but onboarding-exempt (needed DURING onboarding) ──
+  app.use('/api/v1/onboarding',   authenticate, onboardingRouter);
+  app.use('/api/v1/2fa',          authenticate, twoFactorRouter);
+
+  // ── Gated routes: require authentication + completed onboarding ──
+  const gated = express.Router();
+  gated.use(authenticate);
+  gated.use(requireOnboardingComplete());
+
+  gated.use('/assets',       assetsRouter);
+  gated.use('/categories',   categoriesRouter);
+  gated.use('/sites',        sitesRouter);
+  gated.use('/audits',       auditsRouter);
+  gated.use('/checkouts',    checkoutsRouter);
+  gated.use('/',             photosRouter);       // /assets/:id/photos, /photos/:id/download, /photos/:id
+  gated.use('/users',        usersRouter);
+  gated.use('/api-keys',     apiKeysRouter);
+  gated.use('/audit-events', auditEventsRouter);
+  gated.use('/',             documentsRouter);    // /assets/:id/documents, /documents/:id/download, /documents/:id
+  gated.use('/maintenance',  maintenanceRouter);
+  gated.use('/transfers',    transfersRouter);
+  gated.use('/exceptions',   exceptionsRouter);
+  gated.use('/reports',      reportsRouter);
+  gated.use('/timeline',     timelineRouter);
+  gated.use('/alerts',       alertsRouter);
+  gated.use('/webhooks',     webhooksRouter);
+  gated.use('/custom-fields', customFieldsRouter);
+  gated.use('/licences',     licencesRouter);
+
+  app.use('/api/v1', gated);
   app.use((_req: Request, res: Response) => { res.status(404).json({ error: 'Not found' }); });
   app.use(errorHandler);
   return app;

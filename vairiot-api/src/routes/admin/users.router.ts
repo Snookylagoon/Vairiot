@@ -1,13 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import {
   listUsers, listRoles, inviteUser, setUserActive, setUserRole,
 } from '../../services/user.service';
 
 export const usersRouter = Router();
-usersRouter.use(authenticate);
 
 usersRouter.get('/', requireAnyPermission('user:read', 'user:write'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {

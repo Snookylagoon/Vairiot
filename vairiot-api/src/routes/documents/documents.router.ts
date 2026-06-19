@@ -1,11 +1,10 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { listDocuments, uploadDocument, getDocumentStream, deleteDocument } from '../../services/document.service';
 
 export const documentsRouter = Router();
-documentsRouter.use(authenticate);
 
 const upload = multer({
   storage: multer.memoryStorage(),

@@ -10,8 +10,8 @@ let revokedToken = '';
 
 beforeAll(async () => {
   await prisma.tenant.upsert({
-    where: { id: TID }, update: {},
-    create: { id: TID, name: 'API Key Test Tenant', slug: 'test-apikey' },
+    where: { id: TID }, update: { onboardingComplete: true },
+    create: { id: TID, name: 'API Key Test Tenant', slug: 'test-apikey', onboardingComplete: true },
   });
 
   // Issue a key directly through the service so we get the raw token back.

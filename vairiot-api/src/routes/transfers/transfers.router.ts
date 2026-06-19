@@ -1,11 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { authenticate, requireAnyPermission } from '../../middleware/authenticate';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { listTransfers, createTransfer } from '../../services/transfer.service';
 
 export const transfersRouter = Router();
-transfersRouter.use(authenticate);
 
 transfersRouter.get('/',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {

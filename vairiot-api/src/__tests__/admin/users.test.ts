@@ -16,8 +16,8 @@ let inviteeId = '';
 
 beforeAll(async () => {
   await prisma.tenant.upsert({
-    where: { id: TID }, update: {},
-    create: { id: TID, name: 'Users Test Tenant', slug: 'test-users' },
+    where: { id: TID }, update: { onboardingComplete: true },
+    create: { id: TID, name: 'Users Test Tenant', slug: 'test-users', onboardingComplete: true },
   });
 
   const adminRole = await prisma.role.upsert({
