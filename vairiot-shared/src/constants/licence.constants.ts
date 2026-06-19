@@ -9,7 +9,7 @@ export const LICENCE_TIER_CONFIG = {
   FREE: {
     displayName: 'Free',
     maxAssets: 500,
-    baseDevices: 1,
+    baseDevices: 3,
     pricePerYear: 0,
     pricePerDevice: 10,
     isPerpetual: true,
