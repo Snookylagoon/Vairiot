@@ -66,4 +66,13 @@ class TokenStore @Inject constructor(
     suspend fun clear() {
         context.dataStore.edit { it.clear() }
     }
+
+    /** Wipe auth tokens only — keeps tenant id + cached licence so the login
+     *  screen can preserve org context across cold starts. */
+    suspend fun clearSession() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(ACCESS_TOKEN)
+            prefs.remove(REFRESH_TOKEN)
+        }
+    }
 }

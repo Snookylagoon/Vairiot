@@ -3,8 +3,10 @@ package com.vairiot.app
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.vairiot.app.data.local.TokenStore
 import com.vairiot.app.sync.ScanSyncScheduler
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -12,6 +14,7 @@ class VairiotApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var scanSyncScheduler: ScanSyncScheduler
+    @Inject lateinit var tokenStore: TokenStore
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -20,6 +23,11 @@ class VairiotApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // Force re-login on every cold start. Background/foreground transitions
+        // do NOT re-invoke Application.onCreate, so resuming the app keeps the
+        // user signed in — only a real process death (icon tap after swipe-away
+        // / OS kill / device reboot) wipes the session.
+        runBlocking { tokenStore.clearSession() }
         scanSyncScheduler.ensurePeriodic()
     }
 }
