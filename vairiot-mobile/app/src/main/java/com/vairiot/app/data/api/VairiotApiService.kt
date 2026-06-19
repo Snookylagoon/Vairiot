@@ -44,9 +44,22 @@ interface VairiotApiService {
     @GET("api/v1/assets/tag/{tag}")
     suspend fun getAssetByTag(@Path("tag") tag: String): AssetResponse
 
+    // ─── Sites / Locations / Categories (for scope pickers) ────────────────
+    @GET("api/v1/sites")
+    suspend fun listSites(): List<SiteRefResponse>
+
+    @GET("api/v1/sites/{siteId}/locations")
+    suspend fun listSiteLocations(@Path("siteId") siteId: String): List<LocationRefResponse>
+
+    @GET("api/v1/categories")
+    suspend fun listCategories(): List<CategoryRefResponse>
+
     // ─── Audits ────────────────────────────────────────────────────────────
     @GET("api/v1/audits")
     suspend fun listAudits(): List<AuditCampaignResponse>
+
+    @POST("api/v1/audits")
+    suspend fun createAudit(@Body request: CreateAuditRequest): AuditCampaignResponse
 
     @POST("api/v1/audits/{id}/start")
     suspend fun startAudit(@Path("id") id: String): AuditCampaignResponse

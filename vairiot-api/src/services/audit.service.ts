@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { NotFoundError, ConflictError } from '../lib/errors';
 
@@ -5,18 +6,21 @@ export interface CreateCampaignInput {
   name: string;
   siteId?: string;
   locationId?: string;
+  categoryId?: string;
+  assetIds?: string[];
   scheduledAt?: string;
 }
 
 export async function listCampaigns(tenantId: string) {
   return prisma.auditCampaign.findMany({
     where: { tenantId },
-    include: { _count: { select: { scanEvents: true } } },
+    include: { _count: { select: { scanEvents: true, assets: true } } },
     orderBy: { createdAt: 'desc' },
   });
 }
 
 export async function createCampaign(tenantId: string, actorId: string, input: CreateCampaignInput) {
+  const assetIds = (input.assetIds ?? []).filter(Boolean);
   return prisma.auditCampaign.create({
     data: {
       tenantId,
@@ -24,8 +28,43 @@ export async function createCampaign(tenantId: string, actorId: string, input: C
       name: input.name,
       siteId: input.siteId,
       locationId: input.locationId,
+      categoryId: input.categoryId,
       scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : undefined,
+      assets: assetIds.length ? { create: assetIds.map(assetId => ({ assetId })) } : undefined,
     },
+  });
+}
+
+/**
+ * Resolve the set of assets a campaign expects to find.
+ * Precedence: explicit asset list (if any) → otherwise filter active
+ * tenant assets by site / location / category (any combination).
+ */
+async function expectedAssets(
+  tenantId: string,
+  campaignId: string,
+  scope: { siteId: string | null; locationId: string | null; categoryId: string | null },
+  include?: Prisma.AssetInclude,
+) {
+  const explicit = await prisma.auditCampaignAsset.findMany({
+    where: { campaignId },
+    select: { assetId: true },
+  });
+  if (explicit.length) {
+    return prisma.asset.findMany({
+      where: { tenantId, id: { in: explicit.map(e => e.assetId) } },
+      ...(include ? { include } : {}),
+    });
+  }
+  return prisma.asset.findMany({
+    where: {
+      tenantId,
+      status: 'active',
+      ...(scope.siteId     && { siteId:     scope.siteId }),
+      ...(scope.locationId && { locationId: scope.locationId }),
+      ...(scope.categoryId && { categoryId: scope.categoryId }),
+    },
+    ...(include ? { include } : {}),
   });
 }
 
@@ -66,16 +105,9 @@ export async function completeCampaign(tenantId: string, id: string) {
   if (c.status !== 'in_progress') throw new ConflictError('Campaign is not in progress', 'CAMPAIGN_NOT_ACTIVE');
   const scans = await prisma.auditScanEvent.findMany({ where: { campaignId: id } });
   const foundIds = new Set(scans.filter(s => s.assetId).map(s => s.assetId));
-  const expected = await prisma.asset.findMany({
-    where: {
-      tenantId,
-      status: 'active',
-      ...(c.siteId     && { siteId:     c.siteId }),
-      ...(c.locationId && { locationId: c.locationId }),
-    },
-    select: { id: true, assetNumber: true, name: true },
-  });
-  const missing = expected.filter(a => !foundIds.has(a.id));
+  const expected = await expectedAssets(tenantId, id, c);
+  const missing = expected.filter(a => !foundIds.has(a.id))
+    .map(a => ({ id: a.id, assetNumber: a.assetNumber, name: a.name }));
   const unknown = scans.filter(s => s.result === 'unknown');
   await prisma.auditCampaign.update({
     where: { id },
@@ -115,12 +147,8 @@ export async function getCampaignReportRows(tenantId: string, id: string) {
   const assetById = new Map(scannedAssets.map(a => [a.id, a]));
   const scansWithAsset = scans.map(s => ({ ...s, asset: s.assetId ? assetById.get(s.assetId) ?? null : null }));
   const foundIds = new Set(scannedAssetIds);
-  const expected = await prisma.asset.findMany({
-    where: { tenantId, status: 'active',
-      ...(c.siteId     && { siteId:     c.siteId }),
-      ...(c.locationId && { locationId: c.locationId }),
-    },
-    include: { category: true, site: true, location: true },
+  const expected = await expectedAssets(tenantId, id, c, {
+    category: true, site: true, location: true,
   });
   const missing = expected.filter(a => !foundIds.has(a.id));
   return { campaign: c, scans: scansWithAsset, missing };

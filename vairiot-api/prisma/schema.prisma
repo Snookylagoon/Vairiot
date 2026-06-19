@@ -351,6 +351,7 @@ model AuditCampaign {
   name        String
   siteId      String?
   locationId  String?
+  categoryId  String?
   status      String   @default("draft")
   scheduledAt DateTime?
   startedAt   DateTime?
@@ -359,11 +360,26 @@ model AuditCampaign {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  tenant     Tenant                @relation(fields: [tenantId],   references: [id])
   scanEvents AuditScanEvent[]
+  assets     AuditCampaignAsset[]
 
   @@index([tenantId, status])
   @@map("audit_campaigns")
+}
+
+// Explicit asset-list scope. When rows exist for a campaign, ONLY those
+// assets are "expected"; site/location/category scopes are ignored.
+model AuditCampaignAsset {
+  campaignId String
+  assetId    String
+  addedAt    DateTime @default(now())
+
+  campaign AuditCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, assetId])
+  @@index([campaignId])
+  @@map("audit_campaign_assets")
 }
 
 model AuditScanEvent {

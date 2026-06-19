@@ -41,11 +41,22 @@ auditsRouter.get('/',
 );
 
 auditsRouter.post('/', requireAnyPermission('audit:write'),
-  [body('name').notEmpty()],
+  [
+    body('name').notEmpty(),
+    body('siteId').optional({ nullable: true }).isString(),
+    body('locationId').optional({ nullable: true }).isString(),
+    body('categoryId').optional({ nullable: true }).isString(),
+    body('assetIds').optional({ nullable: true }).isArray(),
+    body('assetIds.*').optional().isString(),
+    body('scheduledAt').optional({ nullable: true }).isString(),
+  ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    res.status(201).json(await createCampaign(req.user!.tenantId, req.user!.sub, req.body));
+    const { name, siteId, locationId, categoryId, assetIds, scheduledAt } = req.body ?? {};
+    res.status(201).json(await createCampaign(req.user!.tenantId, req.user!.sub, {
+      name, siteId, locationId, categoryId, assetIds, scheduledAt,
+    }));
   }),
 );
 

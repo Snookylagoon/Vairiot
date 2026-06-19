@@ -10,8 +10,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -50,6 +52,9 @@ fun AuditListScreen(
         applyCampaignFilters(state.campaigns, search, statusFilter, sortField, sortDir)
     }
 
+    var showCreate by rememberSaveable { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         Box(
@@ -129,9 +134,32 @@ fun AuditListScreen(
             items(visible, key = { it.id }) { c ->
                 AuditRow(campaign = c, onClick = { onCampaignClick(c.id, c.status) })
             }
-            item { Spacer(Modifier.height(12.dp)) }
+            item { Spacer(Modifier.height(80.dp)) } // breathing room above FAB
         }
     }
+
+    FloatingActionButton(
+        onClick = { showCreate = true; viewModel.ensureScopeRefs() },
+        modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+        containerColor = VairiotViolet,
+        contentColor = White,
+    ) {
+        Icon(Icons.Default.Add, contentDescription = "New audit")
+    }
+
+    if (showCreate) {
+        CreateAuditDialog(
+            state = state,
+            onSiteSelected = { viewModel.loadLocationsForSite(it) },
+            onDismiss = { showCreate = false },
+            onCreate = { name, siteId, locationId, categoryId ->
+                viewModel.createCampaign(name, siteId, locationId, categoryId) {
+                    showCreate = false
+                }
+            },
+        )
+    }
+    } // end outer Box
 }
 
 private fun applyCampaignFilters(
@@ -256,6 +284,129 @@ private fun AuditRow(campaign: AuditCampaignResponse, onClick: () -> Unit) {
             Text("${campaign._count?.scanEvents ?: 0} scan${if ((campaign._count?.scanEvents ?: 0) == 1) "" else "s"} recorded",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CreateAuditDialog(
+    state: AuditListUiState,
+    onSiteSelected: (String?) -> Unit,
+    onDismiss: () -> Unit,
+    onCreate: (name: String, siteId: String?, locationId: String?, categoryId: String?) -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    var siteId by rememberSaveable { mutableStateOf<String?>(null) }
+    var locationId by rememberSaveable { mutableStateOf<String?>(null) }
+    var categoryId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New audit", fontWeight = FontWeight.SemiBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = name, onValueChange = { name = it },
+                    label = { Text("Campaign name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Text("Scope (optional)", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+
+                ScopePicker(
+                    label = "Site",
+                    selectedId = siteId,
+                    options = state.sites.map { it.id to it.name },
+                    onSelect = {
+                        siteId = it
+                        locationId = null
+                        onSiteSelected(it)
+                    },
+                )
+                ScopePicker(
+                    label = "Location",
+                    selectedId = locationId,
+                    options = state.locations.map { it.id to it.name },
+                    onSelect = { locationId = it },
+                    disabled = siteId.isNullOrBlank(),
+                    disabledHint = "Pick a site first",
+                )
+                ScopePicker(
+                    label = "Category",
+                    selectedId = categoryId,
+                    options = state.categories.map { it.id to it.name },
+                    onSelect = { categoryId = it },
+                )
+
+                state.createError?.let {
+                    Text(it, color = ErrorRed, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onCreate(name, siteId, locationId, categoryId) },
+                enabled = name.isNotBlank() && !state.isCreating,
+                colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+            ) {
+                if (state.isCreating) {
+                    CircularProgressIndicator(color = White, strokeWidth = 2.dp,
+                        modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScopePicker(
+    label: String,
+    selectedId: String?,
+    options: List<Pair<String, String>>,   // id to display
+    onSelect: (String?) -> Unit,
+    disabled: Boolean = false,
+    disabledHint: String? = null,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val displayed = when {
+        disabled && disabledHint != null -> disabledHint
+        selectedId == null               -> "All"
+        else -> options.firstOrNull { it.first == selectedId }?.second ?: "All"
+    }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded && !disabled,
+        onExpandedChange = { if (!disabled) expanded = !expanded },
+    ) {
+        OutlinedTextField(
+            value = displayed,
+            onValueChange = {},
+            readOnly = true,
+            enabled = !disabled,
+            label = { Text(label) },
+            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = expanded && !disabled, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("All") },
+                onClick = { onSelect(null); expanded = false },
+            )
+            options.forEach { (id, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = { onSelect(id); expanded = false },
+                )
+            }
         }
     }
 }

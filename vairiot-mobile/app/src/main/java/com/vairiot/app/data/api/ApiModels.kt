@@ -89,6 +89,14 @@ data class AuditCampaignResponse(
 
 data class AuditCountResponse(val scanEvents: Int)
 
+data class CreateAuditRequest(
+    val name:       String,
+    val siteId:     String? = null,
+    val locationId: String? = null,
+    val categoryId: String? = null,
+    val assetIds:   List<String>? = null,
+)
+
 data class RecordScanRequest(
     val tagValue: String,
     val deviceId: String? = null,
