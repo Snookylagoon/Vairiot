@@ -105,10 +105,17 @@ async function main() {
   if (freeTier) {
     const existingLicence = await prisma.licence.findFirst({ where: { tenantId: tenant.id, status: 'active' } });
     if (!existingLicence) {
+      const seq = await prisma.$queryRawUnsafe<{ next: bigint }[]>(
+        `SELECT nextval('licence_number_seq') AS next`,
+      );
+      const rand = Array.from({ length: 6 }, () =>
+        'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 30)],
+      ).join('');
       await prisma.licence.create({
         data: {
           tenantId: tenant.id,
           tierId: freeTier.id,
+          licenceNumber: `VAI-${Number(seq[0].next)}-${rand}`,
           status: 'active',
           activatedAt: new Date(),
           paymentConfirmed: true,

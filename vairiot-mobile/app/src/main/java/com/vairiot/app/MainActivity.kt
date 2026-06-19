@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
@@ -26,14 +27,16 @@ import com.vairiot.app.scanner.ScannerService
 import com.vairiot.app.ui.screens.*
 import com.vairiot.app.ui.theme.VairiotTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 private data class HomeTab(val route: String, val label: String, val icon: ImageVector)
 private val HOME_TABS = listOf(
-    HomeTab("scan",   "Scan",   Icons.Default.QrCodeScanner),
-    HomeTab("assets", "Assets", Icons.AutoMirrored.Filled.List),
-    HomeTab("audits", "Audits", Icons.Default.FactCheck),
+    HomeTab("scan",    "Scan",    Icons.Default.QrCodeScanner),
+    HomeTab("assets",  "Assets",  Icons.AutoMirrored.Filled.List),
+    HomeTab("audits",  "Audits",  Icons.Default.FactCheck),
+    HomeTab("profile", "Profile", Icons.Default.AccountCircle),
 )
 
 @AndroidEntryPoint
@@ -138,6 +141,18 @@ private fun HomeScaffold(rootNav: androidx.navigation.NavHostController) {
                         rootNav.navigate("audit/$id/run")
                     } else {
                         rootNav.navigate("audit/$id/run") // report mode rendered if completed
+                    }
+                })
+            }
+            composable("profile") {
+                val scope = rememberCoroutineScope()
+                val activity = androidx.compose.ui.platform.LocalContext.current as? MainActivity
+                ProfileScreen(onLogout = {
+                    scope.launch {
+                        activity?.tokenStore?.clear()
+                        rootNav.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
                 })
             }

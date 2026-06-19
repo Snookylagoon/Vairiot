@@ -24,7 +24,7 @@ beforeAll(async () => {
   const existingLicence = await prisma.licence.findFirst({ where: { tenantId: TID, status: 'active' } });
   if (!existingLicence) {
     await prisma.licence.create({
-      data: { tenantId: TID, tierId: tier.id, status: 'active', activatedAt: new Date(), paymentConfirmed: true },
+      data: { tenantId: TID, tierId: tier.id, licenceNumber: `VAI-TEST-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, status: 'active', activatedAt: new Date(), paymentConfirmed: true },
     });
   }
 });

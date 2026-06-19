@@ -571,6 +571,7 @@ model LicenceTier {
 // ─── Licences ─────────────────────────────────────────────────────────────────
 model Licence {
   id                String        @id @default(cuid())
+  licenceNumber     String        @unique
   tenantId          String
   tierId            String
   status            LicenceStatus @default(active)

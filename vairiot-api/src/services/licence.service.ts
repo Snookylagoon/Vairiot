@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { AppError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors';
+import { generateLicenceNumber } from '../lib/licence-number';
 import {
   DEFAULT_GRACE_PERIOD_DAYS,
   DEFAULT_EXPIRY_WARNING_DAYS,
@@ -11,6 +12,7 @@ import {
 
 export interface LicenceStatusResult {
   licenceId: string;
+  licenceNumber: string;
   tierName: string;
   tierDisplayName: string;
   status: string;
@@ -75,6 +77,7 @@ export async function getLicenceStatus(tenantId: string): Promise<LicenceStatusR
 
   return {
     licenceId: licence.id,
+    licenceNumber: licence.licenceNumber,
     tierName: licence.tier.name,
     tierDisplayName: licence.tier.displayName,
     status: computedStatus,
@@ -137,10 +140,12 @@ export async function activateLicence(
     ? null
     : addMonths(now, durationMonths);
 
+  const licenceNumber = await generateLicenceNumber();
   const licence = await prisma.licence.create({
     data: {
       tenantId,
       tierId: tier.id,
+      licenceNumber,
       status: 'active',
       durationMonths,
       activatedAt: now,

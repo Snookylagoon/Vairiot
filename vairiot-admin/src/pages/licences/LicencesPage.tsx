@@ -73,6 +73,7 @@ export function LicencesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left">
+                  <th className="px-6 py-3 font-medium text-gray-500">Licence #</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Tenant</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Tier</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Status</th>
@@ -86,6 +87,9 @@ export function LicencesPage() {
               <tbody>
                 {licences.map((l: any) => (
                   <tr key={l.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="px-6 py-3">
+                      <code className="font-mono text-xs text-v-charcoal">{l.licenceNumber}</code>
+                    </td>
                     <td className="px-6 py-3">
                       <p className="font-medium text-v-charcoal">{l.tenant?.name}</p>
                       <p className="text-xs text-gray-400 font-mono">{l.tenant?.slug}</p>
@@ -135,7 +139,7 @@ export function LicencesPage() {
                   </tr>
                 ))}
                 {licences.length === 0 && (
-                  <tr><td colSpan={8} className="px-6 py-8 text-center text-gray-400">No licences found</td></tr>
+                  <tr><td colSpan={9} className="px-6 py-8 text-center text-gray-400">No licences found</td></tr>
                 )}
               </tbody>
             </table>

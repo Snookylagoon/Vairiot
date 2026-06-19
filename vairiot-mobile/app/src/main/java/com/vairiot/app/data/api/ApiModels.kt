@@ -19,6 +19,18 @@ data class UserProfileResponse(
     val roles:    List<String>,
 )
 
+data class LicenceStatusResponse(
+    val licenceId:        String,
+    val licenceNumber:    String,
+    val tierName:         String,
+    val tierDisplayName:  String,
+    val status:           String,
+    val activatedAt:      String?,
+    val expiresAt:        String?,
+    val daysRemaining:    Int?,
+    val paymentConfirmed: Boolean,
+)
+
 data class RefreshRequest(val refreshToken: String)
 
 data class RefreshResponse(

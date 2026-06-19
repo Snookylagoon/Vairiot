@@ -44,7 +44,7 @@ licencesRouter.post('/devices', asyncHandler(async (req: Request, res: Response)
 
 // ─── Licensing Authority routes ──────────────────────────────────────────────
 
-const authorityOnly = requireRole(RoleName.LicensingAuthority);
+const authorityOnly = requireRole(RoleName.LicensingAuthority, RoleName.PlatformSuperAdmin);
 
 licencesRouter.get(
   '/all',

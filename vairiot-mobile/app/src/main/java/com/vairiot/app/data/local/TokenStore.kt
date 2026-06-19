@@ -18,9 +18,12 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "va
 class TokenStore @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    private val ACCESS_TOKEN  = stringPreferencesKey("access_token")
-    private val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
-    private val TENANT_ID     = stringPreferencesKey("tenant_id")
+    private val ACCESS_TOKEN   = stringPreferencesKey("access_token")
+    private val REFRESH_TOKEN  = stringPreferencesKey("refresh_token")
+    private val TENANT_ID      = stringPreferencesKey("tenant_id")
+    private val LICENCE_NUMBER = stringPreferencesKey("licence_number")
+    private val LICENCE_TIER   = stringPreferencesKey("licence_tier")
+    private val LICENCE_STATUS = stringPreferencesKey("licence_status")
 
     suspend fun saveTokens(accessToken: String, refreshToken: String, tenantId: String) {
         context.dataStore.edit { prefs ->
@@ -41,6 +44,19 @@ class TokenStore @Inject constructor(
 
     suspend fun updateAccessToken(accessToken: String) {
         context.dataStore.edit { prefs -> prefs[ACCESS_TOKEN] = accessToken }
+    }
+
+    suspend fun saveLicence(number: String, tierDisplayName: String, status: String) {
+        context.dataStore.edit { prefs ->
+            prefs[LICENCE_NUMBER] = number
+            prefs[LICENCE_TIER]   = tierDisplayName
+            prefs[LICENCE_STATUS] = status
+        }
+    }
+
+    suspend fun getCachedLicence(): Triple<String?, String?, String?> {
+        val prefs = context.dataStore.data.first()
+        return Triple(prefs[LICENCE_NUMBER], prefs[LICENCE_TIER], prefs[LICENCE_STATUS])
     }
 
     suspend fun clear() {

@@ -51,6 +51,20 @@ function CurrentLicence() {
           {licence.status.toUpperCase()}
         </Badge>
       </div>
+      <div className="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
+        <span className="text-xs uppercase tracking-wide text-gray-500">Licence #</span>
+        <code className="font-mono text-sm text-v-charcoal">{licence.licenceNumber}</code>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard.writeText(licence.licenceNumber);
+            toast.success('Licence number copied');
+          }}
+          className="ml-auto text-xs text-v-violet hover:underline"
+        >
+          Copy
+        </button>
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
         <Stat label="Tier" value={licence.tierName} />
         <Stat label="Assets" value={`${usage.assetCount} / ${tier?.maxAssets ?? '∞'}`} />

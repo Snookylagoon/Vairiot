@@ -90,7 +90,7 @@ beforeAll(async () => {
   const freeTier = await prisma.licenceTier.findUniqueOrThrow({ where: { name: 'FREE' } });
   await prisma.licence.deleteMany({ where: { tenantId: TID } });
   await prisma.licence.create({
-    data: { tenantId: TID, tierId: freeTier.id, status: 'active', activatedAt: new Date(), paymentConfirmed: true },
+    data: { tenantId: TID, tierId: freeTier.id, licenceNumber: `VAI-TEST-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, status: 'active', activatedAt: new Date(), paymentConfirmed: true },
   });
 
   // Login

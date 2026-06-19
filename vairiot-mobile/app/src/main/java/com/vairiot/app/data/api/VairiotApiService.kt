@@ -24,6 +24,9 @@ interface VairiotApiService {
     @GET("api/v1/auth/me")
     suspend fun getMe(): UserProfileResponse
 
+    @GET("api/v1/licences/status")
+    suspend fun getLicenceStatus(): LicenceStatusResponse
+
     @GET("api/v1/assets")
     suspend fun listAssets(
         @Query("search")    search:    String? = null,

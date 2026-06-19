@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 export interface LicenceStatus {
   licence: {
     id: string;
+    licenceNumber: string;
     tierName: string;
     status: string;
     startDate: string;
@@ -32,6 +33,7 @@ export function useLicenceStatus() {
       return {
         licence: {
           id: d.licenceId,
+          licenceNumber: d.licenceNumber,
           tierName: d.tierName,
           status: d.status,
           startDate: d.activatedAt,
