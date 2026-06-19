@@ -339,10 +339,40 @@ export async function addDeviceSlot(
 
 export async function registerDevice(
   tenantId: string,
-  data: { deviceName: string; deviceType?: string; serialNumber?: string; hardwareId?: string },
+  data: {
+    deviceName: string;
+    deviceType?: string;
+    serialNumber?: string;
+    hardwareId?: string;
+    fingerprint?: string;
+    userId?: string;
+  },
   actorId: string,
-): Promise<{ deviceId: string; active: boolean }> {
-  // Check device allowance
+): Promise<{ deviceId: string; active: boolean; reused: boolean }> {
+  const fingerprint = data.fingerprint?.trim() || null;
+
+  // If we have a fingerprint, try to reuse the existing row for this tenant.
+  if (fingerprint) {
+    const existing = await prisma.device.findUnique({
+      where: { tenantId_fingerprint: { tenantId, fingerprint } },
+    });
+    if (existing) {
+      const updated = await prisma.device.update({
+        where: { id: existing.id },
+        data: {
+          deviceName: data.deviceName,
+          deviceType: data.deviceType ?? existing.deviceType,
+          serialNumber: data.serialNumber ?? existing.serialNumber,
+          hardwareId: data.hardwareId ?? existing.hardwareId,
+          userId: data.userId ?? existing.userId,
+          lastSeenAt: new Date(),
+        },
+      });
+      return { deviceId: updated.id, active: updated.active, reused: true };
+    }
+  }
+
+  // New device — check allowance and decide activation.
   const licence = await prisma.licence.findFirst({
     where: { tenantId, status: { in: ['active', 'expiring'] } },
     include: { tier: true, deviceSlots: true },
@@ -354,6 +384,7 @@ export async function registerDevice(
     : 1;
 
   const canActivate = activeDevices < allowance;
+  const now = new Date();
 
   const device = await prisma.device.create({
     data: {
@@ -362,8 +393,12 @@ export async function registerDevice(
       deviceType: data.deviceType ?? 'handheld',
       serialNumber: data.serialNumber,
       hardwareId: data.hardwareId,
+      fingerprint,
+      userId: data.userId,
+      licenceId: licence?.id,
       active: canActivate,
-      activatedAt: canActivate ? new Date() : null,
+      activatedAt: canActivate ? now : null,
+      lastSeenAt: now,
     },
   });
 
@@ -374,13 +409,47 @@ export async function registerDevice(
     allowance,
   });
 
-  return { deviceId: device.id, active: canActivate };
+  return { deviceId: device.id, active: canActivate, reused: false };
+}
+
+/**
+ * Best-effort device check-in on login. Never throws — login must succeed
+ * even if registration fails (database hiccup, missing fields, etc.).
+ */
+export async function touchDeviceOnLogin(
+  tenantId: string,
+  userId: string,
+  device: { fingerprint: string; deviceName: string; deviceType?: string } | undefined,
+): Promise<void> {
+  if (!device?.fingerprint || !device.deviceName) return;
+  try {
+    await registerDevice(
+      tenantId,
+      {
+        deviceName: device.deviceName,
+        deviceType: device.deviceType,
+        fingerprint: device.fingerprint,
+        userId,
+      },
+      userId,
+    );
+  } catch (e) {
+    logger.warn('touchDeviceOnLogin failed', {
+      tenantId,
+      userId,
+      error: (e as Error).message,
+    });
+  }
 }
 
 export async function listDevices(tenantId: string) {
   return prisma.device.findMany({
     where: { tenantId },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ active: 'desc' }, { lastSeenAt: 'desc' }, { createdAt: 'desc' }],
+    include: {
+      user:    { select: { id: true, name: true, email: true } },
+      licence: { select: { id: true, licenceNumber: true } },
+    },
   });
 }
 

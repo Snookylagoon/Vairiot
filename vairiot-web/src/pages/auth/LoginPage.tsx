@@ -8,6 +8,7 @@ import { loginSchema, type LoginFormData } from '@/lib/schemas';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { getDeviceCheckIn } from '@/lib/device';
 
 export function LoginPage() {
   const { hydrate } = useAuthStore();
@@ -26,6 +27,7 @@ export function LoginPage() {
       setError('');
       const { data: result } = await api.post('/api/v1/auth/login', {
         email: data.email, password: data.password, tenantId: data.tenantId,
+        device: getDeviceCheckIn(),
       });
 
       if (result.requiresTwoFactor) {
@@ -50,6 +52,7 @@ export function LoginPage() {
     try {
       const { data: result } = await api.post('/api/v1/auth/login/2fa', {
         userId: twoFactor.userId, token: tfaToken,
+        device: getDeviceCheckIn(),
       });
       localStorage.setItem('vairiot_access_token', result.accessToken);
       localStorage.setItem('vairiot_refresh_token', result.refreshToken);

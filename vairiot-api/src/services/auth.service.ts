@@ -4,8 +4,15 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jw
 import { logger } from '../lib/logger';
 import { UnauthorizedError, ValidationError } from '../lib/errors';
 import { checkAccountLock, recordLoginAttempt } from './login-protection.service';
+import { touchDeviceOnLogin } from './licence.service';
 import type { LoginRequest as LoginInput, AuthTokens } from 'vairiot-shared';
 export type { LoginInput, AuthTokens };
+
+export interface DeviceCheckIn {
+  fingerprint: string;
+  deviceName:  string;
+  deviceType?: string;
+}
 
 export interface LoginResult {
   accessToken?: string;
@@ -15,7 +22,11 @@ export interface LoginResult {
   twoFactorUserId?: string;
 }
 
-export async function login({ email, password, tenantId }: LoginInput, ipAddress = '0.0.0.0'): Promise<LoginResult> {
+export async function login(
+  { email, password, tenantId }: LoginInput,
+  ipAddress = '0.0.0.0',
+  device?: DeviceCheckIn,
+): Promise<LoginResult> {
   // Check lockout before anything else
   await checkAccountLock(tenantId, email);
 
@@ -47,9 +58,15 @@ export async function login({ email, password, tenantId }: LoginInput, ipAddress
   await recordLoginAttempt(tenantId, email, ipAddress, true, user.id);
   prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
   prisma.auditEvent.create({ data: { tenantId, actorId: user.id, entityType: 'user', entityId: user.id, action: 'login', metadata: { email } } }).catch((e) => logger.error('audit', { error: e }));
+  if (device) await touchDeviceOnLogin(tenantId, user.id, device);
   return { accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' };
 }
-export async function loginWithTwoFactor(userId: string, twoFactorToken: string, ipAddress = '0.0.0.0'): Promise<LoginResult> {
+export async function loginWithTwoFactor(
+  userId: string,
+  twoFactorToken: string,
+  ipAddress = '0.0.0.0',
+  device?: DeviceCheckIn,
+): Promise<LoginResult> {
   const { validateTwoFactorToken } = await import('./two-factor.service');
   await validateTwoFactorToken(userId, twoFactorToken);
 
@@ -65,6 +82,7 @@ export async function loginWithTwoFactor(userId: string, twoFactorToken: string,
   const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
   prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
   prisma.auditEvent.create({ data: { tenantId: user.tenantId, actorId: user.id, entityType: 'user', entityId: user.id, action: 'login_2fa', metadata: { email: user.email } } }).catch((e) => logger.error('audit', { error: e }));
+  if (device) await touchDeviceOnLogin(user.tenantId, user.id, device);
   return { accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' };
 }
 

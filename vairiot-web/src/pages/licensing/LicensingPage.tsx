@@ -101,12 +101,21 @@ function DevicesList() {
       ) : (
         <div className="divide-y divide-gray-100">
           {devices.map(d => (
-            <div key={d.id} className="flex items-center justify-between py-3">
-              <div>
-                <div className="font-medium text-v-charcoal text-sm">{d.deviceName}</div>
-                <div className="text-xs text-gray-400">{d.deviceType} · {d.fingerprint.slice(0, 12)}…</div>
+            <div key={d.id} className="flex items-center justify-between py-3 gap-4">
+              <div className="min-w-0">
+                <div className="font-medium text-v-charcoal text-sm truncate">{d.deviceName}</div>
+                <div className="text-xs text-gray-400 truncate">
+                  {d.deviceType}
+                  {d.user && <> · {d.user.name}</>}
+                  {d.fingerprint && <> · {d.fingerprint.slice(0, 8)}…</>}
+                </div>
               </div>
-              <Badge variant={d.active ? 'green' : 'gray'}>{d.active ? 'Active' : 'Inactive'}</Badge>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-xs text-gray-400 hidden sm:block">
+                  {d.lastSeenAt ? `Seen ${new Date(d.lastSeenAt).toLocaleString()}` : '—'}
+                </span>
+                <Badge variant={d.active ? 'green' : 'gray'}>{d.active ? 'Active' : 'Inactive'}</Badge>
+              </div>
             </div>
           ))}
         </div>

@@ -4,6 +4,13 @@ data class LoginRequest(
     val email:    String,
     val password: String,
     val tenantId: String,
+    val device:   DeviceCheckIn? = null,
+)
+
+data class DeviceCheckIn(
+    val fingerprint: String,
+    val deviceName:  String,
+    val deviceType:  String = "mobile",
 )
 
 data class LoginResponse(

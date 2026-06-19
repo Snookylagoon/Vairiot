@@ -32,11 +32,11 @@ licencesRouter.get('/devices', asyncHandler(async (req: Request, res: Response) 
 }));
 
 licencesRouter.post('/devices', asyncHandler(async (req: Request, res: Response) => {
-  const { deviceName, deviceType, serialNumber, hardwareId } = req.body;
+  const { deviceName, deviceType, serialNumber, hardwareId, fingerprint } = req.body;
   if (!deviceName) { res.status(400).json({ error: 'deviceName is required' }); return; }
   const result = await registerDevice(
     req.user!.tenantId,
-    { deviceName, deviceType, serialNumber, hardwareId },
+    { deviceName, deviceType, serialNumber, hardwareId, fingerprint, userId: req.user!.sub },
     req.user!.sub,
   );
   res.status(201).json(result);

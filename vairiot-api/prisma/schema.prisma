@@ -108,6 +108,7 @@ model User {
   twoFactor     UserTwoFactor?
   loginAttempts LoginAttempt[]
   invitations   UserInvitation[]
+  devices       Device[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -594,6 +595,7 @@ model Licence {
   tenant      Tenant       @relation(fields: [tenantId], references: [id])
   tier        LicenceTier  @relation(fields: [tierId], references: [id])
   deviceSlots DeviceSlot[]
+  devices     Device[]
 
   @@index([tenantId, status])
   @@map("licences")
@@ -607,16 +609,24 @@ model Device {
   deviceType   String    @default("handheld")
   serialNumber String?
   hardwareId   String?
+  fingerprint  String?
+  userId       String?
+  licenceId    String?
   active       Boolean   @default(false)
   activatedAt  DateTime?
   lastSeenAt   DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  user    User?    @relation(fields: [userId], references: [id])
+  licence Licence? @relation(fields: [licenceId], references: [id])
 
   @@unique([tenantId, hardwareId])
+  @@unique([tenantId, fingerprint])
   @@index([tenantId, active])
+  @@index([userId])
+  @@index([licenceId])
   @@map("devices")
 }
 

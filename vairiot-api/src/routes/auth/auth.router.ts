@@ -17,7 +17,11 @@ authRouter.post('/login', loginLimiter,
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     const ipAddress = req.ip ?? req.socket.remoteAddress ?? '0.0.0.0';
-    const result = await login({ email: req.body.email, password: req.body.password, tenantId: req.body.tenantId }, ipAddress);
+    const result = await login(
+      { email: req.body.email, password: req.body.password, tenantId: req.body.tenantId },
+      ipAddress,
+      req.body.device,
+    );
     res.json(result);
   }),
 );
@@ -28,7 +32,7 @@ authRouter.post('/login/2fa', loginLimiter,
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     const ipAddress = req.ip ?? req.socket.remoteAddress ?? '0.0.0.0';
-    const result = await loginWithTwoFactor(req.body.userId, req.body.token, ipAddress);
+    const result = await loginWithTwoFactor(req.body.userId, req.body.token, ipAddress, req.body.device);
     res.json(result);
   }),
 );

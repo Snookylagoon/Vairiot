@@ -22,7 +22,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   onboardingRequired: false,
 
   login: async (email, password, tenantId) => {
-    const { data } = await api.post('/api/v1/auth/login', { email, password, tenantId });
+    const { getDeviceCheckIn } = await import('@/lib/device');
+    const { data } = await api.post('/api/v1/auth/login', { email, password, tenantId, device: getDeviceCheckIn() });
     localStorage.setItem('vairiot_access_token',  data.accessToken);
     localStorage.setItem('vairiot_refresh_token', data.refreshToken);
     const me = await api.get('/api/v1/auth/me');

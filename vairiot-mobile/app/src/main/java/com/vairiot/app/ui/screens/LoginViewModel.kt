@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.api.LoginRequest
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.data.local.DeviceInfoProvider
 import com.vairiot.app.data.local.TokenStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ data class LoginUiState(
 class LoginViewModel @Inject constructor(
     private val api:        VairiotApiService,
     private val tokenStore: TokenStore,
+    private val deviceInfo: DeviceInfoProvider,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -33,7 +35,7 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = LoginUiState(isLoading = true)
             try {
-                val response = api.login(LoginRequest(email, password, tenantId))
+                val response = api.login(LoginRequest(email, password, tenantId, deviceInfo.checkIn()))
                 tokenStore.saveTokens(response.accessToken, response.refreshToken, tenantId)
                 _uiState.value = LoginUiState(isLoggedIn = true)
             } catch (e: HttpException) {

@@ -20,9 +20,11 @@ export interface DeviceInfo {
   id: string;
   deviceName: string;
   deviceType: string;
-  fingerprint: string;
-  lastSeenAt: string;
+  fingerprint: string | null;
+  lastSeenAt: string | null;
   active: boolean;
+  user: { id: string; name: string; email: string } | null;
+  licence: { id: string; licenceNumber: string } | null;
 }
 
 export function useLicenceStatus() {
