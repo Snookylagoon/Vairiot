@@ -19,7 +19,8 @@ const SitesPage            = lazy(() => import('@/pages/sites/SitesPage').then(m
 const AuditsPage           = lazy(() => import('@/pages/audits/AuditsPage').then(m => ({ default: m.AuditsPage })));
 const AuditRunPage         = lazy(() => import('@/pages/audits/AuditRunPage').then(m => ({ default: m.AuditRunPage })));
 const CheckoutsPage        = lazy(() => import('@/pages/checkouts/CheckoutsPage').then(m => ({ default: m.CheckoutsPage })));
-const MaintenancePage      = lazy(() => import('@/pages/maintenance/MaintenancePage').then(m => ({ default: m.MaintenancePage })));
+const MaintenancePage       = lazy(() => import('@/pages/maintenance/MaintenancePage').then(m => ({ default: m.MaintenancePage })));
+const MaintenanceDetailPage = lazy(() => import('@/pages/maintenance/MaintenanceDetailPage').then(m => ({ default: m.MaintenanceDetailPage })));
 const ExceptionsPage       = lazy(() => import('@/pages/exceptions/ExceptionsPage').then(m => ({ default: m.ExceptionsPage })));
 const ReportsPage          = lazy(() => import('@/pages/reports/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const DepreciationPage     = lazy(() => import('@/pages/reports/DepreciationPage').then(m => ({ default: m.DepreciationPage })));
@@ -95,7 +96,8 @@ export default function App() {
             <Route path="audits"       element={<AuditsPage />} />
             <Route path="audits/:id/run" element={<AuditRunPage />} />
             <Route path="checkouts"      element={<CheckoutsPage />} />
-            <Route path="maintenance"    element={<MaintenancePage />} />
+            <Route path="maintenance"        element={<MaintenancePage />} />
+            <Route path="maintenance/:id"    element={<MaintenanceDetailPage />} />
             <Route path="exceptions"     element={<ExceptionsPage />} />
             <Route path="reports"        element={<ReportsPage />} />
             <Route path="reports/depreciation" element={<DepreciationPage />} />

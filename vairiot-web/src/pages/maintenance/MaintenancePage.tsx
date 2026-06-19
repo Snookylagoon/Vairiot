@@ -160,8 +160,8 @@ export function MaintenancePage() {
                 </td></tr>
               )}
               {data?.events.map(evt => (
-                <tr key={evt.id} className="border-b border-gray-50 hover:bg-v-wash transition-colors last:border-0"
-                  onClick={() => evt.asset && navigate(`/assets/${evt.asset.id}`)}>
+                <tr key={evt.id} className="border-b border-gray-50 hover:bg-v-wash transition-colors last:border-0 cursor-pointer"
+                  onClick={() => navigate(`/maintenance/${evt.id}`)}>
                   <td className="px-4 py-3">
                     <span className="font-mono text-xs text-v-violet">{evt.asset?.assetNumber}</span>
                     <span className="ml-2 text-v-charcoal">{evt.asset?.name}</span>

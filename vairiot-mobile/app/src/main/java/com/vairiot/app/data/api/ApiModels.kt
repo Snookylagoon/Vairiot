@@ -122,6 +122,7 @@ data class MaintenanceCreateRequest(
     val description:     String? = null,
     val notes:           String? = null,
     val status:          String? = null,
+    val scheduledDate:   String? = null,
 )
 
 data class MaintenanceEventResponse(

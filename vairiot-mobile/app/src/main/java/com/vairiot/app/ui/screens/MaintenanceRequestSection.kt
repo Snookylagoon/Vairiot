@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -126,6 +127,11 @@ fun MaintenanceRequestSection(
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            ScheduledDatePickerRow(
+                epochMs = state.scheduledDate,
+                onChange = viewModel::setScheduledDate,
+            )
+
             Row(modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
@@ -223,6 +229,58 @@ private fun FlowRowTypes(selected: String, onSelect: (String) -> Unit) {
                 onClick  = { onSelect(value) },
                 label    = { Text(label) },
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScheduledDatePickerRow(epochMs: Long?, onChange: (Long?) -> Unit) {
+    var showPicker by remember { mutableStateOf(false) }
+    val label = epochMs?.let {
+        val fmt = java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.UK).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }
+        fmt.format(java.util.Date(it))
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        OutlinedButton(
+            onClick = { showPicker = true },
+            modifier = Modifier.weight(1f),
+        ) {
+            Icon(Icons.Default.CalendarMonth, contentDescription = null,
+                modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(label ?: "Scheduled date (optional)")
+        }
+        if (epochMs != null) {
+            IconButton(onClick = { onChange(null) }) {
+                Icon(Icons.Default.Close, contentDescription = "Clear date",
+                    tint = ErrorRed, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+
+    if (showPicker) {
+        val pickerState = rememberDatePickerState(initialSelectedDateMillis = epochMs)
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    onChange(pickerState.selectedDateMillis)
+                    showPicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) { Text("Cancel") }
+            },
+        ) {
+            DatePicker(state = pickerState)
         }
     }
 }

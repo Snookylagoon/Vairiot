@@ -20,6 +20,7 @@ import javax.inject.Inject
 data class MaintenanceRequestUiState(
     val maintenanceType: String = "repair",
     val notes:           String = "",
+    val scheduledDate:   Long?  = null,   // epoch millis (UTC start of day)
     val photoUri:        Uri?   = null,
     val isSubmitting:    Boolean = false,
     val error:           String? = null,
@@ -38,11 +39,12 @@ class MaintenanceRequestViewModel @Inject constructor(
     private val _state = MutableStateFlow(MaintenanceRequestUiState())
     val state: StateFlow<MaintenanceRequestUiState> = _state
 
-    fun setType(type: String)   { _state.value = _state.value.copy(maintenanceType = type) }
-    fun setNotes(notes: String) { _state.value = _state.value.copy(notes = notes.take(2000)) }
-    fun setPhoto(uri: Uri?)     { _state.value = _state.value.copy(photoUri = uri) }
-    fun clearError()            { _state.value = _state.value.copy(error = null) }
-    fun clearLastWorkOrder()    { _state.value = _state.value.copy(lastWorkOrder = null) }
+    fun setType(type: String)            { _state.value = _state.value.copy(maintenanceType = type) }
+    fun setNotes(notes: String)          { _state.value = _state.value.copy(notes = notes.take(2000)) }
+    fun setScheduledDate(epochMs: Long?) { _state.value = _state.value.copy(scheduledDate = epochMs) }
+    fun setPhoto(uri: Uri?)              { _state.value = _state.value.copy(photoUri = uri) }
+    fun clearError()                     { _state.value = _state.value.copy(error = null) }
+    fun clearLastWorkOrder()             { _state.value = _state.value.copy(lastWorkOrder = null) }
 
     fun submit() {
         if (assetId.isBlank()) return
@@ -61,6 +63,7 @@ class MaintenanceRequestViewModel @Inject constructor(
                         description     = s.notes.lines().firstOrNull()?.take(120),
                         notes           = s.notes,
                         status          = "scheduled",
+                        scheduledDate   = s.scheduledDate?.let(::epochMillisToIsoDate),
                     ),
                 )
                 s.photoUri?.let { uploadPhoto(it, event.id) }
@@ -72,6 +75,14 @@ class MaintenanceRequestViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private fun epochMillisToIsoDate(ms: Long): String {
+        val d = java.util.Date(ms)
+        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.UK).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }
+        return fmt.format(d)
     }
 
     private suspend fun uploadPhoto(uri: Uri, maintenanceEventId: String) {

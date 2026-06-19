@@ -15,6 +15,14 @@ export function useMaintenanceEvents(params: MaintenanceListParams = {}) {
   });
 }
 
+export function useMaintenanceEvent(id: string | undefined) {
+  return useQuery<MaintenanceEvent>({
+    queryKey: ['maintenance', 'single', id],
+    queryFn:  () => api.get(`/api/v1/maintenance/${id}`).then(r => r.data),
+    enabled:  !!id,
+  });
+}
+
 export function useCreateMaintenanceEvent() {
   const qc = useQueryClient();
   return useMutation({
