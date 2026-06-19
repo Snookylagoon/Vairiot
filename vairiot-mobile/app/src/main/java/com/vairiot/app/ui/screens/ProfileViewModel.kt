@@ -19,6 +19,7 @@ data class ProfileUiState(
     val licenceNumber:   String? = null,
     val licenceTier:     String? = null,
     val licenceStatus:   String? = null,
+    val licenceStart:    String? = null,
     val offline:         Boolean = false,
     val error:           String? = null,
 )
@@ -37,17 +38,18 @@ class ProfileViewModel @Inject constructor(
     fun load() {
         viewModelScope.launch {
             // Show cached licence immediately, then try the network.
-            val (cachedNumber, cachedTier, cachedStatus) = tokenStore.getCachedLicence()
+            val cached = tokenStore.getCachedLicence()
             _state.value = _state.value.copy(
-                licenceNumber = cachedNumber,
-                licenceTier   = cachedTier,
-                licenceStatus = cachedStatus,
+                licenceNumber = cached.number,
+                licenceTier   = cached.tier,
+                licenceStatus = cached.status,
+                licenceStart  = cached.startDate,
             )
 
             try {
                 val me: UserProfileResponse = api.getMe()
                 val licence = api.getLicenceStatus()
-                tokenStore.saveLicence(licence.licenceNumber, licence.tierDisplayName, licence.status)
+                tokenStore.saveLicence(licence.licenceNumber, licence.tierDisplayName, licence.status, licence.activatedAt)
                 _state.value = ProfileUiState(
                     isLoading     = false,
                     email         = me.email,
@@ -56,13 +58,14 @@ class ProfileViewModel @Inject constructor(
                     licenceNumber = licence.licenceNumber,
                     licenceTier   = licence.tierDisplayName,
                     licenceStatus = licence.status,
+                    licenceStart  = licence.activatedAt,
                     offline       = false,
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    offline   = cachedNumber != null,
-                    error     = if (cachedNumber == null) "Could not load profile: ${e.message}" else null,
+                    offline   = cached.number != null,
+                    error     = if (cached.number == null) "Could not load profile: ${e.message}" else null,
                 )
             }
         }

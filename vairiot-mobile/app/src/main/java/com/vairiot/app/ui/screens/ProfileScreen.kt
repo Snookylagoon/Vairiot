@@ -56,9 +56,10 @@ fun ProfileScreen(
             }
 
             LicenceCard(
-                number = state.licenceNumber,
-                tier   = state.licenceTier,
-                status = state.licenceStatus,
+                number    = state.licenceNumber,
+                tier      = state.licenceTier,
+                status    = state.licenceStatus,
+                startDate = state.licenceStart,
                 onCopy = { num ->
                     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     cm.setPrimaryClip(ClipData.newPlainText("Licence number", num))
@@ -94,8 +95,11 @@ private fun LicenceCard(
     number: String?,
     tier: String?,
     status: String?,
+    startDate: String?,
     onCopy: (String) -> Unit,
 ) {
+    val formattedStart = startDate
+        ?.let { runCatching { java.time.OffsetDateTime.parse(it).toLocalDate().toString() }.getOrNull() }
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Licence number", fontSize = 12.sp,
@@ -123,6 +127,12 @@ private fun LicenceCard(
                     Column {
                         Text("Status", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(it.uppercase(), fontWeight = FontWeight.Medium)
+                    }
+                }
+                formattedStart?.let {
+                    Column {
+                        Text("Start date", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(it, fontWeight = FontWeight.Medium)
                     }
                 }
             }

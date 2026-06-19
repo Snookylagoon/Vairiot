@@ -24,6 +24,7 @@ class TokenStore @Inject constructor(
     private val LICENCE_NUMBER = stringPreferencesKey("licence_number")
     private val LICENCE_TIER   = stringPreferencesKey("licence_tier")
     private val LICENCE_STATUS = stringPreferencesKey("licence_status")
+    private val LICENCE_START  = stringPreferencesKey("licence_start")
 
     suspend fun saveTokens(accessToken: String, refreshToken: String, tenantId: String) {
         context.dataStore.edit { prefs ->
@@ -46,17 +47,20 @@ class TokenStore @Inject constructor(
         context.dataStore.edit { prefs -> prefs[ACCESS_TOKEN] = accessToken }
     }
 
-    suspend fun saveLicence(number: String, tierDisplayName: String, status: String) {
+    suspend fun saveLicence(number: String, tierDisplayName: String, status: String, startDate: String?) {
         context.dataStore.edit { prefs ->
             prefs[LICENCE_NUMBER] = number
             prefs[LICENCE_TIER]   = tierDisplayName
             prefs[LICENCE_STATUS] = status
+            if (startDate != null) prefs[LICENCE_START] = startDate else prefs.remove(LICENCE_START)
         }
     }
 
-    suspend fun getCachedLicence(): Triple<String?, String?, String?> {
+    data class CachedLicence(val number: String?, val tier: String?, val status: String?, val startDate: String?)
+
+    suspend fun getCachedLicence(): CachedLicence {
         val prefs = context.dataStore.data.first()
-        return Triple(prefs[LICENCE_NUMBER], prefs[LICENCE_TIER], prefs[LICENCE_STATUS])
+        return CachedLicence(prefs[LICENCE_NUMBER], prefs[LICENCE_TIER], prefs[LICENCE_STATUS], prefs[LICENCE_START])
     }
 
     suspend fun clear() {

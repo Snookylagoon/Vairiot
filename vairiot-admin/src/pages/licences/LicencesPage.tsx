@@ -78,6 +78,7 @@ export function LicencesPage() {
                   <th className="px-6 py-3 font-medium text-gray-500">Tier</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Status</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Duration</th>
+                  <th className="px-6 py-3 font-medium text-gray-500">Start date</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Expires</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Payment</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Devices</th>
@@ -101,6 +102,9 @@ export function LicencesPage() {
                       <Badge variant={statusVariant(l.status)}>{l.status}</Badge>
                     </td>
                     <td className="px-6 py-3 text-gray-600">{l.durationMonths}m</td>
+                    <td className="px-6 py-3 text-gray-600 text-xs">
+                      {l.activatedAt ? new Date(l.activatedAt).toLocaleDateString() : '—'}
+                    </td>
                     <td className="px-6 py-3 text-gray-600 text-xs">
                       {l.expiresAt ? new Date(l.expiresAt).toLocaleDateString() : 'Perpetual'}
                     </td>
@@ -139,7 +143,7 @@ export function LicencesPage() {
                   </tr>
                 ))}
                 {licences.length === 0 && (
-                  <tr><td colSpan={9} className="px-6 py-8 text-center text-gray-400">No licences found</td></tr>
+                  <tr><td colSpan={10} className="px-6 py-8 text-center text-gray-400">No licences found</td></tr>
                 )}
               </tbody>
             </table>

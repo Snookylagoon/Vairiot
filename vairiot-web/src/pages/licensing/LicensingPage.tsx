@@ -65,8 +65,9 @@ function CurrentLicence() {
           Copy
         </button>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
         <Stat label="Tier" value={licence.tierName} />
+        <Stat label="Start date" value={licence.startDate ? new Date(licence.startDate).toLocaleDateString() : '—'} />
         <Stat label="Assets" value={`${usage.assetCount} / ${tier?.maxAssets ?? '∞'}`} />
         <Stat label="Devices" value={`${usage.deviceCount} / ${usage.deviceAllowance}`} />
         <Stat label="Expires" value={licence.isPerpetual ? 'Never' : daysRemaining != null ? `${daysRemaining} days` : '—'} />
