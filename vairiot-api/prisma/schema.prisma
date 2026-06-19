@@ -140,6 +140,7 @@ model Category {
 
   @@unique([tenantId, name])
   @@index([tenantId])
+  @@index([parentId])
   @@map("categories")
 }
 
@@ -179,6 +180,7 @@ model Location {
   assets   Asset[]
 
   @@index([siteId])
+  @@index([parentId])
   @@map("locations")
 }
 
@@ -246,6 +248,7 @@ model Asset {
   @@index([tenantId, status])
   @@index([tenantId, categoryId])
   @@index([tenantId, siteId])
+  @@index([tenantId, deletedAt])
   @@index([rfidTag])
   @@index([barcode])
   @@map("assets")
@@ -399,6 +402,7 @@ model MaintenanceEvent {
 
   @@index([tenantId, assetId])
   @@index([tenantId, status])
+  @@index([tenantId, status, scheduledDate])
   @@map("maintenance_events")
 }
 

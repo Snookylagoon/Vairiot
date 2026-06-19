@@ -1,41 +1,48 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AppShell } from '@/components/layout/AppShell';
-import { LoginPage }       from '@/pages/auth/LoginPage';
-import { DashboardPage }   from '@/pages/dashboard/DashboardPage';
-import { AssetsPage }      from '@/pages/assets/AssetsPage';
-import { AssetDetailPage }  from '@/pages/assets/AssetDetailPage';
-import { NewAssetPage }      from '@/pages/assets/NewAssetPage';
-import { EditAssetPage }     from '@/pages/assets/EditAssetPage';
-import { CategoriesPage }    from '@/pages/categories/CategoriesPage';
-import { SitesPage }         from '@/pages/sites/SitesPage';
-import { AuditsPage }        from '@/pages/audits/AuditsPage';
-import { AuditRunPage }      from '@/pages/audits/AuditRunPage';
-import { CheckoutsPage }     from '@/pages/checkouts/CheckoutsPage';
-import { UsersPage }         from '@/pages/admin/UsersPage';
-import { ApiKeysPage }       from '@/pages/admin/ApiKeysPage';
-import { AuditLogPage }      from '@/pages/admin/AuditLogPage';
-import { MaintenancePage }    from '@/pages/maintenance/MaintenancePage';
-import { ExceptionsPage }     from '@/pages/exceptions/ExceptionsPage';
-import { ReportsPage }        from '@/pages/reports/ReportsPage';
-import { DepreciationPage }   from '@/pages/reports/DepreciationPage';
-import { FixedAssetsPage }    from '@/pages/reports/FixedAssetsPage';
-import { DisposalsPage }      from '@/pages/reports/DisposalsPage';
-import { AgingPage }          from '@/pages/reports/AgingPage';
-import { MaintenanceCostsPage } from '@/pages/reports/MaintenanceCostsPage';
-import { AlertsPage }         from '@/pages/alerts/AlertsPage';
-import { WebhooksPage }       from '@/pages/admin/WebhooksPage';
-import { ImportPage }         from '@/pages/import/ImportPage';
-import { LabelsPage }         from '@/pages/labels/LabelsPage';
-import { CustomFieldsPage }   from '@/pages/admin/CustomFieldsPage';
+import { LoginPage } from '@/pages/auth/LoginPage';
+
+const DashboardPage       = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const AssetsPage           = lazy(() => import('@/pages/assets/AssetsPage').then(m => ({ default: m.AssetsPage })));
+const AssetDetailPage      = lazy(() => import('@/pages/assets/AssetDetailPage').then(m => ({ default: m.AssetDetailPage })));
+const NewAssetPage         = lazy(() => import('@/pages/assets/NewAssetPage').then(m => ({ default: m.NewAssetPage })));
+const EditAssetPage        = lazy(() => import('@/pages/assets/EditAssetPage').then(m => ({ default: m.EditAssetPage })));
+const CategoriesPage       = lazy(() => import('@/pages/categories/CategoriesPage').then(m => ({ default: m.CategoriesPage })));
+const SitesPage            = lazy(() => import('@/pages/sites/SitesPage').then(m => ({ default: m.SitesPage })));
+const AuditsPage           = lazy(() => import('@/pages/audits/AuditsPage').then(m => ({ default: m.AuditsPage })));
+const AuditRunPage         = lazy(() => import('@/pages/audits/AuditRunPage').then(m => ({ default: m.AuditRunPage })));
+const CheckoutsPage        = lazy(() => import('@/pages/checkouts/CheckoutsPage').then(m => ({ default: m.CheckoutsPage })));
+const MaintenancePage      = lazy(() => import('@/pages/maintenance/MaintenancePage').then(m => ({ default: m.MaintenancePage })));
+const ExceptionsPage       = lazy(() => import('@/pages/exceptions/ExceptionsPage').then(m => ({ default: m.ExceptionsPage })));
+const ReportsPage          = lazy(() => import('@/pages/reports/ReportsPage').then(m => ({ default: m.ReportsPage })));
+const DepreciationPage     = lazy(() => import('@/pages/reports/DepreciationPage').then(m => ({ default: m.DepreciationPage })));
+const FixedAssetsPage      = lazy(() => import('@/pages/reports/FixedAssetsPage').then(m => ({ default: m.FixedAssetsPage })));
+const DisposalsPage        = lazy(() => import('@/pages/reports/DisposalsPage').then(m => ({ default: m.DisposalsPage })));
+const AgingPage            = lazy(() => import('@/pages/reports/AgingPage').then(m => ({ default: m.AgingPage })));
+const MaintenanceCostsPage = lazy(() => import('@/pages/reports/MaintenanceCostsPage').then(m => ({ default: m.MaintenanceCostsPage })));
+const AlertsPage           = lazy(() => import('@/pages/alerts/AlertsPage').then(m => ({ default: m.AlertsPage })));
+const ImportPage           = lazy(() => import('@/pages/import/ImportPage').then(m => ({ default: m.ImportPage })));
+const LabelsPage           = lazy(() => import('@/pages/labels/LabelsPage').then(m => ({ default: m.LabelsPage })));
+const UsersPage            = lazy(() => import('@/pages/admin/UsersPage').then(m => ({ default: m.UsersPage })));
+const ApiKeysPage          = lazy(() => import('@/pages/admin/ApiKeysPage').then(m => ({ default: m.ApiKeysPage })));
+const AuditLogPage         = lazy(() => import('@/pages/admin/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
+const WebhooksPage         = lazy(() => import('@/pages/admin/WebhooksPage').then(m => ({ default: m.WebhooksPage })));
+const CustomFieldsPage     = lazy(() => import('@/pages/admin/CustomFieldsPage').then(m => ({ default: m.CustomFieldsPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
+
+const PageSpinner = () => (
+  <div className="flex h-64 items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-4 border-v-pink border-t-transparent" />
+  </div>
+);
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthStore();
@@ -57,6 +64,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <Toaster position="top-right" richColors closeButton />
       <BrowserRouter>
+        <Suspense fallback={<PageSpinner />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<RequireAuth><AppShell /></RequireAuth>}>
@@ -89,6 +97,7 @@ export default function App() {
             <Route path="admin/audit-log" element={<RequirePermission perms={['user:read', 'user:write', 'apikey:read', 'apikey:write']}><AuditLogPage /></RequirePermission>} />
           </Route>
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </QueryClientProvider>
     </ErrorBoundary>

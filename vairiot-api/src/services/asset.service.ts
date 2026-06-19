@@ -157,8 +157,11 @@ export async function getAssetStats(tenantId: string) {
   const valueByCat: Record<string, number> = {};
   const valueBySite: Record<string, number> = {};
 
-  for (const a of allAssets) {
+  const depCache = new Array<ReturnType<typeof computeDepreciation>>(allAssets.length);
+  for (let i = 0; i < allAssets.length; i++) {
+    const a = allAssets[i];
     const dep = computeDepreciation(a);
+    depCache[i] = dep;
     totalAssetValue += dep.capitalizedCost;
     totalNetBookValue += dep.netBookValue;
     totalMonthlyDepreciation += dep.monthlyDepreciation;
@@ -173,7 +176,6 @@ export async function getAssetStats(tenantId: string) {
     }
   }
 
-  // Monthly acquisition trend (last 12 months)
   const now = new Date();
   const monthlyTrend: Array<{ month: string; count: number; value: number }> = [];
   for (let i = 11; i >= 0; i--) {
@@ -181,10 +183,16 @@ export async function getAssetStats(tenantId: string) {
     const label = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
     const start = new Date(d.getFullYear(), d.getMonth(), 1);
     const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-    const inMonth = allAssets.filter(a => a.createdAt >= start && a.createdAt < end);
+    let count = 0;
     let monthValue = 0;
-    for (const a of inMonth) monthValue += computeDepreciation(a).capitalizedCost;
-    monthlyTrend.push({ month: label, count: inMonth.length, value: Math.round(monthValue * 100) / 100 });
+    for (let j = 0; j < allAssets.length; j++) {
+      const a = allAssets[j];
+      if (a.createdAt >= start && a.createdAt < end) {
+        count++;
+        monthValue += depCache[j].capitalizedCost;
+      }
+    }
+    monthlyTrend.push({ month: label, count, value: Math.round(monthValue * 100) / 100 });
   }
 
   return {
@@ -345,6 +353,7 @@ export async function listAssetsForExport(tenantId: string, params: Omit<AssetLi
     where,
     include: assetInclude,
     orderBy: { assetNumber: 'asc' },
+    take: 10_000,
   });
   return assets.map(enrichAssetWithDepreciation);
 }

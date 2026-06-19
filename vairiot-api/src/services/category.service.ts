@@ -6,6 +6,7 @@ export async function listCategories(tenantId: string) {
     where: { tenantId },
     include: { children: true, _count: { select: { assets: true } } },
     orderBy: { name: 'asc' },
+    take: 500,
   });
 }
 

@@ -50,6 +50,7 @@ export async function getCheckoutHistory(tenantId: string, assetId: string) {
   return prisma.checkout.findMany({
     where: { assetId, tenantId },
     orderBy: { checkedOutAt: 'desc' },
+    take: 500,
   });
 }
 
@@ -58,6 +59,7 @@ export async function listActiveCheckouts(tenantId: string) {
     where: { tenantId, checkedInAt: null },
     include: { asset: { select: { id: true, assetNumber: true, name: true } } },
     orderBy: { checkedOutAt: 'desc' },
+    take: 1000,
   });
 }
 
@@ -66,5 +68,6 @@ export async function getOverdueCheckouts(tenantId: string) {
     where: { tenantId, checkedInAt: null, expectedReturn: { lt: new Date() } },
     include: { asset: { select: { id: true, assetNumber: true, name: true } } },
     orderBy: { expectedReturn: 'asc' },
+    take: 1000,
   });
 }

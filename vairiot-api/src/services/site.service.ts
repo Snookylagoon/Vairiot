@@ -6,6 +6,7 @@ export async function listSites(tenantId: string) {
     where: { tenantId },
     include: { locations: true, _count: { select: { assets: true } } },
     orderBy: { name: 'asc' },
+    take: 500,
   });
 }
 
@@ -20,6 +21,7 @@ export async function listLocations(siteId: string, tenantId: string) {
     where: { siteId },
     include: { children: true, _count: { select: { assets: true } } },
     orderBy: { name: 'asc' },
+    take: 1000,
   });
 }
 
