@@ -5,6 +5,7 @@ import type { MaintenanceListResponse, MaintenanceEvent } from '@/types';
 
 export interface MaintenanceListParams {
   assetId?: string; status?: string; page?: number; pageSize?: number;
+  search?: string; sortBy?: string; sortOrder?: string;
 }
 
 export function useMaintenanceEvents(params: MaintenanceListParams = {}) {

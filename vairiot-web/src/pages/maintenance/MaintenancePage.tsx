@@ -6,10 +6,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { useUrlTableState } from '@/hooks/useUrlTableState';
 import { useCurrency } from '@/hooks/useCurrency';
-import { useMaintenanceEvents, useCreateMaintenanceEvent, useUpdateMaintenanceEvent } from '@/hooks/useMaintenance';
+import { useMaintenanceEvents, useCreateMaintenanceEvent } from '@/hooks/useMaintenance';
 import { MaintenancePhotoStrip } from '@/components/maintenance/MaintenancePhotoStrip';
 import { useAssets } from '@/hooks/useAssets';
 import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
@@ -36,16 +37,34 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-gray-100 text-gray-500',
 };
 
+interface MaintenanceRow {
+  id: string;
+  maintenanceType: string;
+  vendor: string | null;
+  scheduledDate: string | null;
+  status: string;
+  cost: number | null;
+  asset?: { assetNumber: string; name: string };
+}
+
 export function MaintenancePage() {
   const navigate = useNavigate();
   const { symbol: currencySymbol, fmt } = useCurrency();
   const user = useAuthStore(s => s.user);
   const canWrite = hasAnyPermission(user, 'asset:write');
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
 
-  const { data, isLoading } = useMaintenanceEvents({ page, pageSize: PAGE_SIZE, status: statusFilter || undefined });
+  const { search, searchInput, setSearchInput, sortBy, sortOrder, toggleSort, page, setPage, extras, setExtra } =
+    useUrlTableState(['status']);
+  const statusFilter = extras.status;
+
+  const { data, isLoading } = useMaintenanceEvents({
+    page, pageSize: PAGE_SIZE,
+    status: statusFilter || undefined,
+    search: search || undefined,
+    sortBy: sortBy || undefined,
+    sortOrder: sortOrder || undefined,
+  });
   const { data: assetsData } = useAssets({ pageSize: 200 });
   const createEvent = useCreateMaintenanceEvent();
 
@@ -65,6 +84,50 @@ export function MaintenancePage() {
   const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
 
+  const columns: DataTableColumn<MaintenanceRow>[] = [
+    {
+      key: 'asset.assetNumber', label: 'Asset',
+      render: evt => (
+        <>
+          <span className="font-mono text-xs text-v-violet">{evt.asset?.assetNumber}</span>
+          <span className="ml-2 text-v-charcoal">{evt.asset?.name}</span>
+        </>
+      ),
+    },
+    { key: 'maintenanceType', label: 'Type', render: evt => <span className="capitalize text-gray-600">{evt.maintenanceType}</span> },
+    { key: 'vendor', label: 'Vendor', render: evt => <span className="text-gray-500">{evt.vendor ?? '—'}</span> },
+    {
+      key: 'scheduledDate', label: 'Scheduled',
+      render: evt => <span className="text-gray-500">{evt.scheduledDate ? new Date(evt.scheduledDate).toLocaleDateString('en-GB') : '—'}</span>,
+    },
+    {
+      key: 'status', label: 'Status',
+      render: evt => (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[evt.status] ?? 'bg-gray-100 text-gray-600'}`}>
+          {evt.status.replace('_', ' ')}
+        </span>
+      ),
+    },
+    { key: 'cost', label: 'Cost', render: evt => <span className="text-gray-500">{evt.cost ? fmt(evt.cost) : '—'}</span> },
+    {
+      key: 'photos', label: 'Photos', sortable: false,
+      render: evt => <span onClick={e => e.stopPropagation()}><MaintenancePhotoStrip eventId={evt.id} /></span>,
+    },
+  ];
+
+  const toolbar = (
+    <select
+      value={statusFilter}
+      onChange={e => setExtra('status', e.target.value)}
+      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink">
+      <option value="">All statuses</option>
+      <option value="scheduled">Scheduled</option>
+      <option value="in_progress">In Progress</option>
+      <option value="completed">Completed</option>
+      <option value="cancelled">Cancelled</option>
+    </select>
+  );
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -72,21 +135,11 @@ export function MaintenancePage() {
           <h1 className="text-2xl font-bold text-v-charcoal">Maintenance</h1>
           <p className="text-sm text-gray-500 mt-1">{total} events</p>
         </div>
-        <div className="flex items-center gap-2">
-          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink">
-            <option value="">All statuses</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-          {canWrite && (
-            <Button onClick={() => setShowForm(f => !f)}>
-              <Plus size={16} className="mr-1.5" /> New Event
-            </Button>
-          )}
-        </div>
+        {canWrite && (
+          <Button onClick={() => setShowForm(f => !f)}>
+            <Plus size={16} className="mr-1.5" /> New Event
+          </Button>
+        )}
       </div>
 
       {showForm && (
@@ -135,64 +188,19 @@ export function MaintenancePage() {
         </Card>
       )}
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Asset</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vendor</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Scheduled</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Cost</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Photos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
-              )}
-              {data?.events.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-12 text-center">
-                  <Wrench size={32} className="mx-auto text-gray-300 mb-2" />
-                  <p className="text-gray-400 text-sm">No maintenance events</p>
-                </td></tr>
-              )}
-              {data?.events.map(evt => (
-                <tr key={evt.id} className="border-b border-gray-50 hover:bg-v-wash transition-colors last:border-0 cursor-pointer"
-                  onClick={() => navigate(`/maintenance/${evt.id}`)}>
-                  <td className="px-4 py-3">
-                    <span className="font-mono text-xs text-v-violet">{evt.asset?.assetNumber}</span>
-                    <span className="ml-2 text-v-charcoal">{evt.asset?.name}</span>
-                  </td>
-                  <td className="px-4 py-3 capitalize text-gray-600">{evt.maintenanceType}</td>
-                  <td className="px-4 py-3 text-gray-500">{evt.vendor ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-500">{evt.scheduledDate ? new Date(evt.scheduledDate).toLocaleDateString('en-GB') : '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[evt.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {evt.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{evt.cost ? fmt(evt.cost) : '—'}</td>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <MaintenancePhotoStrip eventId={evt.id} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {data && totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-            <p className="text-xs text-gray-500">Page {page} of {totalPages}</p>
-            <div className="flex gap-1">
-              <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
-            </div>
-          </div>
-        )}
-      </Card>
+      <DataTable<MaintenanceRow>
+        columns={columns}
+        rows={data?.events as MaintenanceRow[] | undefined}
+        getRowKey={evt => evt.id}
+        isLoading={isLoading}
+        emptyMessage="No maintenance events"
+        emptyIcon={<Wrench size={32} className="mx-auto text-gray-300" />}
+        onRowClick={evt => navigate(`/maintenance/${evt.id}`)}
+        search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Search asset, vendor, work order…' }}
+        sort={{ sortBy, sortOrder, onToggle: toggleSort }}
+        toolbar={toolbar}
+        pagination={{ page, totalPages, total, pageSize: PAGE_SIZE, onPageChange: setPage }}
+      />
     </div>
   );
 }

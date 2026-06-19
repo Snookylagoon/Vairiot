@@ -11,35 +11,35 @@ reportsRouter.use(requireAnyPermission('asset:read'));
 
 reportsRouter.get('/depreciation',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { categoryId, siteId, status } = req.query as Record<string, string>;
-    res.json(await depreciationRegister(req.user!.tenantId, { categoryId, siteId, status }));
+    const { categoryId, siteId, status, search, sortBy, sortOrder } = req.query as Record<string, string>;
+    res.json(await depreciationRegister(req.user!.tenantId, { categoryId, siteId, status, search, sortBy, sortOrder }));
   }),
 );
 
 reportsRouter.get('/fixed-assets',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { categoryId, siteId, status } = req.query as Record<string, string>;
-    res.json(await fixedAssetRegister(req.user!.tenantId, { categoryId, siteId, status }));
+    const { categoryId, siteId, status, search, sortBy, sortOrder } = req.query as Record<string, string>;
+    res.json(await fixedAssetRegister(req.user!.tenantId, { categoryId, siteId, status, search, sortBy, sortOrder }));
   }),
 );
 
 reportsRouter.get('/disposals',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { from, to } = req.query as Record<string, string>;
-    res.json(await disposalReport(req.user!.tenantId, { from, to }));
+    const { from, to, search, sortBy, sortOrder } = req.query as Record<string, string>;
+    res.json(await disposalReport(req.user!.tenantId, { from, to, search, sortBy, sortOrder }));
   }),
 );
 
 reportsRouter.get('/aging',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { categoryId, siteId, status } = req.query as Record<string, string>;
-    res.json(await assetAgingReport(req.user!.tenantId, { categoryId, siteId, status }));
+    const { categoryId, siteId, status, search, sortBy, sortOrder } = req.query as Record<string, string>;
+    res.json(await assetAgingReport(req.user!.tenantId, { categoryId, siteId, status, search, sortBy, sortOrder }));
   }),
 );
 
 reportsRouter.get('/maintenance-costs',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { from, to, assetId } = req.query as Record<string, string>;
-    res.json(await maintenanceCostReport(req.user!.tenantId, { from, to, assetId }));
+    const { from, to, assetId, search, sortBy, sortOrder } = req.query as Record<string, string>;
+    res.json(await maintenanceCostReport(req.user!.tenantId, { from, to, assetId, search, sortBy, sortOrder }));
   }),
 );

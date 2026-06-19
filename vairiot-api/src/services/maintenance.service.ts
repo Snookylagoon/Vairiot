@@ -1,6 +1,13 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { NotFoundError } from '../lib/errors';
+import { buildOrderBy } from '../lib/sort';
+
+const MAINTENANCE_SORT_KEYS = [
+  'createdAt', 'scheduledDate', 'completedDate', 'maintenanceType',
+  'vendor', 'cost', 'status', 'workOrderNumber',
+  'asset.assetNumber', 'asset.name',
+] as const;
 
 export interface MaintenanceCreateInput {
   assetId: string;
@@ -25,17 +32,29 @@ const maintenanceSelect = {
 
 export async function listMaintenanceEvents(tenantId: string, params: {
   assetId?: string; status?: string; page?: number; pageSize?: number;
+  search?: string; sortBy?: string; sortOrder?: string;
 }) {
-  const { assetId, status, page = 1, pageSize = 25 } = params;
+  const { assetId, status, page = 1, pageSize = 25, search, sortBy, sortOrder } = params;
   const where: Prisma.MaintenanceEventWhereInput = {
     tenantId,
     ...(assetId && { assetId }),
     ...(status && { status }),
+    ...(search ? {
+      OR: [
+        { maintenanceType: { contains: search, mode: 'insensitive' } },
+        { vendor: { contains: search, mode: 'insensitive' } },
+        { workOrderNumber: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { asset: { assetNumber: { contains: search, mode: 'insensitive' } } },
+        { asset: { name: { contains: search, mode: 'insensitive' } } },
+      ],
+    } : {}),
   };
+  const orderBy = buildOrderBy(sortBy, sortOrder, MAINTENANCE_SORT_KEYS, { createdAt: 'desc' as const }) as Prisma.MaintenanceEventOrderByWithRelationInput;
   const [events, total] = await Promise.all([
     prisma.maintenanceEvent.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: maintenanceSelect,

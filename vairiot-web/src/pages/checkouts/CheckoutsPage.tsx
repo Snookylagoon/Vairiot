@@ -8,6 +8,8 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { useUrlTableState } from '@/hooks/useUrlTableState';
 import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
 interface Checkout {
@@ -88,8 +90,20 @@ export function CheckoutsPage() {
   const canWrite = hasAnyPermission(user, 'asset:write');
   const [showForm, setShowForm] = useState(false);
 
-  const { data: active   = [] } = useQuery<Checkout[]>({ queryKey: ['checkouts', 'active'],  queryFn: () => api.get('/api/v1/checkouts').then(r => r.data) });
-  const { data: overdue  = [] } = useQuery<Checkout[]>({ queryKey: ['checkouts', 'overdue'], queryFn: () => api.get('/api/v1/checkouts/overdue').then(r => r.data) });
+  const { search, searchInput, setSearchInput, sortBy, sortOrder, toggleSort } = useUrlTableState();
+
+  const params: Record<string, string> = {};
+  if (search) params.search = search;
+  if (sortBy) { params.sortBy = sortBy; params.sortOrder = sortOrder; }
+
+  const { data: active = [], isLoading: loadingActive } = useQuery<Checkout[]>({
+    queryKey: ['checkouts', 'active', params],
+    queryFn: () => api.get('/api/v1/checkouts', { params }).then(r => r.data),
+  });
+  const { data: overdue = [] } = useQuery<Checkout[]>({
+    queryKey: ['checkouts', 'overdue', params],
+    queryFn: () => api.get('/api/v1/checkouts/overdue', { params }).then(r => r.data),
+  });
   const overdueIds = new Set(overdue.map(o => o.id));
 
   const checkinMut = useMutation({
@@ -97,6 +111,49 @@ export function CheckoutsPage() {
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ['checkouts'] }); toast.success('Asset checked in'); },
     onError:    () => { toast.error('Failed to check in asset'); },
   });
+
+  const columns: DataTableColumn<Checkout>[] = [
+    {
+      key: 'asset.assetNumber', label: 'Asset',
+      render: c => (
+        <Link to={`/assets/${c.asset.id}`} className="block hover:text-v-violet" onClick={e => e.stopPropagation()}>
+          <p className="font-medium text-v-charcoal">{c.asset.name}</p>
+          <p className="font-mono text-xs text-gray-400">{c.asset.assetNumber}</p>
+        </Link>
+      ),
+    },
+    { key: 'custodianId', label: 'Custodian', render: c => <span className="text-v-charcoal">{c.custodianId}</span> },
+    {
+      key: 'checkedOutAt', label: 'Checked out',
+      render: c => <span className="text-gray-500">{new Date(c.checkedOutAt).toLocaleDateString('en-GB')}</span>,
+    },
+    {
+      key: 'expectedReturn', label: 'Expected return',
+      render: c => {
+        const isOverdue = overdueIds.has(c.id);
+        if (!c.expectedReturn) return <span className="text-gray-400">—</span>;
+        return isOverdue
+          ? <Badge label={`Overdue · ${new Date(c.expectedReturn).toLocaleDateString('en-GB')}`} variant="maintenance" />
+          : <span className="text-gray-500">{new Date(c.expectedReturn).toLocaleDateString('en-GB')}</span>;
+      },
+    },
+    {
+      key: 'actions', label: '', sortable: false,
+      render: c => canWrite ? (
+        <div className="text-right">
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={checkinMut.isPending && checkinMut.variables === c.asset.id}
+            onClick={(e) => { e.stopPropagation(); checkinMut.mutate(c.asset.id); }}>
+            <LogIn size={14} className="mr-1" /> Check in
+          </Button>
+        </div>
+      ) : null,
+      className: 'px-4 py-3 text-right',
+      headerClassName: 'px-4 py-3 text-right',
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -123,62 +180,16 @@ export function CheckoutsPage() {
         </Card>
       )}
 
-      <Card>
-        <CardBody className="p-0">
-          {active.length === 0 ? (
-            <div className="px-6 py-10 text-center text-sm text-gray-400">
-              <Package className="inline-block mb-2" /> <br /> No assets currently checked out.
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
-                <tr>
-                  <th className="px-6 py-3 text-left">Asset</th>
-                  <th className="px-6 py-3 text-left">Custodian</th>
-                  <th className="px-6 py-3 text-left">Checked out</th>
-                  <th className="px-6 py-3 text-left">Expected return</th>
-                  <th className="px-6 py-3 text-right">&nbsp;</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {active.map(c => {
-                  const isOverdue = overdueIds.has(c.id);
-                  return (
-                    <tr key={c.id} className={isOverdue ? 'bg-amber-50/50' : ''}>
-                      <td className="px-6 py-3">
-                        <Link to={`/assets/${c.asset.id}`} className="block hover:text-v-violet">
-                          <p className="font-medium text-v-charcoal">{c.asset.name}</p>
-                          <p className="font-mono text-xs text-gray-400">{c.asset.assetNumber}</p>
-                        </Link>
-                      </td>
-                      <td className="px-6 py-3 text-v-charcoal">{c.custodianId}</td>
-                      <td className="px-6 py-3 text-gray-500">{new Date(c.checkedOutAt).toLocaleDateString('en-GB')}</td>
-                      <td className="px-6 py-3">
-                        {c.expectedReturn
-                          ? (isOverdue
-                              ? <Badge label={`Overdue · ${new Date(c.expectedReturn).toLocaleDateString('en-GB')}`} variant="maintenance" />
-                              : <span className="text-gray-500">{new Date(c.expectedReturn).toLocaleDateString('en-GB')}</span>)
-                          : <span className="text-gray-400">—</span>}
-                      </td>
-                      <td className="px-6 py-3 text-right">
-                        {canWrite && (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            loading={checkinMut.isPending && checkinMut.variables === c.asset.id}
-                            onClick={() => checkinMut.mutate(c.asset.id)}>
-                            <LogIn size={14} className="mr-1" /> Check in
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </CardBody>
-      </Card>
+      <DataTable<Checkout>
+        columns={columns}
+        rows={active}
+        getRowKey={c => c.id}
+        isLoading={loadingActive}
+        emptyMessage="No assets currently checked out."
+        emptyIcon={<Package size={32} className="mx-auto text-gray-300" />}
+        search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Search asset or custodian…' }}
+        sort={{ sortBy, sortOrder, onToggle: toggleSort }}
+      />
 
       {overdue.length > 0 && (
         <Card>

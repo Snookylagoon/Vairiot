@@ -1,5 +1,7 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { NotFoundError, ConflictError } from '../lib/errors';
+import { buildOrderBy } from '../lib/sort';
 
 export interface CheckoutInput {
   assetId: string;
@@ -54,20 +56,39 @@ export async function getCheckoutHistory(tenantId: string, assetId: string) {
   });
 }
 
-export async function listActiveCheckouts(tenantId: string) {
+const CHECKOUT_SORT_KEYS = ['checkedOutAt', 'expectedReturn', 'custodianId', 'asset.assetNumber', 'asset.name'] as const;
+
+interface CheckoutListOpts {
+  search?: string;
+  sortBy?: string;
+  sortOrder?: string;
+}
+
+function checkoutSearchWhere(search: string | undefined) {
+  if (!search) return {};
+  return {
+    OR: [
+      { custodianId: { contains: search, mode: 'insensitive' as const } },
+      { asset: { assetNumber: { contains: search, mode: 'insensitive' as const } } },
+      { asset: { name: { contains: search, mode: 'insensitive' as const } } },
+    ],
+  };
+}
+
+export async function listActiveCheckouts(tenantId: string, opts: CheckoutListOpts = {}) {
   return prisma.checkout.findMany({
-    where: { tenantId, checkedInAt: null },
+    where: { tenantId, checkedInAt: null, ...checkoutSearchWhere(opts.search) },
     include: { asset: { select: { id: true, assetNumber: true, name: true } } },
-    orderBy: { checkedOutAt: 'desc' },
+    orderBy: buildOrderBy(opts.sortBy, opts.sortOrder, CHECKOUT_SORT_KEYS, { checkedOutAt: 'desc' as const }) as Prisma.CheckoutOrderByWithRelationInput,
     take: 1000,
   });
 }
 
-export async function getOverdueCheckouts(tenantId: string) {
+export async function getOverdueCheckouts(tenantId: string, opts: CheckoutListOpts = {}) {
   return prisma.checkout.findMany({
-    where: { tenantId, checkedInAt: null, expectedReturn: { lt: new Date() } },
+    where: { tenantId, checkedInAt: null, expectedReturn: { lt: new Date() }, ...checkoutSearchWhere(opts.search) },
     include: { asset: { select: { id: true, assetNumber: true, name: true } } },
-    orderBy: { expectedReturn: 'asc' },
+    orderBy: buildOrderBy(opts.sortBy, opts.sortOrder, CHECKOUT_SORT_KEYS, { expectedReturn: 'asc' as const }) as Prisma.CheckoutOrderByWithRelationInput,
     take: 1000,
   });
 }

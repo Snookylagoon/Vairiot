@@ -8,13 +8,15 @@ export const checkoutsRouter = Router();
 
 checkoutsRouter.get('/',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    res.json(await listActiveCheckouts(req.user!.tenantId));
+    const { search, sortBy, sortOrder } = req.query as Record<string, string>;
+    res.json(await listActiveCheckouts(req.user!.tenantId, { search, sortBy, sortOrder }));
   }),
 );
 
 checkoutsRouter.get('/overdue',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    res.json(await getOverdueCheckouts(req.user!.tenantId));
+    const { search, sortBy, sortOrder } = req.query as Record<string, string>;
+    res.json(await getOverdueCheckouts(req.user!.tenantId, { search, sortBy, sortOrder }));
   }),
 );
 

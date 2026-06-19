@@ -1,8 +1,9 @@
-import { useState } from 'react';
 import { ArrowLeft, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { useUrlTableState } from '@/hooks/useUrlTableState';
 import { useAgingReport } from '@/hooks/useReports';
 import { useCategories } from '@/hooks/useCategories';
 import { useSites } from '@/hooks/useSites';
@@ -13,12 +14,30 @@ const BUCKET_COLOURS: Record<string, string> = {
   '5-10y': 'bg-orange-500', '10y+': 'bg-red-500',
 };
 
+interface AgingRow {
+  assetNumber: string;
+  name: string;
+  category: string | null;
+  site: string | null;
+  status: string;
+  purchaseDate: string;
+  purchaseCost: number;
+  ageMonths: number;
+}
+
 export function AgingPage() {
   const navigate = useNavigate();
   const { fmt } = useCurrency();
-  const [categoryId, setCategoryId] = useState('');
-  const [siteId, setSiteId] = useState('');
-  const filters = { ...(categoryId && { categoryId }), ...(siteId && { siteId }) };
+  const { search, searchInput, setSearchInput, sortBy, sortOrder, toggleSort, extras, setExtra } =
+    useUrlTableState(['categoryId', 'siteId']);
+  const { categoryId, siteId } = extras;
+
+  const filters: Record<string, string> = {};
+  if (categoryId) filters.categoryId = categoryId;
+  if (siteId) filters.siteId = siteId;
+  if (search) filters.search = search;
+  if (sortBy) { filters.sortBy = sortBy; filters.sortOrder = sortOrder; }
+
   const { data, isLoading } = useAgingReport(filters);
   const { data: categories = [] } = useCategories();
   const { data: sites = [] } = useSites();
@@ -37,6 +56,49 @@ export function AgingPage() {
     URL.revokeObjectURL(url);
   };
 
+  const columns: DataTableColumn<AgingRow>[] = [
+    {
+      key: 'assetNumber', label: 'Asset',
+      render: r => (
+        <>
+          <span className="font-mono text-xs text-v-violet">{r.assetNumber}</span>
+          <span className="ml-2">{r.name}</span>
+        </>
+      ),
+    },
+    { key: 'category', label: 'Category', render: r => <span className="text-gray-600">{r.category ?? '—'}</span> },
+    { key: 'site', label: 'Site', render: r => <span className="text-gray-600">{r.site ?? '—'}</span> },
+    {
+      key: 'purchaseDate', label: 'Purchase Date',
+      render: r => <span className="text-gray-600">{new Date(r.purchaseDate).toLocaleDateString('en-GB')}</span>,
+    },
+    {
+      key: 'ageMonths', label: 'Age (mo)',
+      render: r => <span className="font-mono">{r.ageMonths}</span>,
+      className: 'px-4 py-3 text-right', headerClassName: 'px-4 py-3 text-right',
+    },
+    {
+      key: 'purchaseCost', label: 'Cost',
+      render: r => <span className="font-mono">{fmt(r.purchaseCost)}</span>,
+      className: 'px-4 py-3 text-right', headerClassName: 'px-4 py-3 text-right',
+    },
+  ];
+
+  const toolbar = (
+    <>
+      <select value={categoryId} onChange={e => setExtra('categoryId', e.target.value)}
+        className="text-sm rounded-lg border border-gray-200 px-3 py-1.5 bg-white">
+        <option value="">All Categories</option>
+        {categories.map((c: { id: string; name: string }) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </select>
+      <select value={siteId} onChange={e => setExtra('siteId', e.target.value)}
+        className="text-sm rounded-lg border border-gray-200 px-3 py-1.5 bg-white">
+        <option value="">All Sites</option>
+        {sites.map((s: { id: string; name: string }) => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </select>
+    </>
+  );
+
   return (
     <div className="space-y-5">
       <button onClick={() => navigate('/reports')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-v-violet transition-colors">
@@ -51,18 +113,7 @@ export function AgingPage() {
           <Download size={14} className="mr-1" /> Export CSV
         </Button>
       </div>
-      <div className="flex gap-3">
-        <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className="text-sm rounded-lg border border-gray-200 px-3 py-1.5 bg-white">
-          <option value="">All Categories</option>
-          {categories.map((c: { id: string; name: string }) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select value={siteId} onChange={e => setSiteId(e.target.value)} className="text-sm rounded-lg border border-gray-200 px-3 py-1.5 bg-white">
-          <option value="">All Sites</option>
-          {sites.map((s: { id: string; name: string }) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
 
-      {/* Bucket bar */}
       <Card>
         <CardBody>
           <div className="flex h-8 w-full overflow-hidden rounded-lg bg-gray-100">
@@ -86,39 +137,16 @@ export function AgingPage() {
         </CardBody>
       </Card>
 
-      <Card>
-        <CardBody className="overflow-x-auto">
-          {isLoading ? <p className="text-sm text-gray-400 text-center py-4">Loading...</p> : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="py-2 text-left text-xs font-semibold text-gray-500 uppercase">Asset</th>
-                  <th className="py-2 text-left text-xs font-semibold text-gray-500 uppercase">Category</th>
-                  <th className="py-2 text-left text-xs font-semibold text-gray-500 uppercase">Site</th>
-                  <th className="py-2 text-left text-xs font-semibold text-gray-500 uppercase">Purchase Date</th>
-                  <th className="py-2 text-right text-xs font-semibold text-gray-500 uppercase">Age (mo)</th>
-                  <th className="py-2 text-right text-xs font-semibold text-gray-500 uppercase">Cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(r => (
-                  <tr key={r.assetNumber} className="border-b border-gray-50 hover:bg-v-wash last:border-0">
-                    <td className="py-2">
-                      <span className="font-mono text-xs text-v-violet">{r.assetNumber}</span>
-                      <span className="ml-2">{r.name}</span>
-                    </td>
-                    <td className="py-2 text-gray-600">{r.category ?? '—'}</td>
-                    <td className="py-2 text-gray-600">{r.site ?? '—'}</td>
-                    <td className="py-2 text-gray-600">{new Date(r.purchaseDate).toLocaleDateString('en-GB')}</td>
-                    <td className="py-2 text-right font-mono">{r.ageMonths}</td>
-                    <td className="py-2 text-right font-mono">{fmt(r.purchaseCost)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </CardBody>
-      </Card>
+      <DataTable<AgingRow>
+        columns={columns}
+        rows={rows as AgingRow[]}
+        getRowKey={r => r.assetNumber}
+        isLoading={isLoading}
+        emptyMessage="No assets match these filters"
+        search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Search asset, category, site…' }}
+        sort={{ sortBy, sortOrder, onToggle: toggleSort }}
+        toolbar={toolbar}
+      />
     </div>
   );
 }

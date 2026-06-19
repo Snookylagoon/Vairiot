@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { useUrlTableState } from '@/hooks/useUrlTableState';
 import {
   useLicenceStatus,
   useDevices,
@@ -115,8 +117,22 @@ function DevicesList() {
 
 // ── Licensing Authority console (licence:manage only) ────────────────────────
 
+interface AuthorityLicence {
+  id: string;
+  tenant?: { name?: string };
+  tierName: string;
+  status: string;
+  expiryDate?: string;
+}
+
 function AuthorityConsole() {
-  const { data: licences, isLoading } = useAllLicences();
+  const { search, searchInput, setSearchInput, sortBy, sortOrder, toggleSort } = useUrlTableState();
+
+  const params: Record<string, string> = {};
+  if (search) params.search = search;
+  if (sortBy) { params.sortBy = sortBy; params.sortOrder = sortOrder; }
+
+  const { data: licences, isLoading } = useAllLicences(params);
   const renewMutation      = useRenewLicence();
   const suspendMutation    = useSuspendLicence();
   const revokeMutation     = useRevokeLicence();
@@ -124,8 +140,6 @@ function AuthorityConsole() {
   const addSlotMutation    = useAddDeviceSlot();
   const [confirmAction, setConfirmAction] = useState<{ id: string; action: string } | null>(null);
   const [renewMonths, setRenewMonths] = useState('12');
-
-  if (isLoading) return <CardSkeleton />;
 
   const runAction = async () => {
     if (!confirmAction) return;
@@ -143,55 +157,56 @@ function AuthorityConsole() {
     setConfirmAction(null);
   };
 
+  const columns: DataTableColumn<AuthorityLicence>[] = [
+    { key: 'tenant.name', label: 'Tenant', render: l => <span className="font-medium text-v-charcoal">{l.tenant?.name ?? '—'}</span> },
+    { key: 'tier.name', label: 'Tier', render: l => <span>{l.tierName}</span> },
+    { key: 'status', label: 'Status', render: l => <Badge variant={l.status === 'active' ? 'green' : 'red'}>{l.status}</Badge> },
+    {
+      key: 'expiresAt', label: 'Expiry',
+      render: l => <span className="text-gray-500">{l.expiryDate ? new Date(l.expiryDate).toLocaleDateString() : 'Perpetual'}</span>,
+    },
+    {
+      key: 'actions', label: 'Actions', sortable: false,
+      render: l => (
+        <div className="text-right space-x-1">
+          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: l.id, action: 'renew' }); }}>Renew</Button>
+          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: l.id, action: 'add-slot' }); }}>+Slot</Button>
+          {l.status === 'active' && (
+            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: l.id, action: 'suspend' }); }}>Suspend</Button>
+          )}
+          {l.status === 'suspended' && (
+            <>
+              <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: l.id, action: 'reactivate' }); }}>Reactivate</Button>
+              <Button size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: l.id, action: 'revoke' }); }}>Revoke</Button>
+            </>
+          )}
+        </div>
+      ),
+      className: 'px-4 py-3 text-right',
+      headerClassName: 'px-4 py-3 text-right',
+    },
+  ];
+
   return (
     <>
-      <Card className="p-6 space-y-4">
-        <h2 className="text-lg font-bold text-v-charcoal">Licensing Authority Console</h2>
-        <p className="text-sm text-gray-500">
-          Manage all tenant licences. Payment confirmation, suspension, and revocation are audit-logged.
-        </p>
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-lg font-bold text-v-charcoal">Licensing Authority Console</h2>
+          <p className="text-sm text-gray-500">
+            Manage all tenant licences. Payment confirmation, suspension, and revocation are audit-logged.
+          </p>
+        </div>
 
-        {(!licences || (licences as unknown[]).length === 0) ? (
-          <p className="text-sm text-gray-400">No licences found.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-left text-xs text-gray-500 uppercase tracking-wider">
-                  <th className="pb-2">Tenant</th>
-                  <th className="pb-2">Tier</th>
-                  <th className="pb-2">Status</th>
-                  <th className="pb-2">Expiry</th>
-                  <th className="pb-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {(licences as Array<{ id: string; tenant?: { name?: string }; tierName: string; status: string; expiryDate?: string }>).map(l => (
-                  <tr key={l.id}>
-                    <td className="py-3 font-medium text-v-charcoal">{l.tenant?.name ?? '—'}</td>
-                    <td className="py-3">{l.tierName}</td>
-                    <td className="py-3"><Badge variant={l.status === 'active' ? 'green' : 'red'}>{l.status}</Badge></td>
-                    <td className="py-3 text-gray-500">{l.expiryDate ? new Date(l.expiryDate).toLocaleDateString() : 'Perpetual'}</td>
-                    <td className="py-3 text-right space-x-1">
-                      <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ id: l.id, action: 'renew' })}>Renew</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ id: l.id, action: 'add-slot' })}>+Slot</Button>
-                      {l.status === 'active' && (
-                        <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ id: l.id, action: 'suspend' })}>Suspend</Button>
-                      )}
-                      {l.status === 'suspended' && (
-                        <>
-                          <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ id: l.id, action: 'reactivate' })}>Reactivate</Button>
-                          <Button size="sm" variant="danger" onClick={() => setConfirmAction({ id: l.id, action: 'revoke' })}>Revoke</Button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+        <DataTable<AuthorityLicence>
+          columns={columns}
+          rows={(licences as AuthorityLicence[] | undefined)}
+          getRowKey={l => l.id}
+          isLoading={isLoading}
+          emptyMessage="No licences found"
+          search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Search licence # or tenant…' }}
+          sort={{ sortBy, sortOrder, onToggle: toggleSort }}
+        />
+      </div>
 
       <ConfirmDialog
         open={!!confirmAction}

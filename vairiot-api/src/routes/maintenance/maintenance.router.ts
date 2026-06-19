@@ -11,9 +11,9 @@ export const maintenanceRouter = Router();
 
 maintenanceRouter.get('/',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { assetId, status, page, pageSize } = req.query as Record<string, string>;
+    const { assetId, status, page, pageSize, search, sortBy, sortOrder } = req.query as Record<string, string>;
     res.json(await listMaintenanceEvents(req.user!.tenantId, {
-      assetId, status,
+      assetId, status, search, sortBy, sortOrder,
       page: page ? Number(page) : undefined,
       pageSize: pageSize ? Number(pageSize) : undefined,
     }));

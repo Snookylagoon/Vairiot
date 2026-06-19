@@ -66,10 +66,10 @@ export function useRegisterDevice() {
 
 // ── Licensing Authority routes ───────────────────────────────────────────────
 
-export function useAllLicences() {
+export function useAllLicences(params: Record<string, string> = {}) {
   return useQuery<unknown[]>({
-    queryKey: ['licence', 'all'],
-    queryFn: () => api.get('/api/v1/licences/all').then(r => r.data),
+    queryKey: ['licence', 'all', params],
+    queryFn: () => api.get('/api/v1/licences/all', { params }).then(r => r.data),
   });
 }
 

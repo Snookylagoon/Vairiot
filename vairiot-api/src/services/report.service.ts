@@ -2,6 +2,52 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { computeDepreciation } from './asset.service';
 
+/**
+ * Apply search + sort to report rows in JS. Reports are computed
+ * (NBV, ageMonths, gainLoss) so we sort *after* compute rather than
+ * pushing it into Prisma. Search matches any string field in `searchFields`.
+ */
+function applyReportSortSearch<T extends Record<string, unknown>>(
+  rows: T[],
+  opts: { search?: string; sortBy?: string; sortOrder?: string },
+  searchFields: readonly string[],
+  sortKeyWhitelist: readonly string[],
+): T[] {
+  let out = rows;
+
+  if (opts.search) {
+    const q = opts.search.toLowerCase();
+    out = out.filter(r =>
+      searchFields.some(f => {
+        const v = r[f];
+        return typeof v === 'string' && v.toLowerCase().includes(q);
+      }),
+    );
+  }
+
+  if (opts.sortBy && sortKeyWhitelist.includes(opts.sortBy)) {
+    const key = opts.sortBy;
+    const dir = opts.sortOrder === 'desc' ? -1 : 1;
+    out = [...out].sort((a, b) => {
+      const av = a[key], bv = b[key];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      if (av instanceof Date && bv instanceof Date) return (av.getTime() - bv.getTime()) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  }
+
+  return out;
+}
+
+export interface ReportListOpts {
+  search?: string;
+  sortBy?: string;
+  sortOrder?: string;
+}
+
 const assetFinancialSelect = {
   id: true, assetNumber: true, name: true, status: true, condition: true,
   purchaseCost: true, purchaseDate: true, supplier: true,
@@ -31,14 +77,19 @@ function baseWhere(tenantId: string, filters: ReportFilters): Prisma.AssetWhereI
   };
 }
 
-export async function depreciationRegister(tenantId: string, filters: ReportFilters = {}) {
+const DEPRECIATION_SORT_KEYS = [
+  'assetNumber', 'name', 'category', 'site', 'capitalizedCost',
+  'monthlyDepreciation', 'accumulatedDepreciation', 'netBookValue',
+] as const;
+
+export async function depreciationRegister(tenantId: string, filters: ReportFilters & ReportListOpts = {}) {
   const assets = await prisma.asset.findMany({
     where: { ...baseWhere(tenantId, filters), depreciationStartDate: { not: null } },
     select: assetFinancialSelect,
     orderBy: { assetNumber: 'asc' },
   });
 
-  return assets.map(a => {
+  const rows = assets.map(a => {
     const dep = computeDepreciation(a);
     return {
       assetNumber: a.assetNumber,
@@ -56,9 +107,16 @@ export async function depreciationRegister(tenantId: string, filters: ReportFilt
       residualValue: Number(a.residualValue ?? 0),
     };
   });
+
+  return applyReportSortSearch(rows, filters, ['assetNumber', 'name', 'category', 'site'], DEPRECIATION_SORT_KEYS);
 }
 
-export async function fixedAssetRegister(tenantId: string, filters: ReportFilters = {}) {
+const FIXED_ASSET_SORT_KEYS = [
+  'assetNumber', 'name', 'category', 'site', 'status', 'condition',
+  'purchaseDate', 'purchaseCost', 'capitalizedCost', 'netBookValue',
+] as const;
+
+export async function fixedAssetRegister(tenantId: string, filters: ReportFilters & ReportListOpts = {}) {
   const assets = await prisma.asset.findMany({
     where: baseWhere(tenantId, filters),
     select: {
@@ -70,7 +128,7 @@ export async function fixedAssetRegister(tenantId: string, filters: ReportFilter
     orderBy: { assetNumber: 'asc' },
   });
 
-  return assets.map(a => {
+  const rows = assets.map(a => {
     const dep = computeDepreciation(a);
     return {
       assetNumber: a.assetNumber,
@@ -90,9 +148,16 @@ export async function fixedAssetRegister(tenantId: string, filters: ReportFilter
       registeredDate: a.createdAt,
     };
   });
+
+  return applyReportSortSearch(rows, filters, ['assetNumber', 'name', 'category', 'site', 'serialNumber', 'manufacturer'], FIXED_ASSET_SORT_KEYS);
 }
 
-export async function disposalReport(tenantId: string, filters: { from?: string; to?: string } = {}) {
+const DISPOSAL_SORT_KEYS = [
+  'assetNumber', 'assetName', 'disposalDate', 'disposalMethod',
+  'disposalValue', 'netBookValueAtDisposal', 'gainLoss',
+] as const;
+
+export async function disposalReport(tenantId: string, filters: { from?: string; to?: string } & ReportListOpts = {}) {
   const where: Prisma.DisposalWhereInput = {
     tenantId,
     ...(filters.from || filters.to ? {
@@ -137,8 +202,17 @@ export async function disposalReport(tenantId: string, filters: { from?: string;
     };
   });
 
-  return {
+  const filteredRows = applyReportSortSearch(
     rows,
+    filters,
+    ['assetNumber', 'assetName', 'category', 'site', 'disposalMethod', 'reason'],
+    DISPOSAL_SORT_KEYS,
+  );
+
+  // Totals reflect the *unfiltered* view so the summary cards stay stable while
+  // the user searches/sorts — change only if requested.
+  return {
+    rows: filteredRows,
     totals: {
       count: rows.length,
       totalDisposalValue: Math.round(totalDisposalValue * 100) / 100,
@@ -148,7 +222,9 @@ export async function disposalReport(tenantId: string, filters: { from?: string;
   };
 }
 
-export async function assetAgingReport(tenantId: string, filters: ReportFilters = {}) {
+const AGING_SORT_KEYS = ['assetNumber', 'name', 'category', 'site', 'purchaseDate', 'purchaseCost', 'ageMonths'] as const;
+
+export async function assetAgingReport(tenantId: string, filters: ReportFilters & ReportListOpts = {}) {
   const assets = await prisma.asset.findMany({
     where: { ...baseWhere(tenantId, filters), purchaseDate: { not: null } },
     select: {
@@ -186,10 +262,21 @@ export async function assetAgingReport(tenantId: string, filters: ReportFilters 
     };
   });
 
-  return { rows, buckets, totalAssets: rows.length };
+  const filteredRows = applyReportSortSearch(
+    rows,
+    filters,
+    ['assetNumber', 'name', 'category', 'site'],
+    AGING_SORT_KEYS,
+  );
+
+  // Buckets/totalAssets reflect the full dataset before search so the chart
+  // doesn't collapse to one bar while the user is searching.
+  return { rows: filteredRows, buckets, totalAssets: rows.length };
 }
 
-export async function maintenanceCostReport(tenantId: string, filters: { from?: string; to?: string; assetId?: string } = {}) {
+const MAINT_COST_SORT_KEYS = ['assetNumber', 'assetName', 'category', 'maintenanceType', 'vendor', 'cost', 'completedDate'] as const;
+
+export async function maintenanceCostReport(tenantId: string, filters: { from?: string; to?: string; assetId?: string } & ReportListOpts = {}) {
   const where: Prisma.MaintenanceEventWhereInput = {
     tenantId,
     status: 'completed',
@@ -227,5 +314,12 @@ export async function maintenanceCostReport(tenantId: string, filters: { from?: 
     };
   });
 
-  return { rows, totalCost: Math.round(totalCost * 100) / 100, totalEvents: rows.length };
+  const filteredRows = applyReportSortSearch(
+    rows,
+    filters,
+    ['assetNumber', 'assetName', 'category', 'maintenanceType', 'vendor'],
+    MAINT_COST_SORT_KEYS,
+  );
+
+  return { rows: filteredRows, totalCost: Math.round(totalCost * 100) / 100, totalEvents: rows.length };
 }
