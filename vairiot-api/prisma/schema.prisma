@@ -321,22 +321,25 @@ model Disposal {
 
 // ─── Photos ───────────────────────────────────────────────────────────────────
 model Photo {
-  id          String   @id @default(cuid())
-  tenantId    String
-  assetId     String
-  storageKey  String   @unique
-  mimeType    String
-  sizeBytes   Int
-  width       Int?
-  height      Int?
-  caption     String?
-  createdBy   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  tenantId           String
+  assetId            String
+  maintenanceEventId String?
+  storageKey         String   @unique
+  mimeType           String
+  sizeBytes          Int
+  width              Int?
+  height             Int?
+  caption            String?
+  createdBy          String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  asset       Asset             @relation(fields: [assetId],            references: [id], onDelete: Cascade)
+  maintenance MaintenanceEvent? @relation(fields: [maintenanceEventId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, assetId])
+  @@index([tenantId, maintenanceEventId])
   @@map("photos")
 }
 
@@ -441,7 +444,8 @@ model MaintenanceEvent {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  asset Asset @relation(fields: [assetId], references: [id])
+  asset  Asset   @relation(fields: [assetId], references: [id])
+  photos Photo[]
 
   @@index([tenantId, assetId])
   @@index([tenantId, status])

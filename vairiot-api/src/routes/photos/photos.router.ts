@@ -3,7 +3,10 @@ import multer from 'multer';
 import { body, validationResult } from 'express-validator';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
-import { listPhotos, uploadPhoto, getPhotoStream, deletePhoto, updatePhoto } from '../../services/photo.service';
+import {
+  listPhotos, uploadPhoto, getPhotoStream, deletePhoto, updatePhoto,
+  listMaintenancePhotos, uploadMaintenancePhoto,
+} from '../../services/photo.service';
 
 export const photosRouter = Router();
 
@@ -38,6 +41,29 @@ photosRouter.post('/assets/:assetId/photos',
       actorId:  req.user!.sub,
       buffer:   req.file.buffer,
       mimeType: req.file.mimetype,
+    });
+    res.status(201).json(photo);
+  }),
+);
+
+photosRouter.get('/maintenance/:id/photos',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listMaintenancePhotos(req.user!.tenantId, req.params.id));
+  }),
+);
+
+photosRouter.post('/maintenance/:id/photos',
+  requireAnyPermission('asset:write'),
+  upload.single('photo'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    if (!req.file) { res.status(400).json({ error: 'No file uploaded (field name "photo")' }); return; }
+    const photo = await uploadMaintenancePhoto({
+      tenantId:           req.user!.tenantId,
+      maintenanceEventId: req.params.id,
+      actorId:            req.user!.sub,
+      buffer:             req.file.buffer,
+      mimeType:           req.file.mimetype,
+      caption:            typeof req.body?.caption === 'string' ? req.body.caption : undefined,
     });
     res.status(201).json(photo);
   }),

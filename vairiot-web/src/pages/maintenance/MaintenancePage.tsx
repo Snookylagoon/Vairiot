@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useMaintenanceEvents, useCreateMaintenanceEvent, useUpdateMaintenanceEvent } from '@/hooks/useMaintenance';
+import { MaintenancePhotoStrip } from '@/components/maintenance/MaintenancePhotoStrip';
 import { useAssets } from '@/hooks/useAssets';
 import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
@@ -145,14 +146,15 @@ export function MaintenancePage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Scheduled</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Cost</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Photos</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
               )}
               {data?.events.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-12 text-center">
+                <tr><td colSpan={7} className="px-4 py-12 text-center">
                   <Wrench size={32} className="mx-auto text-gray-300 mb-2" />
                   <p className="text-gray-400 text-sm">No maintenance events</p>
                 </td></tr>
@@ -173,6 +175,9 @@ export function MaintenancePage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-500">{evt.cost ? fmt(evt.cost) : '—'}</td>
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    <MaintenancePhotoStrip eventId={evt.id} />
+                  </td>
                 </tr>
               ))}
             </tbody>

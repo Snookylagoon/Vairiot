@@ -6,7 +6,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.api.MaintenanceCreateRequest
-import com.vairiot.app.data.api.PhotoUpdateRequest
 import com.vairiot.app.data.api.VairiotApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -64,7 +63,7 @@ class MaintenanceRequestViewModel @Inject constructor(
                         status          = "scheduled",
                     ),
                 )
-                s.photoUri?.let { uploadPhoto(it, event.workOrderNumber) }
+                s.photoUri?.let { uploadPhoto(it, event.id) }
                 _state.value = MaintenanceRequestUiState(lastWorkOrder = event.workOrderNumber)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
@@ -75,14 +74,12 @@ class MaintenanceRequestViewModel @Inject constructor(
         }
     }
 
-    private suspend fun uploadPhoto(uri: Uri, workOrder: String?) {
+    private suspend fun uploadPhoto(uri: Uri, maintenanceEventId: String) {
         val bytes = context.contentResolver.openInputStream(uri).use { it?.readBytes() }
             ?: return
         val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
         val body = bytes.toRequestBody(mime.toMediaTypeOrNull())
         val part = MultipartBody.Part.createFormData("photo", "maintenance.jpg", body)
-        val uploaded = api.uploadAssetPhoto(assetId, part)
-        val caption = if (workOrder != null) "Maintenance $workOrder" else "Maintenance request"
-        runCatching { api.updatePhoto(uploaded.id, PhotoUpdateRequest(caption)) }
+        api.uploadMaintenancePhoto(maintenanceEventId, part)
     }
 }

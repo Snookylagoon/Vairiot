@@ -96,4 +96,14 @@ interface VairiotApiService {
     suspend fun createMaintenanceEvent(
         @Body request: MaintenanceCreateRequest,
     ): MaintenanceEventResponse
+
+    @GET("api/v1/maintenance/{id}/photos")
+    suspend fun listMaintenancePhotos(@Path("id") id: String): List<PhotoResponse>
+
+    @Multipart
+    @POST("api/v1/maintenance/{id}/photos")
+    suspend fun uploadMaintenancePhoto(
+        @Path("id") id: String,
+        @Part photo: MultipartBody.Part,
+    ): PhotoResponse
 }

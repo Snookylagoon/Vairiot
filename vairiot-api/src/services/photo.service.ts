@@ -5,7 +5,15 @@ import { NotFoundError } from '../lib/errors';
 
 export async function listPhotos(tenantId: string, assetId: string) {
   return prisma.photo.findMany({
-    where: { tenantId, assetId },
+    where: { tenantId, assetId, maintenanceEventId: null },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, mimeType: true, sizeBytes: true, width: true, height: true, caption: true, createdAt: true, createdBy: true },
+  });
+}
+
+export async function listMaintenancePhotos(tenantId: string, maintenanceEventId: string) {
+  return prisma.photo.findMany({
+    where: { tenantId, maintenanceEventId },
     orderBy: { createdAt: 'desc' },
     select: { id: true, mimeType: true, sizeBytes: true, width: true, height: true, caption: true, createdAt: true, createdBy: true },
   });
@@ -50,6 +58,46 @@ export async function uploadPhoto(params: {
       mimeType:   params.mimeType,
       sizeBytes:  params.buffer.length,
       createdBy:  params.actorId,
+    },
+    select: { id: true, mimeType: true, sizeBytes: true, caption: true, createdAt: true },
+  });
+}
+
+export async function uploadMaintenancePhoto(params: {
+  tenantId:           string;
+  maintenanceEventId: string;
+  actorId:            string;
+  buffer:             Buffer;
+  mimeType:           string;
+  caption?:           string;
+}) {
+  const evt = await prisma.maintenanceEvent.findFirst({
+    where: { id: params.maintenanceEventId, tenantId: params.tenantId },
+    select: { id: true, assetId: true },
+  });
+  if (!evt) throw new NotFoundError('Maintenance event not found');
+
+  const ext        = mimeToExt(params.mimeType);
+  const storageKey = `${params.tenantId}/maintenance/${evt.id}/${Date.now()}-${randomHex(8)}${ext}`;
+
+  await minioClient.putObject(
+    PHOTO_BUCKET,
+    storageKey,
+    params.buffer,
+    params.buffer.length,
+    { 'Content-Type': params.mimeType },
+  );
+
+  return prisma.photo.create({
+    data: {
+      tenantId:           params.tenantId,
+      assetId:            evt.assetId,
+      maintenanceEventId: evt.id,
+      storageKey,
+      mimeType:           params.mimeType,
+      sizeBytes:          params.buffer.length,
+      caption:            params.caption,
+      createdBy:          params.actorId,
     },
     select: { id: true, mimeType: true, sizeBytes: true, caption: true, createdAt: true },
   });
