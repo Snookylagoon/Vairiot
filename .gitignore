@@ -46,3 +46,11 @@ coverage/
 
 # ─── Docker ───────────────────────────────────────────────────────────────────
 infra/data/
+
+# ─── Local tooling (Claude Code, ClaudeFlow) — per-machine, never commit ──────
+.claude/
+.claude-flow/
+**/.claude-flow/
+
+# ─── Design working files (e.g. Inkscape numbered drafts) ─────────────────────
+vairiot-admin/public/favicon[0-9]*.svg
