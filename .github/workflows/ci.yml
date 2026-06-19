@@ -7,6 +7,10 @@ on:
     branches: [main, develop]
 
 jobs:
+  # Node 24 (not the engines-floor 22) — Prisma 5.22's `prisma generate`
+  # panics with "capacity overflow" during `npm ci` on Node 22 LTS runners.
+  # Sidestepped here; revisit when bumping Prisma to 6.x.
+
   # ── Lint & type-check ─────────────────────────────────────────────────────────
   lint-typecheck:
     name: Lint & Type-check
@@ -14,10 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js 22 LTS
+      - name: Set up Node.js 24 LTS
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
@@ -65,10 +69,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js 22 LTS
+      - name: Set up Node.js 24 LTS
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
