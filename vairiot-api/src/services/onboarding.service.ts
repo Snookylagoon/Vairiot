@@ -87,12 +87,10 @@ export async function registerCompany(
   actorId: string,
   input: CompanyRegistrationInput,
 ): Promise<OnboardingStatus> {
-  if (!input.legalName?.trim()) throw new ValidationError('Legal name is required');
+  if (!input.legalName?.trim()) throw new ValidationError('Company name is required');
   if (!input.addressLine1?.trim()) throw new ValidationError('Address is required');
   if (!input.city?.trim()) throw new ValidationError('City is required');
   if (!input.country?.trim()) throw new ValidationError('Country is required');
-  if (!input.primaryContactName?.trim()) throw new ValidationError('Primary contact name is required');
-  if (!input.primaryContactEmail?.trim()) throw new ValidationError('Primary contact email is required');
 
   await prisma.company.upsert({
     where: { tenantId },
@@ -144,14 +142,9 @@ export async function registerClient(
   actorId: string,
   input: ClientRegistrationInput,
 ): Promise<OnboardingStatus> {
-  if (!input.legalName?.trim()) throw new ValidationError('Client legal name is required');
-  if (!input.addressLine1?.trim()) throw new ValidationError('Client address is required');
-  if (!input.city?.trim()) throw new ValidationError('Client city is required');
-  if (!input.country?.trim()) throw new ValidationError('Client country is required');
-  if (!input.primaryContactName?.trim()) throw new ValidationError('Client contact name is required');
-  if (!input.primaryContactEmail?.trim()) throw new ValidationError('Client contact email is required');
-  if (!input.authority?.name?.trim()) throw new ValidationError('Client authority name is required');
-  if (!input.authority?.email?.trim()) throw new ValidationError('Client authority email is required');
+  if (!input.legalName?.trim()) throw new ValidationError('Client company name is required');
+  if (!input.authority?.name?.trim()) throw new ValidationError('Signatory name is required');
+  if (!input.authority?.email?.trim()) throw new ValidationError('Signatory email is required');
 
   const { authority, ...companyData } = input;
 

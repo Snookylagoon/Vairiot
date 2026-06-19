@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { login, loginWithTwoFactor, refreshTokens } from '../../services/auth.service';
 import { acceptInvite } from '../../services/user.service';
+import { registerNewTenant } from '../../services/registration.service';
 import { authenticate } from '../../middleware/authenticate';
 import { asyncHandler } from '../../middleware/error-handler';
 import { blacklistToken } from '../../lib/redis';
@@ -29,6 +30,26 @@ authRouter.post('/login/2fa', loginLimiter,
     const ipAddress = req.ip ?? req.socket.remoteAddress ?? '0.0.0.0';
     const result = await loginWithTwoFactor(req.body.userId, req.body.token, ipAddress);
     res.json(result);
+  }),
+);
+
+authRouter.post('/register', loginLimiter,
+  [
+    body('organisationName').trim().notEmpty().withMessage('Organisation name is required'),
+    body('name').trim().notEmpty().withMessage('Your name is required'),
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+    body('password').isLength({ min: 12 }).withMessage('Password must be at least 12 characters'),
+  ],
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    const result = await registerNewTenant({
+      organisationName: req.body.organisationName,
+      name: req.body.name,
+      email: req.body.email,
+      password: req.body.password,
+    });
+    res.status(201).json(result);
   }),
 );
 

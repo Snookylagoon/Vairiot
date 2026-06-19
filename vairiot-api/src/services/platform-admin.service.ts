@@ -1,0 +1,267 @@
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+import { prisma } from '../lib/prisma';
+import { logger } from '../lib/logger';
+import { NotFoundError } from '../lib/errors';
+
+// ─── Dashboard Stats ────────────────────────────────────────────────────────
+
+export async function getDashboardStats() {
+  const [
+    totalTenants,
+    activeLicences,
+    expiringLicences,
+    expiredLicences,
+    suspendedLicences,
+    totalUsers,
+    totalAssets,
+    recentTenants,
+  ] = await Promise.all([
+    prisma.tenant.count(),
+    prisma.licence.count({ where: { status: 'active' } }),
+    prisma.licence.count({ where: { status: 'expiring' } }),
+    prisma.licence.count({ where: { status: 'expired' } }),
+    prisma.licence.count({ where: { status: 'suspended' } }),
+    prisma.user.count(),
+    prisma.asset.count({ where: { deletedAt: null } }),
+    prisma.tenant.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        deploymentMode: true,
+        onboardingComplete: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  return {
+    totalTenants,
+    activeLicences,
+    expiringLicences,
+    expiredLicences,
+    suspendedLicences,
+    totalUsers,
+    totalAssets,
+    recentTenants,
+  };
+}
+
+// ─── Tenant Management ──────────────────────────────────────────────────────
+
+interface TenantListFilters {
+  search?: string;
+  deploymentMode?: string;
+  onboardingComplete?: string;
+}
+
+export async function listTenants(filters: TenantListFilters = {}) {
+  const where: Record<string, unknown> = {};
+
+  if (filters.search) {
+    where.OR = [
+      { name: { contains: filters.search, mode: 'insensitive' } },
+      { slug: { contains: filters.search, mode: 'insensitive' } },
+    ];
+  }
+  if (filters.deploymentMode) {
+    where.deploymentMode = filters.deploymentMode;
+  }
+  if (filters.onboardingComplete !== undefined) {
+    where.onboardingComplete = filters.onboardingComplete === 'true';
+  }
+
+  return prisma.tenant.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      deploymentMode: true,
+      onboardingComplete: true,
+      active: true,
+      createdAt: true,
+      _count: { select: { users: true, assets: true } },
+      licences: {
+        where: { status: { notIn: ['revoked'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: {
+          id: true,
+          status: true,
+          expiresAt: true,
+          tier: { select: { name: true, displayName: true } },
+        },
+      },
+    },
+  });
+}
+
+export async function getTenantDetail(tenantId: string) {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    include: {
+      company: true,
+      clientCompanies: {
+        select: {
+          id: true,
+          legalName: true,
+          tradingName: true,
+          registrationNumber: true,
+          createdAt: true,
+        },
+      },
+      users: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          active: true,
+          lastLoginAt: true,
+          createdAt: true,
+          roles: { include: { role: { select: { name: true } } } },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
+      licences: {
+        orderBy: { createdAt: 'desc' },
+        include: {
+          tier: true,
+          deviceSlots: true,
+        },
+      },
+      _count: {
+        select: {
+          assets: true,
+          devices: true,
+          auditCampaigns: true,
+        },
+      },
+    },
+  });
+
+  if (!tenant) throw new NotFoundError('Tenant not found');
+  return tenant;
+}
+
+// ─── Cross-Tenant User Management ───────────────────────────────────────────
+
+interface UserListFilters {
+  search?: string;
+  tenantId?: string;
+  role?: string;
+  active?: string;
+}
+
+export async function listAllUsers(filters: UserListFilters = {}) {
+  const where: Record<string, unknown> = {};
+
+  if (filters.search) {
+    where.OR = [
+      { name: { contains: filters.search, mode: 'insensitive' } },
+      { email: { contains: filters.search, mode: 'insensitive' } },
+    ];
+  }
+  if (filters.tenantId) where.tenantId = filters.tenantId;
+  if (filters.active !== undefined) where.active = filters.active === 'true';
+  if (filters.role) {
+    where.roles = { some: { role: { name: filters.role } } };
+  }
+
+  return prisma.user.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      tenantId: true,
+      name: true,
+      email: true,
+      active: true,
+      twoFactorEnabled: true,
+      failedLoginCount: true,
+      lockedUntil: true,
+      lastLoginAt: true,
+      createdAt: true,
+      tenant: { select: { name: true, slug: true } },
+      roles: { include: { role: { select: { name: true } } } },
+    },
+  });
+}
+
+export async function adminResetPassword(userId: string, actorId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new NotFoundError('User not found');
+
+  const tempPassword = crypto.randomBytes(6).toString('base64url');
+  const passwordHash = await bcrypt.hash(tempPassword, 12);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      passwordHash,
+      mustChangePassword: true,
+      failedLoginCount: 0,
+      lockedUntil: null,
+    },
+  });
+
+  prisma.auditEvent.create({
+    data: {
+      tenantId: user.tenantId,
+      actorId,
+      entityType: 'user',
+      entityId: userId,
+      action: 'admin_password_reset',
+      metadata: { resetBy: actorId },
+    },
+  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+
+  return { temporaryPassword: tempPassword };
+}
+
+export async function unlockUser(userId: string, actorId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new NotFoundError('User not found');
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      failedLoginCount: 0,
+      lockedUntil: null,
+    },
+  });
+
+  prisma.auditEvent.create({
+    data: {
+      tenantId: user.tenantId,
+      actorId,
+      entityType: 'user',
+      entityId: userId,
+      action: 'admin_user_unlocked',
+    },
+  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+}
+
+export async function setUserActiveStatus(userId: string, active: boolean, actorId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new NotFoundError('User not found');
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { active },
+  });
+
+  prisma.auditEvent.create({
+    data: {
+      tenantId: user.tenantId,
+      actorId,
+      entityType: 'user',
+      entityId: userId,
+      action: active ? 'admin_user_enabled' : 'admin_user_disabled',
+    },
+  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+}

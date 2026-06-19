@@ -27,7 +27,22 @@ export interface DeviceInfo {
 export function useLicenceStatus() {
   return useQuery<LicenceStatus>({
     queryKey: ['licence', 'status'],
-    queryFn: () => api.get('/api/v1/licences/status').then(r => r.data),
+    queryFn: async () => {
+      const { data: d } = await api.get('/api/v1/licences/status');
+      return {
+        licence: {
+          id: d.licenceId,
+          tierName: d.tierName,
+          status: d.status,
+          startDate: d.activatedAt,
+          expiryDate: d.expiresAt,
+          isPerpetual: d.expiresAt === null,
+        },
+        tier: { maxAssets: d.assetCap, pricePerYear: 0 },
+        usage: { assetCount: d.assetCount, deviceCount: d.deviceCount, deviceAllowance: d.deviceAllowance },
+        daysRemaining: d.daysRemaining,
+      };
+    },
   });
 }
 

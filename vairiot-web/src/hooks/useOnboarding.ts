@@ -26,7 +26,7 @@ export function useCompleteUserStep() {
 export function useCompleteCompanyStep() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { companyName: string; registrationNumber?: string; address?: string; country?: string }) =>
+    mutationFn: (data: { companyName: string; registrationNumber?: string; address: string; city: string; country: string }) =>
       api.post('/api/v1/onboarding/company', data).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding'] }),
   });

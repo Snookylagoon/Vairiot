@@ -6,6 +6,7 @@ import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoginPage } from '@/pages/auth/LoginPage';
+import { RegisterPage } from '@/pages/auth/RegisterPage';
 const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage').then(m => ({ default: m.AcceptInvitePage })));
 
 const DashboardPage       = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
@@ -79,6 +80,7 @@ export default function App() {
         <Suspense fallback={<PageSpinner />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/accept-invite" element={<AcceptInvitePage />} />
           <Route path="/onboarding" element={<RequireAuthOnly><OnboardingPage /></RequireAuthOnly>} />
           <Route path="/" element={<RequireAuth><AppShell /></RequireAuth>}>

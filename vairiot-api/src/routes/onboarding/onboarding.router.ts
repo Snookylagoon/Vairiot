@@ -17,9 +17,9 @@ onboardingRouter.get('/progress', asyncHandler(async (req: Request, res: Respons
 }));
 
 onboardingRouter.post('/user', asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, phone } = req.body;
+  const { name, phone } = req.body;
   if (!name?.trim()) { res.status(400).json({ error: 'Name is required' }); return; }
-  if (!email?.trim()) { res.status(400).json({ error: 'Email is required' }); return; }
+  const email = req.user!.email;
   const status = await completeUserRegistration(
     req.user!.tenantId,
     req.user!.sub,
@@ -29,12 +29,35 @@ onboardingRouter.post('/user', asyncHandler(async (req: Request, res: Response) 
 }));
 
 onboardingRouter.post('/company', asyncHandler(async (req: Request, res: Response) => {
-  const status = await registerCompany(req.user!.tenantId, req.user!.sub, req.body);
+  const { companyName, registrationNumber, address, city, country } = req.body;
+  // Look up the user's name for primary contact
+  const user = await import('../../lib/prisma').then(m => m.prisma.user.findUnique({ where: { id: req.user!.sub }, select: { name: true } }));
+  const status = await registerCompany(req.user!.tenantId, req.user!.sub, {
+    legalName: companyName,
+    registrationNumber: registrationNumber || undefined,
+    addressLine1: address,
+    city,
+    country,
+    primaryContactName: user?.name ?? req.user!.email.split('@')[0],
+    primaryContactEmail: req.user!.email,
+  });
   res.json(status);
 }));
 
 onboardingRouter.post('/client', asyncHandler(async (req: Request, res: Response) => {
-  const status = await registerClient(req.user!.tenantId, req.user!.sub, req.body);
+  const { clientName, contactEmail, signatoryName, signatoryEmail } = req.body;
+  const status = await registerClient(req.user!.tenantId, req.user!.sub, {
+    legalName: clientName,
+    addressLine1: '',
+    city: '',
+    country: '',
+    primaryContactName: signatoryName,
+    primaryContactEmail: contactEmail,
+    authority: {
+      name: signatoryName,
+      email: signatoryEmail,
+    },
+  });
   res.json(status);
 }));
 

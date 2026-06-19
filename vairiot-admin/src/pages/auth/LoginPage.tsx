@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { loginSchema, type LoginFormData } from '@/lib/schemas';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { TOKEN_KEY, REFRESH_KEY } from '@/lib/api';
 
 export function LoginPage() {
   const { hydrate } = useAuthStore();
@@ -33,13 +33,18 @@ export function LoginPage() {
         return;
       }
 
-      localStorage.setItem('vairiot_access_token', result.accessToken);
-      localStorage.setItem('vairiot_refresh_token', result.refreshToken);
+      localStorage.setItem(TOKEN_KEY, result.accessToken);
+      localStorage.setItem(REFRESH_KEY, result.refreshToken);
       await hydrate();
+      const { user } = useAuthStore.getState();
+      if (!user) {
+        setError('Access denied. This portal is restricted to platform administrators.');
+        return;
+      }
       navigate('/dashboard');
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setError(msg ?? 'Invalid email, password, or organisation ID.');
+      setError(msg ?? 'Invalid credentials or insufficient permissions.');
     }
   };
 
@@ -51,9 +56,14 @@ export function LoginPage() {
       const { data: result } = await api.post('/api/v1/auth/login/2fa', {
         userId: twoFactor.userId, token: tfaToken,
       });
-      localStorage.setItem('vairiot_access_token', result.accessToken);
-      localStorage.setItem('vairiot_refresh_token', result.refreshToken);
+      localStorage.setItem(TOKEN_KEY, result.accessToken);
+      localStorage.setItem(REFRESH_KEY, result.refreshToken);
       await hydrate();
+      const { user } = useAuthStore.getState();
+      if (!user) {
+        setError('Access denied. This portal is restricted to platform administrators.');
+        return;
+      }
       navigate('/dashboard');
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -73,13 +83,13 @@ export function LoginPage() {
             <h1 className="text-4xl font-extrabold text-v-charcoal tracking-tight font-sans">
               VAIR<span className="v-gradient-text">IOT</span>
             </h1>
-            <p className="mt-2 text-sm text-gray-500">Enhanced Asset Management</p>
+            <p className="mt-2 text-sm text-gray-500">Management Portal</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-v-card border border-gray-100 p-8 space-y-5">
             {!twoFactor ? (
               <>
-                <h2 className="text-lg font-bold text-v-charcoal">Sign in to your account</h2>
+                <h2 className="text-lg font-bold text-v-charcoal">Administrator Sign In</h2>
 
                 {error && (
                   <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -88,22 +98,17 @@ export function LoginPage() {
                 )}
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  <Input label="Organisation ID" placeholder="your-organisation" error={errors.tenantId?.message} {...register('tenantId')} />
-                  <Input label="Email address" type="email" placeholder="you@example.com" error={errors.email?.message} {...register('email')} />
+                  <Input label="Organisation ID" placeholder="platform" error={errors.tenantId?.message} {...register('tenantId')} />
+                  <Input label="Email address" type="email" placeholder="admin@vairiot.com" error={errors.email?.message} {...register('email')} />
                   <Input label="Password" type="password" placeholder="••••••••" error={errors.password?.message} {...register('password')} />
                   <Button type="submit" size="lg" loading={isSubmitting} className="w-full mt-2">Sign in</Button>
                 </form>
-
-                <p className="text-center text-sm text-gray-500">
-                  Don&apos;t have an account?{' '}
-                  <Link to="/register" className="text-v-violet hover:underline font-medium">New Registration</Link>
-                </p>
               </>
             ) : (
               <>
                 <h2 className="text-lg font-bold text-v-charcoal">Two-Factor Verification</h2>
                 <p className="text-sm text-gray-500">
-                  Enter the 6-digit code from your authenticator app, or use a backup code.
+                  Enter the 6-digit code from your authenticator app.
                 </p>
 
                 {error && (

@@ -6,6 +6,7 @@
   "workspaces": [
     "vairiot-api",
     "vairiot-web",
+    "vairiot-admin",
     "vairiot-worker",
     "vairiot-shared"
   ],
@@ -13,6 +14,7 @@
     "dev": "docker compose -f infra/docker-compose.yml up",
     "dev:api": "npm run dev --workspace=vairiot-api",
     "dev:web": "npm run dev --workspace=vairiot-web",
+    "dev:admin": "npm run dev --workspace=vairiot-admin",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint \"**/*.{js,ts,tsx}\" --ignore-path .eslintignore",
     "lint:fix": "eslint \"**/*.{js,ts,tsx}\" --ignore-path .eslintignore --fix",

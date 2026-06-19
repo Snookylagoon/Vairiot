@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html><head><title>Vairiot Demo Tour</title></head>
+<body>
+<h2>Logging in...</h2>
+<script>
+(async () => {
+  const res = await fetch('/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: 'admin@demo.vairiot.com',
+      password: 'DemoPassword1!',
+      tenantId: 'demo'
+    })
+  });
+  const data = await res.json();
+  if (data.accessToken) {
+    localStorage.setItem('vairiot_access_token', data.accessToken);
+    localStorage.setItem('vairiot_refresh_token', data.refreshToken);
+    const target = new URLSearchParams(window.location.search).get('goto') || '/dashboard';
+    window.location.href = target;
+  } else {
+    document.body.innerHTML = '<h2>Login failed</h2><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+  }
+})();
+</script>
+</body>
+</html>

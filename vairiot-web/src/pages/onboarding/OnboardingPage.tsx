@@ -9,7 +9,6 @@ import {
   useCompleteUserStep,
   useCompleteCompanyStep,
   useCompleteClientStep,
-  useActivateLicence,
   useFinaliseOnboarding,
 } from '@/hooks/useOnboarding';
 import { useAuthStore } from '@/stores/auth.store';
@@ -22,11 +21,6 @@ const STEPS = [
   { key: 'licence_activation',   label: 'Licence',         icon: '4' },
 ] as const;
 
-const TIERS = [
-  { name: 'FREE',   label: 'Free',      assets: '500',       price: 'Free forever',   colour: 'border-gray-300' },
-  { name: 'TIER_2', label: 'Standard',   assets: '1,500',     price: '$50 / year',     colour: 'border-v-mauve' },
-  { name: 'TIER_3', label: 'Enterprise', assets: 'Unlimited', price: '$100 / year',    colour: 'border-v-pink' },
-];
 
 export function OnboardingPage() {
   const { data: progress, isLoading } = useOnboardingProgress();
@@ -120,11 +114,14 @@ function UserStep({ progress, onDone }: { progress: ReturnType<typeof useOnboard
 
 function CompanyStep({ progress, onDone }: { progress: ReturnType<typeof useOnboardingProgress>['data']; onDone: () => void }) {
   const mutation = useCompleteCompanyStep();
-  const [form, setForm] = useState({ companyName: '', registrationNumber: '', address: '', country: '' });
+  const [form, setForm] = useState({ companyName: '', registrationNumber: '', address: '', city: '', country: '' });
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const submit = async () => {
     if (!form.companyName.trim()) { toast.error('Company name is required'); return; }
+    if (!form.address.trim()) { toast.error('Address is required'); return; }
+    if (!form.city.trim()) { toast.error('City is required'); return; }
+    if (!form.country.trim()) { toast.error('Country is required'); return; }
     try {
       await mutation.mutateAsync(form);
       toast.success('Organisation registered');
@@ -142,8 +139,9 @@ function CompanyStep({ progress, onDone }: { progress: ReturnType<typeof useOnbo
       <p className="text-sm text-gray-500">Register your company or organisation.</p>
       <Input label="Company Name" value={form.companyName} onChange={set('companyName')} placeholder="Acme Ltd" />
       <Input label="Registration Number (optional)" value={form.registrationNumber} onChange={set('registrationNumber')} placeholder="NZ1234567" />
-      <Input label="Address (optional)" value={form.address} onChange={set('address')} placeholder="123 Main St, Wellington" />
-      <CountrySelect label="Country (optional)" value={form.country}
+      <Input label="Address" value={form.address} onChange={set('address')} placeholder="123 Main St" />
+      <Input label="City" value={form.city} onChange={set('city')} placeholder="Wellington" />
+      <CountrySelect label="Country" value={form.country}
         onChange={v => setForm(f => ({ ...f, country: v }))} />
       <div className="flex justify-end gap-3">
         {done && <span className="self-center text-sm text-green-600 font-medium">Completed</span>}
@@ -196,23 +194,28 @@ function ClientStep({ progress, onDone }: { progress: ReturnType<typeof useOnboa
 
 // ── Step 4: Licence activation ────────────────────────────────────────────────
 
+const UPGRADE_TIERS = [
+  {
+    name: 'TIER_2',
+    label: 'Professional',
+    price: '$50 / year',
+    features: ['Up to 5 device registrations', 'Up to 1,500 assets', 'Priority support'],
+    colour: 'border-v-mauve',
+  },
+  {
+    name: 'TIER_3',
+    label: 'Enterprise',
+    price: '$100 / year',
+    features: ['Unlimited device registrations', 'Unlimited assets', 'Dedicated support', 'Custom integrations'],
+    colour: 'border-v-pink',
+  },
+];
+
 function LicenceStep({ progress }: { progress: ReturnType<typeof useOnboardingProgress>['data'] }) {
-  const activateMutation = useActivateLicence();
   const finaliseMutation = useFinaliseOnboarding();
   const navigate = useNavigate();
   const hydrate = useAuthStore(s => s.hydrate);
-  const [selectedTier, setSelectedTier] = useState('FREE');
-
-  const activate = async () => {
-    try {
-      await activateMutation.mutateAsync({ tierName: selectedTier });
-      toast.success('Licence activated');
-    } catch (e: unknown) {
-      toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Activation failed');
-    }
-  };
-
-  const done = progress?.steps.licence_activation?.completed;
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const finalise = async () => {
     try {
@@ -225,36 +228,72 @@ function LicenceStep({ progress }: { progress: ReturnType<typeof useOnboardingPr
     }
   };
 
+  const upgradeMailto = (tier: typeof UPGRADE_TIERS[number]) => {
+    const subject = encodeURIComponent(`Licence Upgrade Request — ${tier.label}`);
+    const body = encodeURIComponent(
+      `Hi Vairiot,\n\nI would like to upgrade my licence to the ${tier.label} plan (${tier.price}).\n\nPlease send me the payment details.\n\nThank you.`,
+    );
+    return `mailto:licensing@vairiot.com?subject=${subject}&body=${body}`;
+  };
+
   return (
     <Card className="p-6 space-y-6">
-      <h2 className="text-lg font-bold text-v-charcoal">Choose Your Licence</h2>
-      <p className="text-sm text-gray-500">
-        Select a tier to get started. You can upgrade later. Paid tiers require manual payment confirmation by the Licensing Authority.
-      </p>
+      <h2 className="text-lg font-bold text-v-charcoal">Your Licence</h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {TIERS.map(t => (
-          <button
-            key={t.name}
-            onClick={() => setSelectedTier(t.name)}
-            className={`rounded-xl border-2 p-4 text-left transition-all ${
-              selectedTier === t.name ? `${t.colour} ring-2 ring-v-pink bg-v-wash` : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="font-bold text-v-charcoal">{t.label}</div>
-            <div className="text-xs text-gray-500 mt-1">{t.assets} assets</div>
-            <div className="mt-3 text-sm font-semibold v-gradient-text">{t.price}</div>
-          </button>
-        ))}
+      <div className="rounded-xl border-2 border-green-300 bg-green-50 p-5">
+        <div className="flex items-center gap-2">
+          <span className="text-green-600 text-lg">✓</span>
+          <span className="font-bold text-v-charcoal">Free Licence — Active</span>
+        </div>
+        <ul className="mt-3 space-y-1 text-sm text-gray-600">
+          <li>• 1 device registration included</li>
+          <li>• Up to 500 assets</li>
+          <li>• Free forever</li>
+        </ul>
       </div>
 
-      <div className="flex justify-end gap-3">
-        {!done && <Button onClick={activate} loading={activateMutation.isPending}>Activate Licence</Button>}
-        {done && (
-          <Button onClick={finalise} loading={finaliseMutation.isPending}>
-            Complete Setup
-          </Button>
-        )}
+      <button
+        type="button"
+        onClick={() => setShowUpgrade(!showUpgrade)}
+        className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-left hover:bg-gray-100 transition-colors"
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-600 font-medium">
+            Need more devices or higher asset limits? View upgrade options
+          </p>
+          <span className={`text-gray-400 transition-transform ${showUpgrade ? 'rotate-180' : ''}`}>▼</span>
+        </div>
+      </button>
+
+      {showUpgrade && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {UPGRADE_TIERS.map(tier => (
+              <div key={tier.name} className={`rounded-xl border-2 ${tier.colour} p-5 space-y-3`}>
+                <div className="font-bold text-v-charcoal text-lg">{tier.label}</div>
+                <div className="text-sm font-semibold v-gradient-text">{tier.price}</div>
+                <ul className="space-y-1 text-sm text-gray-600">
+                  {tier.features.map(f => <li key={f}>• {f}</li>)}
+                </ul>
+                <a
+                  href={upgradeMailto(tier)}
+                  className="inline-block w-full text-center rounded-lg bg-v-gradient px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+                >
+                  Request {tier.label} Upgrade
+                </a>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Online payment coming soon — for now, our team will process your upgrade manually.
+          </p>
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <Button onClick={finalise} loading={finaliseMutation.isPending}>
+          Complete Setup
+        </Button>
       </div>
     </Card>
   );

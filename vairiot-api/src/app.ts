@@ -26,6 +26,7 @@ import { customFieldsRouter } from './routes/custom-fields/custom-fields.router'
 import { licencesRouter }    from './routes/licences/licences.router';
 import { onboardingRouter } from './routes/onboarding/onboarding.router';
 import { twoFactorRouter } from './routes/two-factor/two-factor.router';
+import { platformRouter } from './routes/admin/platform.router';
 import { globalLimiter } from './middleware/rate-limit';
 import { errorHandler } from './middleware/error-handler';
 import { requestId } from './middleware/request-id';
@@ -37,7 +38,8 @@ export function createApp(): Application {
   const app = express();
   app.set('trust proxy', 1);
   app.use(helmet());
-  app.use(cors({ origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000', credentials: true }));
+  const allowedOrigins = (process.env.WEB_ORIGIN ?? 'http://localhost:3000,http://localhost:3002').split(',').map(o => o.trim());
+  app.use(cors({ origin: allowedOrigins, credentials: true }));
   app.use(globalLimiter);
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
@@ -78,6 +80,7 @@ export function createApp(): Application {
   gated.use('/webhooks',     webhooksRouter);
   gated.use('/custom-fields', customFieldsRouter);
   gated.use('/licences',     licencesRouter);
+  gated.use('/admin/platform', platformRouter);
 
   app.use('/api/v1', gated);
   app.use((_req: Request, res: Response) => { res.status(404).json({ error: 'Not found' }); });
