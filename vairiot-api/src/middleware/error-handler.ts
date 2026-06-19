@@ -7,7 +7,7 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     res.status(err.statusCode).json({ error: err.message, code: err.code });
     return;
   }
-  logger.error('Unhandled error', { error: err.message, stack: err.stack });
+  logger.error('Unhandled error', { error: err.message, stack: err.stack, requestId: _req.requestId });
   res.status(500).json({ error: 'Internal server error' });
 }
 

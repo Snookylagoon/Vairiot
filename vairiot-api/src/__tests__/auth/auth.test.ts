@@ -23,7 +23,7 @@ afterAll(async () => {
 });
 describe('GET /health', () => {
   it('returns ok', async () => { expect((await request(app).get('/health')).status).toBe(200); });
-  it('returns ready', async () => { const r = await request(app).get('/health/ready'); expect(r.status).toBe(200); expect(r.body.database).toBe('connected'); });
+  it('returns ready', async () => { const r = await request(app).get('/health/ready'); expect(r.status).toBe(200); expect(r.body.checks.database).toBe('connected'); });
 });
 describe('POST /api/v1/auth/login', () => {
   it('returns tokens', async () => {

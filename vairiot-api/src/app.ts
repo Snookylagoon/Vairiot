@@ -1,7 +1,6 @@
 import cors from 'cors';
 import express, { Application, NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 import { openApiSpec } from './lib/openapi';
 import { authRouter }       from './routes/auth/auth.router';
@@ -24,9 +23,10 @@ import { timelineRouter }     from './routes/timeline/timeline.router';
 import { alertsRouter }       from './routes/alerts/alerts.router';
 import { webhooksRouter }     from './routes/webhooks/webhooks.router';
 import { customFieldsRouter } from './routes/custom-fields/custom-fields.router';
-import { logger } from './lib/logger';
 import { globalLimiter } from './middleware/rate-limit';
 import { errorHandler } from './middleware/error-handler';
+import { requestId } from './middleware/request-id';
+import { requestLogger } from './middleware/request-logger';
 
 export function createApp(): Application {
   const app = express();
@@ -36,10 +36,8 @@ export function createApp(): Application {
   app.use(globalLimiter);
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
-  app.use(morgan('combined', {
-    stream: { write: (msg) => logger.http(msg.trim()) },
-    skip: () => process.env.NODE_ENV === 'test',
-  }));
+  app.use(requestId);
+  app.use(requestLogger);
   app.use((_req, res, next) => { res.setHeader('X-API-Version', '1.0.0'); next(); });
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, { customSiteTitle: 'Vairiot API Docs' }));
   app.get('/api/openapi.json', (_req, res) => { res.json(openApiSpec); });

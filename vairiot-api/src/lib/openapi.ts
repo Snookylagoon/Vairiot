@@ -5,7 +5,10 @@ export const openApiSpec = {
     version: '1.0.0',
     description: 'Multi-tenant asset management platform API',
   },
-  servers: [{ url: '/api/v1', description: 'API v1' }],
+  servers: [
+    { url: '/api/v1', description: 'API v1' },
+    { url: '/', description: 'Root (health endpoints)' },
+  ],
   components: {
     securitySchemes: {
       bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
@@ -603,5 +606,9 @@ export const openApiSpec = {
       get: { tags: ['Admin'], summary: 'List audit events', parameters: [{ name: 'entityType', in: 'query', schema: { type: 'string' } }, { name: 'entityId', in: 'query', schema: { type: 'string' } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'pageSize', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'Audit event list' } } },
     },
     '/audit-events/export.csv': { get: { tags: ['Admin'], summary: 'Export audit log as CSV', responses: { 200: { description: 'CSV file', content: { 'text/csv': { schema: { type: 'string' } } } } } } },
+    // ── Health (served from root, not /api/v1) ──
+    '/health': { get: { tags: ['Health'], summary: 'Liveness check', security: [], servers: [{ url: '/' }], responses: { 200: { description: 'Service is alive', content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string' }, service: { type: 'string' }, time: { type: 'string', format: 'date-time' } } } } } } } } },
+    '/health/ready': { get: { tags: ['Health'], summary: 'Readiness check (DB + Redis)', security: [], servers: [{ url: '/' }], responses: { 200: { description: 'All dependencies connected' }, 503: { description: 'One or more dependencies unavailable' } } } },
+    '/health/metrics': { get: { tags: ['Health'], summary: 'Request metrics summary', security: [], servers: [{ url: '/' }], responses: { 200: { description: 'Metrics snapshot', content: { 'application/json': { schema: { type: 'object', properties: { totalRequests: { type: 'integer' }, totalErrors: { type: 'integer' }, statusCodes: { type: 'object' }, avgResponseTime: { type: 'integer' }, p95ResponseTime: { type: 'integer' }, uptimeSeconds: { type: 'integer' } } } } } } } } },
   },
 } as const;
