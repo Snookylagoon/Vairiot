@@ -2,6 +2,8 @@ import cors from 'cors';
 import express, { Application, NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import swaggerUi from 'swagger-ui-express';
+import { openApiSpec } from './lib/openapi';
 import { authRouter }       from './routes/auth/auth.router';
 import { healthRouter }     from './routes/health/health.router';
 import { assetsRouter }     from './routes/assets/assets.router';
@@ -38,6 +40,9 @@ export function createApp(): Application {
     stream: { write: (msg) => logger.http(msg.trim()) },
     skip: () => process.env.NODE_ENV === 'test',
   }));
+  app.use((_req, res, next) => { res.setHeader('X-API-Version', '1.0.0'); next(); });
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, { customSiteTitle: 'Vairiot API Docs' }));
+  app.get('/api/openapi.json', (_req, res) => { res.json(openApiSpec); });
   app.use('/health',              healthRouter);
   app.use('/api/v1/auth',         authRouter);
   app.use('/api/v1/assets',       assetsRouter);
