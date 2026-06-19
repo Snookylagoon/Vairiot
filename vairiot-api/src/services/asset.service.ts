@@ -277,8 +277,8 @@ export async function updateAsset(tenantId: string, id: string, actorId: string,
 
   const data: Record<string, any> = {};
   for (const f of STRING_FIELDS) if (input[f] !== undefined) data[f] = input[f];
-  for (const f of DECIMAL_FIELDS) if (input[f] != null) data[f] = new Prisma.Decimal(input[f]!);
-  for (const f of DATE_FIELDS) if (input[f] !== undefined) data[f] = new Date(input[f]!);
+  for (const f of DECIMAL_FIELDS) if (input[f] !== undefined) data[f] = input[f] ? new Prisma.Decimal(input[f]!) : null;
+  for (const f of DATE_FIELDS) if (input[f] !== undefined) data[f] = input[f] ? new Date(input[f]!) : null;
   for (const f of REF_FIELDS) if (input[f] !== undefined) data[f] = input[f] ?? null;
   if (input.usefulLifeMonths !== undefined) data.usefulLifeMonths = input.usefulLifeMonths;
 

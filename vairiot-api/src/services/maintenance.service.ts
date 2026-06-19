@@ -49,9 +49,21 @@ export async function getMaintenanceEvent(tenantId: string, id: string) {
   return prisma.maintenanceEvent.findFirst({ where: { id, tenantId }, select: maintenanceSelect });
 }
 
+async function nextWorkOrderNumber(tenantId: string): Promise<string> {
+  const last = await prisma.maintenanceEvent.findFirst({
+    where: { tenantId, workOrderNumber: { startsWith: 'MAINT-' } },
+    orderBy: { workOrderNumber: 'desc' },
+    select: { workOrderNumber: true },
+  });
+  const seq = last?.workOrderNumber ? parseInt(last.workOrderNumber.replace('MAINT-', ''), 10) + 1 : 1;
+  return `MAINT-${String(seq).padStart(8, '0')}`;
+}
+
 export async function createMaintenanceEvent(tenantId: string, actorId: string, input: MaintenanceCreateInput) {
   const asset = await prisma.asset.findFirst({ where: { id: input.assetId, tenantId, deletedAt: null } });
   if (!asset) throw new NotFoundError('Asset not found');
+
+  const workOrderNumber = input.workOrderNumber || await nextWorkOrderNumber(tenantId);
 
   return prisma.maintenanceEvent.create({
     data: {
@@ -59,7 +71,7 @@ export async function createMaintenanceEvent(tenantId: string, actorId: string, 
       assetId: input.assetId,
       maintenanceType: input.maintenanceType,
       vendor: input.vendor,
-      workOrderNumber: input.workOrderNumber,
+      workOrderNumber,
       cost: input.cost != null ? new Prisma.Decimal(input.cost) : undefined,
       description: input.description,
       scheduledDate: input.scheduledDate ? new Date(input.scheduledDate) : undefined,

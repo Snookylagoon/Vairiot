@@ -71,7 +71,7 @@ function CheckoutForm({ onDone }: { onDone: () => void }) {
         </select>
       </div>
       <Input label="Custodian"      value={custodianId}    onChange={(e) => setCustodianId(e.target.value)} placeholder="Name or employee ID" required />
-      <Input label="Expected return" type="date" value={expectedReturn} onChange={(e) => setExp(e.target.value)} />
+      <Input label="Expected return" type="date" value={expectedReturn} onChange={(e) => setExp(e.target.value)} className="max-w-[12rem]" />
       <Input label="Notes"          value={notes}          onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex justify-end gap-2 pt-2">

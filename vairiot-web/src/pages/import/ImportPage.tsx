@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, CheckCircle, AlertTriangle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useImportAssets } from '@/hooks/useImport';
@@ -125,6 +125,17 @@ export function ImportPage() {
     setStep('result');
   };
 
+  const downloadTemplate = () => {
+    const headers = ASSET_FIELDS.map(f => f.label).join(',');
+    const blob = new Blob([headers + '\n'], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'asset-import-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const reset = () => {
     setStep('upload');
     setCsvHeaders([]);
@@ -171,6 +182,10 @@ export function ImportPage() {
               <p className="text-xs text-gray-400 mt-4">
                 CSV must include a header row. The first column should contain the asset name.
               </p>
+              <button type="button" onClick={downloadTemplate}
+                className="inline-flex items-center gap-1.5 mt-3 text-xs text-v-violet hover:text-v-pink transition-colors">
+                <Download size={13} /> Download CSV template
+              </button>
             </div>
           </CardBody>
         </Card>

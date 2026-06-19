@@ -116,7 +116,7 @@ export function MaintenancePage() {
                 {errors.maintenanceType && <p className="text-xs text-red-500 mt-1">{errors.maintenanceType.message}</p>}
               </div>
               <Input label="Vendor" {...register('vendor')} />
-              <Input label="Work Order #" {...register('workOrderNumber')} />
+              <Input label="Work Order #" placeholder="Auto: MAINT-00000001" disabled {...register('workOrderNumber')} />
               <Input label={`Cost (${currencySymbol})`} type="number" step="0.01" {...register('cost')} />
               <Input label="Scheduled Date" type="date" {...register('scheduledDate')} />
               <Input label="Completed Date" type="date" {...register('completedDate')} />
