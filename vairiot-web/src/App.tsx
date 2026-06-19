@@ -6,6 +6,7 @@ import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoginPage } from '@/pages/auth/LoginPage';
+const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage').then(m => ({ default: m.AcceptInvitePage })));
 
 const DashboardPage       = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const AssetsPage           = lazy(() => import('@/pages/assets/AssetsPage').then(m => ({ default: m.AssetsPage })));
@@ -78,6 +79,7 @@ export default function App() {
         <Suspense fallback={<PageSpinner />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/accept-invite" element={<AcceptInvitePage />} />
           <Route path="/onboarding" element={<RequireAuthOnly><OnboardingPage /></RequireAuthOnly>} />
           <Route path="/" element={<RequireAuth><AppShell /></RequireAuth>}>
             <Route index element={<Navigate to="/dashboard" replace />} />

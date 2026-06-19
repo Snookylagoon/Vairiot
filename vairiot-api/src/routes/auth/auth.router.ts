@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { login, loginWithTwoFactor, refreshTokens } from '../../services/auth.service';
+import { acceptInvite } from '../../services/user.service';
 import { authenticate } from '../../middleware/authenticate';
 import { asyncHandler } from '../../middleware/error-handler';
 import { blacklistToken } from '../../lib/redis';
@@ -28,6 +29,15 @@ authRouter.post('/login/2fa', loginLimiter,
     const ipAddress = req.ip ?? req.socket.remoteAddress ?? '0.0.0.0';
     const result = await loginWithTwoFactor(req.body.userId, req.body.token, ipAddress);
     res.json(result);
+  }),
+);
+
+authRouter.post('/accept-invite',
+  [body('token').notEmpty(), body('password').isLength({ min: 8 })],
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    res.json(await acceptInvite(req.body.token, req.body.password));
   }),
 );
 

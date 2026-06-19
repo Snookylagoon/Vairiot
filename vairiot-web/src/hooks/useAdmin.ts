@@ -47,10 +47,19 @@ export function useRoles() {
 export function useInviteUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { email: string; name: string; password: string; roleId?: string }) =>
+    mutationFn: (data: { email: string; name: string; roleId?: string }) =>
       api.post('/api/v1/users', data).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'users'] }); toast.success('User invited'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'users'] }); toast.success('Invitation email sent'); },
     onError:   () => { toast.error('Failed to invite user'); },
+  });
+}
+
+export function useResendInvite() {
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api.post(`/api/v1/users/${userId}/resend-invite`).then(r => r.data),
+    onSuccess: () => { toast.success('Invitation resent'); },
+    onError:   () => { toast.error('Failed to resend invitation'); },
   });
 }
 

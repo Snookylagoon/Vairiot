@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CountrySelect } from '@/components/ui/CountrySelect';
 import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
 export function SitesPage() {
@@ -38,7 +39,10 @@ export function SitesPage() {
         country: form.country.trim() || undefined,
       });
       setForm({ name: '', address: '', city: '', country: '' });
-    } catch { setError('Failed to create site.'); }
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(msg ?? 'Failed to create site.');
+    }
   };
 
   return (
@@ -59,8 +63,8 @@ export function SitesPage() {
             <div className="grid grid-cols-2 gap-3">
               <Input label="City"    placeholder="City"    value={form.city}
                 onChange={e => set('city', e.target.value)} />
-              <Input label="Country" placeholder="Country" value={form.country}
-                onChange={e => set('country', e.target.value)} />
+              <CountrySelect label="Country" value={form.country}
+                onChange={v => set('country', v)} />
             </div>
             <Button onClick={handleCreate} loading={createSite.isPending}>
               <Plus size={15} className="mr-1.5" /> Add Site

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { CountrySelect } from '@/components/ui/CountrySelect';
 import {
   useOnboardingProgress,
   useCompleteUserStep,
@@ -142,7 +143,8 @@ function CompanyStep({ progress, onDone }: { progress: ReturnType<typeof useOnbo
       <Input label="Company Name" value={form.companyName} onChange={set('companyName')} placeholder="Acme Ltd" />
       <Input label="Registration Number (optional)" value={form.registrationNumber} onChange={set('registrationNumber')} placeholder="NZ1234567" />
       <Input label="Address (optional)" value={form.address} onChange={set('address')} placeholder="123 Main St, Wellington" />
-      <Input label="Country (optional)" value={form.country} onChange={set('country')} placeholder="New Zealand" />
+      <CountrySelect label="Country (optional)" value={form.country}
+        onChange={v => setForm(f => ({ ...f, country: v }))} />
       <div className="flex justify-end gap-3">
         {done && <span className="self-center text-sm text-green-600 font-medium">Completed</span>}
         <Button onClick={submit} loading={mutation.isPending}>Save &amp; Continue</Button>

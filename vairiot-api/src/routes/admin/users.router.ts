@@ -3,7 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import {
-  listUsers, listRoles, inviteUser, setUserActive, setUserRole,
+  listUsers, listRoles, inviteUser, setUserActive, setUserRole, resendInvite,
 } from '../../services/user.service';
 
 export const usersRouter = Router();
@@ -24,13 +24,18 @@ usersRouter.post('/', requireAnyPermission('user:write'),
   [
     body('email').isEmail().normalizeEmail(),
     body('name').notEmpty(),
-    body('password').isLength({ min: 8 }),
     body('roleId').optional().isString(),
   ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     res.status(201).json(await inviteUser(req.user!.tenantId, req.user!.sub, req.body));
+  }),
+);
+
+usersRouter.post('/:userId/resend-invite', requireAnyPermission('user:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await resendInvite(req.user!.tenantId, req.user!.sub, req.params.userId));
   }),
 );
 

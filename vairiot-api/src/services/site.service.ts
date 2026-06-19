@@ -11,7 +11,22 @@ export async function listSites(tenantId: string) {
 }
 
 export async function createSite(tenantId: string, data: { name: string; address?: string; city?: string; country?: string }) {
-  return prisma.site.create({ data: { tenantId, ...data } });
+  try {
+    return await prisma.site.create({
+      data: {
+        tenantId,
+        name: data.name,
+        address: data.address,
+        city: data.city,
+        country: data.country,
+      },
+    });
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === 'P2002') {
+      throw new ConflictError('A site with that name already exists', 'SITE_NAME_EXISTS');
+    }
+    throw e;
+  }
 }
 
 export async function listLocations(siteId: string, tenantId: string) {

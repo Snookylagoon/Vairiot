@@ -60,6 +60,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await prisma.userInvitation.deleteMany({ where: { tenantId: TID } });
   await prisma.auditEvent.deleteMany({ where: { tenantId: TID } });
   await prisma.userRole.deleteMany({ where: { user: { tenantId: TID } } });
   await prisma.user.deleteMany({ where: { tenantId: TID } });
@@ -100,22 +101,26 @@ describe('POST /api/v1/users', () => {
   it('rejects invalid payload', async () => {
     const r = await request(app).post('/api/v1/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'not-an-email', name: '', password: 'short' });
+      .send({ email: 'not-an-email', name: '' });
     expect(r.status).toBe(400);
   });
 
-  it('creates a user', async () => {
+  it('creates an inactive user and queues invitation', async () => {
     const r = await request(app).post('/api/v1/users')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         email: 'invitee@users-test.vairiot.test',
         name: 'Invitee',
-        password: 'InviteePassword123!',
         roleId: memberRoleId,
       });
     expect(r.status).toBe(201);
     expect(r.body.email).toBe('invitee@users-test.vairiot.test');
+    expect(r.body.active).toBe(false);
     inviteeId = r.body.id;
+
+    const invitation = await prisma.userInvitation.findFirst({ where: { userId: inviteeId } });
+    expect(invitation).not.toBeNull();
+    expect(invitation!.accepted).toBe(false);
   });
 
   it('returns 409 on duplicate email', async () => {
@@ -124,7 +129,6 @@ describe('POST /api/v1/users', () => {
       .send({
         email: 'invitee@users-test.vairiot.test',
         name: 'Dup',
-        password: 'InviteePassword123!',
       });
     expect(r.status).toBe(409);
   });
@@ -132,8 +136,34 @@ describe('POST /api/v1/users', () => {
   it('rejects non-admin', async () => {
     const r = await request(app).post('/api/v1/users')
       .set('Authorization', `Bearer ${readerToken}`)
-      .send({ email: 'x@x.test', name: 'x', password: 'Password123!' });
+      .send({ email: 'x@x.test', name: 'x' });
     expect(r.status).toBe(403);
+  });
+});
+
+describe('POST /api/v1/auth/accept-invite', () => {
+  it('rejects invalid token', async () => {
+    const r = await request(app).post('/api/v1/auth/accept-invite')
+      .send({ token: 'bogus', password: 'NewPassword123!' });
+    expect(r.status).toBe(404);
+  });
+
+  it('activates user with valid token', async () => {
+    const invitation = await prisma.userInvitation.findFirst({ where: { userId: inviteeId } });
+    const r = await request(app).post('/api/v1/auth/accept-invite')
+      .send({ token: invitation!.token, password: 'NewPassword123!' });
+    expect(r.status).toBe(200);
+
+    const user = await prisma.user.findUnique({ where: { id: inviteeId } });
+    expect(user!.active).toBe(true);
+    expect(user!.passwordHash).not.toBeNull();
+  });
+
+  it('rejects already-used token', async () => {
+    const invitation = await prisma.userInvitation.findFirst({ where: { userId: inviteeId } });
+    const r = await request(app).post('/api/v1/auth/accept-invite')
+      .send({ token: invitation!.token, password: 'NewPassword123!' });
+    expect(r.status).toBe(409);
   });
 });
 

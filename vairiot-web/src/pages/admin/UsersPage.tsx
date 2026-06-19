@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { UserPlus, User as UserIcon, ShieldCheck, Power, Search } from 'lucide-react';
+import { UserPlus, User as UserIcon, ShieldCheck, Power, Search, MailPlus } from 'lucide-react';
 import {
-  useUsers, useRoles, useInviteUser, useSetUserActive, useSetUserRole,
+  useUsers, useRoles, useInviteUser, useSetUserActive, useSetUserRole, useResendInvite,
 } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,9 +14,10 @@ import { inviteUserSchema, type InviteUserFormData } from '@/lib/schemas';
 export function UsersPage() {
   const { data: users = [], isLoading } = useUsers();
   const { data: roles = [] } = useRoles();
-  const invite     = useInviteUser();
-  const setActive  = useSetUserActive();
-  const setRole    = useSetUserRole();
+  const invite      = useInviteUser();
+  const setActive   = useSetUserActive();
+  const setRole     = useSetUserRole();
+  const resendInvite = useResendInvite();
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<InviteUserFormData>({
     resolver: zodResolver(inviteUserSchema),
@@ -32,10 +33,9 @@ export function UsersPage() {
 
   const onInvite = async (data: InviteUserFormData) => {
     await invite.mutateAsync({
-      email:    data.email,
-      name:     data.name,
-      password: data.password,
-      roleId:   data.roleId || undefined,
+      email:  data.email,
+      name:   data.name,
+      roleId: data.roleId || undefined,
     });
     reset();
   };
@@ -51,10 +51,9 @@ export function UsersPage() {
         <CardBody>
           <form onSubmit={handleSubmit(onInvite)} className="space-y-3">
             <h3 className="font-semibold text-v-charcoal text-sm">Invite User</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Input label="Name *"     placeholder="Jane Doe"            error={errors.name?.message}     {...register('name')} />
               <Input label="Email *"    placeholder="jane@company.com"    error={errors.email?.message}    {...register('email')} type="email" />
-              <Input label="Initial password *" placeholder="8+ characters" error={errors.password?.message} {...register('password')} type="password" />
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-v-charcoal">Role</label>
                 <select
@@ -65,6 +64,7 @@ export function UsersPage() {
                 </select>
               </div>
             </div>
+            <p className="text-xs text-gray-500">An invitation email will be sent so the user can set their own password.</p>
             <Button type="submit" loading={invite.isPending}>
               <UserPlus size={15} className="mr-1.5" /> Invite User
             </Button>
@@ -109,6 +109,13 @@ export function UsersPage() {
                     <option value="" disabled>— Select role —</option>
                     {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
+                  {!u.active && !u.lastLoginAt && (
+                    <Button size="sm" variant="secondary"
+                      loading={resendInvite.isPending}
+                      onClick={() => resendInvite.mutate(u.id)}>
+                      <MailPlus size={12} className="mr-1" /> Resend
+                    </Button>
+                  )}
                   <Button size="sm" variant={u.active ? 'secondary' : 'primary'}
                     onClick={() => setToggleTarget({ userId: u.id, name: u.name, active: u.active })}>
                     <Power size={12} className="mr-1" />

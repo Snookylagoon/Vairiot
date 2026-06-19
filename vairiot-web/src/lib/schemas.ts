@@ -56,10 +56,18 @@ export type DisposalFormData = z.infer<typeof disposalSchema>;
 export const inviteUserSchema = z.object({
   name:     z.string().min(1, 'Name is required'),
   email:    z.string().email('Enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
   roleId:   z.string().optional(),
 });
 export type InviteUserFormData = z.infer<typeof inviteUserSchema>;
+
+export const acceptInviteSchema = z.object({
+  password:        z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string().min(8, 'Confirm your password'),
+}).refine(d => d.password === d.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+export type AcceptInviteFormData = z.infer<typeof acceptInviteSchema>;
 
 export const checkoutSchema = z.object({
   assetId:        z.string().min(1, 'Select an asset'),
