@@ -198,8 +198,10 @@ function ClientStep({ tenantId, data, onDone }: { tenantId: string; data: Tenant
   }, [data.clientCompanies]);
 
   const done = data.status.steps.client_registration;
+  const anyFilled = Object.values(form).some(v => v.trim() !== '');
 
   const submit = async () => {
+    if (!anyFilled) { onDone(); return; }
     if (!form.clientName.trim()) { toast.error('Client name is required'); return; }
     await mutation.mutateAsync(form);
     onDone();
