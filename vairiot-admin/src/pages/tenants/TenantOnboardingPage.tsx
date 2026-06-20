@@ -37,7 +37,10 @@ export function TenantOnboardingPage() {
     return <div className="text-center py-12 text-gray-400">Loading onboarding...</div>;
   }
 
-  const current: StepKey = activeStep ?? (data.status.nextStep as StepKey) ?? 'user_registration';
+  const current: StepKey =
+    activeStep ??
+    (data.status.nextStep as StepKey | null) ??
+    'licence_activation';
 
   return (
     <div className="space-y-6">
@@ -242,10 +245,35 @@ function LicenceStep({ tenantId, data, onFinalised }: { tenantId: string; data: 
   const [tier, setTier] = useState('FREE');
 
   const licenceDone = data.status.steps.licence_activation;
-  const canFinalise =
-    data.status.steps.user_registration &&
-    data.status.steps.company_registration &&
-    data.status.steps.licence_activation;
+  const prerequisitesDone =
+    data.status.steps.user_registration && data.status.steps.company_registration;
+  const fullyDone = data.status.complete;
+
+  const activateAndFinalise = async () => {
+    if (!licenceDone) {
+      await licence.mutateAsync({ tierName: tier });
+    }
+    await finalise.mutateAsync();
+    onFinalised();
+  };
+
+  if (fullyDone) {
+    return (
+      <Card>
+        <CardHeader><h2 className="text-h3 text-v-charcoal">Onboarding Complete</h2></CardHeader>
+        <CardBody className="space-y-4 text-center py-8">
+          <div className="mx-auto w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
+            <Check className="text-green-600" size={28} />
+          </div>
+          <p className="text-v-charcoal font-medium">This tenant is now active.</p>
+          <p className="text-sm text-gray-500">All four steps are complete and the licence is in force.</p>
+          <div className="pt-2">
+            <Button onClick={onFinalised}>Back to Tenant</Button>
+          </div>
+        </CardBody>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -257,9 +285,10 @@ function LicenceStep({ tenantId, data, onFinalised }: { tenantId: string; data: 
             <button
               key={t.name}
               onClick={() => setTier(t.name)}
+              disabled={licenceDone}
               className={`text-left rounded-xl border-2 p-4 transition ${
                 tier === t.name ? 'border-v-violet bg-v-violet/5' : 'border-gray-200 hover:border-gray-300'
-              }`}
+              } ${licenceDone ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               <p className="font-bold text-v-charcoal">{t.label}</p>
               <p className="text-xs text-gray-500 mt-1">{t.summary}</p>
@@ -267,29 +296,20 @@ function LicenceStep({ tenantId, data, onFinalised }: { tenantId: string; data: 
           ))}
         </div>
 
-        <div className="flex justify-end gap-3 items-center">
+        {!prerequisitesDone && (
+          <p className="text-sm text-amber-600">
+            Complete the User and Organisation steps before activating the licence.
+          </p>
+        )}
+
+        <div className="flex justify-end gap-3 items-center pt-2 border-t border-gray-100">
           {licenceDone && <span className="text-sm text-green-600 font-medium">Licence active</span>}
           <Button
-            variant="secondary"
-            loading={licence.isPending}
-            onClick={() => licence.mutateAsync({ tierName: tier })}
+            disabled={!prerequisitesDone}
+            loading={licence.isPending || finalise.isPending}
+            onClick={activateAndFinalise}
           >
-            Activate Licence
-          </Button>
-        </div>
-
-        <div className="border-t border-gray-100 pt-4 flex justify-end gap-3 items-center">
-          <p className="text-xs text-gray-500 mr-auto">
-            {canFinalise
-              ? 'All required steps are complete. Finalise to mark this tenant onboarded.'
-              : 'Complete the user, organisation and licence steps to finalise.'}
-          </p>
-          <Button
-            disabled={!canFinalise}
-            loading={finalise.isPending}
-            onClick={async () => { await finalise.mutateAsync(); onFinalised(); }}
-          >
-            Finalise Onboarding
+            {licenceDone ? 'Finalise Onboarding' : 'Activate & Finalise'}
           </Button>
         </div>
       </CardBody>
