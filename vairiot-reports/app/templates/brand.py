@@ -94,3 +94,21 @@ def safe_str(val: Any) -> str:
     if val is None:
         return ""
     return str(val)
+
+
+def interpolate_gradient(stops: list[str], n: int) -> list[str]:
+    """Generate n evenly-spaced hex colours across a list of colour stops."""
+    if n <= 1:
+        return [stops[0]]
+    rgbs = [hex_to_rgb(s) for s in stops]
+    result = []
+    for i in range(n):
+        t = i / (n - 1)
+        seg_t = t * (len(rgbs) - 1)
+        idx = min(int(seg_t), len(rgbs) - 2)
+        local_t = seg_t - idx
+        r = int(rgbs[idx][0] + (rgbs[idx + 1][0] - rgbs[idx][0]) * local_t)
+        g = int(rgbs[idx][1] + (rgbs[idx + 1][1] - rgbs[idx][1]) * local_t)
+        b = int(rgbs[idx][2] + (rgbs[idx + 1][2] - rgbs[idx][2]) * local_t)
+        result.append(f"#{r:02X}{g:02X}{b:02X}")
+    return result

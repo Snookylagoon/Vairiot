@@ -1,8 +1,8 @@
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardBody } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { ReportExportButton } from '@/components/reports/ReportExportButton';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
 import { useDisposalReport } from '@/hooks/useReports';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -34,16 +34,6 @@ export function DisposalsPage() {
   const rows = data?.rows ?? [];
   const totals = data?.totals ?? { count: 0, totalDisposalValue: 0, totalNBV: 0, totalGainLoss: 0 };
 
-  const downloadCsv = () => {
-    const header = 'Asset Number,Name,Category,Site,Disposal Date,Method,Disposal Value,NBV at Disposal,Gain/Loss,Reason,Approved By\n';
-    const csv = rows.map(r =>
-      `"${r.assetNumber}","${r.assetName}","${r.category ?? ''}","${r.site ?? ''}","${new Date(r.disposalDate).toLocaleDateString('en-GB')}","${r.disposalMethod}",${r.disposalValue},${r.netBookValueAtDisposal},${r.gainLoss},"${r.reason ?? ''}","${r.approvedBy ?? ''}"`
-    ).join('\n');
-    const blob = new Blob([header + csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'disposal-report.csv'; a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const columns: DataTableColumn<DisposalRow>[] = [
     {
@@ -90,9 +80,7 @@ export function DisposalsPage() {
           <h1 className="text-2xl font-bold text-v-charcoal">Disposal Report</h1>
           <p className="text-sm text-gray-500 mt-1">{totals.count} disposals</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={downloadCsv} disabled={rows.length === 0}>
-          <Download size={14} className="mr-1" /> Export CSV
-        </Button>
+        <ReportExportButton reportType="disposal-register" filters={filters} disabled={rows.length === 0} />
       </div>
       <div className="grid grid-cols-4 gap-4">
         <Card><CardBody><p className="text-xs text-gray-500 uppercase">Disposals</p><p className="text-xl font-bold text-v-charcoal mt-1">{totals.count}</p></CardBody></Card>

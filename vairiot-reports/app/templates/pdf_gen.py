@@ -33,7 +33,7 @@ from app.config import (
     HEADER_BAND_MM, FOOTER_HEIGHT_MM,
 )
 from app.models import ReportRequest
-from app.templates.brand import format_value, hex_to_rgb_float
+from app.templates.brand import format_value, hex_to_rgb_float, interpolate_gradient
 
 
 # ── Colour objects ────────────────────────────────────────────────────────────
@@ -158,19 +158,19 @@ class _VairiotDocTemplate(BaseDocTemplate):
         page_w = self.report_def.page_width_pt
         page_h = self.report_def.page_height_pt
 
-        # Bottom gradient accent line
+        # Bottom gradient accent line — smooth gradient
         bar_y = MARGIN_BOTTOM_MM * mm - 4 * mm
         bar_h = 1.5 * mm
-        third = (page_w - MARGIN_LEFT_MM * mm - MARGIN_RIGHT_MM * mm) / 3
         x_start = MARGIN_LEFT_MM * mm
+        total_w = page_w - MARGIN_LEFT_MM * mm - MARGIN_RIGHT_MM * mm
+        grad_steps = 60
+        grad_colours = interpolate_gradient(BRAND.gradient_stops(), grad_steps)
+        slice_w = total_w / grad_steps
 
         canvas.saveState()
-        canvas.setFillColor(C_PINK)
-        canvas.rect(x_start, bar_y, third, bar_h, stroke=0, fill=1)
-        canvas.setFillColor(C_MAUVE)
-        canvas.rect(x_start + third, bar_y, third, bar_h, stroke=0, fill=1)
-        canvas.setFillColor(C_VIOLET)
-        canvas.rect(x_start + third * 2, bar_y, third, bar_h, stroke=0, fill=1)
+        for i, hex_c in enumerate(grad_colours):
+            canvas.setFillColor(_c(hex_c))
+            canvas.rect(x_start + i * slice_w, bar_y, slice_w + 0.5, bar_h, stroke=0, fill=1)
 
         # Footer text
         footer_y = bar_y - 3 * mm
@@ -226,24 +226,40 @@ def generate_pdf(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
 
     # ── Header content (page 1 only, added to story) ─────────────────────
 
-    # Gradient header band
+    # Gradient accent strip (thin bar above header)
+    grad_steps = 30
+    grad_colours = interpolate_gradient(BRAND.gradient_stops(), grad_steps)
+    grad_slice_w = frame_w / grad_steps
+    grad_data = [[""] * grad_steps]
+    grad_table = Table(grad_data, colWidths=[grad_slice_w] * grad_steps, rowHeights=[2 * mm])
+    grad_style_cmds = []
+    for i, hex_c in enumerate(grad_colours):
+        grad_style_cmds.append(("BACKGROUND", (i, 0), (i, 0), _c(hex_c)))
+    grad_style_cmds.extend([
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ])
+    grad_table.setStyle(TableStyle(grad_style_cmds))
+    story.append(grad_table)
+
+    # Header band (violet background with brand + title)
+    brand_text = '<font color="#2B3132">VAIR</font><font color="#FF0DCC">I</font><font color="#A05B97">O</font><font color="#615AA0">T</font>'
     header_data = [[
-        Paragraph("VAIRIOT", STYLE_HEADER_BRAND),
-        "",
+        Paragraph(brand_text, STYLE_HEADER_BRAND),
         Paragraph(report_def.title, ParagraphStyle(
             "ht", parent=STYLE_HEADER_BRAND, fontSize=11, alignment=TA_RIGHT,
         )),
     ]]
-    header_table = Table(header_data, colWidths=[frame_w * 0.4, frame_w * 0.2, frame_w * 0.4])
+    header_table = Table(header_data, colWidths=[frame_w * 0.5, frame_w * 0.5])
     header_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (0, 0), C_PINK),
-        ("BACKGROUND", (1, 0), (1, 0), C_MAUVE),
-        ("BACKGROUND", (2, 0), (2, 0), C_VIOLET),
+        ("BACKGROUND", (0, 0), (-1, -1), C_VIOLET),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING", (0, 0), (-1, -1), 4 * mm),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4 * mm),
         ("LEFTPADDING", (0, 0), (0, -1), 3 * mm),
-        ("RIGHTPADDING", (2, 0), (2, -1), 3 * mm),
+        ("RIGHTPADDING", (1, 0), (1, -1), 3 * mm),
     ]))
     story.append(header_table)
 

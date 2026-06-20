@@ -1,8 +1,8 @@
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardBody } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { ReportExportButton } from '@/components/reports/ReportExportButton';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
 import { useMaintenanceCostReport } from '@/hooks/useReports';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -34,16 +34,6 @@ export function MaintenanceCostsPage() {
   const totalCost = data?.totalCost ?? 0;
   const totalEvents = data?.totalEvents ?? 0;
 
-  const downloadCsv = () => {
-    const header = 'Asset Number,Name,Category,Type,Vendor,Cost,Completed Date\n';
-    const csv = rows.map(r =>
-      `"${r.assetNumber}","${r.assetName}","${r.category ?? ''}","${r.maintenanceType}","${r.vendor ?? ''}",${r.cost},"${r.completedDate ? new Date(r.completedDate).toLocaleDateString('en-GB') : ''}"`
-    ).join('\n');
-    const blob = new Blob([header + csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'maintenance-costs.csv'; a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const columns: DataTableColumn<MaintCostRow>[] = [
     {
@@ -82,9 +72,7 @@ export function MaintenanceCostsPage() {
           <h1 className="text-2xl font-bold text-v-charcoal">Maintenance Costs</h1>
           <p className="text-sm text-gray-500 mt-1">{totalEvents} completed maintenance events</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={downloadCsv} disabled={rows.length === 0}>
-          <Download size={14} className="mr-1" /> Export CSV
-        </Button>
+        <ReportExportButton reportType="maintenance-log" filters={filters} disabled={rows.length === 0} />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <Card><CardBody><p className="text-xs text-gray-500 uppercase">Total Events</p><p className="text-xl font-bold text-v-charcoal mt-1">{totalEvents}</p></CardBody></Card>

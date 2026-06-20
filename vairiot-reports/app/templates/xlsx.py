@@ -31,7 +31,7 @@ from app.config import (
     MARGIN_TOP_MM, MARGIN_BOTTOM_MM, MARGIN_LEFT_MM, MARGIN_RIGHT_MM,
 )
 from app.models import ReportRequest
-from app.templates.brand import format_value, hex_to_rgb
+from app.templates.brand import format_value, hex_to_rgb, interpolate_gradient
 
 
 # ── Colour fills ──────────────────────────────────────────────────────────────
@@ -138,17 +138,13 @@ def generate_xlsx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
     current_row = 1
 
     # ── Row 1-2: Header band ─────────────────────────────────────────────
-    # Row 1: gradient accent strip (3 cells: pink, mauve, violet across columns)
+    # Row 1: smooth gradient accent strip across all columns
     ws.row_dimensions[current_row].height = 4
-    accent_split = max(1, num_cols // 3)
+    gradient_colours = interpolate_gradient(BRAND.gradient_stops(), num_cols)
     for c in range(1, num_cols + 1):
         cell = ws.cell(row=current_row, column=c)
-        if c <= accent_split:
-            cell.fill = _PINK_FILL
-        elif c <= accent_split * 2:
-            cell.fill = _MAUVE_FILL
-        else:
-            cell.fill = _VIOLET_FILL
+        hex_c = gradient_colours[c - 1].lstrip("#")
+        cell.fill = PatternFill(start_color=hex_c, end_color=hex_c, fill_type="solid")
     current_row += 1
 
     # Row 2-3: Main header band (violet background)

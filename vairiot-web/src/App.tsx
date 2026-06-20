@@ -30,6 +30,13 @@ const FixedAssetsPage      = lazy(() => import('@/pages/reports/FixedAssetsPage'
 const DisposalsPage        = lazy(() => import('@/pages/reports/DisposalsPage').then(m => ({ default: m.DisposalsPage })));
 const AgingPage            = lazy(() => import('@/pages/reports/AgingPage').then(m => ({ default: m.AgingPage })));
 const MaintenanceCostsPage = lazy(() => import('@/pages/reports/MaintenanceCostsPage').then(m => ({ default: m.MaintenanceCostsPage })));
+const AuditCampaignsPage   = lazy(() => import('@/pages/reports/AuditCampaignsPage').then(m => ({ default: m.AuditCampaignsPage })));
+const CheckoutsReportPage  = lazy(() => import('@/pages/reports/CheckoutsReportPage').then(m => ({ default: m.CheckoutsReportPage })));
+const LicencesReportPage   = lazy(() => import('@/pages/reports/LicencesReportPage').then(m => ({ default: m.LicencesReportPage })));
+const TenantsReportPage    = lazy(() => import('@/pages/reports/TenantsReportPage').then(m => ({ default: m.TenantsReportPage })));
+const UsersReportPage      = lazy(() => import('@/pages/reports/UsersReportPage').then(m => ({ default: m.UsersReportPage })));
+const ExceptionsReportPage = lazy(() => import('@/pages/reports/ExceptionsReportPage').then(m => ({ default: m.ExceptionsReportPage })));
+const ComplianceReportPage = lazy(() => import('@/pages/reports/ComplianceReportPage').then(m => ({ default: m.ComplianceReportPage })));
 const AlertsPage           = lazy(() => import('@/pages/alerts/AlertsPage').then(m => ({ default: m.AlertsPage })));
 const ImportPage           = lazy(() => import('@/pages/import/ImportPage').then(m => ({ default: m.ImportPage })));
 const LabelsPage           = lazy(() => import('@/pages/labels/LabelsPage').then(m => ({ default: m.LabelsPage })));
@@ -110,6 +117,13 @@ export default function App() {
             <Route path="reports/disposals"    element={<DisposalsPage />} />
             <Route path="reports/aging"        element={<AgingPage />} />
             <Route path="reports/maintenance-costs" element={<MaintenanceCostsPage />} />
+            <Route path="reports/audit-campaigns" element={<AuditCampaignsPage />} />
+            <Route path="reports/checkouts"       element={<CheckoutsReportPage />} />
+            <Route path="reports/licences"        element={<LicencesReportPage />} />
+            <Route path="reports/tenants"         element={<TenantsReportPage />} />
+            <Route path="reports/users"           element={<UsersReportPage />} />
+            <Route path="reports/exceptions"      element={<ExceptionsReportPage />} />
+            <Route path="reports/compliance"      element={<ComplianceReportPage />} />
             <Route path="alerts"         element={<AlertsPage />} />
             <Route path="import"        element={<ImportPage />} />
             <Route path="labels"        element={<LabelsPage />} />

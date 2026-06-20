@@ -32,7 +32,7 @@ from app.config import (
     MARGIN_TOP_MM, MARGIN_BOTTOM_MM, MARGIN_LEFT_MM, MARGIN_RIGHT_MM,
 )
 from app.models import ReportRequest
-from app.templates.brand import format_value, hex_to_rgb
+from app.templates.brand import format_value, hex_to_rgb, interpolate_gradient
 
 
 # ── Colour helpers ────────────────────────────────────────────────────────────
@@ -128,51 +128,37 @@ def generate_docx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
     section.right_margin  = Mm(MARGIN_RIGHT_MM)
 
     # ── Gradient accent bar ───────────────────────────────────────────────
-    accent_table = doc.add_table(rows=1, cols=3)
+    gradient_steps = 30
+    gradient_colours = interpolate_gradient(BRAND.gradient_stops(), gradient_steps)
+    accent_table = doc.add_table(rows=1, cols=gradient_steps)
     accent_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    for i, colour in enumerate([BRAND.pink, BRAND.mauve, BRAND.violet]):
+    for i, colour in enumerate(gradient_colours):
         cell = accent_table.cell(0, i)
         _set_cell_shading(cell, colour)
         cell.text = ""
+        cell.paragraphs[0].space_before = Pt(0)
+        cell.paragraphs[0].space_after = Pt(0)
     _set_row_height(accent_table.rows[0], 2.0)
-
-    # Remove table borders
-    tbl = accent_table._tbl
-    tblPr = tbl.tblPr if tbl.tblPr is not None else parse_xml(f'<w:tblPr {nsdecls("w")}/>')
-    borders = parse_xml(
-        f'<w:tblBorders {nsdecls("w")}>'
-        f'  <w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-        f'  <w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-        f'  <w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-        f'  <w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-        f'  <w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-        f'  <w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-        f'</w:tblBorders>'
-    )
-    tblPr.append(borders)
+    _remove_table_borders(accent_table)
 
     # ── Letterhead ────────────────────────────────────────────────────────
-    # Brand name
+    # Brand name: "VAIR" in charcoal, "IOT" per-letter gradient (pink→mauve→violet)
     p = doc.add_paragraph()
     p.space_before = Pt(8)
     p.space_after = Pt(0)
-    run_v = p.add_run("V")
-    run_v.font.name = "Montserrat"
-    run_v.font.size = Pt(22)
-    run_v.font.bold = True
-    run_v.font.color.rgb = _C_PINK
+    run_vair = p.add_run("VAIR")
+    run_vair.font.name = "Montserrat"
+    run_vair.font.size = Pt(22)
+    run_vair.font.bold = True
+    run_vair.font.color.rgb = _C_CHARCOAL
 
-    run_air = p.add_run("AIR")
-    run_air.font.name = "Montserrat"
-    run_air.font.size = Pt(22)
-    run_air.font.bold = True
-    run_air.font.color.rgb = _C_MAUVE
-
-    run_iot = p.add_run("IOT")
-    run_iot.font.name = "Montserrat"
-    run_iot.font.size = Pt(22)
-    run_iot.font.bold = True
-    run_iot.font.color.rgb = _C_VIOLET
+    iot_colours = [_C_PINK, _C_MAUVE, _C_VIOLET]
+    for i, letter in enumerate("IOT"):
+        run_l = p.add_run(letter)
+        run_l.font.name = "Montserrat"
+        run_l.font.size = Pt(22)
+        run_l.font.bold = True
+        run_l.font.color.rgb = iot_colours[i]
 
     # Tag line
     p_tag = doc.add_paragraph()
@@ -430,12 +416,14 @@ def generate_docx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
     p_spacer = doc.add_paragraph()
     p_spacer.space_before = Pt(4)
     p_spacer.space_after = Pt(0)
-    accent_bottom = doc.add_table(rows=1, cols=3)
+    accent_bottom = doc.add_table(rows=1, cols=gradient_steps)
     accent_bottom.alignment = WD_TABLE_ALIGNMENT.CENTER
-    for i, colour in enumerate([BRAND.pink, BRAND.mauve, BRAND.violet]):
+    for i, colour in enumerate(gradient_colours):
         cell = accent_bottom.cell(0, i)
         _set_cell_shading(cell, colour)
         cell.text = ""
+        cell.paragraphs[0].space_before = Pt(0)
+        cell.paragraphs[0].space_after = Pt(0)
     _set_row_height(accent_bottom.rows[0], 1.5)
     _remove_table_borders(accent_bottom)
 
