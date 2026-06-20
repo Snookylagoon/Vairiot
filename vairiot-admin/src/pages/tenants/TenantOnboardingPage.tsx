@@ -231,8 +231,8 @@ function ClientStep({ tenantId, data, onDone }: { tenantId: string; data: Tenant
 }
 
 const TIERS = [
-  { name: 'FREE',   label: 'Free',         summary: '1 device, up to 500 assets' },
-  { name: 'TIER_2', label: 'Professional', summary: 'Up to 5 devices, 1,500 assets' },
+  { name: 'FREE',   label: 'Free',         summary: '3 devices, up to 500 assets' },
+  { name: 'TIER_2', label: 'Professional', summary: 'Up to 10 devices, 1,500 assets' },
   { name: 'TIER_3', label: 'Enterprise',   summary: 'Unlimited devices and assets' },
 ];
 

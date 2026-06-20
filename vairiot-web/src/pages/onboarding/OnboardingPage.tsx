@@ -199,7 +199,7 @@ const UPGRADE_TIERS = [
     name: 'TIER_2',
     label: 'Professional',
     price: '$50 / year',
-    features: ['Up to 5 device registrations', 'Up to 1,500 assets', 'Priority support'],
+    features: ['Up to 10 device registrations', 'Up to 1,500 assets', 'Priority support'],
     colour: 'border-v-mauve',
   },
   {
@@ -246,7 +246,7 @@ function LicenceStep({ progress }: { progress: ReturnType<typeof useOnboardingPr
           <span className="font-bold text-v-charcoal">Free Licence — Active</span>
         </div>
         <ul className="mt-3 space-y-1 text-sm text-gray-600">
-          <li>• 1 device registration included</li>
+          <li>• 3 device registrations included</li>
           <li>• Up to 500 assets</li>
           <li>• Free forever</li>
         </ul>

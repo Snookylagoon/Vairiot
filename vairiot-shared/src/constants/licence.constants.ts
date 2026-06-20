@@ -17,7 +17,7 @@ export const LICENCE_TIER_CONFIG = {
   TIER_2: {
     displayName: 'Professional',
     maxAssets: 1500,
-    baseDevices: 1,
+    baseDevices: 10,
     pricePerYear: 50,
     pricePerDevice: 10,
     isPerpetual: false,
