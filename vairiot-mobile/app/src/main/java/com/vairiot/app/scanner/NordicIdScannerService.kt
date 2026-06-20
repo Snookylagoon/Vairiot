@@ -21,6 +21,10 @@ import com.nordicid.nurapi.NurEventTagTrackingData
 import com.nordicid.nurapi.NurEventTraceTag
 import com.nordicid.nurapi.NurEventTriggeredRead
 import com.nordicid.nuraccessory.NurAccessoryExtension
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +48,21 @@ class NordicIdScannerService @Inject constructor(
     private var autoTransport: NurApiAutoConnectTransport? = null
     private var accessoryExt: NurAccessoryExtension? = null
     private var streaming = false
+    private var activeScanType: ScanType = ScanType.RFID_UHF
+
+    private val barcodeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context?, intent: Intent?) {
+            if (intent == null) return
+            val value = BARCODE_EXTRAS.firstNotNullOfOrNull { intent.getStringExtra(it)?.trim()?.ifBlank { null } }
+                ?: intent.extras?.keySet()?.firstNotNullOfOrNull { k ->
+                    intent.extras?.getString(k)?.trim()?.takeIf { it.length in 4..256 }
+                }
+            if (!value.isNullOrBlank()) {
+                Log.d(TAG, "Barcode scan received: $value")
+                _scanResults.tryEmit(ScanResult(value, ScanType.BARCODE))
+            }
+        }
+    }
 
     private val nurListener = object : NurApiListener {
         override fun connectedEvent() {
@@ -93,25 +112,46 @@ class NordicIdScannerService @Inject constructor(
         BleScanner.init(context)
         nurApi.setListener(nurListener)
         scope.launch { connectIntegratedReader() }
+
+        val filter = IntentFilter().apply {
+            BARCODE_ACTIONS.forEach { addAction(it) }
+        }
+        ContextCompat.registerReceiver(context, barcodeReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
+        Log.d(TAG, "Registered for ${BARCODE_ACTIONS.size} barcode broadcast actions")
     }
 
-    override fun startScan() {
-        if (!nurApi.isConnected) {
-            Log.w(TAG, "Reader not connected, cannot start scan")
-            return
-        }
-        if (streaming) return
-        try {
-            nurApi.clearIdBuffer(true)
-            nurApi.startInventoryStream()
-            streaming = true
-            Log.d(TAG, "Inventory stream started")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to start inventory stream", e)
+    override fun startScan(type: ScanType) {
+        activeScanType = type
+        when (type) {
+            ScanType.BARCODE -> {
+                Log.d(TAG, "Starting barcode scan via broadcast")
+                START_BARCODE_ACTIONS.forEach { action ->
+                    runCatching { context.sendBroadcast(Intent(action).setPackage(null)) }
+                        .onFailure { Log.w(TAG, "startScan barcode: $action failed: ${it.message}") }
+                }
+            }
+            else -> {
+                if (!nurApi.isConnected) {
+                    Log.w(TAG, "Reader not connected, cannot start RFID scan")
+                    return
+                }
+                if (streaming) return
+                try {
+                    nurApi.clearIdBuffer(true)
+                    nurApi.startInventoryStream()
+                    streaming = true
+                    Log.d(TAG, "RFID inventory stream started")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to start inventory stream", e)
+                }
+            }
         }
     }
 
     override fun stopScan() {
+        STOP_BARCODE_ACTIONS.forEach { action ->
+            runCatching { context.sendBroadcast(Intent(action)) }
+        }
         if (!streaming) return
         try {
             nurApi.stopInventoryStream()
@@ -157,5 +197,26 @@ class NordicIdScannerService @Inject constructor(
         private const val TRIGGER_PRESSED = 1
         private const val INT_READER_SPEC = "type=INT;addr=integrated_reader"
         private const val INT_READER_ADDR = "integrated_reader"
+
+        private val BARCODE_ACTIONS = listOf(
+            "nlscan.action.SCANNER_RESULT",
+            "com.android.action.SEND_SCAN_RESULT",
+            "android.intent.action.SCANRESULT",
+        )
+
+        private val BARCODE_EXTRAS = listOf(
+            "SCAN_BARCODE1", "SCAN_BARCODE2",
+            "scannerdata", "barcode_string", "data",
+        )
+
+        private val START_BARCODE_ACTIONS = listOf(
+            "nlscan.action.START_SCAN",
+            "com.android.action.START_SCAN",
+        )
+
+        private val STOP_BARCODE_ACTIONS = listOf(
+            "nlscan.action.STOP_SCAN",
+            "com.android.action.STOP_SCAN",
+        )
     }
 }

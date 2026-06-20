@@ -8,6 +8,6 @@ data class ScanResult(val value: String, val type: ScanType)
 
 interface ScannerService {
     val scanResults: SharedFlow<ScanResult>
-    fun startScan()
+    fun startScan(type: ScanType = ScanType.RFID_UHF)
     fun stopScan()
 }

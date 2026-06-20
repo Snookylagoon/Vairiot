@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.api.AssetCreateRequest
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.scanner.ScanType
 import com.vairiot.app.scanner.ScannerService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -19,7 +20,7 @@ sealed class ScanUiState {
     object Scanning: ScanUiState()
     object Loading : ScanUiState()
     data class Found(val asset: AssetResponse) : ScanUiState()
-    data class NotFound(val tag: String)       : ScanUiState()
+    data class NotFound(val tag: String, val scannedBarcode: String? = null) : ScanUiState()
     object Registering                         : ScanUiState()
     data class Registered(val asset: AssetResponse) : ScanUiState()
     data class Error(val message: String)      : ScanUiState()
@@ -35,11 +36,21 @@ class AssetScanViewModel @Inject constructor(
     val state: StateFlow<ScanUiState> = _state
 
     private var scanTimeoutJob: Job? = null
+    private var awaitingBarcode = false
 
     init {
         viewModelScope.launch {
             scanner.scanResults.collect { result ->
-                onTagScanned(result.value)
+                if (awaitingBarcode && result.type == ScanType.BARCODE) {
+                    awaitingBarcode = false
+                    scanner.stopScan()
+                    val current = _state.value
+                    if (current is ScanUiState.NotFound) {
+                        _state.value = current.copy(scannedBarcode = result.value)
+                    }
+                } else if (!awaitingBarcode) {
+                    onTagScanned(result.value)
+                }
             }
         }
     }
@@ -77,11 +88,23 @@ class AssetScanViewModel @Inject constructor(
         }
     }
 
-    fun registerAsset(name: String, tag: String) {
+    fun startBarcodeScan() {
+        awaitingBarcode = true
+        scanner.startScan(ScanType.BARCODE)
+    }
+
+    fun clearBarcode() {
+        val current = _state.value
+        if (current is ScanUiState.NotFound) {
+            _state.value = current.copy(scannedBarcode = null)
+        }
+    }
+
+    fun registerAsset(name: String, tag: String, barcode: String? = null) {
         viewModelScope.launch {
             _state.value = ScanUiState.Registering
             try {
-                val asset = api.createAsset(AssetCreateRequest(name = name, rfidTag = tag))
+                val asset = api.createAsset(AssetCreateRequest(name = name, rfidTag = tag, barcode = barcode))
                 _state.value = ScanUiState.Registered(asset)
             } catch (e: Exception) {
                 _state.value = ScanUiState.Error("Registration failed: ${e.message}")

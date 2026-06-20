@@ -44,7 +44,7 @@ class MeferiScannerService @Inject constructor(
         Log.d(TAG, "Registered for ${BARCODE_ACTIONS.size + UHF_ACTIONS.size} scanner broadcast actions")
     }
 
-    override fun startScan() {
+    override fun startScan(type: ScanType) {
         START_SCAN_ACTIONS.forEach { action ->
             runCatching {
                 context.sendBroadcast(Intent(action).setPackage(null))
@@ -75,36 +75,30 @@ class MeferiScannerService @Inject constructor(
         private const val TAG = "MeferiScanner"
 
         private val BARCODE_ACTIONS = listOf(
-            "nlscan.action.SCANNER_RESULT",
-            "com.android.action.SEND_SCAN_RESULT",
-            "android.intent.action.SCANRESULT",
-            "com.geomobile.scannerservice.SCAN",
-            "com.symbol.datawedge.api.RESULT_ACTION",
+            "android.intent.action.MEF_ACTION",
+            "android.intent.action.RECEIVE_SCANDATA_BROADCAST",
+            "com.meferi.action.SCANNER.RESULT",
         )
 
         private val UHF_ACTIONS = listOf(
             "com.android.action.UHF_DATA",
-            "nlscan.action.UHF_DATA",
             "com.rfid.UHF_DATA",
         )
 
         private val BARCODE_EXTRAS = listOf(
-            "SCAN_BARCODE1", "SCAN_BARCODE2",
-            "scannerdata", "barcode_string", "data",
-            "com.symbol.datawedge.data_string",
+            "data",
+            "com.meferi.mewedge.data_string",
+            "meferi.scan.result.param.barcode",
         )
 
         private val UHF_EXTRAS = listOf("UHF_DATA", "EPC", "epc", "tag")
 
         private val START_SCAN_ACTIONS = listOf(
-            "nlscan.action.START_SCAN",
-            "com.android.action.START_SCAN",
-            "com.geomobile.scannerservice.SCAN",
+            "com.meferi.action.SCANNER.SHOOT",
         )
 
         private val STOP_SCAN_ACTIONS = listOf(
-            "nlscan.action.STOP_SCAN",
-            "com.android.action.STOP_SCAN",
+            "com.meferi.action.SWITCH.SCAN",
         )
     }
 }

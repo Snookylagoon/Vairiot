@@ -18,10 +18,10 @@ class MockScannerService @Inject constructor() : ScannerService {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    override fun startScan() {
+    override fun startScan(type: ScanType) {
         scope.launch {
             delay(500)
-            _scanResults.tryEmit(ScanResult(MOCK_TAG, ScanType.BARCODE))
+            _scanResults.tryEmit(ScanResult(MOCK_TAG, type))
         }
     }
 

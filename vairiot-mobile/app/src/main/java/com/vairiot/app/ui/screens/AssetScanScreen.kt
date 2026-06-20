@@ -85,8 +85,11 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
                 is ScanUiState.Loading    -> LoadingCard()
                 is ScanUiState.Found      -> AssetResultCard(s.asset, onReset = { viewModel.reset() })
                 is ScanUiState.NotFound   -> NotFoundCard(s.tag,
+                    scannedBarcode = s.scannedBarcode,
                     onReset    = { viewModel.reset() },
-                    onRegister = { name -> viewModel.registerAsset(name, s.tag) },
+                    onRegister = { name, barcode -> viewModel.registerAsset(name, s.tag, barcode) },
+                    onScanBarcode = { viewModel.startBarcodeScan() },
+                    onClearBarcode = { viewModel.clearBarcode() },
                 )
                 is ScanUiState.Registering -> LoadingCard()
                 is ScanUiState.Registered  -> AssetResultCard(s.asset, onReset = { viewModel.reset() }, isNew = true)
@@ -170,9 +173,19 @@ fun AssetResultCard(asset: AssetResponse, onReset: () -> Unit, isNew: Boolean = 
 }
 
 @Composable
-fun NotFoundCard(tag: String, onReset: () -> Unit, onRegister: (String) -> Unit) {
+fun NotFoundCard(
+    tag: String,
+    scannedBarcode: String? = null,
+    onReset: () -> Unit,
+    onRegister: (String, String?) -> Unit,
+    onScanBarcode: () -> Unit = {},
+    onClearBarcode: () -> Unit = {},
+) {
     var showDialog by remember { mutableStateOf(false) }
     var assetName by remember { mutableStateOf("") }
+    var manualBarcode by remember { mutableStateOf("") }
+
+    val barcodeValue = scannedBarcode ?: manualBarcode.ifBlank { null }
 
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -216,11 +229,51 @@ fun NotFoundCard(tag: String, onReset: () -> Unit, onRegister: (String) -> Unit)
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
+
+                    HorizontalDivider()
+
+                    Text("Barcode (optional)", style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+
+                    if (scannedBarcode != null) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null,
+                                tint = SuccessGreen, modifier = Modifier.size(18.dp))
+                            Text(scannedBarcode, style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f))
+                            IconButton(onClick = { onClearBarcode() }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear barcode",
+                                    modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    } else {
+                        OutlinedTextField(
+                            value = manualBarcode,
+                            onValueChange = { manualBarcode = it },
+                            label = { Text("Barcode") },
+                            placeholder = { Text("Scan or type barcode") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedButton(
+                            onClick = onScanBarcode,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Default.QrCodeScanner, contentDescription = null,
+                                modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Scan Barcode")
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(
-                    onClick = { showDialog = false; onRegister(assetName) },
+                    onClick = { showDialog = false; onRegister(assetName, barcodeValue) },
                     enabled = assetName.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
                 ) { Text("Register") }

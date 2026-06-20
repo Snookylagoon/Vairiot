@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.AssetUpdateRequest
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.scanner.ScanType
+import com.vairiot.app.scanner.ScannerService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,10 +15,12 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class AssetEditUiState(
-    val isLoading:   Boolean = false,
-    val isSaving:    Boolean = false,
-    val error:       String? = null,
-    val savedAsset:  AssetResponse? = null,
+    val isLoading:      Boolean = false,
+    val isSaving:       Boolean = false,
+    val error:          String? = null,
+    val savedAsset:     AssetResponse? = null,
+    val scanningBarcode: Boolean = false,
+    val scanningRfid:    Boolean = false,
 
     val name:         String = "",
     val description:  String = "",
@@ -30,6 +34,7 @@ data class AssetEditUiState(
 @HiltViewModel
 class AssetEditViewModel @Inject constructor(
     private val api: VairiotApiService,
+    private val scanner: ScannerService,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -38,7 +43,44 @@ class AssetEditViewModel @Inject constructor(
     private val _state = MutableStateFlow(AssetEditUiState())
     val state: StateFlow<AssetEditUiState> = _state
 
-    init { load() }
+    init {
+        load()
+        viewModelScope.launch {
+            scanner.scanResults.collect { result ->
+                val s = _state.value
+                when {
+                    s.scanningBarcode && result.type == ScanType.BARCODE -> {
+                        _state.value = s.copy(barcode = result.value, scanningBarcode = false)
+                        scanner.stopScan()
+                    }
+                    s.scanningRfid && result.type == ScanType.RFID_UHF -> {
+                        _state.value = s.copy(rfidTag = result.value, scanningRfid = false)
+                        scanner.stopScan()
+                    }
+                }
+            }
+        }
+    }
+
+    fun startBarcodeScan() {
+        _state.value = _state.value.copy(scanningBarcode = true, scanningRfid = false)
+        scanner.startScan(ScanType.BARCODE)
+    }
+
+    fun cancelBarcodeScan() {
+        scanner.stopScan()
+        _state.value = _state.value.copy(scanningBarcode = false)
+    }
+
+    fun startRfidScan() {
+        _state.value = _state.value.copy(scanningRfid = true, scanningBarcode = false)
+        scanner.startScan(ScanType.RFID_UHF)
+    }
+
+    fun cancelRfidScan() {
+        scanner.stopScan()
+        _state.value = _state.value.copy(scanningRfid = false)
+    }
 
     fun load() {
         if (assetId.isBlank()) return

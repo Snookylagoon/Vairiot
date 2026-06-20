@@ -8,6 +8,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Provider
 import javax.inject.Singleton
 
 @Module
@@ -17,13 +18,13 @@ object ScannerModule {
     @Provides
     @Singleton
     fun provideScannerService(
-        nordicId: NordicIdScannerService,
-        meferi: MeferiScannerService,
+        nordicId: Provider<NordicIdScannerService>,
+        meferi: Provider<MeferiScannerService>,
     ): ScannerService {
         return when {
             Build.MANUFACTURER.contains("Nordic", ignoreCase = true) ||
-            Build.MODEL.contains("HH8", ignoreCase = true)          -> nordicId
-            else                                                     -> meferi
+            Build.MODEL.contains("HH8", ignoreCase = true)          -> nordicId.get()
+            else                                                     -> meferi.get()
         }
     }
 }

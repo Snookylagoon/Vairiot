@@ -7,6 +7,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,17 +93,61 @@ fun AssetEditScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth())
 
-            OutlinedTextField(value = state.barcode,
-                onValueChange = { viewModel.update("barcode", it) },
-                label = { Text("Barcode") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth())
+            Text("Barcode", style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+            Row(modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = state.barcode,
+                    onValueChange = { viewModel.update("barcode", it) },
+                    label = { Text("Barcode") },
+                    placeholder = { Text("Scan or type barcode") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f))
+                if (state.scanningBarcode) {
+                    OutlinedButton(onClick = { viewModel.cancelBarcodeScan() }) {
+                        CircularProgressIndicator(color = VairiotPink,
+                            modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Cancel")
+                    }
+                } else {
+                    OutlinedButton(onClick = { viewModel.startBarcodeScan() }) {
+                        Icon(Icons.Default.QrCodeScanner, contentDescription = null,
+                            modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Scan")
+                    }
+                }
+            }
 
-            OutlinedTextField(value = state.rfidTag,
-                onValueChange = { viewModel.update("rfidTag", it) },
-                label = { Text("RFID tag") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth())
+            Text("RFID Tag", style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+            Row(modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = state.rfidTag,
+                    onValueChange = { viewModel.update("rfidTag", it) },
+                    label = { Text("RFID tag") },
+                    placeholder = { Text("Scan or type RFID tag") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f))
+                if (state.scanningRfid) {
+                    OutlinedButton(onClick = { viewModel.cancelRfidScan() }) {
+                        CircularProgressIndicator(color = VairiotPink,
+                            modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Cancel")
+                    }
+                } else {
+                    OutlinedButton(onClick = { viewModel.startRfidScan() }) {
+                        Icon(Icons.Default.QrCodeScanner, contentDescription = null,
+                            modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Scan")
+                    }
+                }
+            }
 
             state.error?.let {
                 Surface(color = ErrorRed.copy(alpha = 0.12f),
