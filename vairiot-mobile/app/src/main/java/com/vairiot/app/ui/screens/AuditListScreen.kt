@@ -151,6 +151,7 @@ fun AuditListScreen(
     if (showCreate) {
         CreateAuditDialog(
             state = state,
+            blindAuditEnabled = state.blindAuditEnabled,
             onSiteSelected = { viewModel.loadLocationsForSite(it) },
             onDismiss = { showCreate = false },
             onCreate = { name, mode, siteId, locationId, categoryId ->
@@ -309,6 +310,7 @@ private fun AuditRow(campaign: AuditCampaignResponse, onClick: () -> Unit) {
 @Composable
 private fun CreateAuditDialog(
     state: AuditListUiState,
+    blindAuditEnabled: Boolean,
     onSiteSelected: (String?) -> Unit,
     onDismiss: () -> Unit,
     onCreate: (name: String, mode: String?, siteId: String?, locationId: String?, categoryId: String?) -> Unit,
@@ -331,32 +333,34 @@ private fun CreateAuditDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                Text("Mode", style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("sighted" to "Sighted", "blind" to "Blind").forEach { (key, label) ->
-                        val isSelected = mode == key
-                        val bg by animateColorAsState(
-                            if (isSelected) VairiotViolet else MaterialTheme.colorScheme.surfaceVariant,
-                            label = "modeBg",
-                        )
-                        val fg by animateColorAsState(
-                            if (isSelected) White else MaterialTheme.colorScheme.onSurface,
-                            label = "modeFg",
-                        )
-                        Surface(onClick = { mode = key }, color = bg, shape = RoundedCornerShape(8.dp)) {
-                            Text(label,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = fg,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
+                if (blindAuditEnabled) {
+                    Text("Mode", style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("sighted" to "Sighted", "blind" to "Blind").forEach { (key, label) ->
+                            val isSelected = mode == key
+                            val bg by animateColorAsState(
+                                if (isSelected) VairiotViolet else MaterialTheme.colorScheme.surfaceVariant,
+                                label = "modeBg",
+                            )
+                            val fg by animateColorAsState(
+                                if (isSelected) White else MaterialTheme.colorScheme.onSurface,
+                                label = "modeFg",
+                            )
+                            Surface(onClick = { mode = key }, color = bg, shape = RoundedCornerShape(8.dp)) {
+                                Text(label,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = fg,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
+                            }
                         }
                     }
-                }
-                if (mode == "blind") {
-                    Text("Auditors will not see expected assets during capture. A site must be selected.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    if (mode == "blind") {
+                        Text("Auditors will not see expected assets during capture. A site must be selected.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    }
                 }
 
                 Text("Scope (optional)", style = MaterialTheme.typography.labelMedium,

@@ -19,6 +19,9 @@ data class AuditListUiState(
     val campaigns:  List<AuditCampaignResponse> = emptyList(),
     val error:      String? = null,
 
+    // Feature flags
+    val blindAuditEnabled: Boolean = false,
+
     // Create-sheet scope data
     val sites:      List<SiteRefResponse>     = emptyList(),
     val locations:  List<LocationRefResponse> = emptyList(),
@@ -41,9 +44,12 @@ class AuditListViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
+                val me = api.getMe()
+                val blindEnabled = me.featureFlags?.get("blindAudit") == true
                 _state.value = _state.value.copy(
                     isLoading = false,
                     campaigns = api.listAudits(),
+                    blindAuditEnabled = blindEnabled,
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
