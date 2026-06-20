@@ -244,42 +244,68 @@ def generate_pdf(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
     grad_table.setStyle(TableStyle(grad_style_cmds))
     story.append(grad_table)
 
-    # Header band (violet background with brand + title)
+    # Brand name: "VAIR" charcoal + "IOT" per-letter gradient (matching DOCX)
     brand_text = '<font color="#2B3132">VAIR</font><font color="#FF0DCC">I</font><font color="#A05B97">O</font><font color="#615AA0">T</font>'
     header_data = [[
         Paragraph(brand_text, STYLE_HEADER_BRAND),
-        Paragraph(report_def.title, ParagraphStyle(
-            "ht", parent=STYLE_HEADER_BRAND, fontSize=11, alignment=TA_RIGHT,
-        )),
+        "",
     ]]
     header_table = Table(header_data, colWidths=[frame_w * 0.5, frame_w * 0.5])
     header_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), C_VIOLET),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 4 * mm),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4 * mm),
-        ("LEFTPADDING", (0, 0), (0, -1), 3 * mm),
-        ("RIGHTPADDING", (1, 0), (1, -1), 3 * mm),
+        ("TOPPADDING", (0, 0), (-1, -1), 2 * mm),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
     ]))
     story.append(header_table)
 
-    # Subtitle row
+    # Subtitle + company info row
+    company_text = ""
+    if req.company.legal_name:
+        company_text = f"<b>{req.company.legal_name}</b>"
+        addr_parts = [req.company.address_line1, req.company.city, req.company.country]
+        addr = ", ".join(p for p in addr_parts if p)
+        if addr:
+            company_text += f"<br/>{addr}"
+
     sub_data = [[
-        Paragraph("ASSET INTELLIGENCE", STYLE_HEADER_SUB),
+        Paragraph("ASSET INTELLIGENCE", ParagraphStyle(
+            "sub", fontName="Helvetica", fontSize=7, textColor=_c("#888888"),
+        )),
+        Paragraph(company_text, ParagraphStyle(
+            "co", fontName="Helvetica", fontSize=8, textColor=_c("#2B3132"), alignment=TA_RIGHT,
+        )) if company_text else "",
+    ]]
+    sub_table = Table(sub_data, colWidths=[frame_w * 0.4, frame_w * 0.6])
+    sub_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    story.append(sub_table)
+
+    # Report title bar (violet background)
+    title_data = [[
+        Paragraph(report_def.title, ParagraphStyle(
+            "rt", fontName="Helvetica-Bold", fontSize=11, textColor=colors.white,
+        )),
         Paragraph(f"Generated: {date.today().strftime('%d %b %Y')}", ParagraphStyle(
-            "sd", parent=STYLE_HEADER_SUB, alignment=TA_RIGHT,
+            "rd", fontName="Helvetica", fontSize=8, textColor=colors.white, alignment=TA_RIGHT,
         )),
     ]]
-    sub_table = Table(sub_data, colWidths=[frame_w * 0.5, frame_w * 0.5])
-    sub_table.setStyle(TableStyle([
+    title_table = Table(title_data, colWidths=[frame_w * 0.6, frame_w * 0.4])
+    title_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), C_VIOLET),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 1 * mm),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5 * mm),
+        ("TOPPADDING", (0, 0), (-1, -1), 3 * mm),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3 * mm),
         ("LEFTPADDING", (0, 0), (0, -1), 3 * mm),
         ("RIGHTPADDING", (1, 0), (1, -1), 3 * mm),
     ]))
-    story.append(sub_table)
+    story.append(title_table)
 
     # Metadata line
     meta_parts = []
