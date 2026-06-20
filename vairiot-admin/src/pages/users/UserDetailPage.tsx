@@ -16,7 +16,7 @@ interface UserRow {
   twoFactorEnabled: boolean;
   lockedUntil?: string | null;
   lastLoginAt?: string | null;
-  tenant?: { name: string; slug: string };
+  tenant?: { name: string };
   roles?: { role: { name: string } }[];
 }
 
@@ -127,7 +127,6 @@ export function UserDetailPage() {
           <CardBody className="space-y-2 text-sm">
             <Row label="Email" value={user.email} mono />
             <Row label="Tenant" value={user.tenant?.name} />
-            <Row label="Tenant Slug" value={user.tenant?.slug} mono />
             <Row label="Last Login" value={user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never'} />
           </CardBody>
         </Card>

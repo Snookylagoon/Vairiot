@@ -99,7 +99,7 @@ export function DashboardPage() {
               {stats.recentTenants.length === 0 && (
                 <p className="text-sm text-gray-400">No tenants registered yet.</p>
               )}
-              {stats.recentTenants.map((t: { id: string; name: string; slug: string; onboardingComplete: boolean; createdAt: string }) => (
+              {stats.recentTenants.map((t: { id: string; name: string; onboardingComplete: boolean; createdAt: string }) => (
                 <Link
                   key={t.id}
                   to={t.onboardingComplete ? `/tenants/${t.id}` : `/tenants/${t.id}/onboarding`}
@@ -107,7 +107,6 @@ export function DashboardPage() {
                 >
                   <div>
                     <p className="text-sm font-medium text-v-charcoal">{t.name}</p>
-                    <p className="text-xs text-gray-400 font-mono">{t.slug}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant={t.onboardingComplete ? 'green' : 'yellow'}>

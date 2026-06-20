@@ -38,8 +38,7 @@ enum OnboardingStep {
 // ─── Tenants ──────────────────────────────────────────────────────────────────
 model Tenant {
   id               String         @id @default(cuid())
-  name             String
-  slug             String         @unique
+  name             String         @unique
   plan             String         @default("standalone")
   deploymentMode   DeploymentMode @default(standalone)
   onboardingComplete Boolean      @default(false)

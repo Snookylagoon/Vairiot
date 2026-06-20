@@ -5,7 +5,7 @@ import { logger } from '../lib/logger';
 import { NotFoundError } from '../lib/errors';
 import { buildOrderBy } from '../lib/sort';
 
-const TENANT_SORT_KEYS = ['name', 'slug', 'deploymentMode', 'onboardingComplete', 'createdAt', 'active'] as const;
+const TENANT_SORT_KEYS = ['name', 'deploymentMode', 'onboardingComplete', 'createdAt', 'active'] as const;
 const USER_SORT_KEYS   = ['name', 'email', 'active', 'twoFactorEnabled', 'lastLoginAt', 'createdAt', 'tenant.name'] as const;
 
 // ─── Dashboard Stats ────────────────────────────────────────────────────────
@@ -34,7 +34,6 @@ export async function getDashboardStats() {
       select: {
         id: true,
         name: true,
-        slug: true,
         deploymentMode: true,
         onboardingComplete: true,
         createdAt: true,
@@ -70,7 +69,6 @@ export async function listTenants(filters: TenantListFilters = {}) {
   if (filters.search) {
     where.OR = [
       { name: { contains: filters.search, mode: 'insensitive' } },
-      { slug: { contains: filters.search, mode: 'insensitive' } },
     ];
   }
   if (filters.deploymentMode) {
@@ -86,7 +84,6 @@ export async function listTenants(filters: TenantListFilters = {}) {
     select: {
       id: true,
       name: true,
-      slug: true,
       deploymentMode: true,
       onboardingComplete: true,
       active: true,
@@ -125,8 +122,7 @@ export async function getTenantDetail(tenantId: string) {
         select: {
           id: true,
           name: true,
-          slug: true,
-          active: true,
+            active: true,
           createdAt: true,
           _count: { select: { assets: true } },
           company: {
@@ -222,7 +218,7 @@ export async function listAllUsers(filters: UserListFilters = {}) {
       lockedUntil: true,
       lastLoginAt: true,
       createdAt: true,
-      tenant: { select: { name: true, slug: true } },
+      tenant: { select: { name: true } },
       roles: { include: { role: { select: { name: true } } } },
     },
   });

@@ -195,7 +195,6 @@ export function TenantDetailPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                <Row label="Slug" value={tenant.slug} mono />
                 <Row label="Deployment Mode" value={tenant.deploymentMode} />
                 <Row label="Onboarding" value={tenant.onboardingComplete ? 'Complete' : 'Pending'} />
                 <Row label="Created" value={new Date(tenant.createdAt).toLocaleDateString()} />

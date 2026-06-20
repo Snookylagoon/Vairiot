@@ -608,7 +608,6 @@ export async function listLicences(filters?: {
     where.OR = [
       { licenceNumber: { contains: filters.search, mode: 'insensitive' as const } },
       { tenant: { name: { contains: filters.search, mode: 'insensitive' as const } } },
-      { tenant: { slug: { contains: filters.search, mode: 'insensitive' as const } } },
     ];
   }
 
@@ -625,7 +624,7 @@ export async function listLicences(filters?: {
     where,
     include: {
       tier: true,
-      tenant: { select: { id: true, name: true, slug: true } },
+      tenant: { select: { id: true, name: true } },
       deviceSlots: true,
     },
     orderBy,

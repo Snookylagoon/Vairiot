@@ -18,7 +18,7 @@ interface UserRow {
   twoFactorEnabled: boolean;
   lockedUntil?: string | null;
   lastLoginAt?: string | null;
-  tenant?: { name: string; slug: string };
+  tenant?: { name: string };
   roles?: { role: { name: string } }[];
 }
 
@@ -179,11 +179,10 @@ export function UsersPage() {
         sort={{ sortBy, sortOrder, onToggle: toggleSort }}
         toolbar={toolbar}
         groupBy={{
-          keyOf: u => u.tenant?.slug || '∅',
+          keyOf: u => u.tenant?.name || '∅',
           labelOf: u => (
             <span className="flex items-baseline gap-2">
               <span>{u.tenant?.name || 'No tenant'}</span>
-              {u.tenant?.slug && <span className="text-xs text-gray-400 font-mono font-normal">{u.tenant.slug}</span>}
             </span>
           ),
         }}

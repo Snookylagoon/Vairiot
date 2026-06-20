@@ -7,7 +7,6 @@ import { useUrlTableState } from '@/hooks/useUrlTableState';
 interface TenantRow {
   id: string;
   name: string;
-  slug: string;
   deploymentMode: string;
   onboardingComplete: boolean;
   createdAt: string;
@@ -27,7 +26,6 @@ export function TenantsPage() {
 
   const columns: DataTableColumn<TenantRow>[] = [
     { key: 'name', label: 'Name', render: t => <span className="font-medium text-v-charcoal">{t.name}</span> },
-    { key: 'slug', label: 'Slug', render: t => <span className="font-mono text-gray-500">{t.slug}</span> },
     { key: 'deploymentMode', label: 'Mode', render: t => <Badge variant="default">{t.deploymentMode}</Badge> },
     {
       key: 'onboardingComplete', label: 'Onboarding',

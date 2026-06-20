@@ -26,7 +26,7 @@ interface LicenceRow {
   activatedAt?: string | null;
   expiresAt?: string | null;
   paymentConfirmed: boolean;
-  tenant?: { name: string; slug: string };
+  tenant?: { name: string };
   tier?: { name: string; displayName?: string; baseDevices: number };
   deviceSlots?: unknown[];
 }
@@ -74,7 +74,6 @@ export function LicencesPage() {
       render: l => (
         <>
           <p className="font-medium text-v-charcoal">{l.tenant?.name}</p>
-          <p className="text-xs text-gray-400 font-mono">{l.tenant?.slug}</p>
         </>
       ),
     },

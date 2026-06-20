@@ -12,7 +12,7 @@ beforeAll(async () => {
   await prisma.tenant.upsert({
     where: { id: TID },
     update: { name: 'Security Test', active: true, onboardingComplete: true },
-    create: { id: TID, name: 'Security Test', slug: 'sec-test', active: true, onboardingComplete: true },
+    create: { id: TID, name: 'Security Test', active: true, onboardingComplete: true },
   });
 
   // Seed licence

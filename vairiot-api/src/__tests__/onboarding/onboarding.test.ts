@@ -18,7 +18,7 @@ beforeAll(async () => {
   await prisma.tenant.upsert({
     where: { id: TID },
     update: { name: 'Onboarding Test', active: true, onboardingComplete: false },
-    create: { id: TID, name: 'Onboarding Test', slug: 'onb-test', active: true, onboardingComplete: false },
+    create: { id: TID, name: 'Onboarding Test', active: true, onboardingComplete: false },
   });
 
   // Seed licence tier

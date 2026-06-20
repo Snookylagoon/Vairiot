@@ -15,7 +15,7 @@ let photoId = '';
 beforeAll(async () => {
   await prisma.tenant.upsert({
     where: { id: TID }, update: { onboardingComplete: true },
-    create: { id: TID, name: 'Photos Test Tenant', slug: 'test-photos', onboardingComplete: true },
+    create: { id: TID, name: 'Photos Test Tenant', onboardingComplete: true },
   });
   const PERMS = ['asset:read', 'asset:write', 'asset:delete'];
   const role = await prisma.role.upsert({

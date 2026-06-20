@@ -21,14 +21,6 @@ export interface RegistrationResult {
   tenantId: string;
 }
 
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .substring(0, 48);
-}
-
 export async function registerNewTenant(input: RegistrationInput): Promise<RegistrationResult> {
   if (!input.organisationName?.trim()) throw new ValidationError('Organisation name is required');
   if (!input.name?.trim()) throw new ValidationError('Your name is required');
@@ -37,16 +29,9 @@ export async function registerNewTenant(input: RegistrationInput): Promise<Regis
 
   validatePasswordPolicy(input.password);
 
-  const baseSlug = slugify(input.organisationName);
-  if (!baseSlug) throw new ValidationError('Organisation name must contain at least one letter or number');
-
-  // Find a unique slug
-  let slug = baseSlug;
-  let attempt = 0;
-  while (await prisma.tenant.findUnique({ where: { slug } })) {
-    attempt++;
-    slug = `${baseSlug}-${attempt}`;
-  }
+  const tenantName = input.organisationName.trim();
+  const existing = await prisma.tenant.findUnique({ where: { name: tenantName } });
+  if (existing) throw new ConflictError('An organisation with this name already exists');
 
   const passwordHash = await hashPassword(input.password);
 
@@ -54,8 +39,7 @@ export async function registerNewTenant(input: RegistrationInput): Promise<Regis
   const { user, tenant } = await prisma.$transaction(async (tx) => {
     const t = await tx.tenant.create({
       data: {
-        name: input.organisationName.trim(),
-        slug,
+        name: tenantName,
         onboardingComplete: false,
       },
     });
@@ -145,7 +129,7 @@ export async function registerNewTenant(input: RegistrationInput): Promise<Regis
     type: 'refresh',
   });
 
-  logger.info('New tenant registered', { tenantId: tenant.id, slug, email: user.email });
+  logger.info('New tenant registered', { tenantId: tenant.id, name: tenant.name, email: user.email });
 
   prisma.auditEvent.create({
     data: {

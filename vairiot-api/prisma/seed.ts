@@ -7,7 +7,6 @@ const prisma = new PrismaClient();
 
 const TENANT_ID   = 'demo';
 const TENANT_NAME = 'Vairiot Demo Co.';
-const TENANT_SLUG = 'demo';
 const DEFAULT_PASS = 'DemoPassword1!';
 
 // One user per role — 11 users total + the original demo admin
@@ -40,8 +39,8 @@ async function main() {
   // ── Tenant ─────────────────────────────────────────────────────────────────
   const tenant = await prisma.tenant.upsert({
     where:  { id: TENANT_ID },
-    update: { name: TENANT_NAME, slug: TENANT_SLUG, active: true, onboardingComplete: true },
-    create: { id: TENANT_ID, name: TENANT_NAME, slug: TENANT_SLUG, active: true, onboardingComplete: true },
+    update: { name: TENANT_NAME, active: true, onboardingComplete: true },
+    create: { id: TENANT_ID, name: TENANT_NAME, active: true, onboardingComplete: true },
   });
 
   // ── Roles from ROLE_PERMISSION_MATRIX (single source of truth) ────────────

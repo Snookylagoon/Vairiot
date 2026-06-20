@@ -22,7 +22,7 @@ beforeAll(async () => {
   await prisma.tenant.upsert({
     where: { id: TID },
     update: { onboardingComplete: true, featureFlags: { blindAudit: true } },
-    create: { id: TID, name: 'Blind Audit Test', slug: 'blind-audit-test', onboardingComplete: true, featureFlags: { blindAudit: true } },
+    create: { id: TID, name: 'Blind Audit Test', onboardingComplete: true, featureFlags: { blindAudit: true } },
   });
 
   // Roles

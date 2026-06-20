@@ -307,14 +307,13 @@ platformRouter.post('/tenants/:id/sub-tenants', async (req: Request, res: Respon
     return;
   }
 
-  const slug = parentTenant.slug + '-' + clientName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
-  const existing = await prisma.tenant.findUnique({ where: { slug } });
+  const subTenantName = clientName.trim();
+  const existing = await prisma.tenant.findUnique({ where: { name: subTenantName } });
   if (existing) { res.status(409).json({ error: 'A sub-tenant with this name already exists' }); return; }
 
   const subTenant = await prisma.tenant.create({
     data: {
-      name: clientName.trim(),
-      slug,
+      name: subTenantName,
       parentTenantId: parentTenant.id,
       deploymentMode: parentTenant.deploymentMode,
       onboardingComplete: true,
