@@ -2,6 +2,7 @@ package com.vairiot.app.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vairiot.app.data.api.AssetCreateRequest
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.scanner.ScannerService
@@ -19,6 +20,8 @@ sealed class ScanUiState {
     object Loading : ScanUiState()
     data class Found(val asset: AssetResponse) : ScanUiState()
     data class NotFound(val tag: String)       : ScanUiState()
+    object Registering                         : ScanUiState()
+    data class Registered(val asset: AssetResponse) : ScanUiState()
     data class Error(val message: String)      : ScanUiState()
 }
 
@@ -70,6 +73,18 @@ class AssetScanViewModel @Inject constructor(
                 _state.value = ScanUiState.Found(asset)
             } catch (e: Exception) {
                 _state.value = ScanUiState.NotFound(tagValue)
+            }
+        }
+    }
+
+    fun registerAsset(name: String, tag: String) {
+        viewModelScope.launch {
+            _state.value = ScanUiState.Registering
+            try {
+                val asset = api.createAsset(AssetCreateRequest(name = name, rfidTag = tag))
+                _state.value = ScanUiState.Registered(asset)
+            } catch (e: Exception) {
+                _state.value = ScanUiState.Error("Registration failed: ${e.message}")
             }
         }
     }

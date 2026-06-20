@@ -85,6 +85,10 @@ interface VairiotApiService {
     @GET("api/v1/audits/{id}/report")
     suspend fun getAuditReport(@Path("id") id: String): AuditReportResponse
 
+    // ─── Asset create ─────────────────────────────────────────────────────
+    @POST("api/v1/assets")
+    suspend fun createAsset(@Body request: AssetCreateRequest): AssetResponse
+
     // ─── Asset update ──────────────────────────────────────────────────────
     @PATCH("api/v1/assets/{id}")
     suspend fun updateAsset(

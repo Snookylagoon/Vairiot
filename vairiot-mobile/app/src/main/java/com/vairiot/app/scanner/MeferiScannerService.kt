@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -41,10 +40,7 @@ class MeferiScannerService @Inject constructor(
         val filter = IntentFilter().apply {
             (BARCODE_ACTIONS + UHF_ACTIONS).forEach { addAction(it) }
         }
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.RECEIVER_EXPORTED
-        } else 0
-        ContextCompat.registerReceiver(context, receiver, filter, flags)
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
         Log.d(TAG, "Registered for ${BARCODE_ACTIONS.size + UHF_ACTIONS.size} scanner broadcast actions")
     }
 

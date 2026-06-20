@@ -80,12 +80,17 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
 
             // Result area
             when (val s = state) {
-                is ScanUiState.Idle     -> IdleCard()
-                is ScanUiState.Scanning -> ScanningCard(onCancel = { viewModel.cancelScan() })
-                is ScanUiState.Loading  -> LoadingCard()
-                is ScanUiState.Found    -> AssetResultCard(s.asset, onReset = { viewModel.reset() })
-                is ScanUiState.NotFound -> NotFoundCard(s.tag, onReset = { viewModel.reset() })
-                is ScanUiState.Error    -> ErrorCard(s.message, onReset = { viewModel.reset() })
+                is ScanUiState.Idle       -> IdleCard()
+                is ScanUiState.Scanning   -> ScanningCard(onCancel = { viewModel.cancelScan() })
+                is ScanUiState.Loading    -> LoadingCard()
+                is ScanUiState.Found      -> AssetResultCard(s.asset, onReset = { viewModel.reset() })
+                is ScanUiState.NotFound   -> NotFoundCard(s.tag,
+                    onReset    = { viewModel.reset() },
+                    onRegister = { name -> viewModel.registerAsset(name, s.tag) },
+                )
+                is ScanUiState.Registering -> LoadingCard()
+                is ScanUiState.Registered  -> AssetResultCard(s.asset, onReset = { viewModel.reset() }, isNew = true)
+                is ScanUiState.Error      -> ErrorCard(s.message, onReset = { viewModel.reset() })
             }
         }
     }
@@ -139,7 +144,7 @@ fun ScanningCard(onCancel: () -> Unit) {
 }
 
 @Composable
-fun AssetResultCard(asset: AssetResponse, onReset: () -> Unit) {
+fun AssetResultCard(asset: AssetResponse, onReset: () -> Unit, isNew: Boolean = false) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = VairiotWash)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -147,8 +152,8 @@ fun AssetResultCard(asset: AssetResponse, onReset: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Default.CheckCircle, contentDescription = null,
                     tint = SuccessGreen, modifier = Modifier.size(22.dp))
-                Text("Asset Found", style = MaterialTheme.typography.titleMedium,
-                    color = SuccessGreen)
+                Text(if (isNew) "Asset Registered" else "Asset Found",
+                    style = MaterialTheme.typography.titleMedium, color = SuccessGreen)
             }
             HorizontalDivider()
             DetailRow("Asset No.",   asset.assetNumber)
@@ -165,7 +170,10 @@ fun AssetResultCard(asset: AssetResponse, onReset: () -> Unit) {
 }
 
 @Composable
-fun NotFoundCard(tag: String, onReset: () -> Unit) {
+fun NotFoundCard(tag: String, onReset: () -> Unit, onRegister: (String) -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+    var assetName by remember { mutableStateOf("") }
+
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically,
@@ -179,8 +187,48 @@ fun NotFoundCard(tag: String, onReset: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             Text("This tag is not assigned to any asset in the system.",
                 style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = onReset) { Text("Scan Another") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { showDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Register Asset")
+                }
+                TextButton(onClick = onReset) { Text("Scan Another") }
+            }
         }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Register New Asset") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("RFID Tag: $tag", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    OutlinedTextField(
+                        value = assetName,
+                        onValueChange = { assetName = it },
+                        label = { Text("Asset Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showDialog = false; onRegister(assetName) },
+                    enabled = assetName.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+                ) { Text("Register") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 

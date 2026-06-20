@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.vairiot.app"
-        minSdk = 33
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -46,6 +46,10 @@ android {
 }
 
 dependencies {
+    // NordicID NUR SDK (local AAR/JAR from app/libs/)
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
+    implementation("no.nordicsemi.android.support.v18:scanner:1.6.0")
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)

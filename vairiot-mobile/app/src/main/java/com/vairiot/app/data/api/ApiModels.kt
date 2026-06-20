@@ -178,6 +178,20 @@ data class MaintenanceEventResponse(
     val createdAt:       String,
 )
 
+// ─── Asset create ─────────────────────────────────────────────────────────
+data class AssetCreateRequest(
+    val name:         String,
+    val rfidTag:      String?  = null,
+    val barcode:      String?  = null,
+    val description:  String?  = null,
+    val serialNumber: String?  = null,
+    val condition:    String   = "good",
+    val status:       String   = "active",
+    val categoryId:   String?  = null,
+    val siteId:       String?  = null,
+    val locationId:   String?  = null,
+)
+
 // ─── Asset update ──────────────────────────────────────────────────────────
 data class AssetUpdateRequest(
     val name:         String?  = null,

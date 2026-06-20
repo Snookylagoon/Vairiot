@@ -12,6 +12,13 @@
     <uses-permission android:name="nlscan.permission.RECEIVER" />
     <uses-permission android:name="com.android.permission.SCAN" />
 
+    <!-- NordicID NUR SDK: Bluetooth for BLE transport (HH83 uses integrated, but SDK requires these) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
     <!-- Declare optional hardware so Play store filtering is correct, but app still runs without it -->
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
