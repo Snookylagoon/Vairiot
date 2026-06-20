@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAllUsers, useResetPassword, useUnlockUser, useSetUserActive } from '@/hooks/useAdmin';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
-import { KeyRound, Unlock, UserX, UserCheck, Copy } from 'lucide-react';
+import { KeyRound, Unlock, UserX, UserCheck, Copy, Table2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { RoleMatrixDialog } from './RoleMatrixDialog';
 
 interface UserRow {
   id: string;
@@ -21,6 +23,7 @@ interface UserRow {
 }
 
 export function UsersPage() {
+  const navigate = useNavigate();
   const { search, searchInput, setSearchInput, sortBy, sortOrder, toggleSort, extras, setExtra } =
     useUrlTableState(['active']);
   const activeFilter = extras.active;
@@ -37,6 +40,7 @@ export function UsersPage() {
 
   const [confirm, setConfirm] = useState<{ action: string; userId: string; name: string } | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [matrixOpen, setMatrixOpen] = useState(false);
 
   const handleAction = async () => {
     if (!confirm) return;
@@ -67,15 +71,6 @@ export function UsersPage() {
         <>
           <p className="font-medium text-v-charcoal">{u.name}</p>
           <p className="text-xs text-gray-400">{u.email}</p>
-        </>
-      ),
-    },
-    {
-      key: 'tenant.name', label: 'Tenant',
-      render: u => (
-        <>
-          <p className="text-v-charcoal">{u.tenant?.name}</p>
-          <p className="text-xs text-gray-400 font-mono">{u.tenant?.slug}</p>
         </>
       ),
     },
@@ -120,7 +115,7 @@ export function UsersPage() {
       render: u => {
         const isLocked = u.lockedUntil && new Date(u.lockedUntil) > new Date();
         return (
-          <div className="flex gap-1">
+          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
             <Button size="sm" variant="ghost" title="Reset Password"
               onClick={() => setConfirm({ action: 'reset', userId: u.id, name: u.name })}>
               <KeyRound size={14} />
@@ -166,18 +161,35 @@ export function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-h1 text-v-charcoal">Users</h1>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h1 className="text-h1 text-v-charcoal">Users</h1>
+        <Button size="sm" variant="secondary" onClick={() => setMatrixOpen(true)}>
+          <Table2 size={14} className="mr-1" /> Role Permission Matrix
+        </Button>
+      </div>
 
       <DataTable<UserRow>
         columns={columns}
         rows={users as UserRow[]}
         getRowKey={u => u.id}
+        onRowClick={u => navigate(`/users/${u.id}`)}
         isLoading={isLoading}
         emptyMessage="No users found"
         search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Search by name or email…' }}
         sort={{ sortBy, sortOrder, onToggle: toggleSort }}
         toolbar={toolbar}
+        groupBy={{
+          keyOf: u => u.tenant?.slug || '∅',
+          labelOf: u => (
+            <span className="flex items-baseline gap-2">
+              <span>{u.tenant?.name || 'No tenant'}</span>
+              {u.tenant?.slug && <span className="text-xs text-gray-400 font-mono font-normal">{u.tenant.slug}</span>}
+            </span>
+          ),
+        }}
       />
+
+      <RoleMatrixDialog open={matrixOpen} onClose={() => setMatrixOpen(false)} />
 
       <ConfirmDialog
         open={!!confirm}
