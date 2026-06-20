@@ -97,9 +97,28 @@ object NetworkModule {
     @Singleton
     fun provideImageLoader(
         @ApplicationContext context: Context,
-        okHttpClient: OkHttpClient,
-    ): ImageLoader = ImageLoader.Builder(context)
-        .okHttpClient(okHttpClient)
-        .crossfade(true)
-        .build()
+        tokenStore: TokenStore,
+    ): ImageLoader {
+        val authInterceptor = Interceptor { chain ->
+            val token = runBlocking { tokenStore.getAccessToken() }
+            val request = chain.request().newBuilder().apply {
+                if (token != null) addHeader("Authorization", "Bearer $token")
+            }.build()
+            chain.proceed(request)
+        }
+        val forceFetchInterceptor = Interceptor { chain ->
+            val req = chain.request().newBuilder()
+                .cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
+                .build()
+            chain.proceed(req)
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .addInterceptor(forceFetchInterceptor)
+            .build()
+        return ImageLoader.Builder(context)
+            .okHttpClient(client)
+            .crossfade(true)
+            .build()
+    }
 }

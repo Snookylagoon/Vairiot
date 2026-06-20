@@ -45,10 +45,14 @@ class MeferiScannerService @Inject constructor(
     }
 
     override fun startScan(type: ScanType) {
-        START_SCAN_ACTIONS.forEach { action ->
+        val actions = when (type) {
+            ScanType.BARCODE -> START_CAMERA_ACTIONS
+            else             -> START_SCAN_ACTIONS
+        }
+        actions.forEach { action ->
             runCatching {
                 context.sendBroadcast(Intent(action).setPackage(null))
-            }.onFailure { Log.w(TAG, "startScan: $action failed: ${it.message}") }
+            }.onFailure { Log.w(TAG, "startScan($type): $action failed: ${it.message}") }
         }
     }
 
@@ -95,6 +99,10 @@ class MeferiScannerService @Inject constructor(
 
         private val START_SCAN_ACTIONS = listOf(
             "com.meferi.action.SCANNER.SHOOT",
+        )
+
+        private val START_CAMERA_ACTIONS = listOf(
+            "com.meferi.action.CAMERA.SCAN",
         )
 
         private val STOP_SCAN_ACTIONS = listOf(

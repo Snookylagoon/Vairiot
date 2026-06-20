@@ -1,10 +1,8 @@
 package com.vairiot.app.ui.screens
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -76,16 +74,14 @@ fun AssetPhotosSection(
     }
 
     fun launchCamera() {
-        val pm = context.packageManager
-        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        if (intent.resolveActivity(pm) == null) {
-            localError = "No camera app available. Use Gallery instead."
-            return
-        }
         localError = null
-        val uri = newCaptureUri(context)
-        captureUri = uri
-        takePicture.launch(uri)
+        try {
+            val uri = newCaptureUri(context)
+            captureUri = uri
+            takePicture.launch(uri)
+        } catch (_: Exception) {
+            localError = "No camera app available. Use Gallery instead."
+        }
     }
 
     val requestCameraPermission = rememberLauncherForActivityResult(
