@@ -1,8 +1,8 @@
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardBody } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { ReportExportButton } from '@/components/reports/ReportExportButton';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
 import { useAgingReport } from '@/hooks/useReports';
 import { useCategories } from '@/hooks/useCategories';
@@ -45,16 +45,6 @@ export function AgingPage() {
   const buckets = data?.buckets ?? {};
   const total = data?.totalAssets ?? 0;
 
-  const downloadCsv = () => {
-    const header = 'Asset Number,Name,Category,Site,Status,Purchase Date,Purchase Cost,Age (months)\n';
-    const csv = rows.map(r =>
-      `"${r.assetNumber}","${r.name}","${r.category ?? ''}","${r.site ?? ''}","${r.status}","${new Date(r.purchaseDate).toLocaleDateString('en-GB')}",${r.purchaseCost},${r.ageMonths}`
-    ).join('\n');
-    const blob = new Blob([header + csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'asset-aging.csv'; a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const columns: DataTableColumn<AgingRow>[] = [
     {
@@ -109,9 +99,7 @@ export function AgingPage() {
           <h1 className="text-2xl font-bold text-v-charcoal">Asset Aging</h1>
           <p className="text-sm text-gray-500 mt-1">{total} assets with a purchase date</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={downloadCsv} disabled={rows.length === 0}>
-          <Download size={14} className="mr-1" /> Export CSV
-        </Button>
+        <ReportExportButton reportType="asset-aging" filters={filters} disabled={rows.length === 0} />
       </div>
 
       <Card>

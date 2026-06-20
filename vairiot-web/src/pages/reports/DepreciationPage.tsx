@@ -1,8 +1,8 @@
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardBody } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { ReportExportButton } from '@/components/reports/ReportExportButton';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
 import { useDepreciationRegister } from '@/hooks/useReports';
 import { useCategories } from '@/hooks/useCategories';
@@ -43,16 +43,6 @@ export function DepreciationPage() {
     netBookValue: acc.netBookValue + r.netBookValue,
   }), { capitalizedCost: 0, accumulatedDepreciation: 0, netBookValue: 0 });
 
-  const downloadCsv = () => {
-    const header = 'Asset Number,Name,Category,Site,Method,Useful Life (mo),Capitalized Cost,Monthly Dep,Accumulated Dep,NBV,Residual Value\n';
-    const csv = rows.map(r =>
-      `"${r.assetNumber}","${r.name}","${r.category ?? ''}","${r.site ?? ''}","${r.depreciationMethod ?? ''}",${r.usefulLifeMonths ?? ''},${r.capitalizedCost},${r.monthlyDepreciation},${r.accumulatedDepreciation},${r.netBookValue},${r.residualValue}`
-    ).join('\n');
-    const blob = new Blob([header + csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'depreciation-register.csv'; a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const columns: DataTableColumn<DepRow>[] = [
     {
@@ -109,9 +99,7 @@ export function DepreciationPage() {
           <h1 className="text-2xl font-bold text-v-charcoal">Depreciation Register</h1>
           <p className="text-sm text-gray-500 mt-1">{rows.length} assets with depreciation configured</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={downloadCsv} disabled={rows.length === 0}>
-          <Download size={14} className="mr-1" /> Export CSV
-        </Button>
+        <ReportExportButton reportType="depreciation-schedule" filters={filters} disabled={rows.length === 0} />
       </div>
 
       <div className="grid grid-cols-3 gap-4">

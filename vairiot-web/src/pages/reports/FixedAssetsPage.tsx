@@ -1,8 +1,8 @@
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardBody } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { ReportExportButton } from '@/components/reports/ReportExportButton';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
 import { useFixedAssetRegister } from '@/hooks/useReports';
 import { useCategories } from '@/hooks/useCategories';
@@ -45,16 +45,6 @@ export function FixedAssetsPage() {
     netBookValue: acc.netBookValue + r.netBookValue,
   }), { purchaseCost: 0, capitalizedCost: 0, netBookValue: 0 });
 
-  const downloadCsv = () => {
-    const header = 'Asset Number,Name,Category,Site,Location,Status,Condition,Serial No,Manufacturer,Purchase Date,Purchase Cost,Capitalized Cost,Accum Dep,NBV\n';
-    const csv = rows.map(r =>
-      `"${r.assetNumber}","${r.name}","${r.category ?? ''}","${r.site ?? ''}","${r.location ?? ''}","${r.status}","${r.condition}","${r.serialNumber ?? ''}","${r.manufacturer ?? ''}","${r.purchaseDate ? new Date(r.purchaseDate).toLocaleDateString('en-GB') : ''}",${r.purchaseCost},${r.capitalizedCost},${r.accumulatedDepreciation},${r.netBookValue}`
-    ).join('\n');
-    const blob = new Blob([header + csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'fixed-asset-register.csv'; a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const columns: DataTableColumn<FixedAssetRow>[] = [
     {
@@ -106,9 +96,7 @@ export function FixedAssetsPage() {
           <h1 className="text-2xl font-bold text-v-charcoal">Fixed Asset Register</h1>
           <p className="text-sm text-gray-500 mt-1">{rows.length} assets</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={downloadCsv} disabled={rows.length === 0}>
-          <Download size={14} className="mr-1" /> Export CSV
-        </Button>
+        <ReportExportButton reportType="fixed-asset-register" filters={filters} disabled={rows.length === 0} />
       </div>
       <div className="grid grid-cols-3 gap-4">
         <Card><CardBody><p className="text-xs text-gray-500 uppercase">Total Purchase Cost</p><p className="text-xl font-bold text-v-charcoal mt-1">{fmtCurrency(totals.purchaseCost)}</p></CardBody></Card>

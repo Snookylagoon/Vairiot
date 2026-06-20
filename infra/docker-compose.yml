@@ -64,6 +64,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
+      reports:  { condition: service_healthy }
     environment:
       NODE_ENV:      development
       DATABASE_URL:  "postgresql://${POSTGRES_USER:-vairiot}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-vairiot_dev}"
@@ -71,6 +72,7 @@ services:
       JWT_SECRET:    ${JWT_SECRET:-dev-secret-replace-in-production}
       API_PORT:      3001
       LOG_LEVEL:     ${LOG_LEVEL:-debug}
+      REPORT_SERVICE_URL: http://reports:8100
     command: sh -c "rm -f .env && npm run dev"
     volumes:
       - ../vairiot-api:/app
@@ -94,6 +96,23 @@ services:
       - /app/node_modules
     ports:
       - "3000:3000"
+
+  # ─── Report Service (Python / FastAPI) ────────────────────────────────────────
+  reports:
+    build:
+      context: ../vairiot-reports
+      dockerfile: Dockerfile.dev
+    container_name: vairiot_reports
+    restart: unless-stopped
+    volumes:
+      - ../vairiot-reports/app:/app/app
+    ports:
+      - "8100:8100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   # ─── Worker (BullMQ background jobs) ────────────────────────────────────────
   worker:
