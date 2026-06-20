@@ -76,22 +76,25 @@ data class AssetListResponse(
 
 // ─── Audits ────────────────────────────────────────────────────────────────
 data class AuditCampaignResponse(
-    val id:          String,
-    val name:        String,
-    val status:      String,
-    val siteId:      String?,
-    val locationId:  String?,
-    val scheduledAt: String?,
-    val startedAt:   String?,
-    val completedAt: String?,
-    val createdAt:   String,
-    val _count:      AuditCountResponse? = null,
+    val id:               String,
+    val name:             String,
+    val mode:             String = "sighted",
+    val status:           String,
+    val siteId:           String?,
+    val locationId:       String?,
+    val linkedCampaignId: String? = null,
+    val scheduledAt:      String?,
+    val startedAt:        String?,
+    val completedAt:      String?,
+    val createdAt:        String,
+    val _count:           AuditCountResponse? = null,
 )
 
 data class AuditCountResponse(val scanEvents: Int)
 
 data class CreateAuditRequest(
     val name:       String,
+    val mode:       String? = null,
     val siteId:     String? = null,
     val locationId: String? = null,
     val categoryId: String? = null,
@@ -99,8 +102,18 @@ data class CreateAuditRequest(
 )
 
 data class RecordScanRequest(
-    val tagValue: String,
-    val deviceId: String? = null,
+    val tagValue:   String,
+    val deviceId:   String? = null,
+    val locationId: String? = null,
+    val condition:  String? = null,
+)
+
+data class ZoneSubmissionResponse(
+    val id:          String,
+    val campaignId:  String,
+    val locationId:  String,
+    val submittedBy: String,
+    val submittedAt: String,
 )
 
 data class AuditScanEventResponse(

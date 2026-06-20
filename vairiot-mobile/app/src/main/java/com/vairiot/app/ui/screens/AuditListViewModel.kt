@@ -81,6 +81,7 @@ class AuditListViewModel @Inject constructor(
 
     fun createCampaign(
         name: String,
+        mode: String?,
         siteId: String?,
         locationId: String?,
         categoryId: String?,
@@ -92,6 +93,7 @@ class AuditListViewModel @Inject constructor(
             try {
                 api.createAudit(CreateAuditRequest(
                     name       = name.trim(),
+                    mode       = mode,
                     siteId     = siteId?.takeIf { it.isNotBlank() },
                     locationId = locationId?.takeIf { it.isNotBlank() },
                     categoryId = categoryId?.takeIf { it.isNotBlank() },

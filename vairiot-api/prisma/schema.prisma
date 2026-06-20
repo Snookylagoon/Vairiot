@@ -61,6 +61,7 @@ model Tenant {
   apiKeys            ApiKey[]
   licences           Licence[]
   devices            Device[]
+  featureFlags       Json           @default("{}")
   company            Company?
   clientCompanies    ClientCompany[]
   onboardingProgress OnboardingProgress[]
@@ -366,23 +367,31 @@ model Photo {
 
 // ─── Audit Campaigns ─────────────────────────────────────────────────────────
 model AuditCampaign {
-  id          String   @id @default(cuid())
-  tenantId    String
-  name        String
-  siteId      String?
-  locationId  String?
-  categoryId  String?
-  status      String   @default("draft")
-  scheduledAt DateTime?
-  startedAt   DateTime?
-  completedAt DateTime?
-  createdBy   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(cuid())
+  tenantId          String
+  name              String
+  mode              String   @default("sighted")
+  siteId            String?
+  locationId        String?
+  categoryId        String?
+  status            String   @default("draft")
+  linkedCampaignId  String?
+  scheduledAt       DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdBy         String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  tenant     Tenant                @relation(fields: [tenantId],   references: [id])
-  scanEvents AuditScanEvent[]
-  assets     AuditCampaignAsset[]
+  tenant              Tenant                    @relation(fields: [tenantId], references: [id])
+  linkedCampaign      AuditCampaign?            @relation("DoubleBlink", fields: [linkedCampaignId], references: [id])
+  linkedFrom          AuditCampaign[]           @relation("DoubleBlink")
+  scanEvents          AuditScanEvent[]
+  assets              AuditCampaignAsset[]
+  snapshotAssets      AuditSnapshotAsset[]
+  zoneSubmissions     AuditZoneSubmission[]
+  reconciliationItems AuditReconciliationItem[]
+  adjustments         AuditAdjustment[]
 
   @@index([tenantId, status])
   @@map("audit_campaigns")
@@ -410,14 +419,102 @@ model AuditScanEvent {
   assetId    String?
   scannedBy  String
   deviceId   String?
+  locationId String?
+  condition  String?
   result     String   @default("found")
   scannedAt  DateTime @default(now())
 
-  campaign AuditCampaign @relation(fields: [campaignId], references: [id])
+  campaign            AuditCampaign            @relation(fields: [campaignId], references: [id])
+  reconciliationItems AuditReconciliationItem[]
 
   @@index([campaignId])
   @@index([tenantId, tagValue])
   @@map("audit_scan_events")
+}
+
+// ─── Blind Audit: Register Snapshot ──────────────────────────────────────────
+model AuditSnapshotAsset {
+  id            String   @id @default(cuid())
+  campaignId    String
+  assetId       String
+  assetNumber   String
+  name          String
+  rfidTag       String?
+  barcode       String?
+  siteId        String?
+  locationId    String?
+  categoryId    String?
+  condition     String?
+  purchaseCost  Decimal? @db.Decimal(12, 2)
+  residualValue Decimal? @db.Decimal(12, 2)
+  snapshotAt    DateTime @default(now())
+
+  campaign            AuditCampaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  reconciliationItems AuditReconciliationItem[]
+
+  @@unique([campaignId, assetId])
+  @@index([campaignId])
+  @@map("audit_snapshot_assets")
+}
+
+// ─── Blind Audit: Zone Submissions ───────────────────────────────────────────
+model AuditZoneSubmission {
+  id          String   @id @default(cuid())
+  campaignId  String
+  locationId  String
+  submittedBy String
+  submittedAt DateTime @default(now())
+
+  campaign AuditCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, locationId])
+  @@index([campaignId])
+  @@map("audit_zone_submissions")
+}
+
+// ─── Blind Audit: Reconciliation Items ───────────────────────────────────────
+model AuditReconciliationItem {
+  id                 String  @id @default(cuid())
+  campaignId         String
+  snapshotAssetId    String?
+  scanEventId        String?
+  classification     String
+  snapshotLocationId String?
+  foundLocationId    String?
+  snapshotCondition  String?
+  foundCondition     String?
+  notes              String?
+  createdAt          DateTime @default(now())
+
+  campaign      AuditCampaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  snapshotAsset AuditSnapshotAsset? @relation(fields: [snapshotAssetId], references: [id])
+  scanEvent     AuditScanEvent?     @relation(fields: [scanEventId], references: [id])
+  adjustments   AuditAdjustment[]
+
+  @@index([campaignId, classification])
+  @@map("audit_reconciliation_items")
+}
+
+// ─── Blind Audit: Adjustments ────────────────────────────────────────────────
+model AuditAdjustment {
+  id                   String    @id @default(cuid())
+  campaignId           String
+  reconciliationItemId String
+  adjustmentType       String
+  fieldChanged         String?
+  valueBefore          String?
+  valueAfter           String?
+  justification        String
+  postedBy             String
+  postedAt             DateTime  @default(now())
+  appliedToRegister    Boolean   @default(false)
+  appliedAt            DateTime?
+
+  campaign           AuditCampaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  reconciliationItem AuditReconciliationItem @relation(fields: [reconciliationItemId], references: [id])
+
+  @@index([campaignId])
+  @@map("audit_adjustments")
 }
 
 // ─── Check-in / Check-out ─────────────────────────────────────────────────────

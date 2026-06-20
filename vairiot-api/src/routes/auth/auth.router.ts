@@ -79,8 +79,11 @@ authRouter.get('/me', authenticate, asyncHandler(async (req: Request, res: Respo
   const { prisma } = await import('../../lib/prisma');
   const tenant = await prisma.tenant.findUnique({
     where: { id: req.user!.tenantId },
-    select: { name: true, company: { select: { legalName: true } } },
+    select: { name: true, featureFlags: true, company: { select: { legalName: true } } },
   });
+  const flags = (tenant?.featureFlags && typeof tenant.featureFlags === 'object' && !Array.isArray(tenant.featureFlags))
+    ? tenant.featureFlags as Record<string, boolean>
+    : {};
   res.json({
     userId: req.user!.sub,
     email: req.user!.email,
@@ -88,6 +91,7 @@ authRouter.get('/me', authenticate, asyncHandler(async (req: Request, res: Respo
     tenantName: tenant?.company?.legalName ?? tenant?.name ?? req.user!.tenantId,
     roles: req.user!.roles,
     permissions: req.user!.permissions,
+    featureFlags: flags,
   });
 }));
 

@@ -11,6 +11,7 @@ export interface UserProfile {
   tenantName: string;
   roles: string[];
   permissions: string[];
+  featureFlags?: Record<string, boolean>;
 }
 
 export interface LoginRequest {

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, ClipboardList, Play, CheckCircle, Clock, ArrowRight, X } from 'lucide-react';
+import { Plus, ClipboardList, Play, CheckCircle, Clock, ArrowRight, X, EyeOff, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
@@ -35,13 +35,17 @@ export function AuditsPage() {
     queryFn:  () => api.get('/api/v1/audits').then(r => r.data),
   });
 
+  const blindAuditEnabled = user?.featureFlags?.blindAudit === true;
+
   const createCampaign = useMutation({
     mutationFn: (data: {
       name: string;
+      mode?: string;
       siteId?: string;
       locationId?: string;
       categoryId?: string;
       assetIds?: string[];
+      linkedCampaignId?: string;
     }) => api.post('/api/v1/audits', data).then(r => r.data),
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ['audits'] }); toast.success('Campaign created'); },
     onError:    () => { toast.error('Failed to create campaign'); },
@@ -54,6 +58,7 @@ export function AuditsPage() {
   });
 
   const [name, setName]               = useState('');
+  const [mode, setMode]               = useState<'sighted' | 'blind'>('sighted');
   const [siteId, setSiteId]           = useState('');
   const [locationId, setLocationId]   = useState('');
   const [categoryId, setCategoryId]   = useState('');
@@ -89,6 +94,7 @@ export function AuditsPage() {
   const handleCreate = async () => {
     if (!name.trim()) return;
     const payload: Parameters<typeof createCampaign.mutateAsync>[0] = { name: name.trim() };
+    if (mode === 'blind') payload.mode = 'blind';
     if (assetIds.length) {
       payload.assetIds = assetIds;
     } else {
@@ -97,7 +103,7 @@ export function AuditsPage() {
       if (categoryId) payload.categoryId = categoryId;
     }
     await createCampaign.mutateAsync(payload);
-    setName(''); setSiteId(''); setLocationId(''); setCategoryId('');
+    setName(''); setMode('sighted'); setSiteId(''); setLocationId(''); setCategoryId('');
     setAssetIds([]); setAssetQuery('');
   };
 
@@ -117,6 +123,27 @@ export function AuditsPage() {
               <Input label="New campaign name *" placeholder="e.g. Q3 2026 — Building A"
                 value={name} onChange={e => setName(e.target.value)} />
             </div>
+
+            {blindAuditEnabled && (
+              <div>
+                <p className="text-sm font-medium text-v-charcoal mb-2">Mode</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setMode('sighted')}
+                    className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${mode === 'sighted' ? 'border-v-violet bg-v-violet/5 text-v-violet font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                    <Eye size={14} /> Sighted
+                  </button>
+                  <button type="button" onClick={() => setMode('blind')}
+                    className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${mode === 'blind' ? 'border-v-pink bg-v-pink/5 text-v-pink font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                    <EyeOff size={14} /> Blind
+                  </button>
+                </div>
+                {mode === 'blind' && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Auditors will not see expected assets during capture. A site must be selected.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
               <p className="text-sm font-medium text-v-charcoal mb-2">Scope</p>
@@ -195,8 +222,11 @@ export function AuditsPage() {
               <p className="text-sm text-gray-400">No audit campaigns yet.</p>
             </div>
           )}
-          {campaigns.map((c: { id: string; name: string; status: string; _count?: { scanEvents: number }; createdAt: string }) => {
+          {campaigns.map((c: { id: string; name: string; status: string; mode?: string; linkedCampaignId?: string; linkedFrom?: Array<{ id: string }>; _count?: { scanEvents: number }; createdAt: string }) => {
             const Icon = statusIcon[c.status] ?? Clock;
+            const isBlind = c.mode === 'blind';
+            const hasSecondCount = (c.linkedFrom ?? []).length > 0;
+            const isSecondCount = !!c.linkedCampaignId;
             return (
               <div key={c.id} className="flex items-center justify-between py-4">
                 <div className="flex items-center gap-3">
@@ -204,7 +234,14 @@ export function AuditsPage() {
                     <Icon size={16} className="text-v-violet" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-v-charcoal">{c.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-v-charcoal">{c.name}</p>
+                      {isBlind && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-v-pink/10 text-v-pink text-[10px] font-semibold px-1.5 py-0.5">
+                          <EyeOff size={10} /> Blind
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {c._count?.scanEvents ?? 0} scans &mdash; {new Date(c.createdAt).toLocaleDateString('en-GB')}
                     </p>
@@ -226,6 +263,33 @@ export function AuditsPage() {
                     <Button size="sm" variant="secondary"
                       onClick={() => navigate(`/audits/${c.id}/run`)}>
                       {c.status === 'completed' ? 'Report' : 'Run'} <ArrowRight size={14} className="ml-1" />
+                    </Button>
+                  )}
+                  {c.status === 'completed' && isBlind && (
+                    <Button size="sm" variant="secondary"
+                      onClick={() => navigate(`/audits/${c.id}/reconciliation`)}>
+                      Reconciliation <ArrowRight size={14} className="ml-1" />
+                    </Button>
+                  )}
+                  {c.status === 'completed' && isBlind && canWrite && !hasSecondCount && !isSecondCount && (
+                    <Button size="sm" variant="secondary"
+                      loading={createCampaign.isPending}
+                      onClick={async () => {
+                        const second = await createCampaign.mutateAsync({
+                          name: `${c.name} — Count 2`,
+                          mode: 'blind',
+                          linkedCampaignId: c.id,
+                        });
+                        toast.success('Second count created');
+                        navigate(`/audits/${second.id}/run`);
+                      }}>
+                      Second count
+                    </Button>
+                  )}
+                  {c.status === 'completed' && isBlind && (hasSecondCount || isSecondCount) && (
+                    <Button size="sm" variant="secondary"
+                      onClick={() => navigate(`/audits/${c.id}/comparison`)}>
+                      Comparison <ArrowRight size={14} className="ml-1" />
                     </Button>
                   )}
                 </div>

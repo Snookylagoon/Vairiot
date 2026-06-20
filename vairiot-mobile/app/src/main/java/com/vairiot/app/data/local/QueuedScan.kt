@@ -9,6 +9,8 @@ data class QueuedScan(
     val campaignId: String,
     val tagValue: String,
     val deviceId: String? = null,
+    val locationId: String? = null,
+    val condition: String? = null,
     val createdAtMs: Long = System.currentTimeMillis(),
     val attempts: Int = 0,
     val lastError: String? = null,

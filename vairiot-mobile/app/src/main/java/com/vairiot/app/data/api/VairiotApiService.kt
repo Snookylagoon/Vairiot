@@ -70,6 +70,15 @@ interface VairiotApiService {
         @Body request: RecordScanRequest,
     ): AuditScanEventResponse
 
+    @POST("api/v1/audits/{id}/zones/{locationId}/submit")
+    suspend fun submitAuditZone(
+        @Path("id") id: String,
+        @Path("locationId") locationId: String,
+    ): ZoneSubmissionResponse
+
+    @GET("api/v1/audits/{id}/zones")
+    suspend fun listAuditZones(@Path("id") id: String): List<ZoneSubmissionResponse>
+
     @POST("api/v1/audits/{id}/complete")
     suspend fun completeAudit(@Path("id") id: String): AuditReportResponse
 

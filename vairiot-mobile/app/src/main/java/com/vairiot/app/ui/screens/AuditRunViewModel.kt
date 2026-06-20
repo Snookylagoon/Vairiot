@@ -3,9 +3,12 @@ package com.vairiot.app.ui.screens
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vairiot.app.data.api.AuditCampaignResponse
 import com.vairiot.app.data.api.AuditReportResponse
 import com.vairiot.app.data.api.AuditScanEventResponse
+import com.vairiot.app.data.api.RecordScanRequest
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.data.api.ZoneSubmissionResponse
 import com.vairiot.app.data.local.QueuedScan
 import com.vairiot.app.data.local.QueuedScanDao
 import com.vairiot.app.scanner.ScannerService
@@ -20,11 +23,18 @@ import javax.inject.Inject
 
 data class AuditRunUiState(
     val campaignId: String = "",
+    val campaign: AuditCampaignResponse? = null,
+    val isBlind: Boolean = false,
     val isSubmitting: Boolean = false,
     val recentScans:  List<AuditScanEventResponse> = emptyList(),
     val foundCount:   Int = 0,
     val unknownCount: Int = 0,
+    val recordedCount: Int = 0,
     val queuedCount:  Int = 0,
+    val selectedLocationId: String = "",
+    val locations: List<Pair<String, String>> = emptyList(),
+    val zoneSubmissions: List<ZoneSubmissionResponse> = emptyList(),
+    val condition: String = "",
     val lastMessage:  String? = null,
     val error:        String? = null,
     val report:       AuditReportResponse? = null,
@@ -52,38 +62,108 @@ class AuditRunViewModel @Inject constructor(
         viewModelScope.launch {
             scanner.scanResults.collect { result -> submitTag(result.value) }
         }
+        loadCampaign()
+    }
+
+    private fun loadCampaign() {
+        viewModelScope.launch {
+            try {
+                val campaign = api.getAuditReport(campaignId) as? AuditCampaignResponse
+                    ?: return@launch
+                val isBlind = campaign.mode == "blind"
+                _state.value = _state.value.copy(campaign = campaign, isBlind = isBlind)
+
+                if (isBlind && campaign.siteId != null) {
+                    val locations = api.listSiteLocations(campaign.siteId)
+                    val zones = api.listAuditZones(campaignId)
+                    _state.value = _state.value.copy(
+                        locations = locations.map { it.id to it.name },
+                        zoneSubmissions = zones,
+                    )
+                }
+            } catch (_: Exception) {
+                // Campaign details will be loaded from the list screen context
+            }
+        }
     }
 
     fun triggerScan() = scanner.startScan()
 
-    /**
-     * Offline-first: write the scan to the local queue immediately, then try to
-     * send to the API. On any failure we leave it in the queue for WorkManager
-     * to drain when connectivity returns.
-     */
+    fun setSelectedLocation(locationId: String) {
+        _state.value = _state.value.copy(selectedLocationId = locationId)
+    }
+
+    fun setCondition(condition: String) {
+        _state.value = _state.value.copy(condition = condition)
+    }
+
+    fun isZoneLocked(locationId: String): Boolean {
+        return _state.value.zoneSubmissions.any { it.locationId == locationId }
+    }
+
+    fun submitZone() {
+        val locationId = _state.value.selectedLocationId
+        if (locationId.isBlank() || campaignId.isBlank()) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isSubmitting = true, error = null)
+            try {
+                val submission = api.submitAuditZone(campaignId, locationId)
+                val updated = _state.value.zoneSubmissions + submission
+                _state.value = _state.value.copy(
+                    isSubmitting = false,
+                    zoneSubmissions = updated,
+                    lastMessage = "Zone submitted and locked",
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    isSubmitting = false,
+                    error = "Could not submit zone: ${e.message}",
+                )
+            }
+        }
+    }
+
     fun submitTag(tag: String) {
         val trimmed = tag.trim()
         if (trimmed.isBlank() || campaignId.isBlank()) return
+
+        val currentState = _state.value
+        if (currentState.isBlind && currentState.selectedLocationId.isBlank()) {
+            _state.value = currentState.copy(error = "Select a zone before scanning")
+            return
+        }
+        if (currentState.isBlind && isZoneLocked(currentState.selectedLocationId)) {
+            _state.value = currentState.copy(error = "This zone is locked")
+            return
+        }
+
         viewModelScope.launch {
             _state.value = _state.value.copy(isSubmitting = true, error = null)
             val queueId = queuedScanDao.insert(
                 QueuedScan(campaignId = campaignId, tagValue = trimmed),
             )
             try {
-                val ev = api.recordAuditScan(
-                    campaignId,
-                    com.vairiot.app.data.api.RecordScanRequest(tagValue = trimmed),
+                val request = RecordScanRequest(
+                    tagValue = trimmed,
+                    locationId = if (currentState.isBlind) currentState.selectedLocationId else null,
+                    condition = currentState.condition.ifBlank { null },
                 )
+                val ev = api.recordAuditScan(campaignId, request)
                 queuedScanDao.deleteById(queueId)
                 val recents = (listOf(ev) + _state.value.recentScans).take(20)
-                val foundDelta   = if (ev.result == "found")   1 else 0
-                val unknownDelta = if (ev.result == "unknown") 1 else 0
+                val foundDelta    = if (ev.result == "found")    1 else 0
+                val unknownDelta  = if (ev.result == "unknown")  1 else 0
+                val recordedDelta = if (ev.result == "recorded") 1 else 0
                 _state.value = _state.value.copy(
-                    isSubmitting = false,
-                    recentScans  = recents,
-                    foundCount   = _state.value.foundCount   + foundDelta,
-                    unknownCount = _state.value.unknownCount + unknownDelta,
-                    lastMessage  = if (ev.result == "found") "Recorded: $trimmed" else "Unknown tag: $trimmed",
+                    isSubmitting  = false,
+                    recentScans   = recents,
+                    foundCount    = _state.value.foundCount   + foundDelta,
+                    unknownCount  = _state.value.unknownCount + unknownDelta,
+                    recordedCount = _state.value.recordedCount + recordedDelta,
+                    condition     = "",
+                    lastMessage   = if (ev.result == "recorded") "Recorded: $trimmed"
+                                    else if (ev.result == "found") "Recorded: $trimmed"
+                                    else "Unknown tag: $trimmed",
                 )
             } catch (e: Exception) {
                 syncScheduler.triggerNow()

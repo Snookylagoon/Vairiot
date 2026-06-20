@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -152,8 +153,8 @@ fun AuditListScreen(
             state = state,
             onSiteSelected = { viewModel.loadLocationsForSite(it) },
             onDismiss = { showCreate = false },
-            onCreate = { name, siteId, locationId, categoryId ->
-                viewModel.createCampaign(name, siteId, locationId, categoryId) {
+            onCreate = { name, mode, siteId, locationId, categoryId ->
+                viewModel.createCampaign(name, mode, siteId, locationId, categoryId) {
                     showCreate = false
                 }
             },
@@ -277,8 +278,24 @@ private fun AuditRow(campaign: AuditCampaignResponse, onClick: () -> Unit) {
             Row(modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
-                Text(campaign.name, style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold, color = VairiotCharcoal)
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(campaign.name, style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold, color = VairiotCharcoal)
+                    if (campaign.mode == "blind") {
+                        Surface(color = VairiotPink.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(4.dp)) {
+                            Row(modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Icon(Icons.Default.VisibilityOff, contentDescription = null,
+                                    modifier = Modifier.size(10.dp), tint = VairiotPink)
+                                Text("Blind", style = MaterialTheme.typography.labelSmall,
+                                    color = VairiotPink, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
                 AuditStatusBadge(campaign.status)
             }
             Text("${campaign._count?.scanEvents ?: 0} scan${if ((campaign._count?.scanEvents ?: 0) == 1) "" else "s"} recorded",
@@ -294,9 +311,10 @@ private fun CreateAuditDialog(
     state: AuditListUiState,
     onSiteSelected: (String?) -> Unit,
     onDismiss: () -> Unit,
-    onCreate: (name: String, siteId: String?, locationId: String?, categoryId: String?) -> Unit,
+    onCreate: (name: String, mode: String?, siteId: String?, locationId: String?, categoryId: String?) -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf("") }
+    var mode by rememberSaveable { mutableStateOf("sighted") }
     var siteId by rememberSaveable { mutableStateOf<String?>(null) }
     var locationId by rememberSaveable { mutableStateOf<String?>(null) }
     var categoryId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -312,6 +330,34 @@ private fun CreateAuditDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+
+                Text("Mode", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("sighted" to "Sighted", "blind" to "Blind").forEach { (key, label) ->
+                        val isSelected = mode == key
+                        val bg by animateColorAsState(
+                            if (isSelected) VairiotViolet else MaterialTheme.colorScheme.surfaceVariant,
+                            label = "modeBg",
+                        )
+                        val fg by animateColorAsState(
+                            if (isSelected) White else MaterialTheme.colorScheme.onSurface,
+                            label = "modeFg",
+                        )
+                        Surface(onClick = { mode = key }, color = bg, shape = RoundedCornerShape(8.dp)) {
+                            Text(label,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = fg,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
+                        }
+                    }
+                }
+                if (mode == "blind") {
+                    Text("Auditors will not see expected assets during capture. A site must be selected.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                }
 
                 Text("Scope (optional)", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
@@ -348,7 +394,7 @@ private fun CreateAuditDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onCreate(name, siteId, locationId, categoryId) },
+                onClick = { onCreate(name, if (mode == "blind") "blind" else null, siteId, locationId, categoryId) },
                 enabled = name.isNotBlank() && !state.isCreating,
                 colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
             ) {

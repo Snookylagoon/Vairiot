@@ -18,6 +18,8 @@ const CategoriesPage       = lazy(() => import('@/pages/categories/CategoriesPag
 const SitesPage            = lazy(() => import('@/pages/sites/SitesPage').then(m => ({ default: m.SitesPage })));
 const AuditsPage           = lazy(() => import('@/pages/audits/AuditsPage').then(m => ({ default: m.AuditsPage })));
 const AuditRunPage         = lazy(() => import('@/pages/audits/AuditRunPage').then(m => ({ default: m.AuditRunPage })));
+const AuditReconciliationPage = lazy(() => import('@/pages/audits/AuditReconciliationPage').then(m => ({ default: m.AuditReconciliationPage })));
+const AuditComparisonPage = lazy(() => import('@/pages/audits/AuditComparisonPage').then(m => ({ default: m.AuditComparisonPage })));
 const CheckoutsPage        = lazy(() => import('@/pages/checkouts/CheckoutsPage').then(m => ({ default: m.CheckoutsPage })));
 const MaintenancePage       = lazy(() => import('@/pages/maintenance/MaintenancePage').then(m => ({ default: m.MaintenancePage })));
 const MaintenanceDetailPage = lazy(() => import('@/pages/maintenance/MaintenanceDetailPage').then(m => ({ default: m.MaintenanceDetailPage })));
@@ -96,6 +98,8 @@ export default function App() {
             <Route path="sites"        element={<SitesPage />} />
             <Route path="audits"       element={<AuditsPage />} />
             <Route path="audits/:id/run" element={<AuditRunPage />} />
+            <Route path="audits/:id/reconciliation" element={<AuditReconciliationPage />} />
+            <Route path="audits/:id/comparison" element={<AuditComparisonPage />} />
             <Route path="checkouts"      element={<CheckoutsPage />} />
             <Route path="maintenance"        element={<MaintenancePage />} />
             <Route path="maintenance/:id"    element={<MaintenanceDetailPage />} />

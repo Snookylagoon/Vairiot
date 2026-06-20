@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
-import { listCampaigns, createCampaign, startCampaign, recordScan, completeCampaign, getCampaignReport, getCampaignReportRows } from '../../services/audit.service';
+import { listCampaigns, createCampaign, startCampaign, recordScan, submitZone, listZoneSubmissions, completeCampaign, getReconciliation, postAdjustment, listAdjustments, getCampaignReport, getCampaignReportRows, getComparison } from '../../services/audit.service';
 import { toCsv } from '../../lib/csv';
 import { enqueueAuditComplete } from '../../lib/queue';
 import { logger } from '../../lib/logger';
@@ -43,19 +43,21 @@ auditsRouter.get('/',
 auditsRouter.post('/', requireAnyPermission('audit:write'),
   [
     body('name').notEmpty(),
+    body('mode').optional().isIn(['sighted', 'blind']),
     body('siteId').optional({ nullable: true }).isString(),
     body('locationId').optional({ nullable: true }).isString(),
     body('categoryId').optional({ nullable: true }).isString(),
     body('assetIds').optional({ nullable: true }).isArray(),
     body('assetIds.*').optional().isString(),
+    body('linkedCampaignId').optional({ nullable: true }).isString(),
     body('scheduledAt').optional({ nullable: true }).isString(),
   ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    const { name, siteId, locationId, categoryId, assetIds, scheduledAt } = req.body ?? {};
+    const { name, mode, siteId, locationId, categoryId, assetIds, linkedCampaignId, scheduledAt } = req.body ?? {};
     res.status(201).json(await createCampaign(req.user!.tenantId, req.user!.sub, {
-      name, siteId, locationId, categoryId, assetIds, scheduledAt,
+      name, mode, siteId, locationId, categoryId, assetIds, linkedCampaignId, scheduledAt,
     }));
   }),
 );
@@ -67,11 +69,27 @@ auditsRouter.post('/:id/start', requireAnyPermission('audit:write'),
 );
 
 auditsRouter.post('/:id/scans', requireAnyPermission('audit:write'),
-  [body('tagValue').notEmpty()],
+  [
+    body('tagValue').notEmpty(),
+    body('locationId').optional({ nullable: true }).isString(),
+    body('condition').optional({ nullable: true }).isIn(['good', 'fair', 'poor', 'damaged']),
+  ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     res.status(201).json(await recordScan(req.user!.tenantId, req.params.id, req.user!.sub, req.body));
+  }),
+);
+
+auditsRouter.post('/:id/zones/:locationId/submit', requireAnyPermission('audit:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json(await submitZone(req.user!.tenantId, req.params.id, req.params.locationId, req.user!.sub));
+  }),
+);
+
+auditsRouter.get('/:id/zones',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listZoneSubmissions(req.user!.tenantId, req.params.id));
   }),
 );
 
@@ -101,6 +119,40 @@ auditsRouter.post('/:id/complete', requireAnyPermission('audit:write'),
       }
     })();
     res.json(summary);
+  }),
+);
+
+auditsRouter.get('/:id/reconciliation',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await getReconciliation(req.user!.tenantId, req.params.id));
+  }),
+);
+
+auditsRouter.post('/:id/adjustments', requireAnyPermission('audit:approve'),
+  [
+    body('reconciliationItemId').notEmpty().isString(),
+    body('adjustmentType').notEmpty().isIn(['update_location', 'update_condition', 'write_off', 'register_new', 'no_action']),
+    body('fieldChanged').optional({ nullable: true }).isString(),
+    body('valueAfter').optional({ nullable: true }).isString(),
+    body('justification').notEmpty().isString(),
+    body('applyToRegister').optional().isBoolean(),
+  ],
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    res.status(201).json(await postAdjustment(req.user!.tenantId, req.params.id, req.user!.sub, req.body));
+  }),
+);
+
+auditsRouter.get('/:id/adjustments',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listAdjustments(req.user!.tenantId, req.params.id));
+  }),
+);
+
+auditsRouter.get('/:id/comparison',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await getComparison(req.user!.tenantId, req.params.id));
   }),
 );
 
