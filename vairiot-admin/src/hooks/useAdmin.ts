@@ -168,6 +168,26 @@ export function useCreateSubTenant(tenantId: string) {
   });
 }
 
+export interface CompanyUpdate {
+  legalName?: string;
+  registrationNumber?: string;
+  addressLine1?: string;
+  city?: string;
+  country?: string;
+  primaryContactName?: string;
+  primaryContactEmail?: string;
+  primaryContactPhone?: string;
+}
+
+export function useUpdateTenantCompany(tenantId: string) {
+  return useMutationWithToast<unknown, CompanyUpdate>({
+    mutationFn: (body) => api.patch(`/api/v1/admin/platform/tenants/${tenantId}/company`, body).then(r => r.data),
+    invalidate: [['admin', 'tenant', tenantId], ['admin', 'tenants']],
+    success: 'Company details updated',
+    error: 'Failed to update company details',
+  });
+}
+
 export function useUploadTenantLogo(tenantId: string) {
   return useMutationWithToast<unknown, File>({
     mutationFn: (file) => {

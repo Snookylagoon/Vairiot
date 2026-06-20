@@ -1,12 +1,12 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useTenantDetail, useCreateSubTenant, useUploadTenantLogo, useDeleteTenantLogo } from '@/hooks/useAdmin';
+import { useTenantDetail, useCreateSubTenant, useUploadTenantLogo, useDeleteTenantLogo, useUpdateTenantCompany } from '@/hooks/useAdmin';
 import { useRenewLicence, useSuspendLicence, useRevokeLicence, useReactivateLicence, useLicenceDevices, useDeactivateDevice, useDeleteDevice } from '@/hooks/useLicences';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Input } from '@/components/ui/Input';
-import { ArrowLeft, Plus, Upload, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Upload, Trash2, Pencil, Check, X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useShellContext } from '@/components/layout/AdminShell';
@@ -41,7 +41,13 @@ export function TenantDetailPage() {
   const addClient = useCreateSubTenant(id!);
   const uploadLogo = useUploadTenantLogo(id!);
   const deleteLogo = useDeleteTenantLogo(id!);
+  const updateCompany = useUpdateTenantCompany(id!);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [editingCompany, setEditingCompany] = useState(false);
+  const [companyForm, setCompanyForm] = useState({
+    legalName: '', registrationNumber: '', addressLine1: '', city: '', country: '',
+    primaryContactName: '', primaryContactEmail: '', primaryContactPhone: '',
+  });
 
   const resetClientForm = () => setClientForm({ clientName: '', contactEmail: '', signatoryName: '', signatoryEmail: '', address: '', city: '', country: '', telephone: '' });
   const setClientField = (k: keyof typeof clientForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -57,6 +63,28 @@ export function TenantDetailPage() {
     resetClientForm();
     setShowAddClient(false);
   };
+
+  const startEditCompany = () => {
+    setCompanyForm({
+      legalName: tenant?.company?.legalName ?? tenant?.name ?? '',
+      registrationNumber: tenant?.company?.registrationNumber ?? '',
+      addressLine1: tenant?.company?.addressLine1 ?? '',
+      city: tenant?.company?.city ?? '',
+      country: tenant?.company?.country ?? '',
+      primaryContactName: tenant?.company?.primaryContactName ?? '',
+      primaryContactEmail: tenant?.company?.primaryContactEmail ?? '',
+      primaryContactPhone: tenant?.company?.primaryContactPhone ?? '',
+    });
+    setEditingCompany(true);
+  };
+
+  const saveCompany = async () => {
+    await updateCompany.mutateAsync(companyForm);
+    setEditingCompany(false);
+  };
+
+  const setCompanyField = (k: keyof typeof companyForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setCompanyForm(f => ({ ...f, [k]: e.target.value }));
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -103,7 +131,25 @@ export function TenantDetailPage() {
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Company Info */}
         <Card>
-          <CardHeader><h2 className="text-h3 text-v-charcoal">Company Information</h2></CardHeader>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <h2 className="text-h3 text-v-charcoal">Company Information</h2>
+              {!editingCompany ? (
+                <Button size="sm" variant="ghost" onClick={startEditCompany}>
+                  <Pencil size={14} className="mr-1" /> Edit
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={saveCompany} disabled={updateCompany.isPending}>
+                    <Check size={14} className="mr-1" /> Save
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingCompany(false)}>
+                    <X size={14} className="mr-1" /> Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
           <CardBody className="space-y-4 text-sm">
             {/* Logo */}
             <div className="flex items-center gap-4 pb-3 border-b border-gray-100">
@@ -134,21 +180,39 @@ export function TenantDetailPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Row label="Slug" value={tenant.slug} mono />
-              <Row label="Deployment Mode" value={tenant.deploymentMode} />
-              <Row label="Onboarding" value={tenant.onboardingComplete ? 'Complete' : 'Pending'} />
-              <Row label="Created" value={new Date(tenant.createdAt).toLocaleDateString()} />
-              {tenant.company && (
-                <>
-                  <Row label="Legal Name" value={tenant.company.legalName} />
-                  <Row label="Registration #" value={tenant.company.registrationNumber} />
-                  <Row label="Address" value={[tenant.company.addressLine1, tenant.company.city, tenant.company.country].filter(Boolean).join(', ')} />
-                  <Row label="Contact" value={tenant.company.primaryContactEmail} />
-                  {tenant.company.primaryContactPhone && <Row label="Telephone" value={tenant.company.primaryContactPhone} />}
-                </>
-              )}
-            </div>
+            {editingCompany ? (
+              <div className="space-y-3">
+                <Input label="Legal Name" value={companyForm.legalName} onChange={setCompanyField('legalName')} />
+                <Input label="Registration #" value={companyForm.registrationNumber} onChange={setCompanyField('registrationNumber')} />
+                <Input label="Address" value={companyForm.addressLine1} onChange={setCompanyField('addressLine1')} />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="City" value={companyForm.city} onChange={setCompanyField('city')} />
+                  <Input label="Country" value={companyForm.country} onChange={setCompanyField('country')} />
+                </div>
+                <Input label="Contact Name" value={companyForm.primaryContactName} onChange={setCompanyField('primaryContactName')} />
+                <Input label="Contact Email" type="email" value={companyForm.primaryContactEmail} onChange={setCompanyField('primaryContactEmail')} />
+                <Input label="Telephone" type="tel" value={companyForm.primaryContactPhone} onChange={setCompanyField('primaryContactPhone')} />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Row label="Slug" value={tenant.slug} mono />
+                <Row label="Deployment Mode" value={tenant.deploymentMode} />
+                <Row label="Onboarding" value={tenant.onboardingComplete ? 'Complete' : 'Pending'} />
+                <Row label="Created" value={new Date(tenant.createdAt).toLocaleDateString()} />
+                {tenant.company ? (
+                  <>
+                    <Row label="Legal Name" value={tenant.company.legalName} />
+                    <Row label="Registration #" value={tenant.company.registrationNumber} />
+                    <Row label="Address" value={[tenant.company.addressLine1, tenant.company.city, tenant.company.country].filter(Boolean).join(', ')} />
+                    <Row label="Contact Name" value={tenant.company.primaryContactName} />
+                    <Row label="Contact Email" value={tenant.company.primaryContactEmail} />
+                    <Row label="Telephone" value={tenant.company.primaryContactPhone} />
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400">No company details — click Edit to add</p>
+                )}
+              </div>
+            )}
           </CardBody>
         </Card>
 

@@ -119,6 +119,56 @@ platformRouter.patch('/users/:id/active', async (req: Request, res: Response) =>
   res.json({ message: active ? 'User enabled' : 'User disabled' });
 });
 
+// ─── Tenant Company ────────────────────────────────────────────────────────
+
+platformRouter.patch('/tenants/:id/company', async (req: Request, res: Response) => {
+  const { legalName, tradingName, registrationNumber, addressLine1, addressLine2, city, stateProvince, postalCode, country, primaryContactName, primaryContactEmail, primaryContactPhone } = req.body;
+
+  const existing = await prisma.company.findUnique({ where: { tenantId: req.params.id } });
+
+  const data: Record<string, unknown> = {};
+  if (legalName !== undefined) data.legalName = legalName.trim();
+  if (tradingName !== undefined) data.tradingName = tradingName?.trim() || null;
+  if (registrationNumber !== undefined) data.registrationNumber = registrationNumber?.trim() || null;
+  if (addressLine1 !== undefined) data.addressLine1 = addressLine1.trim();
+  if (addressLine2 !== undefined) data.addressLine2 = addressLine2?.trim() || null;
+  if (city !== undefined) data.city = city.trim();
+  if (stateProvince !== undefined) data.stateProvince = stateProvince?.trim() || null;
+  if (postalCode !== undefined) data.postalCode = postalCode?.trim() || null;
+  if (country !== undefined) data.country = country.trim();
+  if (primaryContactName !== undefined) data.primaryContactName = primaryContactName.trim();
+  if (primaryContactEmail !== undefined) data.primaryContactEmail = primaryContactEmail.trim();
+  if (primaryContactPhone !== undefined) data.primaryContactPhone = primaryContactPhone?.trim() || null;
+
+  if (Object.keys(data).length === 0) {
+    res.status(400).json({ error: 'No fields to update' });
+    return;
+  }
+
+  if (existing) {
+    const company = await prisma.company.update({ where: { tenantId: req.params.id }, data });
+    // Sync tenant name if legalName changed
+    if (data.legalName) {
+      await prisma.tenant.update({ where: { id: req.params.id }, data: { name: data.legalName as string } });
+    }
+    res.json(company);
+  } else {
+    const company = await prisma.company.create({
+      data: {
+        tenantId: req.params.id,
+        legalName: (data.legalName as string) || '',
+        addressLine1: (data.addressLine1 as string) || '',
+        city: (data.city as string) || '',
+        country: (data.country as string) || '',
+        primaryContactName: (data.primaryContactName as string) || '',
+        primaryContactEmail: (data.primaryContactEmail as string) || '',
+        ...data,
+      },
+    });
+    res.json(company);
+  }
+});
+
 // ─── Tenant Logo ───────────────────────────────────────────────────────────
 
 platformRouter.post('/tenants/:id/logo', logoUpload.single('logo'), async (req: Request, res: Response) => {
