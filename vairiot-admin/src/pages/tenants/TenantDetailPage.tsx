@@ -1,12 +1,14 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useTenantDetail } from '@/hooks/useAdmin';
+import { useTenantDetail, useTenantOnboardingClientStep } from '@/hooks/useAdmin';
 import { useRenewLicence, useSuspendLicence, useRevokeLicence, useReactivateLicence } from '@/hooks/useLicences';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { ArrowLeft } from 'lucide-react';
+import { Input } from '@/components/ui/Input';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'green';
@@ -26,6 +28,24 @@ export function TenantDetailPage() {
   const reactivate = useReactivateLicence();
 
   const [confirm, setConfirm] = useState<{ action: string; licenceId: string } | null>(null);
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [clientForm, setClientForm] = useState({ clientName: '', contactEmail: '', signatoryName: '', signatoryEmail: '' });
+  const addClient = useTenantOnboardingClientStep(id!);
+
+  const resetClientForm = () => setClientForm({ clientName: '', contactEmail: '', signatoryName: '', signatoryEmail: '' });
+  const setClientField = (k: keyof typeof clientForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setClientForm(f => ({ ...f, [k]: e.target.value }));
+
+  const submitAddClient = async () => {
+    if (!clientForm.clientName.trim()) { toast.error('Client company name is required'); return; }
+    if (!clientForm.signatoryName.trim() || !clientForm.signatoryEmail.trim()) {
+      toast.error('Signatory name and email are required');
+      return;
+    }
+    await addClient.mutateAsync(clientForm);
+    resetClientForm();
+    setShowAddClient(false);
+  };
 
   if (isLoading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
   if (!tenant) return <div className="text-center py-12 text-gray-400">Tenant not found</div>;
@@ -51,9 +71,14 @@ export function TenantDetailPage() {
       <div className="flex items-center gap-4 flex-wrap">
         <h1 className="text-h1 text-v-charcoal">{tenant.name}</h1>
         <Badge variant={tenant.active ? 'green' : 'red'}>{tenant.active ? 'Active' : 'Inactive'}</Badge>
-        {!tenant.onboardingComplete && (
+        {!tenant.active && !tenant.onboardingComplete && (
           <Button size="sm" onClick={() => navigate(`/tenants/${tenant.id}/onboarding`)}>
             Resume Onboarding
+          </Button>
+        )}
+        {tenant.active && (
+          <Button size="sm" variant="secondary" onClick={() => setShowAddClient(true)}>
+            <Plus size={14} className="mr-1" /> Add Sub Client
           </Button>
         )}
       </div>
@@ -172,6 +197,24 @@ export function TenantDetailPage() {
           </CardBody>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={showAddClient}
+        title="Add Sub Client"
+        description="Register an additional client company that this tenant manages assets for."
+        confirmLabel="Add Client"
+        variant="primary"
+        loading={addClient.isPending}
+        onConfirm={submitAddClient}
+        onCancel={() => { setShowAddClient(false); resetClientForm(); }}
+      >
+        <div className="space-y-3">
+          <Input label="Client Company Name" value={clientForm.clientName} onChange={setClientField('clientName')} placeholder="Client Corp" />
+          <Input label="Contact Email" type="email" value={clientForm.contactEmail} onChange={setClientField('contactEmail')} placeholder="contact@client.com" />
+          <Input label="Signatory Name" value={clientForm.signatoryName} onChange={setClientField('signatoryName')} placeholder="Jane Doe" />
+          <Input label="Signatory Email" type="email" value={clientForm.signatoryEmail} onChange={setClientField('signatoryEmail')} placeholder="jane@client.com" />
+        </div>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={!!confirm}
