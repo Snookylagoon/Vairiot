@@ -1,42 +1,227 @@
-import { useState, useEffect, useRef } from 'react';
-import { QrCode, Printer, Search, Check } from 'lucide-react';
-import QRCode from 'qrcode';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { QrCode, Printer, Search, Check, Settings2 } from 'lucide-react';
+import bwipjs from 'bwip-js/browser';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAssets } from '@/hooks/useAssets';
 import type { Asset } from '@/types';
 
-type LabelSize = 'small' | 'medium' | 'large';
+/* ---------- Barcode standards ---------- */
 
-const LABEL_SIZES: Record<LabelSize, { w: number; h: number; qr: number; label: string }> = {
-  small:  { w: 200, h: 100, qr: 70,  label: 'Small (50×25mm)' },
-  medium: { w: 280, h: 140, qr: 100, label: 'Medium (70×35mm)' },
-  large:  { w: 380, h: 180, qr: 140, label: 'Large (95×45mm)' },
+type BarcodeType =
+  | 'qrcode'
+  | 'datamatrix'
+  | 'pdf417'
+  | 'azteccode'
+  | 'code128'
+  | 'code39'
+  | 'ean13'
+  | 'upca'
+  | 'itf14'
+  | 'code93';
+
+const BARCODE_TYPES: { value: BarcodeType; label: string; group: '2D' | '1D' }[] = [
+  { value: 'qrcode',     label: 'QR Code',     group: '2D' },
+  { value: 'datamatrix', label: 'Data Matrix', group: '2D' },
+  { value: 'pdf417',     label: 'PDF417',      group: '2D' },
+  { value: 'azteccode',  label: 'Aztec',       group: '2D' },
+  { value: 'code128',    label: 'Code 128',    group: '1D' },
+  { value: 'code39',     label: 'Code 39',     group: '1D' },
+  { value: 'code93',     label: 'Code 93',     group: '1D' },
+  { value: 'ean13',      label: 'EAN-13',      group: '1D' },
+  { value: 'upca',       label: 'UPC-A',       group: '1D' },
+  { value: 'itf14',      label: 'ITF-14',      group: '1D' },
+];
+
+const is2D = (t: BarcodeType) =>
+  t === 'qrcode' || t === 'datamatrix' || t === 'pdf417' || t === 'azteccode';
+
+/* ---------- Avery label presets (dimensions in mm) ---------- */
+
+type SizePreset = {
+  value: string;
+  label: string;
+  w: number;  // mm
+  h: number;  // mm
 };
 
-function QRLabel({ asset, size, qrDataUrl }: { asset: Asset; size: LabelSize; qrDataUrl: string }) {
-  const s = LABEL_SIZES[size];
+const AVERY_PRESETS: SizePreset[] = [
+  { value: 'avery-5167', label: 'Avery 5167 — 44.5 × 12.7 mm (80/sheet)', w: 44.5, h: 12.7 },
+  { value: 'avery-6570', label: 'Avery 6570 — 31.75 × 19.05 mm (asset)',  w: 31.75, h: 19.05 },
+  { value: 'avery-5160', label: 'Avery 5160 / 5260 / 8160 — 66.7 × 25.4 mm', w: 66.7, h: 25.4 },
+  { value: 'avery-l7651', label: 'Avery L7651 (EU) — 38.1 × 21.2 mm',      w: 38.1, h: 21.2 },
+  { value: 'avery-l7159', label: 'Avery L7159 (EU) — 63.5 × 38.1 mm',      w: 63.5, h: 38.1 },
+  { value: 'avery-5163', label: 'Avery 5163 — 101.6 × 50.8 mm (10/sheet)', w: 101.6, h: 50.8 },
+  { value: 'avery-l7163', label: 'Avery L7163 (EU) — 99.1 × 38.1 mm',      w: 99.1, h: 38.1 },
+];
+
+const MM_TO_PX = 3.7795275591; // 96 dpi
+
+/* ---------- Content field toggles ---------- */
+
+type ContentFields = {
+  name: boolean;
+  assetNumber: boolean;
+  serialNumber: boolean;
+  barcode: boolean;
+  site: boolean;
+  category: boolean;
+};
+
+const DEFAULT_FIELDS: ContentFields = {
+  name: true,
+  assetNumber: true,
+  serialNumber: true,
+  barcode: false,
+  site: true,
+  category: false,
+};
+
+const FIELD_LABELS: { key: keyof ContentFields; label: string }[] = [
+  { key: 'name',         label: 'Asset name' },
+  { key: 'assetNumber',  label: 'Asset number' },
+  { key: 'serialNumber', label: 'Serial number' },
+  { key: 'barcode',      label: 'Barcode value' },
+  { key: 'site',         label: 'Site' },
+  { key: 'category',     label: 'Category' },
+];
+
+/* ---------- Barcode payload helper ---------- */
+
+function barcodePayload(asset: Asset, type: BarcodeType): string {
+  // 1D linear codes need a short, numeric or simple-alpha payload.
+  // 2D codes can carry the full JSON identifier.
+  if (is2D(type)) {
+    return JSON.stringify({ id: asset.id, n: asset.assetNumber, name: asset.name });
+  }
+  // Prefer existing barcode, then serial, then assetNumber.
+  const raw = asset.barcode || asset.serialNumber || asset.assetNumber || asset.id;
+  // EAN-13 needs 12 digits + check; UPC-A needs 11 digits + check; ITF-14 needs 13 digits + check.
+  if (type === 'ean13') return raw.replace(/\D/g, '').padStart(12, '0').slice(0, 12);
+  if (type === 'upca')  return raw.replace(/\D/g, '').padStart(11, '0').slice(0, 11);
+  if (type === 'itf14') return raw.replace(/\D/g, '').padStart(13, '0').slice(0, 13);
+  if (type === 'code39') return raw.toUpperCase().replace(/[^A-Z0-9\-. $/+%]/g, '');
+  return raw;
+}
+
+/* ---------- Label preview component ---------- */
+
+function LabelPreview({
+  asset,
+  widthPx,
+  heightPx,
+  barcodeDataUrl,
+  barcodeType,
+  fields,
+}: {
+  asset: Asset;
+  widthPx: number;
+  heightPx: number;
+  barcodeDataUrl: string;
+  barcodeType: BarcodeType;
+  fields: ContentFields;
+}) {
+  const wide2D = is2D(barcodeType);
+  const padding = Math.max(4, Math.round(Math.min(widthPx, heightPx) * 0.05));
+  const barcodeBox = wide2D
+    ? Math.min(heightPx - padding * 2, widthPx * 0.45)
+    : { w: widthPx - padding * 2, h: Math.min(heightPx * 0.45, 60) };
+
+  // Font sizing scales with label height
+  const baseFont = Math.max(7, Math.round(heightPx * 0.09));
+  const smallFont = Math.max(6, baseFont - 2);
+
   return (
-    <div className="inline-block border border-gray-200 rounded bg-white" style={{ width: s.w, height: s.h, padding: 8 }}>
-      <div className="flex gap-2 h-full">
-        <img src={qrDataUrl} alt="QR" style={{ width: s.qr, height: s.qr }} className="shrink-0" />
-        <div className="flex flex-col justify-center min-w-0 overflow-hidden">
-          <p className="font-bold text-[10px] text-v-charcoal truncate">{asset.name}</p>
-          <p className="font-mono text-[9px] text-v-violet">{asset.assetNumber}</p>
-          {asset.serialNumber && <p className="text-[8px] text-gray-400 truncate">SN: {asset.serialNumber}</p>}
-          {asset.barcode && <p className="text-[8px] text-gray-400 truncate">BC: {asset.barcode}</p>}
-          {asset.site && <p className="text-[8px] text-gray-400 truncate">{asset.site.name}</p>}
+    <div
+      className="border border-gray-300 rounded bg-white overflow-hidden"
+      style={{ width: widthPx, height: heightPx, padding }}
+    >
+      {wide2D ? (
+        <div className="flex gap-2 h-full">
+          <img
+            src={barcodeDataUrl}
+            alt="barcode"
+            style={{ width: barcodeBox as number, height: barcodeBox as number }}
+            className="shrink-0"
+          />
+          <div className="flex flex-col justify-center min-w-0 overflow-hidden flex-1">
+            {fields.name && (
+              <p className="font-bold text-v-charcoal truncate" style={{ fontSize: baseFont }}>
+                {asset.name}
+              </p>
+            )}
+            {fields.assetNumber && (
+              <p className="font-mono text-v-violet truncate" style={{ fontSize: smallFont }}>
+                {asset.assetNumber}
+              </p>
+            )}
+            {fields.serialNumber && asset.serialNumber && (
+              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
+                SN: {asset.serialNumber}
+              </p>
+            )}
+            {fields.barcode && asset.barcode && (
+              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
+                BC: {asset.barcode}
+              </p>
+            )}
+            {fields.site && asset.site && (
+              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
+                {asset.site.name}
+              </p>
+            )}
+            {fields.category && asset.category && (
+              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
+                {asset.category.name}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-col h-full justify-between">
+          <div className="min-w-0 overflow-hidden">
+            {fields.name && (
+              <p className="font-bold text-v-charcoal truncate" style={{ fontSize: baseFont }}>
+                {asset.name}
+              </p>
+            )}
+            {fields.assetNumber && (
+              <p className="font-mono text-v-violet truncate" style={{ fontSize: smallFont }}>
+                {asset.assetNumber}
+              </p>
+            )}
+            {fields.site && asset.site && (
+              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
+                {asset.site.name}
+              </p>
+            )}
+          </div>
+          <img
+            src={barcodeDataUrl}
+            alt="barcode"
+            style={{
+              width: (barcodeBox as { w: number; h: number }).w,
+              height: (barcodeBox as { w: number; h: number }).h,
+            }}
+            className="self-center"
+          />
+        </div>
+      )}
     </div>
   );
 }
 
+/* ---------- Page ---------- */
+
 export function LabelsPage() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [labelSize, setLabelSize] = useState<LabelSize>('medium');
-  const [qrUrls, setQrUrls] = useState<Record<string, string>>({});
+  const [barcodeType, setBarcodeType] = useState<BarcodeType>('qrcode');
+  const [sizePreset, setSizePreset] = useState<string>('avery-l7651');
+  const [customW, setCustomW] = useState(50);
+  const [customH, setCustomH] = useState(25);
+  const [fields, setFields] = useState<ContentFields>(DEFAULT_FIELDS);
+  const [barcodeUrls, setBarcodeUrls] = useState<Record<string, string>>({});
   const [showPreview, setShowPreview] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -45,19 +230,59 @@ export function LabelsPage() {
 
   const selectedAssets = assets.filter(a => selected.has(a.id));
 
+  const { widthPx, heightPx } = useMemo(() => {
+    if (sizePreset === 'custom') {
+      return { widthPx: customW * MM_TO_PX, heightPx: customH * MM_TO_PX };
+    }
+    const p = AVERY_PRESETS.find(x => x.value === sizePreset) ?? AVERY_PRESETS[0];
+    return { widthPx: p.w * MM_TO_PX, heightPx: p.h * MM_TO_PX };
+  }, [sizePreset, customW, customH]);
+
+  // Regenerate barcodes whenever the type or selection changes.
   useEffect(() => {
+    let cancelled = false;
     const generate = async () => {
       const urls: Record<string, string> = {};
       for (const a of selectedAssets) {
-        if (!qrUrls[a.id]) {
-          const qrData = JSON.stringify({ id: a.id, assetNumber: a.assetNumber, name: a.name });
-          urls[a.id] = await QRCode.toDataURL(qrData, { width: 200, margin: 1, color: { dark: '#2B3132' } });
+        const cacheKey = `${a.id}::${barcodeType}`;
+        if (barcodeUrls[cacheKey]) {
+          urls[cacheKey] = barcodeUrls[cacheKey];
+          continue;
+        }
+        try {
+          const canvas = document.createElement('canvas');
+          bwipjs.toCanvas(canvas, {
+            bcid: barcodeType,
+            text: barcodePayload(a, barcodeType),
+            scale: 3,
+            height: is2D(barcodeType) ? 10 : 8,
+            includetext: !is2D(barcodeType),
+            textxalign: 'center',
+            paddingwidth: 2,
+            paddingheight: 2,
+          });
+          urls[cacheKey] = canvas.toDataURL('image/png');
+        } catch {
+          // Render a placeholder if the payload isn't valid for the chosen symbology.
+          const c = document.createElement('canvas');
+          c.width = 200; c.height = 80;
+          const ctx = c.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#fee2e2';
+            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.fillStyle = '#991b1b';
+            ctx.font = '12px system-ui';
+            ctx.fillText('Invalid payload', 40, 45);
+          }
+          urls[cacheKey] = c.toDataURL('image/png');
         }
       }
-      if (Object.keys(urls).length > 0) setQrUrls(prev => ({ ...prev, ...urls }));
+      if (!cancelled) setBarcodeUrls(prev => ({ ...prev, ...urls }));
     };
     if (selectedAssets.length > 0) generate();
-  }, [selected, assets]);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, barcodeType, assets]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -80,16 +305,9 @@ export function LabelsPage() {
     win.document.write(`
       <html><head><title>Asset Labels</title>
       <style>
-        body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
-        .label-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-        .label { border: 1px solid #d1d5db; border-radius: 4px; padding: 8px; display: inline-flex; gap: 8px; align-items: center; page-break-inside: avoid; }
-        .label img { flex-shrink: 0; }
-        .label-text { overflow: hidden; }
-        .label-text p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .name { font-weight: bold; font-size: 10px; }
-        .number { font-family: monospace; font-size: 9px; color: #615AA0; }
-        .detail { font-size: 8px; color: #9ca3af; }
-        @media print { body { padding: 0; } .label { border: 1px solid #000; } }
+        body { margin: 0; padding: 8mm; font-family: system-ui, sans-serif; }
+        .label-grid { display: flex; flex-wrap: wrap; gap: 2mm; }
+        @media print { body { padding: 0; } }
       </style></head><body>
       <div class="label-grid">${printContent.innerHTML}</div>
       </body></html>
@@ -99,22 +317,19 @@ export function LabelsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-v-charcoal">Asset Labels</h1>
-          <p className="text-sm text-gray-500 mt-1">Generate QR code labels for your assets</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Generate QR, 2D and 1D barcode labels for your assets
+          </p>
         </div>
         {selected.size > 0 && (
-          <div className="flex items-center gap-3">
-            <select value={labelSize} onChange={e => setLabelSize(e.target.value as LabelSize)}
-              className="text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-v-pink bg-white">
-              {Object.entries(LABEL_SIZES).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
+          <div className="flex items-center gap-2">
             <Button size="sm" onClick={() => setShowPreview(!showPreview)}>
-              <QrCode size={14} className="mr-1" /> {showPreview ? 'Hide' : 'Preview'} ({selected.size})
+              <QrCode size={14} className="mr-1" />
+              {showPreview ? 'Hide' : 'Preview'} ({selected.size})
             </Button>
             <Button size="sm" variant="secondary" onClick={handlePrint}>
               <Printer size={14} className="mr-1" /> Print
@@ -123,12 +338,12 @@ export function LabelsPage() {
         )}
       </div>
 
-      {/* Search & Select */}
+      {/* Asset selection */}
       <Card>
         <CardHeader className="flex items-center justify-between">
           <span className="font-semibold text-v-charcoal text-sm">Select Assets</span>
           <button onClick={selectAll} className="text-xs text-v-violet hover:underline">
-            {selected.size === assets.length ? 'Deselect All' : 'Select All'}
+            {selected.size === assets.length && assets.length > 0 ? 'Deselect All' : 'Select All'}
           </button>
         </CardHeader>
         <CardBody className="space-y-3">
@@ -161,7 +376,93 @@ export function LabelsPage() {
         </CardBody>
       </Card>
 
-      {/* Label Preview */}
+      {/* Label design */}
+      <Card>
+        <CardHeader>
+          <span className="font-semibold text-v-charcoal text-sm">
+            <Settings2 size={16} className="inline mr-2 text-v-violet" />
+            Label Design
+          </span>
+        </CardHeader>
+        <CardBody className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Barcode standard */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-v-charcoal">Barcode standard</label>
+            <select
+              value={barcodeType}
+              onChange={e => setBarcodeType(e.target.value as BarcodeType)}
+              className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+            >
+              <optgroup label="2D codes">
+                {BARCODE_TYPES.filter(t => t.group === '2D').map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </optgroup>
+              <optgroup label="1D codes">
+                {BARCODE_TYPES.filter(t => t.group === '1D').map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </optgroup>
+            </select>
+            <p className="text-[11px] text-gray-400">
+              {is2D(barcodeType)
+                ? 'Encodes the full asset identifier (id + number + name).'
+                : 'Encodes barcode → serial → asset number. Numeric symbologies will pad/truncate.'}
+            </p>
+          </div>
+
+          {/* Size preset */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-v-charcoal">Label size</label>
+            <select
+              value={sizePreset}
+              onChange={e => setSizePreset(e.target.value)}
+              className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+            >
+              {AVERY_PRESETS.map(p => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+              <option value="custom">Custom…</option>
+            </select>
+            {sizePreset === 'custom' && (
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="number" min={5} max={300} value={customW}
+                  onChange={e => setCustomW(Number(e.target.value) || 0)}
+                  className="w-20 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink"
+                />
+                <span className="text-xs text-gray-400">×</span>
+                <input
+                  type="number" min={5} max={300} value={customH}
+                  onChange={e => setCustomH(Number(e.target.value) || 0)}
+                  className="w-20 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink"
+                />
+                <span className="text-xs text-gray-400">mm</span>
+              </div>
+            )}
+          </div>
+
+          {/* Content fields */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-v-charcoal">Show on label</label>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+              {FIELD_LABELS.map(f => (
+                <label key={f.key} className="flex items-center gap-2 cursor-pointer text-xs text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={fields[f.key]}
+                    onChange={e => setFields(prev => ({ ...prev, [f.key]: e.target.checked }))}
+                    className="accent-v-violet"
+                  />
+                  {f.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Label preview */}
       {showPreview && selectedAssets.length > 0 && (
         <Card>
           <CardHeader>
@@ -171,12 +472,22 @@ export function LabelsPage() {
             </span>
           </CardHeader>
           <CardBody>
-            <div ref={printRef} className="flex flex-wrap gap-3">
-              {selectedAssets.map(a => (
-                qrUrls[a.id] ? (
-                  <QRLabel key={a.id} asset={a} size={labelSize} qrDataUrl={qrUrls[a.id]} />
-                ) : null
-              ))}
+            <div ref={printRef} className="flex flex-wrap gap-2">
+              {selectedAssets.map(a => {
+                const url = barcodeUrls[`${a.id}::${barcodeType}`];
+                if (!url) return null;
+                return (
+                  <LabelPreview
+                    key={a.id}
+                    asset={a}
+                    widthPx={widthPx}
+                    heightPx={heightPx}
+                    barcodeDataUrl={url}
+                    barcodeType={barcodeType}
+                    fields={fields}
+                  />
+                );
+              })}
             </div>
           </CardBody>
         </Card>
