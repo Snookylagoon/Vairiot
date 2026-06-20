@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, type CSSProperties } from 'react';
 import { QrCode, Printer, Search, Check, Settings2 } from 'lucide-react';
 import bwipjs from 'bwip-js/browser';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
@@ -175,49 +175,69 @@ function LabelPreview({
   const fitTitle = denom > 0 ? Math.floor(textAreaHeight / denom) : idealTitle;
   const titleFont = Math.max(5, Math.min(idealTitle, fitTitle));
   const otherFont = Math.max(5, Math.round(titleFont * 0.85));
-  const lineStyleFor = (kind: LineKind) => ({
-    fontSize: kind === 'title' ? titleFont : otherFont,
-    lineHeight: 1.15,
-  });
-  const lineClassFor = (kind: LineKind) => {
+  // Inline styles so the same DOM renders identically in the print window
+  // (which has no Tailwind classes loaded).
+  const colorFor = (kind: LineKind): string => {
     switch (kind) {
-      case 'title':  return 'font-bold text-v-charcoal truncate';
-      case 'number': return 'font-mono text-v-violet truncate';
-      case 'brand':  return 'text-v-charcoal truncate';
-      case 'muted':  return 'text-gray-500 truncate';
+      case 'title':  return '#2B3132';
+      case 'number': return '#615AA0';
+      case 'brand':  return '#2B3132';
+      case 'muted':  return '#6b7280';
     }
   };
+  const lineStyleFor = (kind: LineKind): CSSProperties => ({
+    margin: 0,
+    fontSize: kind === 'title' ? titleFont : otherFont,
+    lineHeight: 1.15,
+    fontWeight: kind === 'title' ? 700 : 400,
+    fontFamily: kind === 'number' ? 'ui-monospace, "IBM Plex Mono", monospace' : 'inherit',
+    color: colorFor(kind),
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  });
 
   const TextLines = (
     <>
       {lines.map((l, i) => (
-        <p key={i} className={lineClassFor(l.kind)} style={lineStyleFor(l.kind)}>
+        <p key={i} style={lineStyleFor(l.kind)}>
           {l.text}
         </p>
       ))}
     </>
   );
 
+  const wrapperStyle: CSSProperties = {
+    width: widthPx,
+    height: heightPx,
+    padding,
+    boxSizing: 'border-box',
+    border: '1px solid #d1d5db',
+    borderRadius: 4,
+    background: 'white',
+    overflow: 'hidden',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+  };
+
   return (
-    <div
-      className="border border-gray-300 rounded bg-white overflow-hidden"
-      style={{ width: widthPx, height: heightPx, padding }}
-    >
+    <div style={wrapperStyle}>
       {wide2D ? (
-        <div className="flex gap-2 h-full">
+        <div style={{ display: 'flex', gap: 8, height: '100%' }}>
           <img
             src={barcodeDataUrl}
             alt="barcode"
-            style={{ width: barcodeBox as number, height: barcodeBox as number }}
-            className="shrink-0"
+            style={{ width: barcodeBox as number, height: barcodeBox as number, flexShrink: 0 }}
           />
-          <div className="flex flex-col justify-center min-w-0 overflow-hidden flex-1">
+          <div style={{
+            display: 'flex', flexDirection: 'column', justifyContent: 'center',
+            minWidth: 0, overflow: 'hidden', flex: 1,
+          }}>
             {TextLines}
           </div>
         </div>
       ) : (
-        <div className="flex flex-col h-full justify-between">
-          <div className="min-w-0 overflow-hidden">
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
             {TextLines}
           </div>
           <img
@@ -226,8 +246,8 @@ function LabelPreview({
             style={{
               width: (barcodeBox as { w: number; h: number }).w,
               height: (barcodeBox as { w: number; h: number }).h,
+              alignSelf: 'center',
             }}
-            className="self-center"
           />
         </div>
       )}
@@ -330,8 +350,13 @@ export function LabelsPage() {
     win.document.write(`
       <html><head><title>Asset Labels</title>
       <style>
-        body { margin: 0; padding: 8mm; font-family: system-ui, sans-serif; }
-        .label-grid { display: flex; flex-wrap: wrap; gap: 2mm; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body { padding: 8mm; font-family: system-ui, -apple-system, sans-serif; }
+        .label-grid { display: flex; flex-wrap: wrap; gap: 2mm; align-items: flex-start; }
+        .label-grid > div { page-break-inside: avoid; break-inside: avoid; }
+        .label-grid img { display: block; }
+        @page { margin: 8mm; }
         @media print { body { padding: 0; } }
       </style></head><body>
       <div class="label-grid">${printContent.innerHTML}</div>
