@@ -1,37 +1,129 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck } from 'lucide-react';
-import { useState } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
 import { useCurrencyStore, CURRENCIES } from '@/stores/currency.store';
 import clsx from 'clsx';
 
-const nav = [
-  { to: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
-  { to: '/assets',     label: 'Assets',     icon: Package },
-  { to: '/categories', label: 'Categories', icon: Tag },
-  { to: '/sites',      label: 'Sites',      icon: MapPin },
-  { to: '/audits',     label: 'Audits',     icon: ClipboardList },
-  { to: '/checkouts',  label: 'Checkouts',  icon: ArrowLeftRight },
-  { to: '/maintenance', label: 'Maintenance', icon: Wrench },
-  { to: '/exceptions',  label: 'Exceptions',  icon: AlertTriangle },
-  { to: '/reports',     label: 'Reports',    icon: BarChart3 },
-  { to: '/alerts',      label: 'Alerts',     icon: Bell },
-  { to: '/import',      label: 'Import',     icon: Upload },
-  { to: '/labels',      label: 'Labels',     icon: QrCode },
-  { to: '/admin/users',    label: 'Users',    icon: Users,    require: ['user:read', 'user:write'] },
-  { to: '/admin/api-keys', label: 'API Keys', icon: KeyRound, require: ['apikey:read', 'apikey:write'] },
-  { to: '/admin/webhooks', label: 'Webhooks', icon: Webhook,  require: ['apikey:write'] },
-  { to: '/admin/custom-fields', label: 'Custom Fields', icon: Settings2 },
-  { to: '/admin/audit-log', label: 'Audit Log', icon: ScrollText, require: ['user:read', 'user:write', 'apikey:read', 'apikey:write'] },
-  { to: '/licensing',    label: 'Licensing',  icon: BadgeCheck },
-  { to: '/settings/2fa', label: '2FA',        icon: ShieldCheck },
-] as const;
+type NavItem = { to: string; label: string; icon: React.ComponentType<{ size?: number }>; require?: readonly string[] };
+type NavGroup = { heading: string; items: readonly NavItem[] };
+type NavEntry = NavItem | NavGroup;
+
+const nav: readonly NavEntry[] = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  {
+    heading: 'Asset Management',
+    items: [
+      { to: '/assets',     label: 'Assets',     icon: Package },
+      { to: '/categories', label: 'Categories', icon: Tag },
+      { to: '/sites',      label: 'Sites',      icon: MapPin },
+      { to: '/labels',     label: 'Labels',     icon: QrCode },
+    ],
+  },
+  {
+    heading: 'Operations',
+    items: [
+      { to: '/audits',      label: 'Audits',       icon: ClipboardList },
+      { to: '/checkouts',   label: 'Checkouts',    icon: ArrowLeftRight },
+      { to: '/maintenance', label: 'Maintenance',  icon: Wrench },
+      { to: '/exceptions',  label: 'Exceptions',   icon: AlertTriangle },
+    ],
+  },
+  {
+    heading: 'Reporting',
+    items: [
+      { to: '/reports', label: 'Reports', icon: BarChart3 },
+      { to: '/alerts',  label: 'Alerts',  icon: Bell },
+    ],
+  },
+  {
+    heading: 'Tools',
+    items: [
+      { to: '/import', label: 'Import', icon: Upload },
+    ],
+  },
+  {
+    heading: 'Administration',
+    items: [
+      { to: '/admin/users',         label: 'Users',         icon: Users,    require: ['user:read', 'user:write'] },
+      { to: '/admin/api-keys',      label: 'API Keys',      icon: KeyRound, require: ['apikey:read', 'apikey:write'] },
+      { to: '/admin/webhooks',      label: 'Webhooks',      icon: Webhook,  require: ['apikey:write'] },
+      { to: '/admin/custom-fields', label: 'Custom Fields', icon: Settings2 },
+      { to: '/admin/audit-log',     label: 'Audit Log',     icon: ScrollText, require: ['user:read', 'user:write', 'apikey:read', 'apikey:write'] },
+    ],
+  },
+  {
+    heading: 'Settings',
+    items: [
+      { to: '/licensing',    label: 'Licensing', icon: BadgeCheck },
+      { to: '/settings/2fa', label: '2FA',       icon: ShieldCheck },
+    ],
+  },
+];
+
+function isGroup(entry: NavEntry): entry is NavGroup {
+  return 'heading' in entry;
+}
+
+const STORAGE_KEY = 'vairiot-nav-collapsed';
+
+function loadCollapsed(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
 
 export function AppShell() {
   const { user, logout } = useAuthStore();
   const { currencyCode, setCurrency } = useCurrencyStore();
   const [open, setOpen] = useState(false);
-  const visibleNav = nav.filter(item => !('require' in item) || hasAnyPermission(user, ...item.require));
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
+  const location = useLocation();
+
+  const toggleGroup = useCallback((heading: string) => {
+    setCollapsed(prev => {
+      const next = { ...prev, [heading]: !prev[heading] };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // Auto-expand group containing the active route
+  useEffect(() => {
+    for (const entry of nav) {
+      if (isGroup(entry) && entry.items.some(i => location.pathname.startsWith(i.to))) {
+        if (collapsed[entry.heading]) {
+          setCollapsed(prev => {
+            const next = { ...prev, [entry.heading]: false };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            return next;
+          });
+        }
+        break;
+      }
+    }
+  }, [location.pathname]);
+
+  const isItemVisible = (item: NavItem) =>
+    !item.require || hasAnyPermission(user, ...item.require);
+
+  const renderLink = (item: NavItem) => {
+    const Icon = item.icon;
+    return (
+      <NavLink key={item.to} to={item.to} onClick={() => setOpen(false)}
+        className={({ isActive }) => clsx(
+          'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+          isActive
+            ? 'bg-v-violet text-white'
+            : 'text-gray-400 hover:bg-white/10 hover:text-white',
+        )}>
+        <Icon size={18} />
+        {item.label}
+      </NavLink>
+    );
+  };
 
   return (
     <div className="min-h-screen flex bg-gray-50">
@@ -48,18 +140,43 @@ export function AppShell() {
 
         {/* Nav links */}
         <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-1">
-          {visibleNav.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} onClick={() => setOpen(false)}
-              className={({ isActive }) => clsx(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-v-violet text-white'
-                  : 'text-gray-400 hover:bg-white/10 hover:text-white',
-              )}>
-              <Icon size={18} />
-              {label}
-            </NavLink>
-          ))}
+          {nav.map(entry => {
+            if (!isGroup(entry)) {
+              return isItemVisible(entry) ? renderLink(entry) : null;
+            }
+
+            const visibleItems = entry.items.filter(isItemVisible);
+            if (visibleItems.length === 0) return null;
+
+            const isCollapsed = collapsed[entry.heading] ?? false;
+            const hasActiveChild = visibleItems.some(i => location.pathname.startsWith(i.to));
+
+            return (
+              <div key={entry.heading} className="pt-2">
+                <button
+                  onClick={() => toggleGroup(entry.heading)}
+                  className={clsx(
+                    'flex items-center justify-between w-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded-md transition-colors',
+                    hasActiveChild ? 'text-v-pink' : 'text-gray-500 hover:text-gray-300',
+                  )}
+                >
+                  {entry.heading}
+                  <ChevronDown size={14} className={clsx(
+                    'transition-transform duration-200',
+                    isCollapsed && '-rotate-90',
+                  )} />
+                </button>
+                <div className={clsx(
+                  'overflow-hidden transition-all duration-200',
+                  isCollapsed ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100',
+                )}>
+                  <div className="mt-1 space-y-0.5">
+                    {visibleItems.map(renderLink)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
         {/* Currency + User + logout */}
