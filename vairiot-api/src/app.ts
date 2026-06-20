@@ -48,8 +48,10 @@ export function createApp(): Application {
   app.use((_req, res, next) => { res.setHeader('X-API-Version', '1.0.0'); next(); });
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, { customSiteTitle: 'Vairiot API Docs' }));
   app.get('/api/openapi.json', (_req, res) => { res.json(openApiSpec); });
+  app.get('/', (_req, res) => { res.json({ name: 'Vairiot API', version: '1.0.0', docs: '/api/docs' }); });
   // ── Ungated routes (no onboarding requirement) ──
   app.use('/health',              healthRouter);
+  app.use('/api/v1/health',       healthRouter);
   app.use('/api/v1/auth',         authRouter);
 
   // ── Auth-required but onboarding-exempt (needed DURING onboarding) ──

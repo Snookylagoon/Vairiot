@@ -50,8 +50,10 @@ export async function getLicenceStatus(tenantId: string): Promise<LicenceStatusR
     throw new NotFoundError('No licence found for this tenant');
   }
 
+  const tenantIds = await getTenantFamily(tenantId);
+
   const assetCount = await prisma.asset.count({
-    where: { tenantId, deletedAt: null },
+    where: { tenantId: { in: tenantIds }, deletedAt: null },
   });
 
   const deviceCount = await prisma.device.count({
@@ -370,6 +372,28 @@ export async function registerDevice(
       });
       return { deviceId: updated.id, active: updated.active, reused: true };
     }
+
+    // Fingerprint changed (e.g. app reinstall, ANDROID_ID reset) but same
+    // physical device. Match on deviceName + userId and adopt the new fingerprint,
+    // deactivating the stale row's old fingerprint in the process.
+    if (data.userId) {
+      const stale = await prisma.device.findFirst({
+        where: { tenantId, deviceName: data.deviceName, userId: data.userId },
+      });
+      if (stale) {
+        const updated = await prisma.device.update({
+          where: { id: stale.id },
+          data: {
+            fingerprint,
+            deviceType: data.deviceType ?? stale.deviceType,
+            serialNumber: data.serialNumber ?? stale.serialNumber,
+            hardwareId: data.hardwareId ?? stale.hardwareId,
+            lastSeenAt: new Date(),
+          },
+        });
+        return { deviceId: updated.id, active: updated.active, reused: true };
+      }
+    }
   }
 
   // New device — check allowance and decide activation.
@@ -442,6 +466,48 @@ export async function touchDeviceOnLogin(
   }
 }
 
+export async function deactivateDevice(
+  deviceId: string,
+  tenantId: string,
+  actorId: string,
+): Promise<void> {
+  const device = await prisma.device.findUnique({ where: { id: deviceId } });
+  if (!device) throw new NotFoundError('Device not found');
+  if (device.tenantId !== tenantId) throw new ForbiddenError('Device does not belong to this tenant');
+  if (!device.active) throw new ValidationError('Device is already inactive');
+
+  await prisma.device.update({
+    where: { id: deviceId },
+    data: { active: false, activatedAt: null },
+  });
+
+  await auditLicenceEvent(tenantId, actorId, deviceId, 'device_deactivated', {
+    active: true,
+    deviceName: device.deviceName,
+  }, {
+    active: false,
+    deactivatedBy: actorId,
+  });
+}
+
+export async function deleteDevice(
+  deviceId: string,
+  tenantId: string,
+  actorId: string,
+): Promise<void> {
+  const device = await prisma.device.findUnique({ where: { id: deviceId } });
+  if (!device) throw new NotFoundError('Device not found');
+  if (device.tenantId !== tenantId) throw new ForbiddenError('Device does not belong to this tenant');
+  if (device.active) throw new ValidationError('Cannot delete an active device — deactivate it first');
+
+  await prisma.device.delete({ where: { id: deviceId } });
+
+  await auditLicenceEvent(tenantId, actorId, deviceId, 'device_deleted', {
+    deviceName: device.deviceName,
+    fingerprint: device.fingerprint,
+  }, null);
+}
+
 export async function listDevices(tenantId: string) {
   return prisma.device.findMany({
     where: { tenantId },
@@ -456,8 +522,10 @@ export async function listDevices(tenantId: string) {
 // ─── Asset cap enforcement ───────────────────────────────────────────────────
 
 export async function enforceAssetCap(tenantId: string): Promise<void> {
+  const rootTenantId = await getRootTenantId(tenantId);
+
   const licence = await prisma.licence.findFirst({
-    where: { tenantId, status: { in: ['active', 'expiring'] } },
+    where: { tenantId: rootTenantId, status: { in: ['active', 'expiring'] } },
     include: { tier: true },
   });
 
@@ -465,7 +533,8 @@ export async function enforceAssetCap(tenantId: string): Promise<void> {
     throw new ForbiddenError('No active licence — cannot create assets');
   }
 
-  const count = await prisma.asset.count({ where: { tenantId, deletedAt: null } });
+  const tenantIds = await getTenantFamily(rootTenantId);
+  const count = await prisma.asset.count({ where: { tenantId: { in: tenantIds }, deletedAt: null } });
   if (count >= licence.tier.maxAssets) {
     throw new AppError(
       403,
@@ -564,6 +633,22 @@ export async function listLicences(filters?: {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+async function getTenantFamily(parentTenantId: string): Promise<string[]> {
+  const children = await prisma.tenant.findMany({
+    where: { parentTenantId },
+    select: { id: true },
+  });
+  return [parentTenantId, ...children.map(c => c.id)];
+}
+
+async function getRootTenantId(tenantId: string): Promise<string> {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { parentTenantId: true },
+  });
+  return tenant?.parentTenantId ?? tenantId;
+}
 
 function addMonths(date: Date, months: number): Date {
   const result = new Date(date);

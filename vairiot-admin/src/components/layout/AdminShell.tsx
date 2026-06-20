@@ -1,8 +1,11 @@
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Building2, BadgeCheck, Users, ScrollText, LogOut, Menu } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import clsx from 'clsx';
+
+type ShellContext = { setHeaderSubtitle: (s: string | null) => void };
+export function useShellContext() { return useOutletContext<ShellContext>(); }
 
 const nav = [
   { to: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
@@ -15,6 +18,8 @@ const nav = [
 export function AdminShell() {
   const { user, logout } = useAuthStore();
   const [open, setOpen] = useState(false);
+  const [headerSubtitle, setHeaderSubtitle] = useState<string | null>(null);
+  const setSubtitle = useCallback((s: string | null) => setHeaderSubtitle(s), []);
 
   return (
     <div className="min-h-screen flex bg-gray-50">
@@ -62,11 +67,17 @@ export function AdminShell() {
           </button>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">Vairiot Management Portal</span>
+            {(headerSubtitle || user?.tenantName) && (
+              <>
+                <span className="text-sm text-gray-300">—</span>
+                <span className="text-sm font-bold text-v-charcoal">{headerSubtitle ?? user?.tenantName}</span>
+              </>
+            )}
           </div>
         </header>
 
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
-          <Outlet />
+          <Outlet context={{ setHeaderSubtitle: setSubtitle }} />
         </main>
       </div>
     </div>

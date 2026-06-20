@@ -8,6 +8,7 @@ export interface UserProfile {
   userId: string;
   email: string;
   tenantId: string;
+  tenantName: string;
   roles: string[];
   permissions: string[];
 }

@@ -5,6 +5,9 @@ import { asyncHandler } from '../../middleware/error-handler';
 import {
   listUsers, listRoles, inviteUser, setUserActive, setUserRole, resendInvite,
 } from '../../services/user.service';
+import {
+  getUserPermissionsView, setUserPermissionOverrides,
+} from '../../services/user-permissions.service';
 
 export const usersRouter = Router();
 
@@ -45,6 +48,22 @@ usersRouter.patch('/:userId/active', requireAnyPermission('user:write'),
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     res.json(await setUserActive(req.user!.tenantId, req.user!.sub, req.params.userId, req.body.active));
+  }),
+);
+
+usersRouter.get('/:userId/permissions', requireAnyPermission('user:read', 'user:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const view = await getUserPermissionsView(req.params.userId, req.user!.tenantId);
+    res.json(view);
+  }),
+);
+
+usersRouter.put('/:userId/permissions', requireAnyPermission('user:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { overrides } = req.body ?? {};
+    if (!Array.isArray(overrides)) { res.status(400).json({ error: 'overrides must be an array' }); return; }
+    const view = await setUserPermissionOverrides(req.params.userId, req.user!.sub, overrides, req.user!.tenantId);
+    res.json(view);
   }),
 );
 

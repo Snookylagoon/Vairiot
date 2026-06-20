@@ -5,6 +5,7 @@ import { logger } from '../lib/logger';
 import { UnauthorizedError, ValidationError } from '../lib/errors';
 import { checkAccountLock, recordLoginAttempt } from './login-protection.service';
 import { touchDeviceOnLogin } from './licence.service';
+import { effectivePermissionsForUser } from './user-permissions.service';
 import type { LoginRequest as LoginInput, AuthTokens } from 'vairiot-shared';
 export type { LoginInput, AuthTokens };
 
@@ -52,7 +53,7 @@ export async function login(
   }
 
   const roles       = user.roles.map((ur) => ur.role.name);
-  const permissions = Array.from(new Set(user.roles.flatMap((ur) => ur.role.permissions)));
+  const permissions = await effectivePermissionsForUser(user.id, user);
   const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
   const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
   await recordLoginAttempt(tenantId, email, ipAddress, true, user.id);
@@ -77,7 +78,7 @@ export async function loginWithTwoFactor(
   if (!user || !user.active) throw new UnauthorizedError('User not found or inactive');
 
   const roles       = user.roles.map((ur) => ur.role.name);
-  const permissions = Array.from(new Set(user.roles.flatMap((ur) => ur.role.permissions)));
+  const permissions = await effectivePermissionsForUser(user.id, user);
   const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
   const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
   prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
@@ -91,7 +92,7 @@ export async function refreshTokens(token: string): Promise<AuthTokens> {
   const user = await prisma.user.findUnique({ where: { id: p.sub }, include: { roles: { include: { role: true } } } });
   if (!user || !user.active) throw new UnauthorizedError('Invalid or expired refresh token');
   const roles       = user.roles.map((ur) => ur.role.name);
-  const permissions = Array.from(new Set(user.roles.flatMap((ur) => ur.role.permissions)));
+  const permissions = await effectivePermissionsForUser(user.id, user);
   return {
     accessToken:  signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions }),
     refreshToken: signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' }),

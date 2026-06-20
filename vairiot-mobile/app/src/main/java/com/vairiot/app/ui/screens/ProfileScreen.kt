@@ -38,6 +38,10 @@ fun ProfileScreen(
             Column {
                 Text("Profile", color = androidx.compose.ui.graphics.Color.White,
                     fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                if (state.tenantName != null) {
+                    Text(state.tenantName!!, color = androidx.compose.ui.graphics.Color.White,
+                        fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
                 Text(state.email ?: "—", color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
                     fontSize = 14.sp)
             }
@@ -107,7 +111,7 @@ private fun LicenceCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     number ?: "—",
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = MontserratFamily,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                 )

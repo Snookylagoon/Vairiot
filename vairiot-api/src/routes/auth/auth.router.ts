@@ -75,15 +75,21 @@ authRouter.post('/refresh',
   }),
 );
 
-authRouter.get('/me', authenticate, (req: Request, res: Response): void => {
+authRouter.get('/me', authenticate, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { prisma } = await import('../../lib/prisma');
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: req.user!.tenantId },
+    select: { name: true, company: { select: { legalName: true } } },
+  });
   res.json({
     userId: req.user!.sub,
     email: req.user!.email,
     tenantId: req.user!.tenantId,
+    tenantName: tenant?.company?.legalName ?? tenant?.name ?? req.user!.tenantId,
     roles: req.user!.roles,
     permissions: req.user!.permissions,
   });
-});
+}));
 
 authRouter.post('/logout', authenticate,
   asyncHandler(async (req: Request, res: Response): Promise<void> => {

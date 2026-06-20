@@ -1,14 +1,15 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useTenantDetail, useTenantOnboardingClientStep } from '@/hooks/useAdmin';
-import { useRenewLicence, useSuspendLicence, useRevokeLicence, useReactivateLicence } from '@/hooks/useLicences';
+import { useTenantDetail, useCreateSubTenant } from '@/hooks/useAdmin';
+import { useRenewLicence, useSuspendLicence, useRevokeLicence, useReactivateLicence, useLicenceDevices, useDeactivateDevice, useDeleteDevice } from '@/hooks/useLicences';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Input } from '@/components/ui/Input';
 import { ArrowLeft, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { useShellContext } from '@/components/layout/AdminShell';
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'green';
@@ -21,6 +22,13 @@ export function TenantDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: tenant, isLoading } = useTenantDetail(id!);
+  const { setHeaderSubtitle } = useShellContext();
+
+  useEffect(() => {
+    const name = tenant?.company?.legalName ?? tenant?.name;
+    if (name) setHeaderSubtitle(name);
+    return () => setHeaderSubtitle(null);
+  }, [tenant, setHeaderSubtitle]);
 
   const renew = useRenewLicence();
   const suspend = useSuspendLicence();
@@ -30,7 +38,7 @@ export function TenantDetailPage() {
   const [confirm, setConfirm] = useState<{ action: string; licenceId: string } | null>(null);
   const [showAddClient, setShowAddClient] = useState(false);
   const [clientForm, setClientForm] = useState({ clientName: '', contactEmail: '', signatoryName: '', signatoryEmail: '' });
-  const addClient = useTenantOnboardingClientStep(id!);
+  const addClient = useCreateSubTenant(id!);
 
   const resetClientForm = () => setClientForm({ clientName: '', contactEmail: '', signatoryName: '', signatoryEmail: '' });
   const setClientField = (k: keyof typeof clientForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -176,20 +184,23 @@ export function TenantDetailPage() {
           </CardBody>
         </Card>
 
-        {/* Counts & Client Companies */}
+        {/* Counts & Sub-Tenants */}
         <Card>
           <CardHeader><h2 className="text-h3 text-v-charcoal">Overview</h2></CardHeader>
           <CardBody className="space-y-2 text-sm">
-            <Row label="Assets" value={String(tenant._count?.assets ?? 0)} />
+            <Row label="Assets (this tenant)" value={String(tenant._count?.assets ?? 0)} />
+            {(tenant.childTenants?.length > 0 || tenant.totalFamilyAssets !== undefined) && (
+              <Row label="Assets (total incl. sub-tenants)" value={String(tenant.totalFamilyAssets ?? tenant._count?.assets ?? 0)} />
+            )}
             <Row label="Devices" value={String(tenant._count?.devices ?? 0)} />
             <Row label="Audit Campaigns" value={String(tenant._count?.auditCampaigns ?? 0)} />
-            {tenant.clientCompanies?.length > 0 && (
+            {tenant.childTenants?.length > 0 && (
               <div className="pt-3 border-t border-gray-100">
-                <p className="text-xs font-medium text-gray-500 mb-2">Client Companies</p>
-                {tenant.clientCompanies.map((c: any) => (
+                <p className="text-xs font-medium text-gray-500 mb-2">Sub-Tenants</p>
+                {tenant.childTenants.map((c: any) => (
                   <div key={c.id} className="flex justify-between py-1">
-                    <span className="text-sm text-v-charcoal">{c.tradingName ?? c.legalName}</span>
-                    <span className="text-xs text-gray-400">{c.registrationNumber}</span>
+                    <span className="text-sm text-v-charcoal">{c.name}</span>
+                    <span className="text-xs text-gray-400">{c._count?.assets ?? 0} assets</span>
                   </div>
                 ))}
               </div>
@@ -198,10 +209,12 @@ export function TenantDetailPage() {
         </Card>
       </div>
 
+      {licence && <RegisteredDevicesCard licenceId={licence.id} />}
+
       <ConfirmDialog
         open={showAddClient}
         title="Add Sub Client"
-        description="Register an additional client company that this tenant manages assets for."
+        description="Create a sub-tenant with its own isolated data. Assets count towards the parent licence cap."
         confirmLabel="Add Client"
         variant="primary"
         loading={addClient.isPending}
@@ -227,6 +240,82 @@ export function TenantDetailPage() {
         onCancel={() => setConfirm(null)}
       />
     </div>
+  );
+}
+
+function RegisteredDevicesCard({ licenceId }: { licenceId: string }) {
+  const { data: devices, isLoading } = useLicenceDevices(licenceId);
+  const deactivate = useDeactivateDevice();
+  const remove = useDeleteDevice();
+  const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'deactivate' | 'delete' } | null>(null);
+
+  const handleConfirm = async () => {
+    if (!confirmAction) return;
+    if (confirmAction.action === 'deactivate') {
+      await deactivate.mutateAsync({ licenceId, deviceId: confirmAction.id });
+    } else {
+      await remove.mutateAsync({ licenceId, deviceId: confirmAction.id });
+    }
+    setConfirmAction(null);
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader><h2 className="text-h3 text-v-charcoal">Registered Devices</h2></CardHeader>
+        <CardBody>
+          {isLoading ? (
+            <p className="text-sm text-gray-400">Loading...</p>
+          ) : !devices || devices.length === 0 ? (
+            <p className="text-sm text-gray-400">No devices registered</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {devices.map((d: any) => (
+                <div key={d.id} className="flex items-center justify-between py-2.5 gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-v-charcoal truncate">{d.deviceName}</p>
+                    <p className="text-xs text-gray-400 truncate">
+                      {d.deviceType}
+                      {d.user && <> · {d.user.name}</>}
+                      {d.fingerprint && <> · {d.fingerprint.slice(0, 8)}…</>}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-xs text-gray-400">
+                      {d.lastSeenAt ? `Seen ${new Date(d.lastSeenAt).toLocaleString()}` : '—'}
+                    </span>
+                    <Badge variant={d.active ? 'green' : 'gray'}>{d.active ? 'Active' : 'Inactive'}</Badge>
+                    {d.active && (
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ id: d.id, action: 'deactivate' })}>
+                        Deactivate
+                      </Button>
+                    )}
+                    {!d.active && (
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ id: d.id, action: 'delete' })}>
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.action === 'delete' ? 'Remove Device' : 'Deactivate Device'}
+        description={confirmAction?.action === 'delete'
+          ? 'This will permanently remove the device registration.'
+          : 'This will deactivate the device, freeing up a licence slot. The device will need to be re-activated to regain access.'}
+        confirmLabel={confirmAction?.action === 'delete' ? 'Remove' : 'Deactivate'}
+        variant="danger"
+        loading={deactivate.isPending || remove.isPending}
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmAction(null)}
+      />
+    </>
   );
 }
 

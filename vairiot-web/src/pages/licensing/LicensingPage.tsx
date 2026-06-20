@@ -8,6 +8,8 @@ import { useUrlTableState } from '@/hooks/useUrlTableState';
 import {
   useLicenceStatus,
   useDevices,
+  useDeactivateDevice,
+  useDeleteDevice,
   useAllLicences,
   useRenewLicence,
   useSuspendLicence,
@@ -15,6 +17,7 @@ import {
   useReactivateLicence,
   useAddDeviceSlot,
 } from '@/hooks/useLicensing';
+import { getDeviceFingerprint } from '@/lib/device';
 import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
@@ -91,36 +94,90 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 
 function DevicesList() {
   const { data: devices, isLoading } = useDevices();
+  const user = useAuthStore(s => s.user);
+  const canManage = hasAnyPermission(user, 'company:manage');
+  const deactivateMutation = useDeactivateDevice();
+  const deleteMutation = useDeleteDevice();
+  const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'deactivate' | 'delete' } | null>(null);
+  const currentFingerprint = getDeviceFingerprint();
+
   if (isLoading) return <CardSkeleton />;
 
+  const handleConfirm = async () => {
+    if (!confirmAction) return;
+    try {
+      if (confirmAction.action === 'deactivate') {
+        await deactivateMutation.mutateAsync(confirmAction.id);
+        toast.success('Device deactivated');
+      } else {
+        await deleteMutation.mutateAsync(confirmAction.id);
+        toast.success('Device removed');
+      }
+    } catch (e: unknown) {
+      toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? `Failed to ${confirmAction.action} device`);
+    }
+    setConfirmAction(null);
+  };
+
   return (
-    <Card className="p-6 space-y-3">
-      <h2 className="text-lg font-bold text-v-charcoal">Registered Devices</h2>
-      {(!devices || devices.length === 0) ? (
-        <p className="text-sm text-gray-500">No devices registered yet.</p>
-      ) : (
-        <div className="divide-y divide-gray-100">
-          {devices.map(d => (
-            <div key={d.id} className="flex items-center justify-between py-3 gap-4">
-              <div className="min-w-0">
-                <div className="font-medium text-v-charcoal text-sm truncate">{d.deviceName}</div>
-                <div className="text-xs text-gray-400 truncate">
-                  {d.deviceType}
-                  {d.user && <> · {d.user.name}</>}
-                  {d.fingerprint && <> · {d.fingerprint.slice(0, 8)}…</>}
+    <>
+      <Card className="p-6 space-y-3">
+        <h2 className="text-lg font-bold text-v-charcoal">Registered Devices</h2>
+        {(!devices || devices.length === 0) ? (
+          <p className="text-sm text-gray-500">No devices registered yet.</p>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {devices.map(d => {
+              const isCurrentDevice = d.fingerprint === currentFingerprint;
+              return (
+                <div key={d.id} className="flex items-center justify-between py-3 gap-4">
+                  <div className="min-w-0">
+                    <div className="font-medium text-v-charcoal text-sm truncate">
+                      {d.deviceName}
+                      {isCurrentDevice && <span className="ml-2 text-xs text-v-violet">(this device)</span>}
+                    </div>
+                    <div className="text-xs text-gray-400 truncate">
+                      {d.deviceType}
+                      {d.user && <> · {d.user.name}</>}
+                      {d.fingerprint && <> · {d.fingerprint.slice(0, 8)}…</>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-xs text-gray-400 hidden sm:block">
+                      {d.lastSeenAt ? `Seen ${new Date(d.lastSeenAt).toLocaleString()}` : '—'}
+                    </span>
+                    <Badge variant={d.active ? 'green' : 'gray'}>{d.active ? 'Active' : 'Inactive'}</Badge>
+                    {canManage && d.active && !isCurrentDevice && (
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ id: d.id, action: 'deactivate' })}>
+                        Deactivate
+                      </Button>
+                    )}
+                    {canManage && !d.active && (
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ id: d.id, action: 'delete' })}>
+                        Remove
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="text-xs text-gray-400 hidden sm:block">
-                  {d.lastSeenAt ? `Seen ${new Date(d.lastSeenAt).toLocaleString()}` : '—'}
-                </span>
-                <Badge variant={d.active ? 'green' : 'gray'}>{d.active ? 'Active' : 'Inactive'}</Badge>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.action === 'delete' ? 'Remove Device' : 'Deactivate Device'}
+        description={confirmAction?.action === 'delete'
+          ? 'This will permanently remove the device registration.'
+          : 'This device will lose access. A new device can then be registered in its place.'}
+        confirmLabel={confirmAction?.action === 'delete' ? 'Remove' : 'Deactivate'}
+        variant="danger"
+        loading={deactivateMutation.isPending || deleteMutation.isPending}
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmAction(null)}
+      />
+    </>
   );
 }
 

@@ -83,6 +83,31 @@ export function useSetUserRole() {
   });
 }
 
+export interface UserPermissionsView {
+  userId: string;
+  rolePermissions: string[];
+  overrides: { permission: string; granted: boolean }[];
+  effective: string[];
+}
+
+export function useUserPermissions(userId: string | undefined) {
+  return useQuery<UserPermissionsView>({
+    queryKey: ['admin', 'user-permissions', userId],
+    queryFn: () => api.get(`/api/v1/users/${userId}/permissions`).then(r => r.data),
+    enabled: !!userId,
+  });
+}
+
+export function useSetUserPermissions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, overrides }: { userId: string; overrides: { permission: string; granted: boolean }[] }) =>
+      api.put(`/api/v1/users/${userId}/permissions`, { overrides }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'user-permissions'] }); toast.success('Permissions updated'); },
+    onError:   () => { toast.error('Failed to update permissions'); },
+  });
+}
+
 export function useApiKeys() {
   return useQuery<AdminApiKey[]>({
     queryKey: ['admin', 'api-keys'],

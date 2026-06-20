@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { UserPlus, User as UserIcon, ShieldCheck, Power, Search, MailPlus } from 'lucide-react';
+import { UserPlus, User as UserIcon, ShieldCheck, Power, Search, MailPlus, KeyRound, Table2, Eye, EyeOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { RoleMatrixDialog } from './RoleMatrixDialog';
 import {
   useUsers, useRoles, useInviteUser, useSetUserActive, useSetUserRole, useResendInvite,
 } from '@/hooks/useAdmin';
@@ -12,6 +14,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { inviteUserSchema, type InviteUserFormData } from '@/lib/schemas';
 
 export function UsersPage() {
+  const navigate = useNavigate();
   const { data: users = [], isLoading } = useUsers();
   const { data: roles = [] } = useRoles();
   const invite      = useInviteUser();
@@ -24,12 +27,19 @@ export function UsersPage() {
   });
   const [toggleTarget, setToggleTarget] = useState<{ userId: string; name: string; active: boolean } | null>(null);
   const [search, setSearch] = useState('');
+  const [matrixOpen, setMatrixOpen] = useState(false);
+  const [showDisabled, setShowDisabled] = useState(true);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return users;
-    const q = search.toLowerCase();
-    return users.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
-  }, [users, search]);
+    let list = users;
+    if (!showDisabled) list = list.filter(u => u.active);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+    }
+    return list;
+  }, [users, search, showDisabled]);
+  const disabledCount = useMemo(() => users.filter(u => !u.active).length, [users]);
 
   const onInvite = async (data: InviteUserFormData) => {
     await invite.mutateAsync({
@@ -42,9 +52,21 @@ export function UsersPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-v-charcoal">Users</h1>
-        <p className="text-sm text-gray-500 mt-1">Invite teammates, assign roles, enable or disable access.</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-v-charcoal">Users</h1>
+          <p className="text-sm text-gray-500 mt-1">Invite teammates, assign roles, enable or disable access.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="secondary" onClick={() => setShowDisabled(s => !s)}>
+            {showDisabled
+              ? <><EyeOff size={14} className="mr-1" /> Hide Disabled{disabledCount > 0 && ` (${disabledCount})`}</>
+              : <><Eye size={14} className="mr-1" /> Show Disabled{disabledCount > 0 && ` (${disabledCount})`}</>}
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => setMatrixOpen(true)}>
+            <Table2 size={14} className="mr-1" /> Role Permission Matrix
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -100,7 +122,11 @@ export function UsersPage() {
                     {u.lastLoginAt && ` • Last login ${new Date(u.lastLoginAt).toLocaleDateString()}`}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                  <Button size="sm" variant="ghost" title="Permissions"
+                    onClick={() => navigate(`/admin/users/${u.id}`)}>
+                    <KeyRound size={12} className="mr-1" /> Permissions
+                  </Button>
                   <ShieldCheck size={14} className="text-gray-400" />
                   <select
                     className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-v-charcoal focus:outline-none focus:ring-2 focus:ring-v-pink"
@@ -127,6 +153,8 @@ export function UsersPage() {
           })}
         </CardBody>
       </Card>
+
+      <RoleMatrixDialog open={matrixOpen} onClose={() => setMatrixOpen(false)} />
 
       <ConfirmDialog
         open={toggleTarget !== null}

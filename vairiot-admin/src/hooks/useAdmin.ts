@@ -156,6 +156,15 @@ export function useTenantOnboardingClientStep(tenantId: string) {
   });
 }
 
+export function useCreateSubTenant(tenantId: string) {
+  return useMutationWithToast<unknown, { clientName: string; contactEmail: string; signatoryName: string; signatoryEmail: string }>({
+    mutationFn: (body) => api.post(`/api/v1/admin/platform/tenants/${tenantId}/sub-tenants`, body).then(r => r.data),
+    invalidate: [['admin', 'tenant', tenantId], ['admin', 'tenants']],
+    success: 'Sub-tenant created',
+    error: 'Failed to create sub-tenant',
+  });
+}
+
 export function useTenantOnboardingLicenceStep(tenantId: string) {
   return useMutationWithToast<unknown, { tierName: string }>({
     mutationFn: (body) => api.post(`/api/v1/admin/platform/tenants/${tenantId}/onboarding/licence`, body).then(r => r.data),

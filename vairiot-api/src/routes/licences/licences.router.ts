@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../../middleware/error-handler';
 import { requirePermission, requireRole } from '../../middleware/authorise';
 import { Permission, RoleName } from 'vairiot-shared';
+import { prisma } from '../../lib/prisma';
 import {
   getLicenceStatus,
   confirmPaymentAndRenew,
@@ -13,6 +14,8 @@ import {
   registerDevice,
   listDevices,
   listLicences,
+  deactivateDevice,
+  deleteDevice,
 } from '../../services/licence.service';
 
 export const licencesRouter = Router();
@@ -41,6 +44,22 @@ licencesRouter.post('/devices', asyncHandler(async (req: Request, res: Response)
   );
   res.status(201).json(result);
 }));
+
+licencesRouter.patch('/devices/:deviceId/deactivate',
+  requirePermission(Permission.CompanyManage),
+  asyncHandler(async (req: Request, res: Response) => {
+    await deactivateDevice(req.params.deviceId, req.user!.tenantId, req.user!.sub);
+    res.json({ message: 'Device deactivated' });
+  }),
+);
+
+licencesRouter.delete('/devices/:deviceId',
+  requirePermission(Permission.CompanyManage),
+  asyncHandler(async (req: Request, res: Response) => {
+    await deleteDevice(req.params.deviceId, req.user!.tenantId, req.user!.sub);
+    res.json({ message: 'Device deleted' });
+  }),
+);
 
 // ─── Licensing Authority routes ──────────────────────────────────────────────
 
@@ -119,5 +138,47 @@ licencesRouter.post(
   asyncHandler(async (req: Request, res: Response) => {
     const result = await addDeviceSlot(req.params.id, req.user!.sub);
     res.status(201).json(result);
+  }),
+);
+
+licencesRouter.get(
+  '/:id/devices',
+  authorityOnly,
+  asyncHandler(async (req: Request, res: Response) => {
+    const licence = await prisma.licence.findUnique({
+      where: { id: req.params.id },
+      select: { tenantId: true },
+    });
+    if (!licence) { res.status(404).json({ error: 'Licence not found' }); return; }
+    const devices = await listDevices(licence.tenantId);
+    res.json(devices);
+  }),
+);
+
+licencesRouter.patch(
+  '/:id/devices/:deviceId/deactivate',
+  authorityOnly,
+  asyncHandler(async (req: Request, res: Response) => {
+    const licence = await prisma.licence.findUnique({
+      where: { id: req.params.id },
+      select: { tenantId: true },
+    });
+    if (!licence) { res.status(404).json({ error: 'Licence not found' }); return; }
+    await deactivateDevice(req.params.deviceId, licence.tenantId, req.user!.sub);
+    res.json({ message: 'Device deactivated' });
+  }),
+);
+
+licencesRouter.delete(
+  '/:id/devices/:deviceId',
+  authorityOnly,
+  asyncHandler(async (req: Request, res: Response) => {
+    const licence = await prisma.licence.findUnique({
+      where: { id: req.params.id },
+      select: { tenantId: true },
+    });
+    if (!licence) { res.status(404).json({ error: 'Licence not found' }); return; }
+    await deleteDevice(req.params.deviceId, licence.tenantId, req.user!.sub);
+    res.json({ message: 'Device deleted' });
   }),
 );

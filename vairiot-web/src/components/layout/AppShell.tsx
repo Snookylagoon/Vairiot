@@ -99,6 +99,12 @@ export function AppShell() {
           </button>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">Vairiot Enhanced Asset Management</span>
+            {user?.tenantName && (
+              <>
+                <span className="text-sm text-gray-300">—</span>
+                <span className="text-sm font-bold text-v-charcoal">{user.tenantName}</span>
+              </>
+            )}
           </div>
         </header>
 

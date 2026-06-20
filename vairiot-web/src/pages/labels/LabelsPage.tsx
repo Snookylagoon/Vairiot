@@ -190,7 +190,7 @@ function LabelPreview({
     fontSize: kind === 'title' ? titleFont : otherFont,
     lineHeight: 1.15,
     fontWeight: kind === 'title' ? 700 : 400,
-    fontFamily: kind === 'number' ? 'ui-monospace, "IBM Plex Mono", monospace' : 'inherit',
+    fontFamily: 'Montserrat, sans-serif',
     color: colorFor(kind),
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -216,7 +216,7 @@ function LabelPreview({
     borderRadius: 4,
     background: 'white',
     overflow: 'hidden',
-    fontFamily: 'system-ui, -apple-system, sans-serif',
+    fontFamily: 'Montserrat, sans-serif',
   };
 
   return (
@@ -352,7 +352,9 @@ export function LabelsPage() {
       <style>
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
-        body { padding: 8mm; font-family: system-ui, -apple-system, sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&display=swap');
+        body { padding: 8mm; font-family: 'Montserrat', sans-serif; }
+        * { font-family: 'Montserrat', sans-serif !important; }
         .label-grid { display: flex; flex-wrap: wrap; gap: 2mm; align-items: flex-start; }
         .label-grid > div { page-break-inside: avoid; break-inside: avoid; }
         .label-grid img { display: block; }

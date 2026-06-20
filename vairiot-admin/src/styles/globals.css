@@ -11,12 +11,12 @@
   --v-white:    #FFFFFF;
   --v-gradient: linear-gradient(90deg, #FF0DCC 0%, #A05B97 50%, #615AA0 100%);
   --font-sans: 'Montserrat', sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
+  --font-mono: 'Montserrat', sans-serif;
   --v-shadow-card:  0 2px 8px 0 rgba(97, 90, 160, 0.12);
   --v-shadow-focus: 0 0 0 3px rgba(255, 13, 204, 0.25);
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; font-family: 'Montserrat', sans-serif !important; }
 
 html, body {
   margin: 0; padding: 0;

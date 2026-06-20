@@ -66,6 +66,24 @@ export function useRegisterDevice() {
   });
 }
 
+export function useDeactivateDevice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (deviceId: string) =>
+      api.patch(`/api/v1/licences/devices/${deviceId}/deactivate`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['licence'] }),
+  });
+}
+
+export function useDeleteDevice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (deviceId: string) =>
+      api.delete(`/api/v1/licences/devices/${deviceId}`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['licence'] }),
+  });
+}
+
 // ── Licensing Authority routes ───────────────────────────────────────────────
 
 export function useAllLicences(params: Record<string, string> = {}) {

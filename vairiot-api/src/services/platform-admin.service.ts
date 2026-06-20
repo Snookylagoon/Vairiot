@@ -121,6 +121,17 @@ export async function getTenantDetail(tenantId: string) {
           createdAt: true,
         },
       },
+      childTenants: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          active: true,
+          createdAt: true,
+          _count: { select: { assets: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
       users: {
         select: {
           id: true,
@@ -151,7 +162,15 @@ export async function getTenantDetail(tenantId: string) {
   });
 
   if (!tenant) throw new NotFoundError('Tenant not found');
-  return tenant;
+
+  // Aggregate asset count across parent + children for licensing display
+  const childIds = tenant.childTenants.map(c => c.id);
+  const familyIds = [tenantId, ...childIds];
+  const totalFamilyAssets = await prisma.asset.count({
+    where: { tenantId: { in: familyIds }, deletedAt: null },
+  });
+
+  return { ...tenant, totalFamilyAssets };
 }
 
 // ─── Cross-Tenant User Management ───────────────────────────────────────────

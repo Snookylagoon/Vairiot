@@ -32,6 +32,7 @@ const AlertsPage           = lazy(() => import('@/pages/alerts/AlertsPage').then
 const ImportPage           = lazy(() => import('@/pages/import/ImportPage').then(m => ({ default: m.ImportPage })));
 const LabelsPage           = lazy(() => import('@/pages/labels/LabelsPage').then(m => ({ default: m.LabelsPage })));
 const UsersPage            = lazy(() => import('@/pages/admin/UsersPage').then(m => ({ default: m.UsersPage })));
+const UserDetailPage       = lazy(() => import('@/pages/admin/UserDetailPage').then(m => ({ default: m.UserDetailPage })));
 const ApiKeysPage          = lazy(() => import('@/pages/admin/ApiKeysPage').then(m => ({ default: m.ApiKeysPage })));
 const AuditLogPage         = lazy(() => import('@/pages/admin/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
 const WebhooksPage         = lazy(() => import('@/pages/admin/WebhooksPage').then(m => ({ default: m.WebhooksPage })));
@@ -111,6 +112,7 @@ export default function App() {
             <Route path="licensing"     element={<LicensingPage />} />
             <Route path="settings/2fa"  element={<TwoFactorPage />} />
             <Route path="admin/users"    element={<RequirePermission perms={['user:read', 'user:write']}><UsersPage /></RequirePermission>} />
+            <Route path="admin/users/:id" element={<RequirePermission perms={['user:read', 'user:write']}><UserDetailPage /></RequirePermission>} />
             <Route path="admin/api-keys" element={<RequirePermission perms={['apikey:read', 'apikey:write']}><ApiKeysPage /></RequirePermission>} />
             <Route path="admin/webhooks" element={<RequirePermission perms={['apikey:write']}><WebhooksPage /></RequirePermission>} />
             <Route path="admin/custom-fields" element={<RequirePermission perms={['asset:write']}><CustomFieldsPage /></RequirePermission>} />

@@ -68,3 +68,31 @@ export function useAddDeviceSlot() {
     error: 'Failed to add device slot',
   });
 }
+
+export function useLicenceDevices(licenceId: string | undefined) {
+  return useQuery({
+    queryKey: ['admin', 'licence-devices', licenceId],
+    queryFn: () => api.get(`/api/v1/licences/${licenceId}/devices`).then(r => r.data),
+    enabled: !!licenceId,
+  });
+}
+
+export function useDeactivateDevice() {
+  return useMutationWithToast<unknown, { licenceId: string; deviceId: string }>({
+    mutationFn: ({ licenceId, deviceId }) =>
+      api.patch(`/api/v1/licences/${licenceId}/devices/${deviceId}/deactivate`).then(r => r.data),
+    invalidate: ['admin', 'licence-devices'],
+    success: 'Device deactivated',
+    error: 'Failed to deactivate device',
+  });
+}
+
+export function useDeleteDevice() {
+  return useMutationWithToast<unknown, { licenceId: string; deviceId: string }>({
+    mutationFn: ({ licenceId, deviceId }) =>
+      api.delete(`/api/v1/licences/${licenceId}/devices/${deviceId}`).then(r => r.data),
+    invalidate: ['admin', 'licence-devices'],
+    success: 'Device removed',
+    error: 'Failed to remove device',
+  });
+}

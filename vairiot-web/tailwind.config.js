@@ -19,7 +19,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['Montserrat', 'sans-serif'],
-        mono: ['IBM Plex Mono', 'monospace'],
+        mono: ['Montserrat', 'sans-serif'],
       },
       backgroundImage: {
         'v-gradient': 'linear-gradient(90deg, #FF0DCC 0%, #A05B97 50%, #615AA0 100%)',

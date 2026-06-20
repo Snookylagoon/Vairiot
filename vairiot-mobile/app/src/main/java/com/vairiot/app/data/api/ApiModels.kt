@@ -20,10 +20,11 @@ data class LoginResponse(
 )
 
 data class UserProfileResponse(
-    val userId:   String,
-    val email:    String,
-    val tenantId: String,
-    val roles:    List<String>,
+    val userId:     String,
+    val email:      String,
+    val tenantId:   String,
+    val tenantName: String? = null,
+    val roles:      List<String>,
 )
 
 data class LicenceStatusResponse(

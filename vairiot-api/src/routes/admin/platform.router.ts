@@ -173,6 +173,50 @@ platformRouter.post('/tenants/:id/onboarding/client', async (req: Request, res: 
   res.json(status);
 });
 
+platformRouter.post('/tenants/:id/sub-tenants', async (req: Request, res: Response) => {
+  const { clientName, contactEmail, signatoryName, signatoryEmail } = req.body;
+  if (!clientName?.trim()) { res.status(400).json({ error: 'clientName is required' }); return; }
+  if (!signatoryName?.trim() || !signatoryEmail?.trim()) {
+    res.status(400).json({ error: 'signatoryName and signatoryEmail are required' });
+    return;
+  }
+
+  const parentTenant = await prisma.tenant.findUnique({ where: { id: req.params.id } });
+  if (!parentTenant) { res.status(404).json({ error: 'Parent tenant not found' }); return; }
+  if (parentTenant.parentTenantId) {
+    res.status(400).json({ error: 'Cannot create sub-tenant under another sub-tenant' });
+    return;
+  }
+
+  const slug = parentTenant.slug + '-' + clientName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+  const existing = await prisma.tenant.findUnique({ where: { slug } });
+  if (existing) { res.status(409).json({ error: 'A sub-tenant with this name already exists' }); return; }
+
+  const subTenant = await prisma.tenant.create({
+    data: {
+      name: clientName.trim(),
+      slug,
+      parentTenantId: parentTenant.id,
+      deploymentMode: parentTenant.deploymentMode,
+      onboardingComplete: true,
+      active: true,
+    },
+  });
+
+  // Also persist as ClientCompany for the onboarding record
+  await registerClient(req.params.id, req.user!.sub, {
+    legalName: clientName,
+    addressLine1: '',
+    city: '',
+    country: '',
+    primaryContactName: signatoryName,
+    primaryContactEmail: contactEmail || signatoryEmail,
+    authority: { name: signatoryName, email: signatoryEmail },
+  });
+
+  res.json(subTenant);
+});
+
 platformRouter.post('/tenants/:id/onboarding/licence', async (req: Request, res: Response) => {
   const { tierName } = req.body;
   if (!tierName?.trim()) { res.status(400).json({ error: 'tierName is required' }); return; }
