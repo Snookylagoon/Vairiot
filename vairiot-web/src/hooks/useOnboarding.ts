@@ -23,6 +23,27 @@ export function useCompleteUserStep() {
   });
 }
 
+export interface Company {
+  id: string;
+  legalName: string;
+  tradingName?: string | null;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  stateProvince?: string | null;
+  postalCode?: string | null;
+  country: string;
+  primaryContactEmail: string;
+  primaryContactPhone?: string | null;
+}
+
+export function useCompany() {
+  return useQuery<Company | null>({
+    queryKey: ['onboarding', 'company'],
+    queryFn: () => api.get('/api/v1/onboarding/company').then(r => r.data),
+  });
+}
+
 export function useCompleteCompanyStep() {
   const qc = useQueryClient();
   return useMutation({

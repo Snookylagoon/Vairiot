@@ -28,6 +28,13 @@ onboardingRouter.post('/user', asyncHandler(async (req: Request, res: Response) 
   res.json(status);
 }));
 
+onboardingRouter.get('/company', asyncHandler(async (req: Request, res: Response) => {
+  const { prisma } = await import('../../lib/prisma');
+  const company = await prisma.company.findUnique({ where: { tenantId: req.user!.tenantId } });
+  if (!company) { res.json(null); return; }
+  res.json(company);
+}));
+
 onboardingRouter.post('/company', asyncHandler(async (req: Request, res: Response) => {
   const { companyName, registrationNumber, address, city, country } = req.body;
   // Look up the user's name for primary contact

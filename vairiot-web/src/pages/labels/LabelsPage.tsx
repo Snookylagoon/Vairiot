@@ -4,6 +4,7 @@ import bwipjs from 'bwip-js/browser';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAssets } from '@/hooks/useAssets';
+import { useCompany, type Company } from '@/hooks/useOnboarding';
 import type { Asset } from '@/types';
 
 /* ---------- Barcode standards ---------- */
@@ -66,6 +67,9 @@ type ContentFields = {
   barcode: boolean;
   site: boolean;
   category: boolean;
+  companyName: boolean;
+  companyAddress: boolean;
+  companyEmail: boolean;
 };
 
 const DEFAULT_FIELDS: ContentFields = {
@@ -75,16 +79,29 @@ const DEFAULT_FIELDS: ContentFields = {
   barcode: false,
   site: true,
   category: false,
+  companyName: false,
+  companyAddress: false,
+  companyEmail: false,
 };
 
 const FIELD_LABELS: { key: keyof ContentFields; label: string }[] = [
-  { key: 'name',         label: 'Asset name' },
-  { key: 'assetNumber',  label: 'Asset number' },
-  { key: 'serialNumber', label: 'Serial number' },
-  { key: 'barcode',      label: 'Barcode value' },
-  { key: 'site',         label: 'Site' },
-  { key: 'category',     label: 'Category' },
+  { key: 'name',           label: 'Asset name' },
+  { key: 'assetNumber',    label: 'Asset number' },
+  { key: 'serialNumber',   label: 'Serial number' },
+  { key: 'barcode',        label: 'Barcode value' },
+  { key: 'site',           label: 'Site' },
+  { key: 'category',       label: 'Category' },
+  { key: 'companyName',    label: 'Company name' },
+  { key: 'companyAddress', label: 'Company address' },
+  { key: 'companyEmail',   label: 'Company email' },
 ];
+
+function formatCompanyAddress(c: Company | null | undefined): string {
+  if (!c) return '';
+  return [c.addressLine1, c.addressLine2, c.city, c.stateProvince, c.postalCode, c.country]
+    .filter(Boolean)
+    .join(', ');
+}
 
 /* ---------- Barcode payload helper ---------- */
 
@@ -113,6 +130,7 @@ function LabelPreview({
   barcodeDataUrl,
   barcodeType,
   fields,
+  company,
 }: {
   asset: Asset;
   widthPx: number;
@@ -120,7 +138,9 @@ function LabelPreview({
   barcodeDataUrl: string;
   barcodeType: BarcodeType;
   fields: ContentFields;
+  company: Company | null | undefined;
 }) {
+  const companyAddress = formatCompanyAddress(company);
   const wide2D = is2D(barcodeType);
   const padding = Math.max(4, Math.round(Math.min(widthPx, heightPx) * 0.05));
   const barcodeBox = wide2D
@@ -175,6 +195,21 @@ function LabelPreview({
                 {asset.category.name}
               </p>
             )}
+            {fields.companyName && company?.legalName && (
+              <p className="text-v-charcoal truncate" style={{ fontSize: smallFont }}>
+                {company.tradingName || company.legalName}
+              </p>
+            )}
+            {fields.companyAddress && companyAddress && (
+              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
+                {companyAddress}
+              </p>
+            )}
+            {fields.companyEmail && company?.primaryContactEmail && (
+              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
+                {company.primaryContactEmail}
+              </p>
+            )}
           </div>
         </div>
       ) : (
@@ -193,6 +228,21 @@ function LabelPreview({
             {fields.site && asset.site && (
               <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
                 {asset.site.name}
+              </p>
+            )}
+            {fields.companyName && company?.legalName && (
+              <p className="text-v-charcoal truncate" style={{ fontSize: smallFont }}>
+                {company.tradingName || company.legalName}
+              </p>
+            )}
+            {fields.companyAddress && companyAddress && (
+              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
+                {companyAddress}
+              </p>
+            )}
+            {fields.companyEmail && company?.primaryContactEmail && (
+              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
+                {company.primaryContactEmail}
               </p>
             )}
           </div>
@@ -227,6 +277,7 @@ export function LabelsPage() {
 
   const { data } = useAssets({ search, pageSize: 50 });
   const assets = data?.assets ?? [];
+  const { data: company } = useCompany();
 
   const selectedAssets = assets.filter(a => selected.has(a.id));
 
@@ -485,6 +536,7 @@ export function LabelsPage() {
                     barcodeDataUrl={url}
                     barcodeType={barcodeType}
                     fields={fields}
+                    company={company}
                   />
                 );
               })}
