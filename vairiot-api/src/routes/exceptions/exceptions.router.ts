@@ -74,6 +74,16 @@ exceptionsRouter.get('/',
       select: { id: true, assetNumber: true, name: true },
     });
 
+    const missingDocumentAssets = await prisma.asset.findMany({
+      where: {
+        tenantId, deletedAt: null, status: { not: 'disposed' },
+        documents: { none: {} },
+      },
+      take: 20,
+      orderBy: { assetNumber: 'asc' },
+      select: { id: true, assetNumber: true, name: true },
+    });
+
     res.json({
       summary: {
         missingDocuments,
@@ -81,6 +91,7 @@ exceptionsRouter.get('/',
         expiredWarrantyCount,
         unlocatedAssetCount,
       },
+      missingDocumentAssets,
       overdueMaintenanceEvents,
       expiredWarrantyAssets,
       unlocatedAssets,

@@ -210,6 +210,9 @@ export interface AssetStats {
 
 export interface ExceptionsData {
   summary: ExceptionsSummary;
+  missingDocumentAssets: Array<{
+    id: string; assetNumber: string; name: string;
+  }>;
   overdueMaintenanceEvents: Array<{
     id: string; maintenanceType: string; scheduledDate: string; vendor?: string; status: string;
     asset: { id: string; assetNumber: string; name: string };
