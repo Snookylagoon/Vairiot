@@ -157,11 +157,38 @@ export function useTenantOnboardingClientStep(tenantId: string) {
 }
 
 export function useCreateSubTenant(tenantId: string) {
-  return useMutationWithToast<unknown, { clientName: string; contactEmail: string; signatoryName: string; signatoryEmail: string }>({
+  return useMutationWithToast<unknown, {
+    clientName: string; contactEmail: string; signatoryName: string; signatoryEmail: string;
+    address?: string; city?: string; country?: string; telephone?: string;
+  }>({
     mutationFn: (body) => api.post(`/api/v1/admin/platform/tenants/${tenantId}/sub-tenants`, body).then(r => r.data),
     invalidate: [['admin', 'tenant', tenantId], ['admin', 'tenants']],
     success: 'Sub-tenant created',
     error: 'Failed to create sub-tenant',
+  });
+}
+
+export function useUploadTenantLogo(tenantId: string) {
+  return useMutationWithToast<unknown, File>({
+    mutationFn: (file) => {
+      const fd = new FormData();
+      fd.append('logo', file);
+      return api.post(`/api/v1/admin/platform/tenants/${tenantId}/logo`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then(r => r.data);
+    },
+    invalidate: [['admin', 'tenant', tenantId]],
+    success: 'Logo uploaded',
+    error: 'Failed to upload logo',
+  });
+}
+
+export function useDeleteTenantLogo(tenantId: string) {
+  return useMutationWithToast<unknown, void>({
+    mutationFn: () => api.delete(`/api/v1/admin/platform/tenants/${tenantId}/logo`).then(r => r.data),
+    invalidate: [['admin', 'tenant', tenantId]],
+    success: 'Logo removed',
+    error: 'Failed to remove logo',
   });
 }
 

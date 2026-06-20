@@ -129,6 +129,15 @@ export async function getTenantDetail(tenantId: string) {
           active: true,
           createdAt: true,
           _count: { select: { assets: true } },
+          company: {
+            select: {
+              addressLine1: true,
+              city: true,
+              country: true,
+              primaryContactPhone: true,
+              logoStorageKey: true,
+            },
+          },
         },
         orderBy: { createdAt: 'asc' },
       },

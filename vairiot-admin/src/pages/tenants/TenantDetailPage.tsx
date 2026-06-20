@@ -1,13 +1,13 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useTenantDetail, useCreateSubTenant } from '@/hooks/useAdmin';
+import { useTenantDetail, useCreateSubTenant, useUploadTenantLogo, useDeleteTenantLogo } from '@/hooks/useAdmin';
 import { useRenewLicence, useSuspendLicence, useRevokeLicence, useReactivateLicence, useLicenceDevices, useDeactivateDevice, useDeleteDevice } from '@/hooks/useLicences';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Input } from '@/components/ui/Input';
-import { ArrowLeft, Plus } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { ArrowLeft, Plus, Upload, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useShellContext } from '@/components/layout/AdminShell';
 
@@ -37,10 +37,13 @@ export function TenantDetailPage() {
 
   const [confirm, setConfirm] = useState<{ action: string; licenceId: string } | null>(null);
   const [showAddClient, setShowAddClient] = useState(false);
-  const [clientForm, setClientForm] = useState({ clientName: '', contactEmail: '', signatoryName: '', signatoryEmail: '' });
+  const [clientForm, setClientForm] = useState({ clientName: '', contactEmail: '', signatoryName: '', signatoryEmail: '', address: '', city: '', country: '', telephone: '' });
   const addClient = useCreateSubTenant(id!);
+  const uploadLogo = useUploadTenantLogo(id!);
+  const deleteLogo = useDeleteTenantLogo(id!);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
-  const resetClientForm = () => setClientForm({ clientName: '', contactEmail: '', signatoryName: '', signatoryEmail: '' });
+  const resetClientForm = () => setClientForm({ clientName: '', contactEmail: '', signatoryName: '', signatoryEmail: '', address: '', city: '', country: '', telephone: '' });
   const setClientField = (k: keyof typeof clientForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setClientForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -53,6 +56,12 @@ export function TenantDetailPage() {
     await addClient.mutateAsync(clientForm);
     resetClientForm();
     setShowAddClient(false);
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadLogo.mutate(file);
+    e.target.value = '';
   };
 
   if (isLoading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
@@ -95,19 +104,51 @@ export function TenantDetailPage() {
         {/* Company Info */}
         <Card>
           <CardHeader><h2 className="text-h3 text-v-charcoal">Company Information</h2></CardHeader>
-          <CardBody className="space-y-2 text-sm">
-            <Row label="Slug" value={tenant.slug} mono />
-            <Row label="Deployment Mode" value={tenant.deploymentMode} />
-            <Row label="Onboarding" value={tenant.onboardingComplete ? 'Complete' : 'Pending'} />
-            <Row label="Created" value={new Date(tenant.createdAt).toLocaleDateString()} />
-            {tenant.company && (
-              <>
-                <Row label="Legal Name" value={tenant.company.legalName} />
-                <Row label="Registration #" value={tenant.company.registrationNumber} />
-                <Row label="Address" value={[tenant.company.addressLine1, tenant.company.city, tenant.company.country].filter(Boolean).join(', ')} />
-                <Row label="Contact" value={tenant.company.contactEmail} />
-              </>
-            )}
+          <CardBody className="space-y-4 text-sm">
+            {/* Logo */}
+            <div className="flex items-center gap-4 pb-3 border-b border-gray-100">
+              <div className="w-16 h-16 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
+                {tenant.company?.logoStorageKey ? (
+                  <img
+                    src={`/api/v1/admin/platform/tenants/${tenant.id}/logo?t=${Date.now()}`}
+                    alt="Company logo"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <span className="text-xs text-gray-400">No logo</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs text-gray-500">Company Logo</p>
+                <div className="flex gap-2">
+                  <input ref={logoInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleLogoChange} />
+                  <Button size="sm" variant="secondary" onClick={() => logoInputRef.current?.click()} disabled={uploadLogo.isPending}>
+                    <Upload size={12} className="mr-1" /> {tenant.company?.logoStorageKey ? 'Replace' : 'Upload'}
+                  </Button>
+                  {tenant.company?.logoStorageKey && (
+                    <Button size="sm" variant="ghost" onClick={() => deleteLogo.mutate()} disabled={deleteLogo.isPending}>
+                      <Trash2 size={12} className="mr-1" /> Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Row label="Slug" value={tenant.slug} mono />
+              <Row label="Deployment Mode" value={tenant.deploymentMode} />
+              <Row label="Onboarding" value={tenant.onboardingComplete ? 'Complete' : 'Pending'} />
+              <Row label="Created" value={new Date(tenant.createdAt).toLocaleDateString()} />
+              {tenant.company && (
+                <>
+                  <Row label="Legal Name" value={tenant.company.legalName} />
+                  <Row label="Registration #" value={tenant.company.registrationNumber} />
+                  <Row label="Address" value={[tenant.company.addressLine1, tenant.company.city, tenant.company.country].filter(Boolean).join(', ')} />
+                  <Row label="Contact" value={tenant.company.primaryContactEmail} />
+                  {tenant.company.primaryContactPhone && <Row label="Telephone" value={tenant.company.primaryContactPhone} />}
+                </>
+              )}
+            </div>
           </CardBody>
         </Card>
 
@@ -226,6 +267,17 @@ export function TenantDetailPage() {
           <Input label="Contact Email" type="email" value={clientForm.contactEmail} onChange={setClientField('contactEmail')} placeholder="contact@client.com" />
           <Input label="Signatory Name" value={clientForm.signatoryName} onChange={setClientField('signatoryName')} placeholder="Jane Doe" />
           <Input label="Signatory Email" type="email" value={clientForm.signatoryEmail} onChange={setClientField('signatoryEmail')} placeholder="jane@client.com" />
+          <div className="pt-2 border-t border-gray-100">
+            <p className="text-xs font-medium text-gray-500 mb-2">Registration Details</p>
+            <div className="space-y-3">
+              <Input label="Address" value={clientForm.address} onChange={setClientField('address')} placeholder="123 Main Street" />
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="City" value={clientForm.city} onChange={setClientField('city')} placeholder="Wellington" />
+                <Input label="Country" value={clientForm.country} onChange={setClientField('country')} placeholder="New Zealand" />
+              </div>
+              <Input label="Telephone" type="tel" value={clientForm.telephone} onChange={setClientField('telephone')} placeholder="+64 4 123 4567" />
+            </div>
+          </div>
         </div>
       </ConfirmDialog>
 

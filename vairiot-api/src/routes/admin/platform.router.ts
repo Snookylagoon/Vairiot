@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
+import { Readable } from 'stream';
 import { requireRole } from '../../middleware/authorise';
 import {
   getDashboardStats,
@@ -23,10 +25,25 @@ import {
 } from '../../services/onboarding.service';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../lib/errors';
+import { minioClient, PHOTO_BUCKET } from '../../lib/minio';
 
 export const platformRouter = Router();
 
 platformRouter.use(requireRole('Platform Super Admin', 'Licensing Authority'));
+
+const LOGO_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!LOGO_MIMES.includes(file.mimetype.toLowerCase())) {
+      cb(new Error('UNSUPPORTED_MEDIA'));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 // ─── Dashboard ──────────────────────────────────────────────────────────────
 
@@ -102,6 +119,58 @@ platformRouter.patch('/users/:id/active', async (req: Request, res: Response) =>
   res.json({ message: active ? 'User enabled' : 'User disabled' });
 });
 
+// ─── Tenant Logo ───────────────────────────────────────────────────────────
+
+platformRouter.post('/tenants/:id/logo', logoUpload.single('logo'), async (req: Request, res: Response) => {
+  if (!req.file) { res.status(400).json({ error: 'No file uploaded (field name "logo")' }); return; }
+
+  const company = await prisma.company.findUnique({ where: { tenantId: req.params.id } });
+  if (!company) { res.status(404).json({ error: 'Company not found — complete company registration first' }); return; }
+
+  // Remove old logo if exists
+  if (company.logoStorageKey) {
+    await minioClient.removeObject(PHOTO_BUCKET, company.logoStorageKey).catch(() => {});
+  }
+
+  const ext = req.file.mimetype === 'image/png' ? '.png' : req.file.mimetype === 'image/webp' ? '.webp' : '.jpg';
+  const storageKey = `${req.params.id}/logo/company-logo${ext}`;
+
+  await minioClient.putObject(PHOTO_BUCKET, storageKey, req.file.buffer, req.file.buffer.length, {
+    'Content-Type': req.file.mimetype,
+  });
+
+  await prisma.company.update({
+    where: { tenantId: req.params.id },
+    data: { logoStorageKey: storageKey },
+  });
+
+  res.json({ logoStorageKey: storageKey });
+});
+
+platformRouter.get('/tenants/:id/logo', async (req: Request, res: Response) => {
+  const company = await prisma.company.findUnique({ where: { tenantId: req.params.id } });
+  if (!company?.logoStorageKey) { res.status(404).json({ error: 'No logo uploaded' }); return; }
+
+  const stream = await minioClient.getObject(PHOTO_BUCKET, company.logoStorageKey);
+  const ext = company.logoStorageKey.split('.').pop();
+  const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+  res.setHeader('Content-Type', mime);
+  res.setHeader('Cache-Control', 'private, max-age=300');
+  (stream as Readable).pipe(res);
+});
+
+platformRouter.delete('/tenants/:id/logo', async (req: Request, res: Response) => {
+  const company = await prisma.company.findUnique({ where: { tenantId: req.params.id } });
+  if (!company?.logoStorageKey) { res.status(404).json({ error: 'No logo uploaded' }); return; }
+
+  await minioClient.removeObject(PHOTO_BUCKET, company.logoStorageKey).catch(() => {});
+  await prisma.company.update({
+    where: { tenantId: req.params.id },
+    data: { logoStorageKey: null },
+  });
+  res.json({ message: 'Logo removed' });
+});
+
 // ─── Tenant Onboarding (admin-driven) ───────────────────────────────────────
 
 async function resolveTenantUser(tenantId: string) {
@@ -174,7 +243,7 @@ platformRouter.post('/tenants/:id/onboarding/client', async (req: Request, res: 
 });
 
 platformRouter.post('/tenants/:id/sub-tenants', async (req: Request, res: Response) => {
-  const { clientName, contactEmail, signatoryName, signatoryEmail } = req.body;
+  const { clientName, contactEmail, signatoryName, signatoryEmail, address, city, country, telephone } = req.body;
   if (!clientName?.trim()) { res.status(400).json({ error: 'clientName is required' }); return; }
   if (!signatoryName?.trim() || !signatoryEmail?.trim()) {
     res.status(400).json({ error: 'signatoryName and signatoryEmail are required' });
@@ -200,15 +269,26 @@ platformRouter.post('/tenants/:id/sub-tenants', async (req: Request, res: Respon
       deploymentMode: parentTenant.deploymentMode,
       onboardingComplete: true,
       active: true,
+      company: {
+        create: {
+          legalName: clientName.trim(),
+          addressLine1: address?.trim() || '',
+          city: city?.trim() || '',
+          country: country?.trim() || '',
+          primaryContactName: signatoryName.trim(),
+          primaryContactEmail: contactEmail?.trim() || signatoryEmail.trim(),
+          primaryContactPhone: telephone?.trim() || null,
+        },
+      },
     },
   });
 
   // Also persist as ClientCompany for the onboarding record
   await registerClient(req.params.id, req.user!.sub, {
     legalName: clientName,
-    addressLine1: '',
-    city: '',
-    country: '',
+    addressLine1: address?.trim() || '',
+    city: city?.trim() || '',
+    country: country?.trim() || '',
     primaryContactName: signatoryName,
     primaryContactEmail: contactEmail || signatoryEmail,
     authority: { name: signatoryName, email: signatoryEmail },
