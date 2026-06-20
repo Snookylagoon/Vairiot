@@ -48,9 +48,14 @@ export function TenantDetailPage() {
         <ArrowLeft size={16} /> Back to Tenants
       </button>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <h1 className="text-h1 text-v-charcoal">{tenant.name}</h1>
         <Badge variant={tenant.active ? 'green' : 'red'}>{tenant.active ? 'Active' : 'Inactive'}</Badge>
+        {!tenant.onboardingComplete && (
+          <Button size="sm" onClick={() => navigate(`/tenants/${tenant.id}/onboarding`)}>
+            Resume Onboarding
+          </Button>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">

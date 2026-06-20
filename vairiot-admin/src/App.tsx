@@ -14,8 +14,10 @@ const LoginPage       = lazy(() => import('./pages/auth/LoginPage').then(m => ({
 const DashboardPage   = lazy(() => import('./pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const TenantsPage     = lazy(() => import('./pages/tenants/TenantsPage').then(m => ({ default: m.TenantsPage })));
 const TenantDetailPage = lazy(() => import('./pages/tenants/TenantDetailPage').then(m => ({ default: m.TenantDetailPage })));
+const TenantOnboardingPage = lazy(() => import('./pages/tenants/TenantOnboardingPage').then(m => ({ default: m.TenantOnboardingPage })));
 const LicencesPage    = lazy(() => import('./pages/licences/LicencesPage').then(m => ({ default: m.LicencesPage })));
 const UsersPage       = lazy(() => import('./pages/users/UsersPage').then(m => ({ default: m.UsersPage })));
+const UserDetailPage  = lazy(() => import('./pages/users/UserDetailPage').then(m => ({ default: m.UserDetailPage })));
 const AuditLogPage    = lazy(() => import('./pages/audit-log/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
 
 function PageSpinner() {
@@ -52,8 +54,10 @@ export default function App() {
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="tenants" element={<TenantsPage />} />
                 <Route path="tenants/:id" element={<TenantDetailPage />} />
+                <Route path="tenants/:id/onboarding" element={<TenantOnboardingPage />} />
                 <Route path="licences" element={<LicencesPage />} />
                 <Route path="users" element={<UsersPage />} />
+                <Route path="users/:id" element={<UserDetailPage />} />
                 <Route path="audit-log" element={<AuditLogPage />} />
               </Route>
 

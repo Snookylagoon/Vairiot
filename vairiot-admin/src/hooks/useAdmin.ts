@@ -56,11 +56,120 @@ export function useUnlockUser() {
   });
 }
 
+export interface UserPermissionsView {
+  userId: string;
+  rolePermissions: string[];
+  overrides: { permission: string; granted: boolean }[];
+  effective: string[];
+}
+
+export function useUserPermissions(userId: string | undefined) {
+  return useQuery<UserPermissionsView>({
+    queryKey: ['admin', 'user-permissions', userId],
+    queryFn: () => api.get(`/api/v1/admin/platform/users/${userId}/permissions`).then(r => r.data),
+    enabled: !!userId,
+  });
+}
+
+export function useSetUserPermissions() {
+  return useMutationWithToast<UserPermissionsView, { userId: string; overrides: { permission: string; granted: boolean }[] }>({
+    mutationFn: ({ userId, overrides }) =>
+      api.put(`/api/v1/admin/platform/users/${userId}/permissions`, { overrides }).then(r => r.data),
+    invalidate: ['admin', 'user-permissions'],
+    success: 'Permissions updated',
+    error: 'Failed to update permissions',
+  });
+}
+
 export function useSetUserActive() {
   return useMutationWithToast<unknown, { userId: string; active: boolean }>({
     mutationFn: ({ userId, active }) => api.patch(`/api/v1/admin/platform/users/${userId}/active`, { active }).then(r => r.data),
     invalidate: ['admin', 'users'],
     success: 'User status updated',
     error: 'Failed to update user status',
+  });
+}
+
+// ─── Tenant Onboarding (admin-driven) ───────────────────────────────────────
+
+export interface TenantOnboardingView {
+  status: {
+    complete: boolean;
+    steps: {
+      user_registration: boolean;
+      company_registration: boolean;
+      client_registration: boolean;
+      licence_activation: boolean;
+    };
+    nextStep: string | null;
+  };
+  user: { id: string; email: string; name: string | null } | null;
+  company: {
+    legalName: string;
+    registrationNumber: string | null;
+    addressLine1: string;
+    city: string;
+    country: string;
+  } | null;
+  clientCompanies: Array<{
+    id: string;
+    legalName: string;
+    primaryContactEmail: string | null;
+    authorities: Array<{ name: string; email: string }>;
+  }>;
+}
+
+export function useTenantOnboarding(tenantId: string | undefined) {
+  return useQuery<TenantOnboardingView>({
+    queryKey: ['admin', 'tenant-onboarding', tenantId],
+    queryFn: () => api.get(`/api/v1/admin/platform/tenants/${tenantId}/onboarding`).then(r => r.data),
+    enabled: !!tenantId,
+  });
+}
+
+const onboardingInvalidate = (tenantId: string) => ['admin', 'tenant-onboarding', tenantId];
+
+export function useTenantOnboardingUserStep(tenantId: string) {
+  return useMutationWithToast<unknown, { name: string; phone?: string }>({
+    mutationFn: (body) => api.post(`/api/v1/admin/platform/tenants/${tenantId}/onboarding/user`, body).then(r => r.data),
+    invalidate: onboardingInvalidate(tenantId),
+    success: 'User details saved',
+    error: 'Failed to save user details',
+  });
+}
+
+export function useTenantOnboardingCompanyStep(tenantId: string) {
+  return useMutationWithToast<unknown, { companyName: string; registrationNumber?: string; address: string; city: string; country: string }>({
+    mutationFn: (body) => api.post(`/api/v1/admin/platform/tenants/${tenantId}/onboarding/company`, body).then(r => r.data),
+    invalidate: onboardingInvalidate(tenantId),
+    success: 'Organisation saved',
+    error: 'Failed to save organisation',
+  });
+}
+
+export function useTenantOnboardingClientStep(tenantId: string) {
+  return useMutationWithToast<unknown, { clientName: string; contactEmail: string; signatoryName: string; signatoryEmail: string }>({
+    mutationFn: (body) => api.post(`/api/v1/admin/platform/tenants/${tenantId}/onboarding/client`, body).then(r => r.data),
+    invalidate: onboardingInvalidate(tenantId),
+    success: 'Client saved',
+    error: 'Failed to save client',
+  });
+}
+
+export function useTenantOnboardingLicenceStep(tenantId: string) {
+  return useMutationWithToast<unknown, { tierName: string }>({
+    mutationFn: (body) => api.post(`/api/v1/admin/platform/tenants/${tenantId}/onboarding/licence`, body).then(r => r.data),
+    invalidate: onboardingInvalidate(tenantId),
+    success: 'Licence activated',
+    error: 'Failed to activate licence',
+  });
+}
+
+export function useTenantOnboardingComplete(tenantId: string) {
+  return useMutationWithToast<unknown, void>({
+    mutationFn: () => api.post(`/api/v1/admin/platform/tenants/${tenantId}/onboarding/complete`).then(r => r.data),
+    invalidate: onboardingInvalidate(tenantId),
+    success: 'Onboarding complete',
+    error: 'Failed to complete onboarding',
   });
 }
