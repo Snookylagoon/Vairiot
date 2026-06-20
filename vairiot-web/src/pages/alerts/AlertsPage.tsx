@@ -1,4 +1,4 @@
-import { Bell, BellOff, Plus, Trash2 } from 'lucide-react';
+import { Bell, BellOff, Plus } from 'lucide-react';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAlertSubscriptions, useSubscribeAlert, useToggleAlert, useUnsubscribeAlert } from '@/hooks/useAlerts';
@@ -56,11 +56,9 @@ export function AlertsPage() {
                         title={sub!.active ? 'Pause' : 'Resume'}>
                         {sub!.active ? <Bell size={16} /> : <BellOff size={16} />}
                       </button>
-                      <button onClick={() => unsubscribe.mutate(et.value)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                        title="Unsubscribe">
-                        <Trash2 size={16} />
-                      </button>
+                      <Button size="sm" variant="secondary" onClick={() => unsubscribe.mutate(et.value)}>
+                        Unsubscribe
+                      </Button>
                     </>
                   ) : (
                     <Button size="sm" variant="secondary" onClick={() => subscribe.mutate({ exceptionType: et.value })}>
