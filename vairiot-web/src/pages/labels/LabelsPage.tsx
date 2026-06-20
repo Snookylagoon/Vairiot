@@ -143,13 +143,60 @@ function LabelPreview({
   const companyAddress = formatCompanyAddress(company);
   const wide2D = is2D(barcodeType);
   const padding = Math.max(4, Math.round(Math.min(widthPx, heightPx) * 0.05));
+
+  type LineKind = 'title' | 'number' | 'muted' | 'brand';
+  const lines: { text: string; kind: LineKind }[] = [];
+  if (fields.name) lines.push({ text: asset.name, kind: 'title' });
+  if (fields.assetNumber) lines.push({ text: asset.assetNumber, kind: 'number' });
+  if (fields.serialNumber && asset.serialNumber) lines.push({ text: `SN: ${asset.serialNumber}`, kind: 'muted' });
+  if (fields.barcode && asset.barcode) lines.push({ text: `BC: ${asset.barcode}`, kind: 'muted' });
+  // In 1D mode the barcode itself isn't side-by-side, so to keep parity drop site/category from the
+  // 1D layout? — no, the user wants all selected fields visible. Render every line in both layouts.
+  if (fields.site && asset.site) lines.push({ text: asset.site.name, kind: 'muted' });
+  if (fields.category && asset.category) lines.push({ text: asset.category.name, kind: 'muted' });
+  if (fields.companyName && company?.legalName) lines.push({ text: company.tradingName || company.legalName, kind: 'brand' });
+  if (fields.companyAddress && companyAddress) lines.push({ text: companyAddress, kind: 'muted' });
+  if (fields.companyEmail && company?.primaryContactEmail) lines.push({ text: company.primaryContactEmail, kind: 'muted' });
+
+  // Geometry: barcode takes the left/bottom, text fills the rest.
   const barcodeBox = wide2D
     ? Math.min(heightPx - padding * 2, widthPx * 0.45)
     : { w: widthPx - padding * 2, h: Math.min(heightPx * 0.45, 60) };
+  const textAreaHeight = wide2D
+    ? heightPx - padding * 2
+    : heightPx - padding * 2 - (barcodeBox as { w: number; h: number }).h - 2;
 
-  // Font sizing scales with label height
-  const baseFont = Math.max(7, Math.round(heightPx * 0.09));
-  const smallFont = Math.max(6, baseFont - 2);
+  // Auto-fit font: title at F, all others at F*0.85, lineHeight 1.15.
+  // textAreaHeight ≈ F*1.15 + (n-1)*F*0.85*1.15  ⇒  F = textAreaHeight / (1.15 * (1 + 0.85*(n-1)))
+  const titleCount = lines.filter(l => l.kind === 'title').length || 0;
+  const otherCount = lines.length - titleCount;
+  const denom = 1.15 * (titleCount + otherCount * 0.85);
+  const idealTitle = Math.max(7, Math.round(heightPx * 0.09));
+  const fitTitle = denom > 0 ? Math.floor(textAreaHeight / denom) : idealTitle;
+  const titleFont = Math.max(5, Math.min(idealTitle, fitTitle));
+  const otherFont = Math.max(5, Math.round(titleFont * 0.85));
+  const lineStyleFor = (kind: LineKind) => ({
+    fontSize: kind === 'title' ? titleFont : otherFont,
+    lineHeight: 1.15,
+  });
+  const lineClassFor = (kind: LineKind) => {
+    switch (kind) {
+      case 'title':  return 'font-bold text-v-charcoal truncate';
+      case 'number': return 'font-mono text-v-violet truncate';
+      case 'brand':  return 'text-v-charcoal truncate';
+      case 'muted':  return 'text-gray-500 truncate';
+    }
+  };
+
+  const TextLines = (
+    <>
+      {lines.map((l, i) => (
+        <p key={i} className={lineClassFor(l.kind)} style={lineStyleFor(l.kind)}>
+          {l.text}
+        </p>
+      ))}
+    </>
+  );
 
   return (
     <div
@@ -165,86 +212,13 @@ function LabelPreview({
             className="shrink-0"
           />
           <div className="flex flex-col justify-center min-w-0 overflow-hidden flex-1">
-            {fields.name && (
-              <p className="font-bold text-v-charcoal truncate" style={{ fontSize: baseFont }}>
-                {asset.name}
-              </p>
-            )}
-            {fields.assetNumber && (
-              <p className="font-mono text-v-violet truncate" style={{ fontSize: smallFont }}>
-                {asset.assetNumber}
-              </p>
-            )}
-            {fields.serialNumber && asset.serialNumber && (
-              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
-                SN: {asset.serialNumber}
-              </p>
-            )}
-            {fields.barcode && asset.barcode && (
-              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
-                BC: {asset.barcode}
-              </p>
-            )}
-            {fields.site && asset.site && (
-              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
-                {asset.site.name}
-              </p>
-            )}
-            {fields.category && asset.category && (
-              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
-                {asset.category.name}
-              </p>
-            )}
-            {fields.companyName && company?.legalName && (
-              <p className="text-v-charcoal truncate" style={{ fontSize: smallFont }}>
-                {company.tradingName || company.legalName}
-              </p>
-            )}
-            {fields.companyAddress && companyAddress && (
-              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
-                {companyAddress}
-              </p>
-            )}
-            {fields.companyEmail && company?.primaryContactEmail && (
-              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
-                {company.primaryContactEmail}
-              </p>
-            )}
+            {TextLines}
           </div>
         </div>
       ) : (
         <div className="flex flex-col h-full justify-between">
           <div className="min-w-0 overflow-hidden">
-            {fields.name && (
-              <p className="font-bold text-v-charcoal truncate" style={{ fontSize: baseFont }}>
-                {asset.name}
-              </p>
-            )}
-            {fields.assetNumber && (
-              <p className="font-mono text-v-violet truncate" style={{ fontSize: smallFont }}>
-                {asset.assetNumber}
-              </p>
-            )}
-            {fields.site && asset.site && (
-              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
-                {asset.site.name}
-              </p>
-            )}
-            {fields.companyName && company?.legalName && (
-              <p className="text-v-charcoal truncate" style={{ fontSize: smallFont }}>
-                {company.tradingName || company.legalName}
-              </p>
-            )}
-            {fields.companyAddress && companyAddress && (
-              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
-                {companyAddress}
-              </p>
-            )}
-            {fields.companyEmail && company?.primaryContactEmail && (
-              <p className="text-gray-500 truncate" style={{ fontSize: smallFont }}>
-                {company.primaryContactEmail}
-              </p>
-            )}
+            {TextLines}
           </div>
           <img
             src={barcodeDataUrl}
