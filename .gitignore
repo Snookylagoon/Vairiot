@@ -54,3 +54,6 @@ infra/data/
 
 # ─── Design working files (e.g. Inkscape numbered drafts) ─────────────────────
 vairiot-admin/public/favicon[0-9]*.svg
+
+# TypeScript incremental build cache (must never reach Docker)
+**/*.tsbuildinfo

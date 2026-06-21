@@ -12,7 +12,7 @@
   },
   "scripts": {
     "test": "jest",
-    "build": "tsc --project tsconfig.json"
+    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc --project tsconfig.json"
   },
   "dependencies": {
     "zod": "^3.23.0"
