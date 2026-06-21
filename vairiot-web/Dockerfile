@@ -4,19 +4,17 @@ ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 WORKDIR /app
 
-# Copy root manifests + every workspace's package.json for a workspace-aware install
 COPY package*.json ./
 COPY vairiot-shared/package.json ./vairiot-shared/
 COPY vairiot-web/package.json ./vairiot-web/
 
-# Install all workspace dependencies (links vairiot-shared locally)
 RUN npm install
 
-# Bring in the shared package source and the web app source
+# Compile the shared package FIRST so its dist/ exists for web to import
 COPY vairiot-shared ./vairiot-shared
-COPY vairiot-web ./vairiot-web
+RUN npm run build --workspace=vairiot-shared
 
-# Build just the web workspace
+COPY vairiot-web ./vairiot-web
 RUN npm run build --workspace=vairiot-web
 
 FROM nginx:alpine
