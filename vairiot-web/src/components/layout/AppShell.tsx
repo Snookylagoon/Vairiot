@@ -1,11 +1,11 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown, type LucideIcon } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
 import { useCurrencyStore, CURRENCIES } from '@/stores/currency.store';
 import clsx from 'clsx';
 
-type NavItem = { to: string; label: string; icon: React.ComponentType<{ size?: number }>; require?: readonly string[] };
+type NavItem = { to: string; label: string; icon: LucideIcon; require?: readonly string[] };
 type NavGroup = { heading: string; items: readonly NavItem[] };
 type NavEntry = NavItem | NavGroup;
 
