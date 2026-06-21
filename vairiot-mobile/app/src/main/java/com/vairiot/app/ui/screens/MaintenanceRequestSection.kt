@@ -1,13 +1,11 @@
 package com.vairiot.app.ui.screens
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,7 +15,6 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +24,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -51,6 +50,7 @@ fun MaintenanceRequestSection(
 
     var captureUri by remember { mutableStateOf<Uri?>(null) }
     var permissionError by remember { mutableStateOf<String?>(null) }
+    var viewingPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
     val takePicture = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture(),
@@ -60,20 +60,15 @@ fun MaintenanceRequestSection(
         captureUri = null
     }
 
-    val pickFromGallery = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> if (uri != null) viewModel.setPhoto(uri) }
-
     fun launchCamera() {
-        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        if (intent.resolveActivity(context.packageManager) == null) {
-            permissionError = "No camera app available."
-            return
-        }
         permissionError = null
-        val uri = newMaintenanceCaptureUri(context)
-        captureUri = uri
-        takePicture.launch(uri)
+        try {
+            val uri = newMaintenanceCaptureUri(context)
+            captureUri = uri
+            takePicture.launch(uri)
+        } catch (_: Exception) {
+            permissionError = "No camera app available."
+        }
     }
 
     val requestCameraPermission = rememberLauncherForActivityResult(
@@ -132,43 +127,25 @@ fun MaintenanceRequestSection(
                 onChange = viewModel::setScheduledDate,
             )
 
-            Row(modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = {
-                        val hasPerm = ContextCompat.checkSelfPermission(
-                            context, Manifest.permission.CAMERA,
-                        ) == PackageManager.PERMISSION_GRANTED
-                        if (hasPerm) launchCamera()
-                        else requestCameraPermission.launch(Manifest.permission.CAMERA)
-                    },
-                    enabled = !state.isSubmitting,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Default.AddAPhoto, contentDescription = null,
-                        modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Camera")
-                }
-                OutlinedButton(
-                    onClick = {
-                        permissionError = null
-                        pickFromGallery.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
-                    enabled = !state.isSubmitting,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null,
-                        modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Gallery")
-                }
+            OutlinedButton(
+                onClick = {
+                    val hasPerm = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.CAMERA,
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (hasPerm) launchCamera()
+                    else requestCameraPermission.launch(Manifest.permission.CAMERA)
+                },
+                enabled = !state.isSubmitting,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Default.AddAPhoto, contentDescription = null,
+                    modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Take Photo")
             }
 
             state.photoUri?.let { uri ->
-                Box(modifier = Modifier.size(120.dp)) {
+                Box(modifier = Modifier.size(120.dp).clickable { viewingPhotoUri = uri }) {
                     AsyncImage(
                         model = uri,
                         contentDescription = "Maintenance photo",
@@ -213,6 +190,42 @@ fun MaintenanceRequestSection(
                 }
                 Spacer(Modifier.width(8.dp))
                 Text("Send to Maintenance")
+            }
+        }
+    }
+
+    viewingPhotoUri?.let { uri ->
+        Dialog(
+            onDismissRequest = { viewingPhotoUri = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.85f),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AsyncImage(
+                        model = uri,
+                        contentDescription = "Maintenance photo",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                            .padding(16.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                    )
+                    IconButton(
+                        onClick = { viewingPhotoUri = null },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                    ) {
+                        Surface(shape = RoundedCornerShape(50),
+                            color = White.copy(alpha = 0.85f)) {
+                            Icon(Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = VairiotCharcoal,
+                                modifier = Modifier.padding(4.dp).size(20.dp))
+                        }
+                    }
+                }
             }
         }
     }

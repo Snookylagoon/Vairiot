@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Wrench, Trash2, ImagePlus, Save, Camera } from 'lucide-react';
+import { ArrowLeft, Wrench, Trash2, ImagePlus, Save, Camera, X } from 'lucide-react';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -210,6 +210,7 @@ function MaintenancePhotosCard({ eventId, canWrite }: { eventId: string; canWrit
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lightboxId, setLightboxId] = useState<string | null>(null);
 
   const { data: photos = [], isLoading } = useQuery<PhotoMeta[]>({
     queryKey: ['maintenance-photos', eventId],
@@ -247,7 +248,7 @@ function MaintenancePhotosCard({ eventId, canWrite }: { eventId: string; canWrit
           <Camera size={16} className="text-v-violet" />
           <span className="font-semibold text-v-charcoal text-sm">Photos ({photos.length})</span>
         </div>
-        {canWrite && (
+        {canWrite && photos.length < 4 && (
           <>
             <Button size="sm" variant="secondary" onClick={() => inputRef.current?.click()}
               loading={upload.isPending}>
@@ -267,10 +268,11 @@ function MaintenancePhotosCard({ eventId, canWrite }: { eventId: string; canWrit
         )}
         <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
           {photos.map(p => (
-            <div key={p.id} className="relative group aspect-square overflow-hidden rounded-md border border-gray-100 bg-gray-50">
+            <div key={p.id} className="relative group aspect-square overflow-hidden rounded-md border border-gray-100 bg-gray-50 cursor-pointer"
+              onClick={() => setLightboxId(p.id)}>
               <PhotoThumb id={p.id} hasThumb={p.hasThumb} />
               {canWrite && (
-                <button onClick={() => remove.mutate(p.id)}
+                <button onClick={(e) => { e.stopPropagation(); remove.mutate(p.id); }}
                   className="absolute top-1 right-1 p-1 rounded bg-white/80 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Delete photo">
                   <Trash2 size={12} />
@@ -280,7 +282,45 @@ function MaintenancePhotosCard({ eventId, canWrite }: { eventId: string; canWrit
           ))}
         </div>
       </CardBody>
+
+      {lightboxId && (
+        <PhotoLightbox id={lightboxId} onClose={() => setLightboxId(null)} />
+      )}
     </Card>
+  );
+}
+
+function PhotoLightbox({ id, onClose }: { id: string; onClose: () => void }) {
+  const { data: src } = useQuery<string>({
+    queryKey: ['photo-full', id],
+    queryFn: async () => {
+      const r = await api.get(`/api/v1/photos/${id}/download`, { responseType: 'blob' });
+      return URL.createObjectURL(r.data);
+    },
+    staleTime: 60 * 1000,
+  });
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+      onClick={onClose}>
+      <button onClick={onClose}
+        className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/40 text-white transition-colors"
+        title="Close">
+        <X size={24} />
+      </button>
+      <div className="max-w-[90vw] max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        {src
+          ? <img src={src} alt="" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
+          : <div className="w-64 h-64 animate-pulse bg-white/10 rounded-lg" />
+        }
+      </div>
+    </div>
   );
 }
 

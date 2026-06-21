@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.MaintenanceEventResponse
 import com.vairiot.app.ui.theme.*
 import java.io.File
@@ -53,30 +54,33 @@ fun MaintenanceListScreen(
     val state by viewModel.state.collectAsState()
     var statusFilter by rememberSaveable { mutableStateOf("") }
     val canWrite = state.permissions.contains("asset:write")
+    val sideRail = LocalUseSideRail.current
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
-            // Header
-            Box(
-                modifier = Modifier.fillMaxWidth()
-                    .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
-                    .padding(16.dp),
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.height(32.dp).width(4.dp)
-                            .background(Brush.verticalGradient(listOf(VairiotPink, VairiotViolet)),
-                                RoundedCornerShape(2.dp)))
-                        Spacer(Modifier.width(12.dp))
-                        Text("VAIRIOT", style = MaterialTheme.typography.titleLarge,
-                            fontFamily = MontserratFamily, fontWeight = FontWeight.ExtraBold,
-                            color = White)
+            if (!sideRail) {
+                // Header — only in portrait (landscape has shared header)
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                        .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
+                        .padding(16.dp),
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.height(32.dp).width(4.dp)
+                                .background(Brush.verticalGradient(listOf(VairiotPink, VairiotViolet)),
+                                    RoundedCornerShape(2.dp)))
+                            Spacer(Modifier.width(12.dp))
+                            Text("VAIRIOT", style = MaterialTheme.typography.titleLarge,
+                                fontFamily = MontserratFamily, fontWeight = FontWeight.ExtraBold,
+                                color = White)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text("Maintenance — ${state.total} job${if (state.total == 1) "" else "s"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = White.copy(alpha = 0.6f))
                     }
-                    Spacer(Modifier.height(4.dp))
-                    Text("Maintenance — ${state.total} job${if (state.total == 1) "" else "s"}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = White.copy(alpha = 0.6f))
                 }
             }
 

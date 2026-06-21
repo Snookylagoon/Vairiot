@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.ui.theme.*
 
@@ -33,39 +34,42 @@ fun AssetListScreen(
     viewModel: AssetListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val sideRail = LocalUseSideRail.current
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
-        // Gradient header
-        Box(
-            modifier = Modifier.fillMaxWidth()
-                .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
-                .padding(16.dp),
-        ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier.height(32.dp).width(4.dp)
-                            .background(Brush.verticalGradient(listOf(VairiotPink, VairiotViolet)),
-                                RoundedCornerShape(2.dp))
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text("VAIRIOT", style = MaterialTheme.typography.titleLarge,
-                        fontFamily = MontserratFamily, fontWeight = FontWeight.ExtraBold,
-                        color = White)
-                }
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Assets — ${state.total}", style = MaterialTheme.typography.bodySmall,
-                        color = White.copy(alpha = 0.6f))
-                    if (state.offline) {
-                        Text("OFFLINE • cached",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = White,
-                            modifier = Modifier
-                                .background(VairiotPink.copy(alpha = 0.85f), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 8.dp, vertical = 2.dp))
+        if (!sideRail) {
+            // Gradient header
+            Box(
+                modifier = Modifier.fillMaxWidth()
+                    .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
+                    .padding(16.dp),
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier.height(32.dp).width(4.dp)
+                                .background(Brush.verticalGradient(listOf(VairiotPink, VairiotViolet)),
+                                    RoundedCornerShape(2.dp))
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text("VAIRIOT", style = MaterialTheme.typography.titleLarge,
+                            fontFamily = MontserratFamily, fontWeight = FontWeight.ExtraBold,
+                            color = White)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Assets — ${state.total}", style = MaterialTheme.typography.bodySmall,
+                            color = White.copy(alpha = 0.6f))
+                        if (state.offline) {
+                            Text("OFFLINE • cached",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = White,
+                                modifier = Modifier
+                                    .background(VairiotPink.copy(alpha = 0.85f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp))
+                        }
                     }
                 }
             }

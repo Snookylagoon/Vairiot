@@ -5,8 +5,28 @@ import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Build
@@ -26,11 +46,18 @@ import androidx.navigation.compose.rememberNavController
 import com.vairiot.app.data.local.TokenStore
 import com.vairiot.app.scanner.ScannerService
 import com.vairiot.app.ui.screens.*
+import com.vairiot.app.ui.theme.MontserratFamily
+import com.vairiot.app.ui.theme.VairiotCharcoal
+import com.vairiot.app.ui.theme.VairiotPink
 import com.vairiot.app.ui.theme.VairiotTheme
+import com.vairiot.app.ui.theme.VairiotViolet
+import com.vairiot.app.ui.theme.White
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
+
+val LocalUseSideRail = compositionLocalOf { false }
 
 private data class HomeTab(val route: String, val label: String, val icon: ImageVector)
 private val HOME_TABS = listOf(
@@ -55,6 +82,14 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             VairiotTheme {
+                val defaultViewConfig = LocalViewConfiguration.current
+                val lowSlopConfig = remember(defaultViewConfig) {
+                    object : ViewConfiguration by defaultViewConfig {
+                        override val touchSlop: Float
+                            get() = defaultViewConfig.touchSlop * 0.5f
+                    }
+                }
+                CompositionLocalProvider(LocalViewConfiguration provides lowSlopConfig) {
                 val rootNav = rememberNavController()
                 val startDest = if (hasToken) "home" else "login"
 
@@ -86,6 +121,7 @@ class MainActivity : ComponentActivity() {
                     composable("audit/{campaignId}/run")      { AuditRunScreen(onBack    = { rootNav.popBackStack() }) }
                     composable("maintenance/{eventId}")       { MaintenanceDetailScreen(onBack = { rootNav.popBackStack() }) }
                 }
+                } // CompositionLocalProvider
             }
         }
     }
@@ -110,30 +146,19 @@ class MainActivity : ComponentActivity() {
 private fun HomeScaffold(rootNav: androidx.navigation.NavHostController) {
     val tabNav = rememberNavController()
     val current by tabNav.currentBackStackEntryAsState()
-    val currentRoute = current?.destination?.route
+    val config = LocalConfiguration.current
+    val useSideRail = config.screenWidthDp > config.screenHeightDp && config.screenWidthDp >= 600
 
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
-                HOME_TABS.forEach { tab ->
-                    NavigationBarItem(
-                        icon  = { Icon(tab.icon, contentDescription = tab.label) },
-                        label = { Text(tab.label) },
-                        selected = current?.destination?.hierarchy?.any { it.route == tab.route } == true,
-                        onClick = {
-                            tabNav.navigate(tab.route) {
-                                popUpTo(tabNav.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                    )
-                }
-            }
+    val navigateToTab: (String) -> Unit = { route ->
+        tabNav.navigate(route) {
+            popUpTo(tabNav.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
         }
-    ) { padding ->
-        NavHost(navController = tabNav, startDestination = "scan",
-            modifier = Modifier.padding(padding)) {
+    }
+
+    val tabContent: @Composable (Modifier) -> Unit = { modifier ->
+        NavHost(navController = tabNav, startDestination = "scan", modifier = modifier) {
             composable("scan")   { AssetScanScreen() }
             composable("assets") {
                 AssetListScreen(onAssetClick = { id -> rootNav.navigate("asset/$id") })
@@ -146,7 +171,7 @@ private fun HomeScaffold(rootNav: androidx.navigation.NavHostController) {
                     if (status == "in_progress" || status == "draft") {
                         rootNav.navigate("audit/$id/run")
                     } else {
-                        rootNav.navigate("audit/$id/run") // report mode rendered if completed
+                        rootNav.navigate("audit/$id/run")
                     }
                 })
             }
@@ -162,6 +187,60 @@ private fun HomeScaffold(rootNav: androidx.navigation.NavHostController) {
                     }
                 })
             }
+        }
+    }
+
+    if (useSideRail) {
+        CompositionLocalProvider(LocalUseSideRail provides true) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Full-width header
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                        .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.height(28.dp).width(4.dp)
+                            .background(Brush.verticalGradient(listOf(VairiotPink, VairiotViolet)),
+                                RoundedCornerShape(2.dp)))
+                        Spacer(Modifier.width(12.dp))
+                        Text("VAIRIOT", style = MaterialTheme.typography.titleLarge,
+                            fontFamily = MontserratFamily, fontWeight = FontWeight.ExtraBold,
+                            color = White)
+                    }
+                }
+                // Rail + content
+                Row(modifier = Modifier.weight(1f)) {
+                    NavigationRail(modifier = Modifier.fillMaxHeight()) {
+                        HOME_TABS.forEach { tab ->
+                            NavigationRailItem(
+                                icon     = { Icon(tab.icon, contentDescription = tab.label) },
+                                label    = { Text(tab.label, style = MaterialTheme.typography.labelSmall) },
+                                selected = current?.destination?.hierarchy?.any { it.route == tab.route } == true,
+                                onClick  = { navigateToTab(tab.route) },
+                            )
+                        }
+                    }
+                    tabContent(Modifier.weight(1f))
+                }
+            }
+        }
+    } else {
+        Scaffold(
+            bottomBar = {
+                NavigationBar {
+                    HOME_TABS.forEach { tab ->
+                        NavigationBarItem(
+                            icon  = { Icon(tab.icon, contentDescription = tab.label) },
+                            label = { Text(tab.label) },
+                            selected = current?.destination?.hierarchy?.any { it.route == tab.route } == true,
+                            onClick = { navigateToTab(tab.route) },
+                        )
+                    }
+                }
+            }
+        ) { padding ->
+            tabContent(Modifier.padding(padding))
         }
     }
 }

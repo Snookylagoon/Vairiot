@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.ui.theme.*
 
 @Composable
@@ -27,23 +28,26 @@ fun ProfileScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val sideRail = LocalUseSideRail.current
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
-        Box(
-            modifier = Modifier.fillMaxWidth()
-                .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
-                .padding(16.dp),
-        ) {
-            Column {
-                Text("Profile", color = androidx.compose.ui.graphics.Color.White,
-                    fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                if (state.tenantName != null) {
-                    Text(state.tenantName!!, color = androidx.compose.ui.graphics.Color.White,
-                        fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        if (!sideRail) {
+            Box(
+                modifier = Modifier.fillMaxWidth()
+                    .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
+                    .padding(16.dp),
+            ) {
+                Column {
+                    Text("Profile", color = androidx.compose.ui.graphics.Color.White,
+                        fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    if (state.tenantName != null) {
+                        Text(state.tenantName!!, color = androidx.compose.ui.graphics.Color.White,
+                            fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Text(state.email ?: "—", color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
+                        fontSize = 14.sp)
                 }
-                Text(state.email ?: "—", color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
-                    fontSize = 14.sp)
             }
         }
 

@@ -19,7 +19,12 @@ data class CompressionResult(
     val thumbFile: File,
     val displayBytes: Long,
     val thumbBytes: Long,
-)
+) {
+    fun deleteLocalFiles() {
+        displayFile.delete()
+        thumbFile.delete()
+    }
+}
 
 object ImageCompressor {
 

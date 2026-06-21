@@ -101,5 +101,6 @@ class MaintenanceRequestViewModel @Inject constructor(
             result.thumbFile.asRequestBody("image/webp".toMediaTypeOrNull()),
         )
         api.uploadMaintenancePhoto(maintenanceEventId, photoPart, thumbPart)
+        result.deleteLocalFiles()
     }
 }

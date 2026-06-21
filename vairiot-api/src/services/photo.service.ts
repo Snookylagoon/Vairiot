@@ -1,7 +1,10 @@
 import { Readable } from 'stream';
 import { prisma } from '../lib/prisma';
 import { minioClient, PHOTO_BUCKET } from '../lib/minio';
-import { NotFoundError } from '../lib/errors';
+import { NotFoundError, ValidationError } from '../lib/errors';
+
+const ASSET_PHOTO_LIMIT = 2;
+const MAINTENANCE_PHOTO_LIMIT = 4;
 
 const photoSelect = {
   id: true, mimeType: true, sizeBytes: true, width: true, height: true,
@@ -55,6 +58,9 @@ export async function uploadPhoto(params: {
   const asset = await prisma.asset.findFirst({ where: { id: params.assetId, tenantId: params.tenantId } });
   if (!asset) throw new NotFoundError('Asset not found');
 
+  const existing = await prisma.photo.count({ where: { tenantId: params.tenantId, assetId: params.assetId, maintenanceEventId: null } });
+  if (existing >= ASSET_PHOTO_LIMIT) throw new ValidationError(`Asset photo limit reached (max ${ASSET_PHOTO_LIMIT})`);
+
   const ts         = Date.now();
   const hex        = randomHex(8);
   const ext        = mimeToExt(params.mimeType);
@@ -105,6 +111,9 @@ export async function uploadMaintenancePhoto(params: {
     select: { id: true, assetId: true },
   });
   if (!evt) throw new NotFoundError('Maintenance event not found');
+
+  const existing = await prisma.photo.count({ where: { tenantId: params.tenantId, maintenanceEventId: params.maintenanceEventId } });
+  if (existing >= MAINTENANCE_PHOTO_LIMIT) throw new ValidationError(`Maintenance photo limit reached (max ${MAINTENANCE_PHOTO_LIMIT})`);
 
   const ts         = Date.now();
   const hex        = randomHex(8);

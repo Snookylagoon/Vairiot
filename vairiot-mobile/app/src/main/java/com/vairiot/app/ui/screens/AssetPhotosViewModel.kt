@@ -71,6 +71,7 @@ class AssetPhotosViewModel @Inject constructor(
                     result.thumbFile.asRequestBody("image/webp".toMediaTypeOrNull()),
                 )
                 api.uploadAssetPhoto(assetId, photoPart, thumbPart)
+                result.deleteLocalFiles()
                 load()
                 _state.value = _state.value.copy(isUploading = false)
             } catch (e: Exception) {

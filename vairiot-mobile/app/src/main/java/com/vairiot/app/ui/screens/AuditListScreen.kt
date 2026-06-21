@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.AuditCampaignResponse
 import com.vairiot.app.ui.theme.*
 
@@ -55,28 +56,32 @@ fun AuditListScreen(
 
     var showCreate by rememberSaveable { mutableStateOf(false) }
 
+    val sideRail = LocalUseSideRail.current
+
     Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
-        Box(
-            modifier = Modifier.fillMaxWidth()
-                .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
-                .padding(16.dp),
-        ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.height(32.dp).width(4.dp)
-                        .background(Brush.verticalGradient(listOf(VairiotPink, VairiotViolet)),
-                            RoundedCornerShape(2.dp)))
-                    Spacer(Modifier.width(12.dp))
-                    Text("VAIRIOT", style = MaterialTheme.typography.titleLarge,
-                        fontFamily = MontserratFamily, fontWeight = FontWeight.ExtraBold,
-                        color = White)
+        if (!sideRail) {
+            Box(
+                modifier = Modifier.fillMaxWidth()
+                    .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
+                    .padding(16.dp),
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.height(32.dp).width(4.dp)
+                            .background(Brush.verticalGradient(listOf(VairiotPink, VairiotViolet)),
+                                RoundedCornerShape(2.dp)))
+                        Spacer(Modifier.width(12.dp))
+                        Text("VAIRIOT", style = MaterialTheme.typography.titleLarge,
+                            fontFamily = MontserratFamily, fontWeight = FontWeight.ExtraBold,
+                            color = White)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text("Audit campaigns — ${state.campaigns.size}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = White.copy(alpha = 0.6f))
                 }
-                Spacer(Modifier.height(4.dp))
-                Text("Audit campaigns — ${state.campaigns.size}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = White.copy(alpha = 0.6f))
             }
         }
 

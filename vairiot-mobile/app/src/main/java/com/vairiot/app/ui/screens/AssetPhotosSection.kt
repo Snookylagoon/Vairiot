@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,7 +20,6 @@ import com.vairiot.app.data.api.PhotoResponse
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -67,12 +65,6 @@ fun AssetPhotosSection(
         captureUri = null
     }
 
-    val pickFromGallery = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia(),
-    ) { uri ->
-        if (uri != null) viewModel.uploadFromUri(uri)
-    }
-
     fun launchCamera() {
         localError = null
         try {
@@ -80,7 +72,7 @@ fun AssetPhotosSection(
             captureUri = uri
             takePicture.launch(uri)
         } catch (_: Exception) {
-            localError = "No camera app available. Use Gallery instead."
+            localError = "No camera app available."
         }
     }
 
@@ -97,8 +89,7 @@ fun AssetPhotosSection(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold, color = VairiotCharcoal)
 
-            Row(modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (state.photos.size < 2) {
                 OutlinedButton(
                     onClick = {
                         val hasPerm = ContextCompat.checkSelfPermission(
@@ -108,28 +99,12 @@ fun AssetPhotosSection(
                         else requestCameraPermission.launch(Manifest.permission.CAMERA)
                     },
                     enabled = !state.isUploading,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Default.AddAPhoto, contentDescription = null,
                         modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Camera")
-                }
-                Button(
-                    onClick = {
-                        localError = null
-                        pickFromGallery.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
-                    enabled = !state.isUploading,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
-                ) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null,
-                        modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Gallery")
+                    Text("Take Photo")
                 }
             }
 
