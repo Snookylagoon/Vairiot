@@ -1,4 +1,4 @@
-import { Permission } from './permissions.constants';
+import { Permission } from './permissions.constants.js';
 
 // ─── Control Planes ──────────────────────────────────────────────────────────
 export const ControlPlane = {

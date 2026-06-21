@@ -3,18 +3,17 @@ FROM node:22-alpine AS builder
 RUN apk add --no-cache openssl
 WORKDIR /app
 
-# Root manifests + each workspace's package.json for a workspace-aware install
 COPY package*.json ./
 COPY vairiot-shared/package.json ./vairiot-shared/
 COPY vairiot-api/package.json ./vairiot-api/
-
-# Prisma schema must be present before install (postinstall runs prisma generate)
 COPY vairiot-api/prisma ./vairiot-api/prisma/
 
 RUN npm install
 
-# Shared source + api source, then build just the api workspace
+# Compile the shared package first so its dist/ exists for api to import
 COPY vairiot-shared ./vairiot-shared
+RUN npm run build --workspace=vairiot-shared
+
 COPY vairiot-api ./vairiot-api
 RUN npm run build --workspace=vairiot-api
 
@@ -30,8 +29,9 @@ COPY vairiot-api/prisma ./vairiot-api/prisma/
 
 RUN npm install --omit=dev --workspace=vairiot-api
 
-# Shared source (consumed as raw TS) + compiled api output
-COPY vairiot-shared ./vairiot-shared
+# Bring in the COMPILED shared output (dist) + compiled api output
+COPY --from=builder /app/vairiot-shared/dist ./vairiot-shared/dist
+COPY --from=builder /app/vairiot-shared/package.json ./vairiot-shared/
 COPY --from=builder /app/vairiot-api/dist ./vairiot-api/dist
 
 WORKDIR /app/vairiot-api
