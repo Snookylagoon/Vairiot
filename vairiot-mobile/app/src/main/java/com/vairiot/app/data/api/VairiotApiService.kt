@@ -105,11 +105,15 @@ interface VairiotApiService {
     suspend fun uploadAssetPhoto(
         @Path("id") id: String,
         @Part photo: MultipartBody.Part,
+        @Part thumb: MultipartBody.Part? = null,
     ): PhotoResponse
 
     @Streaming
     @GET("api/v1/photos/{id}/download")
-    suspend fun downloadPhoto(@Path("id") id: String): ResponseBody
+    suspend fun downloadPhoto(
+        @Path("id") id: String,
+        @Query("thumb") thumbFlag: String? = null,
+    ): ResponseBody
 
     @PATCH("api/v1/photos/{id}")
     suspend fun updatePhoto(
@@ -134,5 +138,6 @@ interface VairiotApiService {
     suspend fun uploadMaintenancePhoto(
         @Path("id") id: String,
         @Part photo: MultipartBody.Part,
+        @Part thumb: MultipartBody.Part? = null,
     ): PhotoResponse
 }

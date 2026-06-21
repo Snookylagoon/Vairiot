@@ -24,6 +24,11 @@ const upload = multer({
   },
 });
 
+const uploadFields = upload.fields([
+  { name: 'photo', maxCount: 1 },
+  { name: 'thumb', maxCount: 1 },
+]);
+
 photosRouter.get('/assets/:assetId/photos',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     res.json(await listPhotos(req.user!.tenantId, req.params.assetId));
@@ -32,15 +37,20 @@ photosRouter.get('/assets/:assetId/photos',
 
 photosRouter.post('/assets/:assetId/photos',
   requireAnyPermission('asset:write'),
-  upload.single('photo'),
+  uploadFields,
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    if (!req.file) { res.status(400).json({ error: 'No file uploaded (field name "photo")' }); return; }
+    const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
+    const photoFile = files?.photo?.[0];
+    if (!photoFile) { res.status(400).json({ error: 'No file uploaded (field name "photo")' }); return; }
+    const thumbFile = files?.thumb?.[0];
     const photo = await uploadPhoto({
-      tenantId: req.user!.tenantId,
-      assetId:  req.params.assetId,
-      actorId:  req.user!.sub,
-      buffer:   req.file.buffer,
-      mimeType: req.file.mimetype,
+      tenantId:      req.user!.tenantId,
+      assetId:       req.params.assetId,
+      actorId:       req.user!.sub,
+      buffer:        photoFile.buffer,
+      mimeType:      photoFile.mimetype,
+      thumbBuffer:   thumbFile?.buffer,
+      thumbMimeType: thumbFile?.mimetype,
     });
     res.status(201).json(photo);
   }),
@@ -54,16 +64,21 @@ photosRouter.get('/maintenance/:id/photos',
 
 photosRouter.post('/maintenance/:id/photos',
   requireAnyPermission('asset:write'),
-  upload.single('photo'),
+  uploadFields,
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    if (!req.file) { res.status(400).json({ error: 'No file uploaded (field name "photo")' }); return; }
+    const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
+    const photoFile = files?.photo?.[0];
+    if (!photoFile) { res.status(400).json({ error: 'No file uploaded (field name "photo")' }); return; }
+    const thumbFile = files?.thumb?.[0];
     const photo = await uploadMaintenancePhoto({
       tenantId:           req.user!.tenantId,
       maintenanceEventId: req.params.id,
       actorId:            req.user!.sub,
-      buffer:             req.file.buffer,
-      mimeType:           req.file.mimetype,
+      buffer:             photoFile.buffer,
+      mimeType:           photoFile.mimetype,
       caption:            typeof req.body?.caption === 'string' ? req.body.caption : undefined,
+      thumbBuffer:        thumbFile?.buffer,
+      thumbMimeType:      thumbFile?.mimetype,
     });
     res.status(201).json(photo);
   }),
@@ -71,7 +86,8 @@ photosRouter.post('/maintenance/:id/photos',
 
 photosRouter.get('/photos/:id/download',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { stream, mimeType } = await getPhotoStream(req.user!.tenantId, req.params.id);
+    const thumb = req.query.thumb === '1';
+    const { stream, mimeType } = await getPhotoStream(req.user!.tenantId, req.params.id, thumb);
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Cache-Control', 'private, max-age=300');
     stream.pipe(res);

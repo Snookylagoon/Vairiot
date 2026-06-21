@@ -149,6 +149,7 @@ data class PhotoResponse(
     val width:     Int? = null,
     val height:    Int? = null,
     val caption:   String? = null,
+    val hasThumb:  Boolean = false,
     val createdAt: String,
     val createdBy: String? = null,
 )

@@ -347,6 +347,7 @@ model Photo {
   assetId            String
   maintenanceEventId String?
   storageKey         String   @unique
+  thumbStorageKey    String?  @unique
   mimeType           String
   sizeBytes          Int
   width              Int?

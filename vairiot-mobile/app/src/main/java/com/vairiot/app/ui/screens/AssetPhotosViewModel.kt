@@ -5,17 +5,20 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vairiot.app.ImageCompressor
 import com.vairiot.app.data.api.PhotoResponse
 import com.vairiot.app.data.api.PhotoUpdateRequest
 import com.vairiot.app.data.api.VairiotApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import javax.inject.Inject
 
 data class AssetPhotosUiState(
@@ -56,12 +59,18 @@ class AssetPhotosViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isUploading = true, error = null)
             try {
-                val bytes = context.contentResolver.openInputStream(uri).use { it?.readBytes() }
-                    ?: throw IllegalStateException("Could not read captured image")
-                val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
-                val body = bytes.toRequestBody(mime.toMediaTypeOrNull())
-                val part = MultipartBody.Part.createFormData("photo", "capture.jpg", body)
-                api.uploadAssetPhoto(assetId, part)
+                val result = withContext(Dispatchers.IO) {
+                    ImageCompressor.compress(context, uri, assetRef = assetId)
+                }
+                val photoPart = MultipartBody.Part.createFormData(
+                    "photo", result.displayFile.name,
+                    result.displayFile.asRequestBody("image/webp".toMediaTypeOrNull()),
+                )
+                val thumbPart = MultipartBody.Part.createFormData(
+                    "thumb", result.thumbFile.name,
+                    result.thumbFile.asRequestBody("image/webp".toMediaTypeOrNull()),
+                )
+                api.uploadAssetPhoto(assetId, photoPart, thumbPart)
                 load()
                 _state.value = _state.value.copy(isUploading = false)
             } catch (e: Exception) {

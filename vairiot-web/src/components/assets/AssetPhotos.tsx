@@ -9,6 +9,7 @@ interface PhotoMeta {
   id:        string;
   mimeType:  string;
   sizeBytes: number;
+  hasThumb:  boolean;
   createdAt: string;
 }
 
@@ -70,7 +71,7 @@ export function AssetPhotos({ assetId }: { assetId: string }) {
         <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
           {photos.map(p => (
             <div key={p.id} className="relative group aspect-square overflow-hidden rounded-md border border-gray-100 bg-gray-50">
-              <PhotoThumb id={p.id} />
+              <PhotoThumb id={p.id} hasThumb={p.hasThumb} />
               <button
                 onClick={() => remove.mutate(p.id)}
                 className="absolute top-1 right-1 p-1 rounded bg-white/80 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -85,11 +86,12 @@ export function AssetPhotos({ assetId }: { assetId: string }) {
 }
 
 /* Authorised <img> using a blob URL so the Bearer token is sent. */
-function PhotoThumb({ id }: { id: string }) {
+function PhotoThumb({ id, hasThumb }: { id: string; hasThumb: boolean }) {
   const { data: src } = useQuery<string>({
-    queryKey: ['photo-blob', id],
+    queryKey: ['photo-blob', id, hasThumb],
     queryFn: async () => {
-      const r = await api.get(`/api/v1/photos/${id}/download`, { responseType: 'blob' });
+      const url = hasThumb ? `/api/v1/photos/${id}/download?thumb=1` : `/api/v1/photos/${id}/download`;
+      const r = await api.get(url, { responseType: 'blob' });
       return URL.createObjectURL(r.data);
     },
     staleTime: 60 * 1000,

@@ -5,16 +5,19 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vairiot.app.ImageCompressor
 import com.vairiot.app.data.api.MaintenanceCreateRequest
 import com.vairiot.app.data.api.VairiotApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import javax.inject.Inject
 
 data class MaintenanceRequestUiState(
@@ -86,11 +89,17 @@ class MaintenanceRequestViewModel @Inject constructor(
     }
 
     private suspend fun uploadPhoto(uri: Uri, maintenanceEventId: String) {
-        val bytes = context.contentResolver.openInputStream(uri).use { it?.readBytes() }
-            ?: return
-        val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
-        val body = bytes.toRequestBody(mime.toMediaTypeOrNull())
-        val part = MultipartBody.Part.createFormData("photo", "maintenance.jpg", body)
-        api.uploadMaintenancePhoto(maintenanceEventId, part)
+        val result = withContext(Dispatchers.IO) {
+            ImageCompressor.compress(context, uri, assetRef = assetId)
+        }
+        val photoPart = MultipartBody.Part.createFormData(
+            "photo", result.displayFile.name,
+            result.displayFile.asRequestBody("image/webp".toMediaTypeOrNull()),
+        )
+        val thumbPart = MultipartBody.Part.createFormData(
+            "thumb", result.thumbFile.name,
+            result.thumbFile.asRequestBody("image/webp".toMediaTypeOrNull()),
+        )
+        api.uploadMaintenancePhoto(maintenanceEventId, photoPart, thumbPart)
     }
 }

@@ -3,6 +3,7 @@ import { api } from '@/lib/api';
 
 interface PhotoMeta {
   id: string;
+  hasThumb?: boolean;
 }
 
 export function MaintenancePhotoStrip({ eventId, max = 3 }: { eventId: string; max?: number }) {
@@ -20,7 +21,7 @@ export function MaintenancePhotoStrip({ eventId, max = 3 }: { eventId: string; m
 
   return (
     <div className="flex items-center gap-1">
-      {shown.map(p => <Thumb key={p.id} id={p.id} />)}
+      {shown.map(p => <Thumb key={p.id} id={p.id} hasThumb={p.hasThumb} />)}
       {extra > 0 && (
         <span className="text-xs text-gray-500 ml-1">+{extra}</span>
       )}
@@ -28,11 +29,12 @@ export function MaintenancePhotoStrip({ eventId, max = 3 }: { eventId: string; m
   );
 }
 
-function Thumb({ id }: { id: string }) {
+function Thumb({ id, hasThumb }: { id: string; hasThumb?: boolean }) {
   const { data: src } = useQuery<string>({
-    queryKey: ['photo-blob', id],
+    queryKey: ['photo-blob', id, hasThumb],
     queryFn: async () => {
-      const r = await api.get(`/api/v1/photos/${id}/download`, { responseType: 'blob' });
+      const url = hasThumb ? `/api/v1/photos/${id}/download?thumb=1` : `/api/v1/photos/${id}/download`;
+      const r = await api.get(url, { responseType: 'blob' });
       return URL.createObjectURL(r.data);
     },
     staleTime: 60 * 1000,

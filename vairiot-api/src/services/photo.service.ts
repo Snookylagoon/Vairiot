@@ -3,64 +3,91 @@ import { prisma } from '../lib/prisma';
 import { minioClient, PHOTO_BUCKET } from '../lib/minio';
 import { NotFoundError } from '../lib/errors';
 
+const photoSelect = {
+  id: true, mimeType: true, sizeBytes: true, width: true, height: true,
+  caption: true, createdAt: true, createdBy: true,
+  thumbStorageKey: true,
+} as const;
+
+function addHasThumb(row: { thumbStorageKey: string | null; [k: string]: unknown }) {
+  const { thumbStorageKey, ...rest } = row;
+  return { ...rest, hasThumb: thumbStorageKey != null };
+}
+
 export async function listPhotos(tenantId: string, assetId: string) {
-  return prisma.photo.findMany({
+  const rows = await prisma.photo.findMany({
     where: { tenantId, assetId, maintenanceEventId: null },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, mimeType: true, sizeBytes: true, width: true, height: true, caption: true, createdAt: true, createdBy: true },
+    select: photoSelect,
   });
+  return rows.map(addHasThumb);
 }
 
 export async function listMaintenancePhotos(tenantId: string, maintenanceEventId: string) {
-  return prisma.photo.findMany({
+  const rows = await prisma.photo.findMany({
     where: { tenantId, maintenanceEventId },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, mimeType: true, sizeBytes: true, width: true, height: true, caption: true, createdAt: true, createdBy: true },
+    select: photoSelect,
   });
+  return rows.map(addHasThumb);
 }
 
 export async function updatePhoto(tenantId: string, photoId: string, patch: { caption?: string | null }) {
   const photo = await prisma.photo.findFirst({ where: { id: photoId, tenantId } });
   if (!photo) throw new NotFoundError('Photo not found');
-  return prisma.photo.update({
+  const row = await prisma.photo.update({
     where: { id: photoId },
     data:  { caption: patch.caption ?? null },
-    select: { id: true, mimeType: true, sizeBytes: true, width: true, height: true, caption: true, createdAt: true, createdBy: true },
+    select: photoSelect,
   });
+  return addHasThumb(row);
 }
 
 export async function uploadPhoto(params: {
-  tenantId: string;
-  assetId:  string;
-  actorId:  string;
-  buffer:   Buffer;
-  mimeType: string;
+  tenantId:      string;
+  assetId:       string;
+  actorId:       string;
+  buffer:        Buffer;
+  mimeType:      string;
+  thumbBuffer?:  Buffer;
+  thumbMimeType?: string;
 }) {
   const asset = await prisma.asset.findFirst({ where: { id: params.assetId, tenantId: params.tenantId } });
   if (!asset) throw new NotFoundError('Asset not found');
 
-  const ext       = mimeToExt(params.mimeType);
-  const storageKey = `${params.tenantId}/${params.assetId}/${Date.now()}-${randomHex(8)}${ext}`;
+  const ts         = Date.now();
+  const hex        = randomHex(8);
+  const ext        = mimeToExt(params.mimeType);
+  const storageKey = `${params.tenantId}/${params.assetId}/${ts}-${hex}${ext}`;
 
   await minioClient.putObject(
-    PHOTO_BUCKET,
-    storageKey,
-    params.buffer,
-    params.buffer.length,
+    PHOTO_BUCKET, storageKey, params.buffer, params.buffer.length,
     { 'Content-Type': params.mimeType },
   );
 
-  return prisma.photo.create({
+  let thumbStorageKey: string | undefined;
+  if (params.thumbBuffer) {
+    const thumbExt = mimeToExt(params.thumbMimeType ?? params.mimeType);
+    thumbStorageKey = `${params.tenantId}/${params.assetId}/${ts}-${hex}_thumb${thumbExt}`;
+    await minioClient.putObject(
+      PHOTO_BUCKET, thumbStorageKey, params.thumbBuffer, params.thumbBuffer.length,
+      { 'Content-Type': params.thumbMimeType ?? params.mimeType },
+    );
+  }
+
+  const row = await prisma.photo.create({
     data: {
       tenantId:   params.tenantId,
       assetId:    params.assetId,
       storageKey,
+      thumbStorageKey,
       mimeType:   params.mimeType,
       sizeBytes:  params.buffer.length,
       createdBy:  params.actorId,
     },
-    select: { id: true, mimeType: true, sizeBytes: true, caption: true, createdAt: true },
+    select: photoSelect,
   });
+  return addHasThumb(row);
 }
 
 export async function uploadMaintenancePhoto(params: {
@@ -70,6 +97,8 @@ export async function uploadMaintenancePhoto(params: {
   buffer:             Buffer;
   mimeType:           string;
   caption?:           string;
+  thumbBuffer?:       Buffer;
+  thumbMimeType?:     string;
 }) {
   const evt = await prisma.maintenanceEvent.findFirst({
     where: { id: params.maintenanceEventId, tenantId: params.tenantId },
@@ -77,36 +106,48 @@ export async function uploadMaintenancePhoto(params: {
   });
   if (!evt) throw new NotFoundError('Maintenance event not found');
 
+  const ts         = Date.now();
+  const hex        = randomHex(8);
   const ext        = mimeToExt(params.mimeType);
-  const storageKey = `${params.tenantId}/maintenance/${evt.id}/${Date.now()}-${randomHex(8)}${ext}`;
+  const storageKey = `${params.tenantId}/maintenance/${evt.id}/${ts}-${hex}${ext}`;
 
   await minioClient.putObject(
-    PHOTO_BUCKET,
-    storageKey,
-    params.buffer,
-    params.buffer.length,
+    PHOTO_BUCKET, storageKey, params.buffer, params.buffer.length,
     { 'Content-Type': params.mimeType },
   );
 
-  return prisma.photo.create({
+  let thumbStorageKey: string | undefined;
+  if (params.thumbBuffer) {
+    const thumbExt = mimeToExt(params.thumbMimeType ?? params.mimeType);
+    thumbStorageKey = `${params.tenantId}/maintenance/${evt.id}/${ts}-${hex}_thumb${thumbExt}`;
+    await minioClient.putObject(
+      PHOTO_BUCKET, thumbStorageKey, params.thumbBuffer, params.thumbBuffer.length,
+      { 'Content-Type': params.thumbMimeType ?? params.mimeType },
+    );
+  }
+
+  const row = await prisma.photo.create({
     data: {
       tenantId:           params.tenantId,
       assetId:            evt.assetId,
       maintenanceEventId: evt.id,
       storageKey,
+      thumbStorageKey,
       mimeType:           params.mimeType,
       sizeBytes:          params.buffer.length,
       caption:            params.caption,
       createdBy:          params.actorId,
     },
-    select: { id: true, mimeType: true, sizeBytes: true, caption: true, createdAt: true },
+    select: photoSelect,
   });
+  return addHasThumb(row);
 }
 
-export async function getPhotoStream(tenantId: string, photoId: string): Promise<{ stream: Readable; mimeType: string }> {
+export async function getPhotoStream(tenantId: string, photoId: string, thumb = false): Promise<{ stream: Readable; mimeType: string }> {
   const photo = await prisma.photo.findFirst({ where: { id: photoId, tenantId } });
   if (!photo) throw new NotFoundError('Photo not found');
-  const stream = await minioClient.getObject(PHOTO_BUCKET, photo.storageKey);
+  const key = (thumb && photo.thumbStorageKey) ? photo.thumbStorageKey : photo.storageKey;
+  const stream = await minioClient.getObject(PHOTO_BUCKET, key);
   return { stream, mimeType: photo.mimeType };
 }
 
@@ -114,6 +155,9 @@ export async function deletePhoto(tenantId: string, photoId: string) {
   const photo = await prisma.photo.findFirst({ where: { id: photoId, tenantId } });
   if (!photo) throw new NotFoundError('Photo not found');
   await minioClient.removeObject(PHOTO_BUCKET, photo.storageKey).catch(() => {});
+  if (photo.thumbStorageKey) {
+    await minioClient.removeObject(PHOTO_BUCKET, photo.thumbStorageKey).catch(() => {});
+  }
   await prisma.photo.delete({ where: { id: photoId } });
   return { id: photoId };
 }
