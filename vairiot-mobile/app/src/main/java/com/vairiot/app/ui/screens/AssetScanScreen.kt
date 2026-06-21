@@ -88,12 +88,16 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
                 is ScanUiState.Scanning   -> ScanningCard(onCancel = { viewModel.cancelScan() })
                 is ScanUiState.Loading    -> LoadingCard()
                 is ScanUiState.Found      -> AssetResultCard(s.asset, onReset = { viewModel.reset() })
-                is ScanUiState.NotFound   -> NotFoundCard(s.tag,
-                    scannedBarcode = s.scannedBarcode,
+                is ScanUiState.NotFound   -> NotFoundCard(
+                    value = s.value,
+                    isRfid = s.isRfid,
+                    secondaryValue = s.secondaryValue,
                     onReset    = { viewModel.reset() },
-                    onRegister = { name, barcode -> viewModel.registerAsset(name, s.tag, barcode) },
-                    onScanBarcode = { viewModel.startBarcodeScan() },
-                    onClearBarcode = { viewModel.clearBarcode() },
+                    onRegister = { name, secondary ->
+                        viewModel.registerAsset(name, s.value, s.isRfid, secondary)
+                    },
+                    onScanSecondary = { viewModel.scanSecondary() },
+                    onClearSecondary = { viewModel.clearSecondary() },
                 )
                 is ScanUiState.Registering -> LoadingCard()
                 is ScanUiState.Registered  -> AssetResultCard(s.asset, onReset = { viewModel.reset() }, isNew = true)
@@ -178,18 +182,21 @@ fun AssetResultCard(asset: AssetResponse, onReset: () -> Unit, isNew: Boolean = 
 
 @Composable
 fun NotFoundCard(
-    tag: String,
-    scannedBarcode: String? = null,
+    value: String,
+    isRfid: Boolean,
+    secondaryValue: String? = null,
     onReset: () -> Unit,
     onRegister: (String, String?) -> Unit,
-    onScanBarcode: () -> Unit = {},
-    onClearBarcode: () -> Unit = {},
+    onScanSecondary: () -> Unit = {},
+    onClearSecondary: () -> Unit = {},
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var assetName by remember { mutableStateOf("") }
-    var manualBarcode by remember { mutableStateOf("") }
+    var manualSecondary by remember { mutableStateOf("") }
 
-    val barcodeValue = scannedBarcode ?: manualBarcode.ifBlank { null }
+    val primaryLabel   = if (isRfid) "RFID Tag" else "Barcode"
+    val secondaryLabel = if (isRfid) "Barcode" else "RFID Tag"
+    val secondaryFinal = secondaryValue ?: manualSecondary.ifBlank { null }
 
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -200,9 +207,9 @@ fun NotFoundCard(
                 Text("Not Registered", style = MaterialTheme.typography.titleMedium,
                     color = WarningAmber)
             }
-            Text("Tag: $tag", style = MaterialTheme.typography.bodySmall,
+            Text("$primaryLabel: $value", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-            Text("This tag is not assigned to any asset in the system.",
+            Text("This $primaryLabel is not assigned to any asset in the system.",
                 style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
@@ -224,7 +231,7 @@ fun NotFoundCard(
             title = { Text("Register New Asset") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("RFID Tag: $tag", style = MaterialTheme.typography.bodySmall,
+                    Text("$primaryLabel: $value", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     OutlinedTextField(
                         value = assetName,
@@ -236,10 +243,10 @@ fun NotFoundCard(
 
                     HorizontalDivider()
 
-                    Text("Barcode (optional)", style = MaterialTheme.typography.labelMedium,
+                    Text("$secondaryLabel (optional)", style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
 
-                    if (scannedBarcode != null) {
+                    if (secondaryValue != null) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -247,37 +254,37 @@ fun NotFoundCard(
                         ) {
                             Icon(Icons.Default.CheckCircle, contentDescription = null,
                                 tint = SuccessGreen, modifier = Modifier.size(18.dp))
-                            Text(scannedBarcode, style = MaterialTheme.typography.bodyMedium,
+                            Text(secondaryValue, style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f))
-                            IconButton(onClick = { onClearBarcode() }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear barcode",
+                            IconButton(onClick = { onClearSecondary() }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear",
                                     modifier = Modifier.size(18.dp))
                             }
                         }
                     } else {
                         OutlinedTextField(
-                            value = manualBarcode,
-                            onValueChange = { manualBarcode = it },
-                            label = { Text("Barcode") },
-                            placeholder = { Text("Scan or type barcode") },
+                            value = manualSecondary,
+                            onValueChange = { manualSecondary = it },
+                            label = { Text(secondaryLabel) },
+                            placeholder = { Text("Scan or type $secondaryLabel") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         OutlinedButton(
-                            onClick = onScanBarcode,
+                            onClick = onScanSecondary,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Icon(Icons.Default.QrCodeScanner, contentDescription = null,
                                 modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Scan Barcode")
+                            Text("Scan $secondaryLabel")
                         }
                     }
                 }
             },
             confirmButton = {
                 Button(
-                    onClick = { showDialog = false; onRegister(assetName, barcodeValue) },
+                    onClick = { showDialog = false; onRegister(assetName, secondaryFinal) },
                     enabled = assetName.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
                 ) { Text("Register") }

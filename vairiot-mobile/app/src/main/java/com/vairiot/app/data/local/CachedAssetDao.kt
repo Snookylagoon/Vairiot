@@ -19,6 +19,9 @@ interface CachedAssetDao {
     """)
     fun searchFlow(query: String): Flow<List<CachedAsset>>
 
+    @Query("SELECT * FROM cached_assets WHERE rfidTag = :tag OR barcode = :tag OR assetNumber = :tag LIMIT 1")
+    suspend fun findByTag(tag: String): CachedAsset?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(assets: List<CachedAsset>)
 

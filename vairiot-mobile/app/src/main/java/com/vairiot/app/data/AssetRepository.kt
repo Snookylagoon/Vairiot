@@ -63,7 +63,33 @@ class AssetRepository @Inject constructor(
         }
     }
 
+    /**
+     * Look up a single asset by scanned tag/barcode/asset-number.
+     * Tries the server first; on failure (offline/unreachable) falls back to
+     * the local cache. [TagLookup.fromCache] tells the UI which source answered.
+     */
+    suspend fun lookupByTag(tag: String): TagLookup {
+        return try {
+            val asset = api.getAssetByTag(tag)
+            // Keep the cache warm with whatever we just fetched.
+            dao.upsertAll(listOf(asset.toCached()))
+            TagLookup.Found(asset, fromCache = false)
+        } catch (e: Exception) {
+            val cached = dao.findByTag(tag)
+            if (cached != null) {
+                TagLookup.Found(cached.toApiResponse(), fromCache = true)
+            } else {
+                TagLookup.NotFound
+            }
+        }
+    }
+
     private companion object { const val PAGE_SIZE = 200 }
+}
+
+sealed class TagLookup {
+    data class Found(val asset: AssetResponse, val fromCache: Boolean) : TagLookup()
+    object NotFound : TagLookup()
 }
 
 private fun CachedAsset.toApiResponse(): AssetResponse = AssetResponse(

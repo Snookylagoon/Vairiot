@@ -2,6 +2,8 @@ package com.vairiot.app.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vairiot.app.data.AssetRepository
+import com.vairiot.app.data.TagLookup
 import com.vairiot.app.data.api.AssetCreateRequest
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.VairiotApiService
@@ -19,8 +21,17 @@ sealed class ScanUiState {
     object Idle    : ScanUiState()
     object Scanning: ScanUiState()
     object Loading : ScanUiState()
-    data class Found(val asset: AssetResponse) : ScanUiState()
-    data class NotFound(val tag: String, val scannedBarcode: String? = null) : ScanUiState()
+    data class Found(val asset: AssetResponse, val fromCache: Boolean = false) : ScanUiState()
+    /**
+     * An unregistered code. [value] is what was read, [isRfid] says whether it
+     * came from the RFID antenna (true) or the barcode scanner (false).
+     * [secondaryValue] holds the other code if the user scans it during registration.
+     */
+    data class NotFound(
+        val value: String,
+        val isRfid: Boolean,
+        val secondaryValue: String? = null,
+    ) : ScanUiState()
     object Registering                         : ScanUiState()
     data class Registered(val asset: AssetResponse) : ScanUiState()
     data class Error(val message: String)      : ScanUiState()
@@ -29,6 +40,7 @@ sealed class ScanUiState {
 @HiltViewModel
 class AssetScanViewModel @Inject constructor(
     private val api: VairiotApiService,
+    private val repo: AssetRepository,
     private val scanner: ScannerService,
 ) : ViewModel() {
 
@@ -36,20 +48,21 @@ class AssetScanViewModel @Inject constructor(
     val state: StateFlow<ScanUiState> = _state
 
     private var scanTimeoutJob: Job? = null
-    private var awaitingBarcode = false
+    private var awaitingSecondary = false
 
     init {
         viewModelScope.launch {
             scanner.scanResults.collect { result ->
-                if (awaitingBarcode && result.type == ScanType.BARCODE) {
-                    awaitingBarcode = false
+                if (awaitingSecondary) {
+                    // User is deliberately scanning the *other* code for an unknown asset.
+                    awaitingSecondary = false
                     scanner.stopScan()
                     val current = _state.value
                     if (current is ScanUiState.NotFound) {
-                        _state.value = current.copy(scannedBarcode = result.value)
+                        _state.value = current.copy(secondaryValue = result.value)
                     }
-                } else if (!awaitingBarcode) {
-                    onTagScanned(result.value)
+                } else {
+                    onScan(result.value, result.type)
                 }
             }
         }
@@ -63,7 +76,7 @@ class AssetScanViewModel @Inject constructor(
             delay(SCAN_TIMEOUT_MS)
             if (_state.value is ScanUiState.Scanning) {
                 _state.value = ScanUiState.Error(
-                    "No scan detected. Press the device's hardware trigger, or type the tag in the field above."
+                    "No scan detected. Press the device's hardware trigger, or type the code in the field above."
                 )
             }
         }
@@ -75,36 +88,56 @@ class AssetScanViewModel @Inject constructor(
         _state.value = ScanUiState.Idle
     }
 
-    fun onTagScanned(tagValue: String) {
+    /** A scan arrived from hardware, carrying its read source ([type]). */
+    private fun onScan(value: String, type: ScanType) {
+        val isRfid = type != ScanType.BARCODE   // RFID_UHF or UNKNOWN treated as tag
+        lookup(value, isRfid)
+    }
+
+    private fun lookup(value: String, isRfid: Boolean) {
         scanTimeoutJob?.cancel()
         viewModelScope.launch {
             _state.value = ScanUiState.Loading
-            try {
-                val asset = api.getAssetByTag(tagValue)
-                _state.value = ScanUiState.Found(asset)
-            } catch (e: Exception) {
-                _state.value = ScanUiState.NotFound(tagValue)
+            when (val result = repo.lookupByTag(value)) {
+                is TagLookup.Found ->
+                    _state.value = ScanUiState.Found(result.asset, fromCache = result.fromCache)
+                is TagLookup.NotFound ->
+                    _state.value = ScanUiState.NotFound(value = value, isRfid = isRfid)
             }
         }
     }
 
-    fun startBarcodeScan() {
-        awaitingBarcode = true
-        scanner.startScan(ScanType.BARCODE)
+    /** Start a deliberate scan of the *other* code type during registration. */
+    fun scanSecondary() {
+        awaitingSecondary = true
+        val current = _state.value
+        // If the primary was RFID, we now want a barcode, and vice versa.
+        val wantType = if (current is ScanUiState.NotFound && current.isRfid)
+            ScanType.BARCODE else ScanType.RFID_UHF
+        scanner.startScan(wantType)
     }
 
-    fun clearBarcode() {
+    fun clearSecondary() {
         val current = _state.value
         if (current is ScanUiState.NotFound) {
-            _state.value = current.copy(scannedBarcode = null)
+            _state.value = current.copy(secondaryValue = null)
         }
     }
 
-    fun registerAsset(name: String, tag: String, barcode: String? = null) {
+    /**
+     * Register a new asset, routing each scanned value to the correct field by
+     * its read source. The primary value goes to rfidTag or barcode depending
+     * on [isRfid]; the secondary (if any) fills the other field.
+     */
+    fun registerAsset(name: String, value: String, isRfid: Boolean, secondaryValue: String? = null) {
         viewModelScope.launch {
             _state.value = ScanUiState.Registering
+            val rfidTag = if (isRfid) value else secondaryValue
+            val barcode = if (isRfid) secondaryValue else value
             try {
-                val asset = api.createAsset(AssetCreateRequest(name = name, rfidTag = tag, barcode = barcode))
+                val asset = api.createAsset(
+                    AssetCreateRequest(name = name, rfidTag = rfidTag, barcode = barcode),
+                )
                 _state.value = ScanUiState.Registered(asset)
             } catch (e: Exception) {
                 _state.value = ScanUiState.Error("Registration failed: ${e.message}")
@@ -112,7 +145,8 @@ class AssetScanViewModel @Inject constructor(
         }
     }
 
-    fun lookupManual(query: String) = onTagScanned(query)
+    /** Manual text lookup: source unknown, so treat as an RFID tag by default. */
+    fun lookupManual(query: String) = lookup(query, isRfid = true)
 
     fun reset() {
         scanTimeoutJob?.cancel()
