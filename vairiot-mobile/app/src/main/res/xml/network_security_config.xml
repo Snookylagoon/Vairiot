@@ -1,12 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!--
-        Pre-production: permit cleartext HTTP for local dev (emulator at 10.0.2.2
-        and physical devices hitting a Mac on the LAN by IP).
-        TODO: before release, replace with a base-config that rejects cleartext
-        and an explicit domain-config for any HTTPS-exempt internal hosts only.
-    -->
-    <base-config cleartextTrafficPermitted="true">
+    <!-- Production: trust the Vairiot server's self-signed certificate for its IP.
+         System certificates still trusted for everything else. -->
+    <domain-config>
+        <domain includeSubdomains="false">81.85.92.155</domain>
+        <trust-anchors>
+            <certificates src="@raw/vairiot_cert" />
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Default for all other hosts: standard system trust, no cleartext. -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>

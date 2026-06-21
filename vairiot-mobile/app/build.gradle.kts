@@ -18,9 +18,9 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // For a USB-connected device: run `adb reverse tcp:3001 tcp:3001` once,
-        // and the device sees the host's API at localhost:3001.
+        // and the device sees the host's API at https://81.85.92.155/.
         // For the Android emulator, change to "http://10.0.2.2:3001/".
-        buildConfigField("String", "API_BASE_URL", "\"http://localhost:3001/\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://81.85.92.155/\"")
     }
 
     buildTypes {
