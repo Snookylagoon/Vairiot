@@ -47,8 +47,8 @@ services:
 
   api:
     build:
-      context: ../vairiot-api
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: vairiot-api/Dockerfile
     container_name: vairiot_api
     restart: always
     depends_on:
@@ -67,8 +67,8 @@ services:
 
   web:
     build:
-      context: ../vairiot-web
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: vairiot-web/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL}
     container_name: vairiot_web
@@ -80,8 +80,8 @@ services:
 
   worker:
     build:
-      context: ../vairiot-worker
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: vairiot-worker/Dockerfile
     container_name: vairiot_worker
     restart: always
     depends_on:
