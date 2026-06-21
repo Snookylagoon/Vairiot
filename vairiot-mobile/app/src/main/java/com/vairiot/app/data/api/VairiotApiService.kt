@@ -125,9 +125,28 @@ interface VairiotApiService {
     suspend fun deletePhoto(@Path("id") id: String): Map<String, String>
 
     // ─── Maintenance ───────────────────────────────────────────────────────
+    @GET("api/v1/maintenance")
+    suspend fun listMaintenanceEvents(
+        @Query("status")    status:    String? = null,
+        @Query("search")    search:    String? = null,
+        @Query("sortBy")    sortBy:    String? = null,
+        @Query("sortOrder") sortOrder: String? = null,
+        @Query("page")      page:      Int     = 1,
+        @Query("pageSize")  pageSize:  Int     = 25,
+    ): MaintenanceListResponse
+
+    @GET("api/v1/maintenance/{id}")
+    suspend fun getMaintenanceEvent(@Path("id") id: String): MaintenanceEventResponse
+
     @POST("api/v1/maintenance")
     suspend fun createMaintenanceEvent(
         @Body request: MaintenanceCreateRequest,
+    ): MaintenanceEventResponse
+
+    @PATCH("api/v1/maintenance/{id}")
+    suspend fun updateMaintenanceEvent(
+        @Path("id") id: String,
+        @Body update: MaintenanceUpdateRequest,
     ): MaintenanceEventResponse
 
     @GET("api/v1/maintenance/{id}/photos")

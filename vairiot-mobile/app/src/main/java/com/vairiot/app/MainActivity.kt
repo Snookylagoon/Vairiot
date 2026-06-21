@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
@@ -33,10 +34,11 @@ import javax.inject.Inject
 
 private data class HomeTab(val route: String, val label: String, val icon: ImageVector)
 private val HOME_TABS = listOf(
-    HomeTab("scan",    "Scan",    Icons.Default.QrCodeScanner),
-    HomeTab("assets",  "Assets",  Icons.AutoMirrored.Filled.List),
-    HomeTab("audits",  "Audits",  Icons.Default.FactCheck),
-    HomeTab("profile", "Profile", Icons.Default.AccountCircle),
+    HomeTab("scan",        "Scan",        Icons.Default.QrCodeScanner),
+    HomeTab("assets",      "Assets",      Icons.AutoMirrored.Filled.List),
+    HomeTab("maintenance", "Maint.",      Icons.Default.Build),
+    HomeTab("audits",      "Audits",      Icons.Default.FactCheck),
+    HomeTab("profile",     "Profile",     Icons.Default.AccountCircle),
 )
 
 @AndroidEntryPoint
@@ -82,6 +84,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("audit/{campaignId}/run")      { AuditRunScreen(onBack    = { rootNav.popBackStack() }) }
+                    composable("maintenance/{eventId}")       { MaintenanceDetailScreen(onBack = { rootNav.popBackStack() }) }
                 }
             }
         }
@@ -134,6 +137,9 @@ private fun HomeScaffold(rootNav: androidx.navigation.NavHostController) {
             composable("scan")   { AssetScanScreen() }
             composable("assets") {
                 AssetListScreen(onAssetClick = { id -> rootNav.navigate("asset/$id") })
+            }
+            composable("maintenance") {
+                MaintenanceListScreen(onEventClick = { id -> rootNav.navigate("maintenance/$id") })
             }
             composable("audits") {
                 AuditListScreen(onCampaignClick = { id, status ->

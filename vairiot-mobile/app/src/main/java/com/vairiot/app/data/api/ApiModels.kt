@@ -25,6 +25,7 @@ data class UserProfileResponse(
     val tenantId:     String,
     val tenantName:   String? = null,
     val roles:        List<String>,
+    val permissions:  List<String> = emptyList(),
     val featureFlags: Map<String, Boolean>? = null,
 )
 
@@ -172,11 +173,38 @@ data class MaintenanceEventResponse(
     val id:              String,
     val assetId:         String,
     val maintenanceType: String,
-    val workOrderNumber: String?,
-    val description:     String?,
-    val notes:           String?,
+    val vendor:          String? = null,
+    val workOrderNumber: String? = null,
+    val cost:            String? = null,
+    val description:     String? = null,
+    val notes:           String? = null,
+    val scheduledDate:   String? = null,
+    val completedDate:   String? = null,
     val status:          String,
+    val createdBy:       String? = null,
     val createdAt:       String,
+    val updatedAt:       String? = null,
+    val asset:           MaintenanceAssetRef? = null,
+)
+
+data class MaintenanceAssetRef(
+    val id:          String,
+    val assetNumber: String,
+    val name:        String,
+)
+
+data class MaintenanceListResponse(
+    val events:     List<MaintenanceEventResponse>,
+    val total:      Int,
+    val page:       Int,
+    val pageSize:   Int,
+    val totalPages: Int,
+)
+
+data class MaintenanceUpdateRequest(
+    val status:        String? = null,
+    val notes:         String? = null,
+    val completedDate: String? = null,
 )
 
 // ─── Asset create ─────────────────────────────────────────────────────────
