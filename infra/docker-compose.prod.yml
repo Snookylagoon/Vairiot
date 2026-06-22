@@ -54,6 +54,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
+      reports:  { condition: service_healthy }
     environment:
       NODE_ENV:      production
       DATABASE_URL:  "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
@@ -69,8 +70,23 @@ services:
       MINIO_ROOT_PASSWORD:    ${MINIO_ROOT_PASSWORD}
       MINIO_PHOTOS_BUCKET:    vairiot-photos
       MINIO_DOCUMENTS_BUCKET: vairiot-documents
+      REPORT_SERVICE_URL:     http://reports:8100
     expose:
       - "3001"
+
+  reports:
+    build:
+      context: ../vairiot-reports
+      dockerfile: Dockerfile
+    container_name: vairiot_reports
+    restart: always
+    expose:
+      - "8100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   web:
     build:

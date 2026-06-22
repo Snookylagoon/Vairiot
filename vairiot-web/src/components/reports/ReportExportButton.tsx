@@ -53,15 +53,31 @@ export function ReportExportButton({ reportType, filters = {}, disabled }: Props
       });
 
       const blob = new Blob([response.data], { type: CONTENT_TYPES[format] });
+      if (blob.size === 0) throw new Error('Empty file returned from server');
+
       const url = URL.createObjectURL(blob);
       const date = new Date().toISOString().slice(0, 10);
       const a = document.createElement('a');
       a.href = url;
       a.download = `${reportType}-${date}.${format}`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Export failed:', err);
+      let message = 'Export failed. Please try again.';
+      const errObj = err as { response?: { data?: unknown }; message?: string };
+      if (errObj.response?.data instanceof Blob) {
+        try {
+          const text = await errObj.response.data.text();
+          const parsed = JSON.parse(text);
+          if (parsed?.error) message = `Export failed: ${parsed.error}`;
+        } catch { /* keep default */ }
+      } else if (errObj.message) {
+        message = `Export failed: ${errObj.message}`;
+      }
+      alert(message);
     } finally {
       setLoading(null);
     }
