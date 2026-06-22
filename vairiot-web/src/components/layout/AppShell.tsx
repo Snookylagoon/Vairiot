@@ -55,8 +55,9 @@ const nav: readonly NavEntry[] = [
   {
     heading: 'Settings',
     items: [
-      { to: '/licensing',    label: 'Licensing', icon: BadgeCheck },
-      { to: '/settings/2fa', label: '2FA',       icon: ShieldCheck },
+      { to: '/licensing',         label: 'Licensing',       icon: BadgeCheck },
+      { to: '/settings/2fa',      label: '2FA',             icon: ShieldCheck },
+      { to: '/settings/password', label: 'Change Password', icon: KeyRound },
     ],
   },
 ];

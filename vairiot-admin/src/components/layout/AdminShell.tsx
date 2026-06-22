@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Building2, BadgeCheck, Users, ScrollText, Mail, LogOut, Menu } from 'lucide-react';
+import { LayoutDashboard, Building2, BadgeCheck, Users, ScrollText, Mail, LogOut, Menu, KeyRound } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import clsx from 'clsx';
@@ -49,8 +49,18 @@ export function AdminShell() {
           ))}
         </nav>
 
-        <div className="px-3 py-4 border-t border-white/10 space-y-2">
+        <div className="px-3 py-4 border-t border-white/10 space-y-1">
           <p className="text-xs text-gray-500 px-3 truncate">{user?.email}</p>
+          <NavLink to="/profile/password" onClick={() => setOpen(false)}
+            className={({ isActive }) => clsx(
+              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-v-violet text-white'
+                : 'text-gray-400 hover:bg-white/10 hover:text-white',
+            )}>
+            <KeyRound size={18} />
+            Change password
+          </NavLink>
           <button onClick={logout}
             className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
             <LogOut size={18} />

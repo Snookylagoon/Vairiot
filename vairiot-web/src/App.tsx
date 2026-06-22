@@ -49,6 +49,7 @@ const CustomFieldsPage     = lazy(() => import('@/pages/admin/CustomFieldsPage')
 const OnboardingPage       = lazy(() => import('@/pages/onboarding/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
 const LicensingPage        = lazy(() => import('@/pages/licensing/LicensingPage').then(m => ({ default: m.LicensingPage })));
 const TwoFactorPage        = lazy(() => import('@/pages/settings/TwoFactorPage').then(m => ({ default: m.TwoFactorPage })));
+const ChangePasswordPage   = lazy(() => import('@/pages/settings/ChangePasswordPage').then(m => ({ default: m.ChangePasswordPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -129,6 +130,7 @@ export default function App() {
             <Route path="labels"        element={<LabelsPage />} />
             <Route path="licensing"     element={<LicensingPage />} />
             <Route path="settings/2fa"  element={<TwoFactorPage />} />
+            <Route path="settings/password" element={<ChangePasswordPage />} />
             <Route path="admin/users"    element={<RequirePermission perms={['user:read', 'user:write']}><UsersPage /></RequirePermission>} />
             <Route path="admin/users/:id" element={<RequirePermission perms={['user:read', 'user:write']}><UserDetailPage /></RequirePermission>} />
             <Route path="admin/api-keys" element={<RequirePermission perms={['apikey:read', 'apikey:write']}><ApiKeysPage /></RequirePermission>} />

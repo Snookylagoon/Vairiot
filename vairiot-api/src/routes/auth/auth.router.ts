@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { login, loginWithTwoFactor, refreshTokens } from '../../services/auth.service';
+import { login, loginWithTwoFactor, refreshTokens, changeOwnPassword, completeForcedPasswordChange } from '../../services/auth.service';
 import { acceptInvite } from '../../services/user.service';
 import { registerNewTenant } from '../../services/registration.service';
 import { authenticate } from '../../middleware/authenticate';
@@ -63,6 +63,38 @@ authRouter.post('/accept-invite',
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     res.json(await acceptInvite(req.body.token, req.body.password));
+  }),
+);
+
+// Authenticated self-service: change your own password
+authRouter.post('/change-password', authenticate,
+  [body('currentPassword').isString().notEmpty(), body('newPassword').isString().isLength({ min: 12 })],
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    res.json(await changeOwnPassword(req.user!.sub, req.body.currentPassword, req.body.newPassword));
+  }),
+);
+
+// Unauthenticated: complete a forced password change after the login challenge
+authRouter.post('/change-password/forced', loginLimiter,
+  [
+    body('userId').isString().notEmpty(),
+    body('currentPassword').isString().notEmpty(),
+    body('newPassword').isString().isLength({ min: 12 }),
+  ],
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    const ipAddress = req.ip ?? req.socket.remoteAddress ?? '0.0.0.0';
+    const result = await completeForcedPasswordChange(
+      req.body.userId,
+      req.body.currentPassword,
+      req.body.newPassword,
+      ipAddress,
+      req.body.device,
+    );
+    res.json(result);
   }),
 );
 

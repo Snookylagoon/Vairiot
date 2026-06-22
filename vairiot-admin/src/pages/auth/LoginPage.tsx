@@ -16,6 +16,10 @@ export function LoginPage() {
   const [twoFactor, setTwoFactor] = useState<{ userId: string } | null>(null);
   const [tfaToken, setTfaToken] = useState('');
   const [tfaLoading, setTfaLoading] = useState(false);
+  const [forced, setForced] = useState<{ userId: string; currentPassword: string } | null>(null);
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -27,6 +31,11 @@ export function LoginPage() {
       const { data: result } = await api.post('/api/v1/auth/login', {
         email: data.email, password: data.password, tenantId: data.tenantId,
       });
+
+      if (result.requiresPasswordChange) {
+        setForced({ userId: result.passwordChangeUserId, currentPassword: data.password });
+        return;
+      }
 
       if (result.requiresTwoFactor) {
         setTwoFactor({ userId: result.twoFactorUserId });
@@ -45,6 +54,46 @@ export function LoginPage() {
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
       setError(msg ?? 'Invalid credentials or insufficient permissions.');
+    }
+  };
+
+  const submitForced = async () => {
+    if (!forced) return;
+    if (pwNew !== pwConfirm) {
+      setError('New passwords do not match.');
+      return;
+    }
+    setPwLoading(true);
+    setError('');
+    try {
+      const { data: result } = await api.post('/api/v1/auth/change-password/forced', {
+        userId: forced.userId,
+        currentPassword: forced.currentPassword,
+        newPassword: pwNew,
+      });
+
+      if (result.requiresTwoFactor) {
+        setForced(null);
+        setPwNew(''); setPwConfirm('');
+        setTwoFactor({ userId: result.twoFactorUserId });
+        return;
+      }
+
+      localStorage.setItem(TOKEN_KEY, result.accessToken);
+      localStorage.setItem(REFRESH_KEY, result.refreshToken);
+      await hydrate();
+      const { user } = useAuthStore.getState();
+      if (!user) {
+        setError('Access denied. This portal is restricted to platform administrators.');
+        return;
+      }
+      navigate('/dashboard');
+    } catch (e: unknown) {
+      const resp = (e as { response?: { data?: { error?: string; errors?: Array<{ msg: string }> } } })?.response?.data;
+      const msg = resp?.error ?? resp?.errors?.[0]?.msg;
+      setError(msg ?? 'Could not change password.');
+    } finally {
+      setPwLoading(false);
     }
   };
 
@@ -87,7 +136,57 @@ export function LoginPage() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-v-card border border-gray-100 p-8 space-y-5">
-            {!twoFactor ? (
+            {forced ? (
+              <>
+                <h2 className="text-lg font-bold text-v-charcoal">Set a new password</h2>
+                <p className="text-sm text-gray-500">
+                  Your account requires a password change before you can continue.
+                </p>
+
+                {error && (
+                  <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                    {error}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <Input
+                    label="New password"
+                    type="password"
+                    placeholder="At least 12 characters"
+                    value={pwNew}
+                    onChange={(e) => setPwNew(e.target.value)}
+                    autoFocus
+                  />
+                  <Input
+                    label="Confirm new password"
+                    type="password"
+                    placeholder="Repeat the new password"
+                    value={pwConfirm}
+                    onChange={(e) => setPwConfirm(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Must contain at least 12 characters, with an uppercase letter, a lowercase letter, a digit and a special character.
+                  </p>
+                  <Button
+                    size="lg"
+                    loading={pwLoading}
+                    onClick={submitForced}
+                    disabled={pwNew.length < 12 || pwConfirm.length < 12}
+                    className="w-full"
+                  >
+                    Update password &amp; sign in
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => { setForced(null); setPwNew(''); setPwConfirm(''); setError(''); }}
+                    className="w-full text-sm text-v-violet hover:underline"
+                  >
+                    Back to sign in
+                  </button>
+                </div>
+              </>
+            ) : !twoFactor ? (
               <>
                 <h2 className="text-lg font-bold text-v-charcoal">Administrator Sign In</h2>
 
