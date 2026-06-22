@@ -60,6 +60,7 @@ services:
       DATABASE_URL:  "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
       REDIS_URL:     "redis://:${REDIS_PASSWORD}@redis:6379"
       JWT_SECRET:    ${JWT_SECRET}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
       API_PORT:      3001
       WEB_ORIGIN:    ${WEB_ORIGIN}
       LOG_LEVEL:     info
@@ -127,6 +128,7 @@ services:
       NODE_ENV:     production
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
       REDIS_URL:    "redis://:${REDIS_PASSWORD}@redis:6379"
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
       LOG_LEVEL:    info
 
   nginx:
