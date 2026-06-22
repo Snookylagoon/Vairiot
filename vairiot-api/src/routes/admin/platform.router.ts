@@ -122,7 +122,7 @@ platformRouter.patch('/users/:id/active', async (req: Request, res: Response) =>
 // ─── Tenant Company ────────────────────────────────────────────────────────
 
 platformRouter.patch('/tenants/:id/company', async (req: Request, res: Response) => {
-  const { legalName, tradingName, registrationNumber, addressLine1, addressLine2, city, stateProvince, postalCode, country, primaryContactName, primaryContactEmail, primaryContactPhone } = req.body;
+  const { legalName, tradingName, registrationNumber, addressLine1, addressLine2, city, stateProvince, postalCode, country, primaryContactName, primaryContactEmail, primaryContactPhone, currency } = req.body;
 
   const existing = await prisma.company.findUnique({ where: { tenantId: req.params.id } });
 
@@ -139,6 +139,14 @@ platformRouter.patch('/tenants/:id/company', async (req: Request, res: Response)
   if (primaryContactName !== undefined) data.primaryContactName = primaryContactName.trim();
   if (primaryContactEmail !== undefined) data.primaryContactEmail = primaryContactEmail.trim();
   if (primaryContactPhone !== undefined) data.primaryContactPhone = primaryContactPhone?.trim() || null;
+  if (currency !== undefined) {
+    const code = String(currency).trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(code)) {
+      res.status(400).json({ error: 'currency must be a 3-letter ISO 4217 code' });
+      return;
+    }
+    data.currency = code;
+  }
 
   if (Object.keys(data).length === 0) {
     res.status(400).json({ error: 'No fields to update' });

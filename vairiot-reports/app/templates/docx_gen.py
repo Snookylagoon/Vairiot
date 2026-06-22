@@ -233,7 +233,7 @@ def generate_docx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
             _set_cell_border_left(cell, accent_colours[i % len(accent_colours)])
 
             val = req.summary.get(sf["key"], "")
-            formatted = format_value(val, sf.get("type", ColType.TEXT))
+            formatted = format_value(val, sf.get("type", ColType.TEXT), req.currency)
 
             p_val = cell.paragraphs[0]
             p_val.space_before = Pt(4)
@@ -300,7 +300,7 @@ def generate_docx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
             p.alignment = _col_align(col_def.col_type)
 
             raw_val = row_data.get(col_def.key)
-            formatted = format_value(raw_val, col_def.col_type)
+            formatted = format_value(raw_val, col_def.col_type, req.currency)
 
             font_name = "IBM Plex Mono" if col_def.col_type in (
                 ColType.CURRENCY, ColType.NUMBER, ColType.INTEGER
@@ -323,13 +323,13 @@ def generate_docx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
             if col_idx == 0:
                 label = report_def.totals_label
                 if "count" in req.totals:
-                    label = f"{label} ({format_value(req.totals['count'], ColType.INTEGER)} assets)"
+                    label = f"{label} ({format_value(req.totals['count'], ColType.INTEGER, req.currency)} assets)"
                 _add_run(p, label, size_pt=8, bold=True, colour=_C_WHITE)
             elif col_def.key in req.totals:
                 font_name = "IBM Plex Mono" if col_def.col_type in (
                     ColType.CURRENCY, ColType.NUMBER, ColType.INTEGER
                 ) else "Montserrat"
-                _add_run(p, format_value(req.totals[col_def.key], col_def.col_type),
+                _add_run(p, format_value(req.totals[col_def.key], col_def.col_type, req.currency),
                          font_name=font_name, size_pt=8, bold=True, colour=_C_WHITE)
 
         _set_row_height(totals_row, 7.0)

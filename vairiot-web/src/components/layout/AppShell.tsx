@@ -77,7 +77,7 @@ function loadCollapsed(): Record<string, boolean> {
 
 export function AppShell() {
   const { user, logout } = useAuthStore();
-  const { currencyCode, setCurrency } = useCurrencyStore();
+  const { currencyCode, setCurrencyPersist } = useCurrencyStore();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
   const location = useLocation();
@@ -185,7 +185,7 @@ export function AppShell() {
             <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1">Currency</label>
             <select
               value={currencyCode}
-              onChange={e => setCurrency(e.target.value)}
+              onChange={e => { void setCurrencyPersist(e.target.value); }}
               className="w-full text-xs rounded-lg border border-white/10 bg-white/5 text-gray-300 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-v-pink appearance-none cursor-pointer"
             >
               {CURRENCIES.map(c => (

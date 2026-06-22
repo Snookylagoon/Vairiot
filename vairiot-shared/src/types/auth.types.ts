@@ -9,6 +9,7 @@ export interface UserProfile {
   email: string;
   tenantId: string;
   tenantName: string;
+  currency?: string;
   roles: string[];
   permissions: string[];
   featureFlags?: Record<string, boolean>;

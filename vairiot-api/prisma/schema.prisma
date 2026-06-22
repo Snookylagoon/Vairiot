@@ -794,6 +794,7 @@ model Company {
   primaryContactEmail String
   primaryContactPhone String?
   logoStorageKey     String?
+  currency           String   @default("USD")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

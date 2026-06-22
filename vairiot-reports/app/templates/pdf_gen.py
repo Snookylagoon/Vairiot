@@ -342,7 +342,7 @@ def generate_pdf(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
         metric_data = []
         for sf in report_def.summary_fields:
             val = req.summary.get(sf["key"], "")
-            formatted = format_value(val, sf.get("type", ColType.TEXT))
+            formatted = format_value(val, sf.get("type", ColType.TEXT), req.currency)
             cell_content = [
                 Paragraph(formatted, ParagraphStyle(
                     "sv", parent=STYLE_SUMMARY_VALUE, alignment=TA_CENTER,
@@ -399,7 +399,7 @@ def generate_pdf(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
         row_cells = []
         for col_def in report_def.columns:
             raw_val = row_data.get(col_def.key)
-            formatted = format_value(raw_val, col_def.col_type)
+            formatted = format_value(raw_val, col_def.col_type, req.currency)
             style = _data_style(col_def.col_type)
             row_cells.append(Paragraph(formatted, style))
         table_data.append(row_cells)
@@ -411,12 +411,12 @@ def generate_pdf(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
             if i == 0:
                 label = report_def.totals_label
                 if "count" in req.totals:
-                    label = f"{label} ({format_value(req.totals['count'], ColType.INTEGER)} assets)"
+                    label = f"{label} ({format_value(req.totals['count'], ColType.INTEGER, req.currency)} assets)"
                 totals_cells.append(Paragraph(label, STYLE_TOTALS))
             elif col_def.key in req.totals:
                 style = _totals_style(col_def.col_type)
                 totals_cells.append(Paragraph(
-                    format_value(req.totals[col_def.key], col_def.col_type), style,
+                    format_value(req.totals[col_def.key], col_def.col_type, req.currency), style,
                 ))
             else:
                 totals_cells.append(Paragraph("", STYLE_TOTALS))

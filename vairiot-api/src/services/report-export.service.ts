@@ -33,6 +33,14 @@ async function getCompanyInfo(tenantId: string) {
   };
 }
 
+async function getTenantCurrency(tenantId: string): Promise<string> {
+  const company = await prisma.company.findUnique({
+    where: { tenantId },
+    select: { currency: true },
+  });
+  return company?.currency ?? 'USD';
+}
+
 async function getTenantName(tenantId: string): Promise<string> {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
@@ -41,8 +49,9 @@ async function getTenantName(tenantId: string): Promise<string> {
   return tenant?.name ?? '';
 }
 
-async function callReportService(payload: Record<string, unknown>): Promise<Buffer> {
-  const response = await axios.post(`${REPORT_SERVICE_URL}/generate`, payload, {
+async function callReportService(tenantId: string, payload: Record<string, unknown>): Promise<Buffer> {
+  const currency = await getTenantCurrency(tenantId);
+  const response = await axios.post(`${REPORT_SERVICE_URL}/generate`, { currency, ...payload }, {
     responseType: 'arraybuffer',
     timeout: 60000,
   });
@@ -80,7 +89,7 @@ export async function exportFixedAssetRegister(tenantId: string, opts: ExportOpt
     getTenantName(tenantId),
   ]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'fixed-asset-register',
     format: opts.format,
     rows: serialized,
@@ -120,7 +129,7 @@ export async function exportDepreciationSchedule(tenantId: string, opts: ExportO
     getTenantName(tenantId),
   ]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'depreciation-schedule',
     format: opts.format,
     rows: serialized,
@@ -152,7 +161,7 @@ export async function exportAssetAging(tenantId: string, opts: ExportOpts): Prom
     getTenantName(tenantId),
   ]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'asset-aging',
     format: opts.format,
     rows: serialized,
@@ -236,7 +245,7 @@ export async function exportAssetValuationSummary(tenantId: string, opts: Export
     getTenantName(tenantId),
   ]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'asset-valuation-summary',
     format: opts.format,
     rows,
@@ -326,7 +335,7 @@ export async function exportAssetMovementHistory(tenantId: string, opts: ExportO
     getTenantName(tenantId),
   ]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'asset-movement-history',
     format: opts.format,
     rows,
@@ -390,7 +399,7 @@ export async function exportAssetCondition(tenantId: string, opts: ExportOpts): 
     getTenantName(tenantId),
   ]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'asset-condition',
     format: opts.format,
     rows,
@@ -461,7 +470,7 @@ export async function exportCustomFields(tenantId: string, opts: ExportOpts): Pr
     getTenantName(tenantId),
   ]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'custom-fields',
     format: opts.format,
     rows,
@@ -512,7 +521,7 @@ export async function exportDisposalRegister(tenantId: string, opts: ExportOpts)
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'disposal-register', format: opts.format, rows,
     totals: { count: rows.length, disposalValue: round2(totalDisposalValue), netBookValueAtDisposal: round2(totalNBV), gainLoss: round2(totalGainLoss) },
     summary: { totalDisposals: rows.length, totalDisposalValue: round2(totalDisposalValue), totalNBV: round2(totalNBV), totalGainLoss: round2(totalGainLoss) },
@@ -544,7 +553,7 @@ export async function exportDisposalGainLoss(tenantId: string, opts: ExportOpts)
   const net = rows.reduce((a, r) => a + r.totalGain + r.totalLoss, 0);
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'disposal-gain-loss', format: opts.format, rows,
     totals: { count: disposals.length, totalDisposal: round2(rows.reduce((a, r) => a + r.totalDisposal, 0)), totalNBV: round2(rows.reduce((a, r) => a + r.totalNBV, 0)), totalGain: round2(rows.reduce((a, r) => a + r.totalGain, 0)), totalLoss: round2(rows.reduce((a, r) => a + r.totalLoss, 0)) },
     summary: { netGainLoss: round2(net), avgGainLoss: disposals.length > 0 ? round2(net / disposals.length) : 0, totalDisposals: disposals.length },
@@ -575,7 +584,7 @@ export async function exportDisposalByMethod(tenantId: string, opts: ExportOpts)
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'disposal-by-method', format: opts.format, rows,
     totals: { count: disposals.length, totalValue: round2(grandTotal), avgValue: disposals.length > 0 ? round2(grandTotal / disposals.length) : 0, pctOfTotal: 100 },
     summary: { totalDisposals: disposals.length, totalValue: round2(grandTotal) },
@@ -619,7 +628,7 @@ export async function exportAuditCampaignSummary(tenantId: string, opts: ExportO
   const avgAcc = rows.length > 0 ? round2(rows.reduce((a, r) => a + r.accuracy, 0) / rows.length) : 0;
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'audit-campaign-summary', format: opts.format, rows,
     summary: { totalCampaigns: rows.length, avgAccuracy: avgAcc, totalScanned },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -661,7 +670,7 @@ export async function exportAuditReconciliation(tenantId: string, opts: ExportOp
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'audit-reconciliation', format: opts.format, rows,
     summary: { matched, missing, moved, unexpected },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -710,7 +719,7 @@ export async function exportAuditScanLog(tenantId: string, opts: ExportOpts): Pr
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'audit-scan-log', format: opts.format, rows,
     summary: { totalScans: rows.length, matchedScans, unknownScans },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -738,7 +747,7 @@ export async function exportMaintenanceLog(tenantId: string, opts: ExportOpts): 
   const totalCost = rows.reduce((a, r) => a + r.cost, 0);
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'maintenance-log', format: opts.format, rows,
     totals: { count: rows.length, cost: round2(totalCost) },
     summary: { totalEvents: rows.length, totalCost: round2(totalCost), avgCost: rows.length > 0 ? round2(totalCost / rows.length) : 0 },
@@ -772,7 +781,7 @@ export async function exportMaintenanceCostSummary(tenantId: string, opts: Expor
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'maintenance-cost-summary', format: opts.format, rows,
     totals: { eventCount: events.length, totalCost: round2(grandTotal), avgCost: events.length > 0 ? round2(grandTotal / events.length) : 0, pctOfTotal: 100 },
     summary: { grandTotal: round2(grandTotal), totalEvents: events.length },
@@ -806,7 +815,7 @@ export async function exportMaintenanceSchedule(tenantId: string, opts: ExportOp
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'maintenance-schedule', format: opts.format, rows,
     summary: { overdueCount, upcomingCount, totalScheduled: rows.length },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -843,7 +852,7 @@ export async function exportCheckoutLog(tenantId: string, opts: ExportOpts): Pro
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'checkout-log', format: opts.format, rows,
     summary: { totalCheckouts: rows.length, currentlyOut, overdueCount },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -882,7 +891,7 @@ export async function exportCurrentCheckouts(tenantId: string, opts: ExportOpts)
   const overdueCount = rows.filter(r => r.overdue === 'Yes').length;
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'current-checkouts', format: opts.format, rows,
     summary: { totalOut: rows.length, overdueCount },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -926,7 +935,7 @@ export async function exportCheckoutHistoryByAsset(tenantId: string, opts: Expor
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'checkout-history-by-asset', format: opts.format, rows,
     totals: { totalCheckouts: checkouts.length },
     summary: { totalAssets: rows.length, totalCheckouts: checkouts.length },
@@ -959,7 +968,7 @@ export async function exportLicenceRegister(tenantId: string, opts: ExportOpts):
   const expiredCount = rows.filter(r => r.status === 'expired').length;
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'licence-register', format: opts.format, rows,
     summary: { totalLicences: rows.length, activeLicences, expiredCount },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -991,7 +1000,7 @@ export async function exportLicenceExpiry(tenantId: string, opts: ExportOpts): P
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'licence-expiry', format: opts.format, rows,
     summary: { expiringCount, expiredCount, totalRevenue: round2(totalRevenue) },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -1027,7 +1036,7 @@ export async function exportDeviceAllocation(tenantId: string, opts: ExportOpts)
   const activeDevices = rows.filter(r => r.active === 'Yes').length;
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'device-allocation', format: opts.format, rows,
     totals: { deviceName: rows.length },
     summary: { totalDevices: rows.length, activeDevices },
@@ -1061,7 +1070,7 @@ export async function exportTenantRegister(tenantId: string, opts: ExportOpts): 
   const activeTenants = rows.filter(r => r.active === 'Yes').length;
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'tenant-register', format: opts.format, rows,
     summary: { totalTenants: rows.length, activeTenants },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -1106,7 +1115,7 @@ export async function exportTenantActivity(tenantId: string, opts: ExportOpts): 
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'tenant-activity', format: opts.format, rows,
     totals: { assetCount: totalAssets, userCount: totalUsers, totalAssetValue: round2(totalValue) },
     summary: { totalAssets, totalUsers, totalValue: round2(totalValue) },
@@ -1140,7 +1149,7 @@ export async function exportUserRegister(tenantId: string, opts: ExportOpts): Pr
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'user-register', format: opts.format, rows,
     summary: { totalUsers: rows.length, activeUsers, lockedUsers },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -1174,7 +1183,7 @@ export async function exportUserAccessReport(tenantId: string, opts: ExportOpts)
   const usersWithOverrides = rows.filter(r => r.overrides !== 'None').length;
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'user-access-report', format: opts.format, rows,
     summary: { totalUsers: rows.length, usersWithOverrides },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -1218,7 +1227,7 @@ export async function exportUserActivityLog(tenantId: string, opts: ExportOpts):
   const uniqueUsers = new Set(events.map(e => e.actorId).filter(Boolean)).size;
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'user-activity-log', format: opts.format, rows,
     summary: { totalEvents: rows.length, uniqueUsers },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -1249,7 +1258,7 @@ export async function exportExceptionSummary(tenantId: string, opts: ExportOpts)
   const criticalCount = rows.filter(r => r.severity === 'Critical').reduce((a, r) => a + r.count, 0);
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'exception-summary', format: opts.format, rows,
     totals: { count: rows.reduce((a, r) => a + r.count, 0) },
     summary: { totalExceptions: rows.reduce((a, r) => a + r.count, 0), criticalCount },
@@ -1277,7 +1286,7 @@ export async function exportAlertSubscriptions(tenantId: string, opts: ExportOpt
   const activeSubs = rows.filter(r => r.active === 'Yes').length;
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'alert-subscriptions', format: opts.format, rows,
     summary: { totalSubs: rows.length, activeSubs },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,
@@ -1314,7 +1323,7 @@ export async function exportCompanyProfile(tenantId: string, opts: ExportOpts): 
     city: company.city ?? '', country: company.country ?? '',
   } : {};
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'company-profile', format: opts.format, rows,
     summary: {}, filters: opts.filters ?? {},
     company: companyInfo, tenant_name: tenant?.name ?? '',
@@ -1357,7 +1366,7 @@ export async function exportComplianceOverview(tenantId: string, opts: ExportOpt
 
   const [company, tenantName] = await Promise.all([getCompanyInfo(tenantId), getTenantName(tenantId)]);
 
-  return callReportService({
+  return callReportService(tenantId, {
     report_type: 'compliance-overview', format: opts.format, rows,
     summary: { overallCompliance, areasCompliant, areasAtRisk },
     filters: opts.filters ?? {}, company, tenant_name: tenantName,

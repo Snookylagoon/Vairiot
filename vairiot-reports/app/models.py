@@ -47,3 +47,4 @@ class ReportRequest(BaseModel):
     extra_columns: list[dict[str, Any]] = Field(default_factory=list)
     generated_by: str = ""
     tenant_name: str = ""
+    currency: str = "USD"

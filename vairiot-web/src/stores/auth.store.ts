@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api';
 import type { UserProfile } from 'vairiot-shared';
+import { useCurrencyStore } from './currency.store';
+
+function syncCurrencyFromUser(user: { currency?: string } | null) {
+  if (user?.currency) {
+    useCurrencyStore.getState().setCurrency(user.currency);
+  }
+}
 
 export function hasAnyPermission(user: UserProfile | null, ...required: string[]): boolean {
   if (!user) return false;
@@ -27,6 +34,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('vairiot_access_token',  data.accessToken);
     localStorage.setItem('vairiot_refresh_token', data.refreshToken);
     const me = await api.get('/api/v1/auth/me');
+    syncCurrencyFromUser(me.data);
     set({ user: me.data, onboardingRequired: false });
   },
 
@@ -46,6 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (!token) { set({ loading: false }); return; }
     try {
       const { data } = await api.get('/api/v1/auth/me');
+      syncCurrencyFromUser(data);
       set({ user: data, loading: false, onboardingRequired: false });
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status;
@@ -53,6 +62,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         // 403 from onboarding guard — user is authenticated but onboarding incomplete
         try {
           const { data } = await api.get('/api/v1/auth/me');
+          syncCurrencyFromUser(data);
           set({ user: data, loading: false, onboardingRequired: true });
           return;
         } catch { /* fall through */ }

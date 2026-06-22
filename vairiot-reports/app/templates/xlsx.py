@@ -240,7 +240,7 @@ def generate_xlsx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
                                end_row=current_row, end_column=end_col)
             cell = ws.cell(row=current_row, column=col_idx)
             val = req.summary.get(sf["key"], "")
-            formatted = format_value(val, sf.get("type", ColType.TEXT))
+            formatted = format_value(val, sf.get("type", ColType.TEXT), req.currency)
             cell.value = f"{sf['label']}\n{formatted}"
             cell.font = _FONT_SUMMARY_VALUE
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -278,7 +278,7 @@ def generate_xlsx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
             raw_val = row_data.get(col_def.key)
 
             # Write formatted string for display
-            cell.value = format_value(raw_val, col_def.col_type)
+            cell.value = format_value(raw_val, col_def.col_type, req.currency)
             cell.font = _col_font(col_def.col_type)
             cell.fill = row_fill
             cell.alignment = _col_alignment(col_def.col_type)
@@ -294,10 +294,10 @@ def generate_xlsx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
             if col_idx == 0:
                 label = report_def.totals_label
                 if "count" in req.totals:
-                    label = f"{label} ({format_value(req.totals['count'], ColType.INTEGER)} assets)"
+                    label = f"{label} ({format_value(req.totals['count'], ColType.INTEGER, req.currency)} assets)"
                 cell.value = label
             elif col_def.key in req.totals:
-                cell.value = format_value(req.totals[col_def.key], col_def.col_type)
+                cell.value = format_value(req.totals[col_def.key], col_def.col_type, req.currency)
             else:
                 cell.value = ""
             cell.font = _col_font(col_def.col_type, is_totals=True)

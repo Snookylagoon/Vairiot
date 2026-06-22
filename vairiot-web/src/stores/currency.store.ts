@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { api } from '@/lib/api';
 
 export interface CurrencyInfo {
   code: string;
@@ -55,7 +56,10 @@ export const CURRENCIES: CurrencyInfo[] = [
 
 interface CurrencyState {
   currencyCode: string;
+  /** Local-only update — used when hydrating from /auth/me. */
   setCurrency: (code: string) => void;
+  /** Update locally AND persist to the tenant (used by the sidebar dropdown). */
+  setCurrencyPersist: (code: string) => Promise<void>;
 }
 
 export const useCurrencyStore = create<CurrencyState>()(
@@ -63,6 +67,14 @@ export const useCurrencyStore = create<CurrencyState>()(
     (set) => ({
       currencyCode: 'GBP',
       setCurrency: (code: string) => set({ currencyCode: code }),
+      setCurrencyPersist: async (code: string) => {
+        set({ currencyCode: code });
+        try {
+          await api.patch('/api/v1/auth/currency', { currency: code });
+        } catch {
+          // best-effort — local state still reflects the choice
+        }
+      },
     }),
     { name: 'vairiot-currency' },
   ),

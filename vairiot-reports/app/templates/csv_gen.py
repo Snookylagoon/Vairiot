@@ -24,7 +24,7 @@ def generate_csv(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
     # Data rows
     for row in req.rows:
         writer.writerow([
-            format_value(row.get(c.key), c.col_type)
+            format_value(row.get(c.key), c.col_type, req.currency)
             for c in report_def.columns
         ])
 
@@ -35,7 +35,7 @@ def generate_csv(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
             if i == 0:
                 totals_row.append(report_def.totals_label)
             elif c.key in req.totals:
-                totals_row.append(format_value(req.totals[c.key], c.col_type))
+                totals_row.append(format_value(req.totals[c.key], c.col_type, req.currency))
             else:
                 totals_row.append("")
         writer.writerow(totals_row)

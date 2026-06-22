@@ -79,7 +79,7 @@ authRouter.get('/me', authenticate, asyncHandler(async (req: Request, res: Respo
   const { prisma } = await import('../../lib/prisma');
   const tenant = await prisma.tenant.findUnique({
     where: { id: req.user!.tenantId },
-    select: { name: true, featureFlags: true, company: { select: { legalName: true } } },
+    select: { name: true, featureFlags: true, company: { select: { legalName: true, currency: true } } },
   });
   const flags = (tenant?.featureFlags && typeof tenant.featureFlags === 'object' && !Array.isArray(tenant.featureFlags))
     ? tenant.featureFlags as Record<string, boolean>
@@ -89,10 +89,42 @@ authRouter.get('/me', authenticate, asyncHandler(async (req: Request, res: Respo
     email: req.user!.email,
     tenantId: req.user!.tenantId,
     tenantName: tenant?.company?.legalName ?? tenant?.name ?? req.user!.tenantId,
+    currency: tenant?.company?.currency ?? 'USD',
     roles: req.user!.roles,
     permissions: req.user!.permissions,
     featureFlags: flags,
   });
+}));
+
+// Tenant-scoped currency setting — any authenticated user of the tenant may set it.
+authRouter.patch('/currency', authenticate, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const code = String(req.body?.currency ?? '').trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) {
+    res.status(400).json({ error: 'currency must be a 3-letter ISO 4217 code' });
+    return;
+  }
+  const { prisma } = await import('../../lib/prisma');
+  const tenantId = req.user!.tenantId;
+  const existing = await prisma.company.findUnique({ where: { tenantId } });
+  if (existing) {
+    await prisma.company.update({ where: { tenantId }, data: { currency: code } });
+  } else {
+    // Company not yet registered — store currency on a stub so it persists; legalName placeholder uses tenant name.
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+    await prisma.company.create({
+      data: {
+        tenantId,
+        legalName: tenant?.name ?? tenantId,
+        addressLine1: '',
+        city: '',
+        country: '',
+        primaryContactName: '',
+        primaryContactEmail: '',
+        currency: code,
+      },
+    });
+  }
+  res.json({ currency: code });
 }));
 
 authRouter.post('/logout', authenticate,
