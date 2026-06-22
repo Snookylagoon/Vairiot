@@ -54,6 +54,25 @@ export function createApp(): Application {
   app.use('/api/v1/health',       healthRouter);
   app.use('/api/v1/auth',         authRouter);
 
+  // ── Public tenant logo (img tag can't send Authorization header) ──
+  app.get('/api/v1/public/tenants/:id/logo', async (req, res) => {
+    try {
+      const { prisma } = await import('./lib/prisma');
+      const { minioClient, PHOTO_BUCKET } = await import('./lib/minio');
+      const { Readable } = await import('stream');
+      const company = await prisma.company.findUnique({ where: { tenantId: req.params.id } });
+      if (!company?.logoStorageKey) { res.status(404).json({ error: 'No logo' }); return; }
+      const stream = await minioClient.getObject(PHOTO_BUCKET, company.logoStorageKey);
+      const ext = company.logoStorageKey.split('.').pop();
+      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      (stream as InstanceType<typeof Readable>).pipe(res);
+    } catch {
+      res.status(404).json({ error: 'No logo' });
+    }
+  });
+
   // ── Auth-required but onboarding-exempt (needed DURING onboarding) ──
   app.use('/api/v1/onboarding',   authenticate, onboardingRouter);
   app.use('/api/v1/2fa',          authenticate, twoFactorRouter);

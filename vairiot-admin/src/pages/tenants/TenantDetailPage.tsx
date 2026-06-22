@@ -156,7 +156,7 @@ export function TenantDetailPage() {
               <div className="w-16 h-16 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
                 {tenant.company?.logoStorageKey ? (
                   <img
-                    src={`/api/v1/admin/platform/tenants/${tenant.id}/logo?t=${Date.now()}`}
+                    src={`/api/v1/public/tenants/${tenant.id}/logo?t=${Date.now()}`}
                     alt="Company logo"
                     className="w-full h-full object-contain"
                   />
