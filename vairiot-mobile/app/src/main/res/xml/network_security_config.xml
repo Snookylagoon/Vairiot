@@ -1,16 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Production: trust the Vairiot server's self-signed certificate for its IP.
-         System certificates still trusted for everything else. -->
-    <domain-config>
-        <domain includeSubdomains="false">81.85.92.155</domain>
-        <trust-anchors>
-            <certificates src="@raw/vairiot_cert" />
-            <certificates src="system" />
-        </trust-anchors>
-    </domain-config>
-
-    <!-- Default for all other hosts: standard system trust, no cleartext. -->
+    <!-- Production server now uses a real Let's Encrypt certificate on
+         vai.vairiot.com, so the system trust store is sufficient.
+         No cleartext traffic anywhere. -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
