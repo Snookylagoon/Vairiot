@@ -30,6 +30,9 @@ COPY vairiot-api/package.json ./vairiot-api/
 
 RUN npm install --omit=dev --workspace=vairiot-worker
 
+# Copy generated Prisma client from builder (postinstall ran during builder's full npm install)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY --from=builder /app/vairiot-shared/dist ./vairiot-shared/dist
 COPY --from=builder /app/vairiot-shared/package.json ./vairiot-shared/
 COPY --from=builder /app/vairiot-worker/dist ./vairiot-worker/dist
