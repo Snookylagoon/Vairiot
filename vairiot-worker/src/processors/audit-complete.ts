@@ -1,6 +1,6 @@
 import { Job } from 'bullmq';
 import { logger } from '../logger';
-import { getMailer, FROM_ADDRESS } from '../mailer';
+import { getMailer, getFromAddress } from '../mailer';
 import { AuditCompleteJob } from '../queues';
 
 export async function handleAuditComplete(job: Job<AuditCompleteJob>): Promise<void> {
@@ -22,8 +22,10 @@ export async function handleAuditComplete(job: Job<AuditCompleteJob>): Promise<v
     `— Vairiot`,
   ].join('\n');
 
-  const info = await getMailer().sendMail({
-    from: FROM_ADDRESS,
+  const mailer = await getMailer();
+  const fromAddress = await getFromAddress();
+  const info = await mailer.sendMail({
+    from: fromAddress,
     to: recipientEmail,
     subject,
     text,

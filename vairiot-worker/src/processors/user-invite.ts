@@ -1,6 +1,6 @@
 import { Job } from 'bullmq';
 import { logger } from '../logger';
-import { getMailer, FROM_ADDRESS } from '../mailer';
+import { getMailer, getFromAddress } from '../mailer';
 import { UserInviteJob } from '../queues';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3000';
@@ -28,8 +28,10 @@ export async function handleUserInvite(job: Job<UserInviteJob>): Promise<void> {
     '— Vairiot',
   ].join('\n');
 
-  const info = await getMailer().sendMail({
-    from: FROM_ADDRESS,
+  const mailer = await getMailer();
+  const fromAddress = await getFromAddress();
+  const info = await mailer.sendMail({
+    from: fromAddress,
     to: recipientEmail,
     subject,
     text,

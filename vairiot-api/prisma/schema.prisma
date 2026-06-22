@@ -919,3 +919,21 @@ model LoginAttempt {
   @@index([ipAddress, createdAt])
   @@map("login_attempts")
 }
+
+// ─── Platform SMTP Config (singleton row, id = "singleton") ──────────────────
+model SmtpConfig {
+  id               String    @id @default("singleton")
+  host             String
+  port             Int       @default(587)
+  secure           Boolean   @default(false)
+  username         String?
+  passwordEnc      String?
+  fromAddress      String
+  active           Boolean   @default(true)
+  lastVerifiedAt   DateTime?
+  lastVerifyError  String?
+  updatedAt        DateTime  @updatedAt
+  updatedByUserId  String?
+
+  @@map("smtp_config")
+}

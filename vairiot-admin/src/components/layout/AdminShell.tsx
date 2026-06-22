@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Building2, BadgeCheck, Users, ScrollText, LogOut, Menu } from 'lucide-react';
+import { LayoutDashboard, Building2, BadgeCheck, Users, ScrollText, Mail, LogOut, Menu } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import clsx from 'clsx';
@@ -13,6 +13,7 @@ const nav = [
   { to: '/licences',   label: 'Licences',    icon: BadgeCheck },
   { to: '/users',      label: 'Users',       icon: Users },
   { to: '/audit-log',  label: 'Audit Log',   icon: ScrollText },
+  { to: '/smtp',       label: 'SMTP',        icon: Mail },
 ] as const;
 
 export function AdminShell() {

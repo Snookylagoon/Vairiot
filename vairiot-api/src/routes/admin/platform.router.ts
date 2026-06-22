@@ -23,6 +23,12 @@ import {
   activateOnboardingLicence,
   completeOnboarding,
 } from '../../services/onboarding.service';
+import {
+  getSmtpConfig,
+  upsertSmtpConfig,
+  verifySmtp,
+  sendTestEmail,
+} from '../../services/smtp.service';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../lib/errors';
 import { minioClient, PHOTO_BUCKET } from '../../lib/minio';
@@ -364,4 +370,43 @@ platformRouter.post('/tenants/:id/onboarding/licence', async (req: Request, res:
 platformRouter.post('/tenants/:id/onboarding/complete', async (req: Request, res: Response) => {
   const status = await completeOnboarding(req.params.id, req.user!.sub);
   res.json(status);
+});
+
+// ─── SMTP Config ────────────────────────────────────────────────────────────
+
+platformRouter.get('/smtp', async (_req: Request, res: Response) => {
+  res.json(await getSmtpConfig());
+});
+
+platformRouter.put('/smtp', async (req: Request, res: Response) => {
+  const { host, port, secure, username, password, fromAddress, active } = req.body ?? {};
+  if (!host?.trim()) { res.status(400).json({ error: 'host is required' }); return; }
+  if (!fromAddress?.trim()) { res.status(400).json({ error: 'fromAddress is required' }); return; }
+  const portNum = Number(port);
+  if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+    res.status(400).json({ error: 'port must be 1-65535' }); return;
+  }
+  const view = await upsertSmtpConfig(
+    {
+      host: host.trim(),
+      port: portNum,
+      secure: !!secure,
+      username: username?.trim() || null,
+      password: password === undefined ? null : password,
+      fromAddress: fromAddress.trim(),
+      active: active !== false,
+    },
+    req.user!.sub,
+  );
+  res.json(view);
+});
+
+platformRouter.post('/smtp/verify', async (_req: Request, res: Response) => {
+  res.json(await verifySmtp());
+});
+
+platformRouter.post('/smtp/test', async (req: Request, res: Response) => {
+  const to = (req.body?.to ?? '').trim();
+  if (!to) { res.status(400).json({ error: 'to is required' }); return; }
+  res.json(await sendTestEmail(to));
 });
