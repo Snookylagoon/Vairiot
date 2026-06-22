@@ -59,9 +59,9 @@ _FONT_SUMMARY_VALUE = Font(name="Montserrat", size=12, bold=True, color="615AA0"
 _FONT_SUMMARY_LABEL = Font(name="Montserrat", size=7, color="888888")
 _FONT_COL_HEADER    = Font(name="Montserrat", size=8, bold=True, color="FFFFFF")
 _FONT_DATA          = Font(name="Montserrat", size=8, color="2B3132")
-_FONT_DATA_MONO     = Font(name="IBM Plex Mono", size=8, color="2B3132")
+_FONT_DATA_MONO     = Font(name="Montserrat", size=8, color="2B3132")
 _FONT_TOTALS        = Font(name="Montserrat", size=8, bold=True, color="FFFFFF")
-_FONT_TOTALS_MONO   = Font(name="IBM Plex Mono", size=8, bold=True, color="FFFFFF")
+_FONT_TOTALS_MONO   = Font(name="Montserrat", size=8, bold=True, color="FFFFFF")
 _FONT_FOOTER        = Font(name="Montserrat", size=7, color="888888")
 
 

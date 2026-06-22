@@ -17,6 +17,27 @@ import io
 from datetime import date
 
 from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase.pdfmetrics import registerFontFamily
+
+# Register Montserrat (Vairiot brand font). If the TTFs aren't present
+# (e.g. running outside the container), ReportLab silently keeps using
+# the built-in PostScript fonts.
+_MONTS_DIR = "/usr/share/fonts/truetype/montserrat"
+try:
+    pdfmetrics.registerFont(TTFont("Montserrat", f"{_MONTS_DIR}/Montserrat-Regular.ttf"))
+    pdfmetrics.registerFont(TTFont("Montserrat-Bold", f"{_MONTS_DIR}/Montserrat-Bold.ttf"))
+    registerFontFamily(
+        "Montserrat",
+        normal="Montserrat",
+        bold="Montserrat-Bold",
+        italic="Montserrat",
+        boldItalic="Montserrat-Bold",
+    )
+except Exception:
+    pass
+
 from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle
@@ -59,59 +80,59 @@ C_AMBER    = _c(BRAND.amber)
 # ── Paragraph styles ─────────────────────────────────────────────────────────
 
 STYLE_HEADER_BRAND = ParagraphStyle(
-    "HeaderBrand", fontName="Helvetica-Bold", fontSize=16,
+    "HeaderBrand", fontName="Montserrat-Bold", fontSize=16,
     textColor=C_WHITE, leading=20,
 )
 STYLE_HEADER_SUB = ParagraphStyle(
-    "HeaderSub", fontName="Helvetica", fontSize=7,
+    "HeaderSub", fontName="Montserrat", fontSize=7,
     textColor=colors.Color(1, 1, 1, 0.8), leading=9,
 )
 STYLE_TITLE = ParagraphStyle(
-    "Title", fontName="Helvetica-Bold", fontSize=14,
+    "Title", fontName="Montserrat-Bold", fontSize=14,
     textColor=C_VIOLET, leading=18, spaceAfter=2 * mm,
 )
 STYLE_META = ParagraphStyle(
-    "Meta", fontName="Helvetica", fontSize=7,
+    "Meta", fontName="Montserrat", fontSize=7,
     textColor=C_GREY, leading=9, spaceAfter=3 * mm,
 )
 STYLE_SUMMARY_VALUE = ParagraphStyle(
-    "SummaryValue", fontName="Helvetica-Bold", fontSize=12,
+    "SummaryValue", fontName="Montserrat-Bold", fontSize=12,
     textColor=C_VIOLET, leading=15, alignment=TA_CENTER,
 )
 STYLE_SUMMARY_LABEL = ParagraphStyle(
-    "SummaryLabel", fontName="Helvetica", fontSize=6,
+    "SummaryLabel", fontName="Montserrat", fontSize=6,
     textColor=C_GREY, leading=8, alignment=TA_CENTER,
 )
 STYLE_COL_HEADER = ParagraphStyle(
-    "ColHeader", fontName="Helvetica-Bold", fontSize=7,
+    "ColHeader", fontName="Montserrat-Bold", fontSize=7,
     textColor=C_WHITE, leading=9,
 )
 STYLE_DATA = ParagraphStyle(
-    "Data", fontName="Helvetica", fontSize=7,
+    "Data", fontName="Montserrat", fontSize=7,
     textColor=C_CHARCOAL, leading=9,
 )
 STYLE_DATA_MONO = ParagraphStyle(
-    "DataMono", fontName="Courier", fontSize=7,
+    "DataMono", fontName="Montserrat", fontSize=7,
     textColor=C_CHARCOAL, leading=9,
 )
 STYLE_TOTALS = ParagraphStyle(
-    "Totals", fontName="Helvetica-Bold", fontSize=7,
+    "Totals", fontName="Montserrat-Bold", fontSize=7,
     textColor=C_WHITE, leading=9,
 )
 STYLE_TOTALS_MONO = ParagraphStyle(
-    "TotalsMono", fontName="Courier-Bold", fontSize=7,
+    "TotalsMono", fontName="Montserrat-Bold", fontSize=7,
     textColor=C_WHITE, leading=9,
 )
 STYLE_FOOTER = ParagraphStyle(
-    "Footer", fontName="Helvetica", fontSize=6,
+    "Footer", fontName="Montserrat", fontSize=6,
     textColor=C_GREY, leading=7,
 )
 STYLE_AUTH_TITLE = ParagraphStyle(
-    "AuthTitle", fontName="Helvetica-Bold", fontSize=11,
+    "AuthTitle", fontName="Montserrat-Bold", fontSize=11,
     textColor=C_VIOLET, leading=14, spaceAfter=2 * mm,
 )
 STYLE_AUTH_LABEL = ParagraphStyle(
-    "AuthLabel", fontName="Helvetica", fontSize=7,
+    "AuthLabel", fontName="Montserrat", fontSize=7,
     textColor=C_GREY, leading=9,
 )
 
@@ -174,7 +195,7 @@ class _VairiotDocTemplate(BaseDocTemplate):
 
         # Footer text
         footer_y = bar_y - 3 * mm
-        canvas.setFont("Helvetica", 5.5)
+        canvas.setFont("Montserrat", 5.5)
         canvas.setFillColor(C_GREY)
 
         company_line = "Confidential"
@@ -271,10 +292,10 @@ def generate_pdf(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
 
     sub_data = [[
         Paragraph("ASSET INTELLIGENCE", ParagraphStyle(
-            "sub", fontName="Helvetica", fontSize=7, textColor=_c("#888888"),
+            "sub", fontName="Montserrat", fontSize=7, textColor=_c("#888888"),
         )),
         Paragraph(company_text, ParagraphStyle(
-            "co", fontName="Helvetica", fontSize=8, textColor=_c("#2B3132"), alignment=TA_RIGHT,
+            "co", fontName="Montserrat", fontSize=8, textColor=_c("#2B3132"), alignment=TA_RIGHT,
         )) if company_text else "",
     ]]
     sub_table = Table(sub_data, colWidths=[frame_w * 0.4, frame_w * 0.6])
@@ -290,10 +311,10 @@ def generate_pdf(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
     # Report title bar (violet background)
     title_data = [[
         Paragraph(report_def.title, ParagraphStyle(
-            "rt", fontName="Helvetica-Bold", fontSize=11, textColor=colors.white,
+            "rt", fontName="Montserrat-Bold", fontSize=11, textColor=colors.white,
         )),
         Paragraph(f"Generated: {date.today().strftime('%d %b %Y')}", ParagraphStyle(
-            "rd", fontName="Helvetica", fontSize=8, textColor=colors.white, alignment=TA_RIGHT,
+            "rd", fontName="Montserrat", fontSize=8, textColor=colors.white, alignment=TA_RIGHT,
         )),
     ]]
     title_table = Table(title_data, colWidths=[frame_w * 0.6, frame_w * 0.4])

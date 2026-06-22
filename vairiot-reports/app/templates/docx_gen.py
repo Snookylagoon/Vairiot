@@ -302,7 +302,7 @@ def generate_docx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
             raw_val = row_data.get(col_def.key)
             formatted = format_value(raw_val, col_def.col_type, req.currency)
 
-            font_name = "IBM Plex Mono" if col_def.col_type in (
+            font_name = "Montserrat" if col_def.col_type in (
                 ColType.CURRENCY, ColType.NUMBER, ColType.INTEGER
             ) else "Montserrat"
             _add_run(p, formatted, font_name=font_name, size_pt=7.5, colour=_C_CHARCOAL)
@@ -326,7 +326,7 @@ def generate_docx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
                     label = f"{label} ({format_value(req.totals['count'], ColType.INTEGER, req.currency)} assets)"
                 _add_run(p, label, size_pt=8, bold=True, colour=_C_WHITE)
             elif col_def.key in req.totals:
-                font_name = "IBM Plex Mono" if col_def.col_type in (
+                font_name = "Montserrat" if col_def.col_type in (
                     ColType.CURRENCY, ColType.NUMBER, ColType.INTEGER
                 ) else "Montserrat"
                 _add_run(p, format_value(req.totals[col_def.key], col_def.col_type, req.currency),
