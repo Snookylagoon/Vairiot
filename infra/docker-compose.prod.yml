@@ -101,6 +101,19 @@ services:
     expose:
       - "80"
 
+  admin:
+    build:
+      context: ..
+      dockerfile: vairiot-admin/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    container_name: vairiot_admin
+    restart: always
+    depends_on:
+      - api
+    expose:
+      - "80"
+
   worker:
     build:
       context: ..
@@ -123,6 +136,7 @@ services:
     depends_on:
       - api
       - web
+      - admin
     volumes:
       - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
