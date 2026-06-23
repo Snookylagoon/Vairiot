@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, RotateCcw, ShieldOff } from 'lucide-react';
+import { ArrowLeft, Check, X, RotateCcw, ShieldOff, RefreshCw, KeyRound, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Permission } from 'vairiot-shared';
-import { useAllUsers, useUserPermissions, useSetUserPermissions, useDisableUserTwoFactor } from '@/hooks/useAdmin';
+import { useAllUsers, useUserPermissions, useSetUserPermissions, useDisableUserTwoFactor, useForcePasswordChange, useResetPassword } from '@/hooks/useAdmin';
 import { useAuthStore } from '@/stores/auth.store';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -14,6 +15,7 @@ interface UserRow {
   email: string;
   active: boolean;
   twoFactorEnabled: boolean;
+  mustChangePassword: boolean;
   lockedUntil?: string | null;
   lastLoginAt?: string | null;
   tenant?: { name: string };
@@ -55,6 +57,9 @@ export function UserDetailPage() {
   const { data: perms, isLoading: permsLoading } = useUserPermissions(id);
   const save = useSetUserPermissions();
   const disable2fa = useDisableUserTwoFactor();
+  const forcePwChange = useForcePasswordChange();
+  const resetPassword = useResetPassword();
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   const isPlatformSuperAdmin = me?.roles?.includes('Platform Super Admin') ?? false;
 
@@ -122,6 +127,7 @@ export function UserDetailPage() {
         <Badge variant={user.active ? 'green' : 'gray'}>{user.active ? 'Active' : 'Disabled'}</Badge>
         {isLocked && <Badge variant="red">Locked</Badge>}
         <Badge variant={user.twoFactorEnabled ? 'green' : 'gray'}>{user.twoFactorEnabled ? '2FA On' : '2FA Off'}</Badge>
+        {user.mustChangePassword && <Badge variant="default">Password change required</Badge>}
         {isPlatformSuperAdmin && user.twoFactorEnabled && id && (
           <Button
             size="sm"
@@ -138,6 +144,70 @@ export function UserDetailPage() {
           </Button>
         )}
       </div>
+
+      {canEdit && id && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant={user.mustChangePassword ? 'secondary' : 'ghost'}
+            disabled={forcePwChange.isPending}
+            onClick={() => {
+              const next = !user.mustChangePassword;
+              const msg = next
+                ? `Force ${user.name} to set a new password on next sign-in? Their current password keeps working until then.`
+                : `Clear the force-password-change flag for ${user.name}?`;
+              if (confirm(msg)) {
+                forcePwChange.mutate({ userId: id, mustChangePassword: next });
+              }
+            }}
+          >
+            <RefreshCw size={14} className="mr-1" />
+            {user.mustChangePassword
+              ? 'Clear force-change flag'
+              : 'Force password change at next login'}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={resetPassword.isPending}
+            onClick={async () => {
+              if (!confirm(`Generate a temporary password for ${user.name}? They will need to change it on next login.`)) return;
+              const result = await resetPassword.mutateAsync(id);
+              setTempPassword(result.temporaryPassword);
+            }}
+          >
+            <KeyRound size={14} className="mr-1" />
+            Generate temp password
+          </Button>
+        </div>
+      )}
+
+      {tempPassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setTempPassword(null)} />
+          <div className="relative bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 p-6 space-y-4">
+            <h3 className="text-lg font-bold text-v-charcoal">Temporary Password</h3>
+            <p className="text-sm text-gray-600">
+              Share this password securely with the user. They will be required to change it on next login.
+            </p>
+            <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-3">
+              <code className="flex-1 font-mono text-lg tracking-wider text-v-charcoal">{tempPassword}</code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(tempPassword);
+                  toast.success('Password copied to clipboard');
+                }}
+                className="p-1.5 text-gray-400 hover:text-v-violet transition-colors"
+              >
+                <Copy size={18} />
+              </button>
+            </div>
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => setTempPassword(null)}>Done</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>

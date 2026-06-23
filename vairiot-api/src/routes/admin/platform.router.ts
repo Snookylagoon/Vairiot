@@ -12,6 +12,8 @@ import {
   setUserActiveStatus,
   softDeleteUser,
   disableUserTwoFactor,
+  requirePasswordChange,
+  clearForcePasswordChange,
 } from '../../services/platform-admin.service';
 import {
   getUserPermissionsView,
@@ -106,6 +108,21 @@ platformRouter.patch('/users/:id/unlock', async (req: Request, res: Response) =>
 // themselves from /settings/security if they want it back on.
 platformRouter.post('/users/:id/two-factor/disable', async (req: Request, res: Response) => {
   const result = await disableUserTwoFactor(req.params.id, req.user!.sub);
+  res.json(result);
+});
+
+// Toggle: require the user to change their password on next sign-in.
+// PATCH body: { mustChangePassword: boolean }. Does not change the password
+// itself — use POST /reset-password to issue a temp password.
+platformRouter.patch('/users/:id/force-password-change', async (req: Request, res: Response) => {
+  const { mustChangePassword } = req.body ?? {};
+  if (typeof mustChangePassword !== 'boolean') {
+    res.status(400).json({ error: 'mustChangePassword must be a boolean' });
+    return;
+  }
+  const result = mustChangePassword
+    ? await requirePasswordChange(req.params.id, req.user!.sub)
+    : await clearForcePasswordChange(req.params.id, req.user!.sub);
   res.json(result);
 });
 

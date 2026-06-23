@@ -47,6 +47,16 @@ export function useResetPassword() {
   });
 }
 
+export function useForcePasswordChange() {
+  return useMutationWithToast<{ mustChangePassword: boolean }, { userId: string; mustChangePassword: boolean }>({
+    mutationFn: ({ userId, mustChangePassword }) =>
+      api.patch(`/api/v1/admin/platform/users/${userId}/force-password-change`, { mustChangePassword }).then(r => r.data),
+    invalidate: ['admin', 'users'],
+    success: 'Force password change updated',
+    error: 'Failed to update force-password-change flag',
+  });
+}
+
 export function useDisableUserTwoFactor() {
   return useMutationWithToast<{ twoFactorEnabled: boolean }, string>({
     mutationFn: (userId) =>

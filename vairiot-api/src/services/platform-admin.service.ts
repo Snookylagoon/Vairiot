@@ -214,6 +214,7 @@ export async function listAllUsers(filters: UserListFilters = {}) {
       email: true,
       active: true,
       twoFactorEnabled: true,
+      mustChangePassword: true,
       failedLoginCount: true,
       lockedUntil: true,
       lastLoginAt: true,
@@ -276,6 +277,60 @@ export async function unlockUser(userId: string, actorId: string) {
       action: 'admin_user_unlocked',
     },
   }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+}
+
+/**
+ * Platform Super Admin action: require the user to change their password
+ * on next sign-in. Leaves the existing password in place — useful when you
+ * want to enforce a rotation without handing out a temp password.
+ */
+export async function requirePasswordChange(userId: string, actorId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new NotFoundError('User not found');
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { mustChangePassword: true },
+  });
+
+  prisma.auditEvent.create({
+    data: {
+      tenantId: user.tenantId,
+      actorId,
+      entityType: 'user',
+      entityId: userId,
+      action: 'admin_force_password_change',
+      metadata: { email: user.email },
+    },
+  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+
+  return { mustChangePassword: true };
+}
+
+/**
+ * Clear the force-password-change flag without changing the password.
+ */
+export async function clearForcePasswordChange(userId: string, actorId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new NotFoundError('User not found');
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { mustChangePassword: false },
+  });
+
+  prisma.auditEvent.create({
+    data: {
+      tenantId: user.tenantId,
+      actorId,
+      entityType: 'user',
+      entityId: userId,
+      action: 'admin_clear_force_password_change',
+      metadata: { email: user.email },
+    },
+  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+
+  return { mustChangePassword: false };
 }
 
 /**

@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAllUsers, useResetPassword, useUnlockUser, useSetUserActive, useDeleteUser } from '@/hooks/useAdmin';
+import { useAllUsers, useResetPassword, useUnlockUser, useSetUserActive, useDeleteUser, useForcePasswordChange } from '@/hooks/useAdmin';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
-import { KeyRound, Unlock, UserX, UserCheck, Copy, Table2, Trash2 } from 'lucide-react';
+import { KeyRound, Unlock, UserX, UserCheck, Copy, Table2, Trash2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { RoleMatrixDialog } from './RoleMatrixDialog';
 
@@ -16,6 +16,7 @@ interface UserRow {
   email: string;
   active: boolean;
   twoFactorEnabled: boolean;
+  mustChangePassword: boolean;
   lockedUntil?: string | null;
   lastLoginAt?: string | null;
   tenant?: { name: string };
@@ -38,6 +39,7 @@ export function UsersPage() {
   const unlockUser = useUnlockUser();
   const setUserActive = useSetUserActive();
   const deleteUser = useDeleteUser();
+  const forcePwChange = useForcePasswordChange();
 
   const [confirm, setConfirm] = useState<{ action: string; userId: string; name: string } | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
@@ -56,6 +58,8 @@ export function UsersPage() {
     if (action === 'disable') await setUserActive.mutateAsync({ userId, active: false });
     if (action === 'enable') await setUserActive.mutateAsync({ userId, active: true });
     if (action === 'delete') await deleteUser.mutateAsync(userId);
+    if (action === 'force-pw') await forcePwChange.mutateAsync({ userId, mustChangePassword: true });
+    if (action === 'clear-force-pw') await forcePwChange.mutateAsync({ userId, mustChangePassword: false });
     setConfirm(null);
   };
 
@@ -92,6 +96,7 @@ export function UsersPage() {
           <div className="flex flex-col gap-1">
             <Badge variant={u.active ? 'green' : 'gray'}>{u.active ? 'Active' : 'Disabled'}</Badge>
             {isLocked && <Badge variant="red">Locked</Badge>}
+            {u.mustChangePassword && <Badge variant="default">Password change required</Badge>}
           </div>
         );
       },
@@ -118,9 +123,26 @@ export function UsersPage() {
         const isLocked = u.lockedUntil && new Date(u.lockedUntil) > new Date();
         return (
           <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-            <Button size="sm" variant="ghost" title="Reset Password"
+            <Button size="sm" variant="ghost" title="Generate temporary password"
               onClick={() => setConfirm({ action: 'reset', userId: u.id, name: u.name })}>
               <KeyRound size={14} />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              title={u.mustChangePassword
+                ? 'Clear force-password-change flag'
+                : 'Force password change at next login'}
+              onClick={() => setConfirm({
+                action: u.mustChangePassword ? 'clear-force-pw' : 'force-pw',
+                userId: u.id,
+                name: u.name,
+              })}
+            >
+              <RefreshCw
+                size={14}
+                className={u.mustChangePassword ? 'text-v-violet' : ''}
+              />
             </Button>
             {isLocked && (
               <Button size="sm" variant="ghost" title="Unlock"
@@ -199,21 +221,36 @@ export function UsersPage() {
       <ConfirmDialog
         open={!!confirm}
         title={
-          confirm?.action === 'reset' ? 'Reset Password' :
+          confirm?.action === 'reset' ? 'Generate Temporary Password' :
           confirm?.action === 'unlock' ? 'Unlock User' :
           confirm?.action === 'disable' ? 'Disable User' :
-          confirm?.action === 'delete' ? 'Delete User' : 'Enable User'
+          confirm?.action === 'delete' ? 'Delete User' :
+          confirm?.action === 'force-pw' ? 'Force Password Change' :
+          confirm?.action === 'clear-force-pw' ? 'Clear Forced Password Change' :
+          'Enable User'
         }
         description={
           confirm?.action === 'reset'
             ? `Generate a temporary password for ${confirm?.name}? They will need to change it on next login.`
             : confirm?.action === 'delete'
               ? `Permanently delete ${confirm?.name}? Their access will be revoked and they will be removed from the user list. This cannot be undone.`
-              : `Are you sure you want to ${confirm?.action} ${confirm?.name}?`
+              : confirm?.action === 'force-pw'
+                ? `Require ${confirm?.name} to set a new password on their next sign-in? Their current password keeps working until they sign in.`
+                : confirm?.action === 'clear-force-pw'
+                  ? `Clear the force-password-change flag for ${confirm?.name}? They will no longer be prompted to set a new password.`
+                  : `Are you sure you want to ${confirm?.action} ${confirm?.name}?`
         }
-        confirmLabel={confirm?.action === 'reset' ? 'Reset' : confirm?.action === 'disable' ? 'Disable' : confirm?.action === 'unlock' ? 'Unlock' : confirm?.action === 'delete' ? 'Delete' : 'Enable'}
+        confirmLabel={
+          confirm?.action === 'reset' ? 'Generate' :
+          confirm?.action === 'disable' ? 'Disable' :
+          confirm?.action === 'unlock' ? 'Unlock' :
+          confirm?.action === 'delete' ? 'Delete' :
+          confirm?.action === 'force-pw' ? 'Require change' :
+          confirm?.action === 'clear-force-pw' ? 'Clear flag' :
+          'Enable'
+        }
         variant={(confirm?.action === 'disable' || confirm?.action === 'delete') ? 'danger' : 'primary'}
-        loading={resetPassword.isPending || unlockUser.isPending || setUserActive.isPending || deleteUser.isPending}
+        loading={resetPassword.isPending || unlockUser.isPending || setUserActive.isPending || deleteUser.isPending || forcePwChange.isPending}
         onConfirm={handleAction}
         onCancel={() => setConfirm(null)}
       />
