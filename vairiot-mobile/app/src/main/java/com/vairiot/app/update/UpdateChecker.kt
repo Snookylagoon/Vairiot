@@ -39,6 +39,18 @@ class UpdateChecker @Inject constructor(
             return@withContext false
         }
 
+        // Idempotency guard: if we've already fired the install prompt for this
+        // exact (versionCode, sha256) in a previous process and the device is
+        // still behind, the upload's versionCode metadata doesn't match its
+        // binary — installing again would loop forever. Force-stop + relaunch
+        // bypasses by clearing the key below.
+        val prefs    = context.getSharedPreferences("vairiot.update", Context.MODE_PRIVATE)
+        val promptKey = "${info.versionCode}:${info.sha256 ?: ""}"
+        if (prefs.getString("lastPromptedKey", null) == promptKey) {
+            Log.w(TAG, "already prompted for $promptKey but device is still behind — skipping to break loop")
+            return@withContext false
+        }
+
         Log.i(TAG, "update available: ${info.versionName} (code ${info.versionCode}); downloading…")
         val apk = downloadToCache(info) ?: return@withContext false
 
@@ -51,6 +63,7 @@ class UpdateChecker @Inject constructor(
             }
         }
 
+        prefs.edit().putString("lastPromptedKey", promptKey).apply()
         promptInstall(apk)
         true
     }
