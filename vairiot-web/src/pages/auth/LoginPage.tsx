@@ -121,7 +121,7 @@ export function LoginPage() {
             <h1 className="text-4xl font-extrabold text-v-charcoal tracking-tight font-sans">
               VAIR<span className="v-gradient-text">IOT</span>
             </h1>
-            <p className="mt-2 text-sm text-gray-500">Enhanced Asset Management</p>
+            <p className="mt-2 text-sm text-gray-500">Asset Intelligence</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-v-card border border-gray-100 p-8 space-y-5">
