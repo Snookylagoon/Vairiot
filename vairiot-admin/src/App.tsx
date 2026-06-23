@@ -20,6 +20,7 @@ const UsersPage       = lazy(() => import('./pages/users/UsersPage').then(m => (
 const UserDetailPage  = lazy(() => import('./pages/users/UserDetailPage').then(m => ({ default: m.UserDetailPage })));
 const AuditLogPage    = lazy(() => import('./pages/audit-log/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
 const SmtpPage        = lazy(() => import('./pages/smtp/SmtpPage').then(m => ({ default: m.SmtpPage })));
+const MobileReleasesPage = lazy(() => import('./pages/mobile-releases/MobileReleasesPage').then(m => ({ default: m.MobileReleasesPage })));
 const ChangePasswordPage = lazy(() => import('./pages/profile/ChangePasswordPage').then(m => ({ default: m.ChangePasswordPage })));
 
 function PageSpinner() {
@@ -62,6 +63,7 @@ export default function App() {
                 <Route path="users/:id" element={<UserDetailPage />} />
                 <Route path="audit-log" element={<AuditLogPage />} />
                 <Route path="smtp" element={<SmtpPage />} />
+                <Route path="mobile-releases" element={<MobileReleasesPage />} />
                 <Route path="profile/password" element={<ChangePasswordPage />} />
               </Route>
 

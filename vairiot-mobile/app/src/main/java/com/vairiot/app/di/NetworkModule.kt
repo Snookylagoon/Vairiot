@@ -95,6 +95,11 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideUpdateApi(retrofit: Retrofit): com.vairiot.app.update.UpdateApi =
+        retrofit.create(com.vairiot.app.update.UpdateApi::class.java)
+
+    @Provides
+    @Singleton
     fun provideImageLoader(
         @ApplicationContext context: Context,
         tokenStore: TokenStore,

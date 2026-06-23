@@ -27,6 +27,8 @@ import { licencesRouter }    from './routes/licences/licences.router';
 import { onboardingRouter } from './routes/onboarding/onboarding.router';
 import { twoFactorRouter } from './routes/two-factor/two-factor.router';
 import { platformRouter } from './routes/admin/platform.router';
+import { mobileRouter } from './routes/mobile/mobile.router';
+import { mobileReleasesRouter } from './routes/admin/mobile-releases.router';
 import { globalLimiter } from './middleware/rate-limit';
 import { errorHandler } from './middleware/error-handler';
 import { requestId } from './middleware/request-id';
@@ -53,6 +55,9 @@ export function createApp(): Application {
   app.use('/health',              healthRouter);
   app.use('/api/v1/health',       healthRouter);
   app.use('/api/v1/auth',         authRouter);
+
+  // ── Public mobile auto-update endpoints (no auth — needed before login) ──
+  app.use('/api/v1/mobile',        mobileRouter);
 
   // ── Public tenant logo (img tag can't send Authorization header) ──
   app.get('/api/v1/public/tenants/:id/logo', async (req, res) => {
@@ -102,6 +107,7 @@ export function createApp(): Application {
   gated.use('/custom-fields', customFieldsRouter);
   gated.use('/licences',     licencesRouter);
   gated.use('/admin/platform', platformRouter);
+  gated.use('/admin/mobile-releases', mobileReleasesRouter);
 
   app.use('/api/v1', gated);
   app.use((_req: Request, res: Response) => { res.status(404).json({ error: 'Not found' }); });

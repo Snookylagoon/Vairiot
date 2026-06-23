@@ -922,6 +922,25 @@ model LoginAttempt {
   @@map("login_attempts")
 }
 
+// ─── Mobile Releases (over-the-internet auto-updater) ────────────────────────
+model MobileRelease {
+  id               String   @id @default(cuid())
+  versionCode      Int      @unique
+  versionName      String
+  storageKey       String
+  sizeBytes        Int
+  sha256           String
+  releaseNotes     String?
+  mandatory        Boolean  @default(false)
+  isCurrent        Boolean  @default(false)
+  uploadedByUserId String?
+  uploadedAt       DateTime @default(now())
+
+  @@index([isCurrent])
+  @@index([versionCode])
+  @@map("mobile_releases")
+}
+
 // ─── Platform SMTP Config (singleton row, id = "singleton") ──────────────────
 model SmtpConfig {
   id               String    @id @default("singleton")

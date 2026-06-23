@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Release-signing keystore + credentials (never committed)
+app/keystore.properties
+app/vairiot-release.jks

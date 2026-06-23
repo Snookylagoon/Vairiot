@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.vairiot.app.data.local.TokenStore
 import com.vairiot.app.sync.ScanSyncScheduler
+import com.vairiot.app.update.UpdateCheckScheduler
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
@@ -14,6 +15,7 @@ class VairiotApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var scanSyncScheduler: ScanSyncScheduler
+    @Inject lateinit var updateCheckScheduler: UpdateCheckScheduler
     @Inject lateinit var tokenStore: TokenStore
 
     override val workManagerConfiguration: Configuration
@@ -29,5 +31,8 @@ class VairiotApp : Application(), Configuration.Provider {
         // / OS kill / device reboot) wipes the session.
         runBlocking { tokenStore.clearSession() }
         scanSyncScheduler.ensurePeriodic()
+        // Check for an APK update on every cold start, then every 6h while connected.
+        updateCheckScheduler.ensurePeriodic()
+        updateCheckScheduler.triggerNow()
     }
 }
