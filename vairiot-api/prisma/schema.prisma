@@ -105,6 +105,7 @@ model User {
   lastLoginAt      DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
 
   tenant        Tenant           @relation(fields: [tenantId], references: [id])
   roles         UserRole[]
@@ -117,6 +118,7 @@ model User {
 
   @@unique([tenantId, email])
   @@index([tenantId])
+  @@index([tenantId, deletedAt])
   @@map("users")
 }
 

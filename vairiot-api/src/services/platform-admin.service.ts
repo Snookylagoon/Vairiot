@@ -190,7 +190,7 @@ interface UserListFilters {
 }
 
 export async function listAllUsers(filters: UserListFilters = {}) {
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = { deletedAt: null };
 
   if (filters.search) {
     where.OR = [
@@ -294,6 +294,41 @@ export async function setUserActiveStatus(userId: string, active: boolean, actor
       entityType: 'user',
       entityId: userId,
       action: active ? 'admin_user_enabled' : 'admin_user_disabled',
+    },
+  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+}
+
+export async function softDeleteUser(userId: string, actorId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.deletedAt) throw new NotFoundError('User not found');
+  if (userId === actorId) {
+    throw new Error('You cannot delete your own account.');
+  }
+
+  const now = new Date();
+  // Scramble email so the (tenantId, email) unique constraint frees up for re-invitation.
+  const scrambledEmail = `__deleted_${now.getTime()}__${user.email}`;
+
+  await prisma.$transaction([
+    prisma.userRole.deleteMany({ where: { userId } }),
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: now,
+        active: false,
+        email: scrambledEmail,
+      },
+    }),
+  ]);
+
+  prisma.auditEvent.create({
+    data: {
+      tenantId: user.tenantId,
+      actorId,
+      entityType: 'user',
+      entityId: userId,
+      action: 'admin_user_deleted',
+      metadata: { originalEmail: user.email, originalName: user.name },
     },
   }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
 }

@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAllUsers, useResetPassword, useUnlockUser, useSetUserActive } from '@/hooks/useAdmin';
+import { useAllUsers, useResetPassword, useUnlockUser, useSetUserActive, useDeleteUser } from '@/hooks/useAdmin';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
-import { KeyRound, Unlock, UserX, UserCheck, Copy, Table2 } from 'lucide-react';
+import { KeyRound, Unlock, UserX, UserCheck, Copy, Table2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RoleMatrixDialog } from './RoleMatrixDialog';
 
@@ -37,6 +37,7 @@ export function UsersPage() {
   const resetPassword = useResetPassword();
   const unlockUser = useUnlockUser();
   const setUserActive = useSetUserActive();
+  const deleteUser = useDeleteUser();
 
   const [confirm, setConfirm] = useState<{ action: string; userId: string; name: string } | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export function UsersPage() {
     if (action === 'unlock') await unlockUser.mutateAsync(userId);
     if (action === 'disable') await setUserActive.mutateAsync({ userId, active: false });
     if (action === 'enable') await setUserActive.mutateAsync({ userId, active: true });
+    if (action === 'delete') await deleteUser.mutateAsync(userId);
     setConfirm(null);
   };
 
@@ -137,6 +139,10 @@ export function UsersPage() {
                 <UserCheck size={14} />
               </Button>
             )}
+            <Button size="sm" variant="ghost" title="Delete"
+              onClick={() => setConfirm({ action: 'delete', userId: u.id, name: u.name })}>
+              <Trash2 size={14} className="text-red-500" />
+            </Button>
           </div>
         );
       },
@@ -195,16 +201,19 @@ export function UsersPage() {
         title={
           confirm?.action === 'reset' ? 'Reset Password' :
           confirm?.action === 'unlock' ? 'Unlock User' :
-          confirm?.action === 'disable' ? 'Disable User' : 'Enable User'
+          confirm?.action === 'disable' ? 'Disable User' :
+          confirm?.action === 'delete' ? 'Delete User' : 'Enable User'
         }
         description={
           confirm?.action === 'reset'
             ? `Generate a temporary password for ${confirm?.name}? They will need to change it on next login.`
-            : `Are you sure you want to ${confirm?.action} ${confirm?.name}?`
+            : confirm?.action === 'delete'
+              ? `Permanently delete ${confirm?.name}? Their access will be revoked and they will be removed from the user list. This cannot be undone.`
+              : `Are you sure you want to ${confirm?.action} ${confirm?.name}?`
         }
-        confirmLabel={confirm?.action === 'reset' ? 'Reset' : confirm?.action === 'disable' ? 'Disable' : confirm?.action === 'unlock' ? 'Unlock' : 'Enable'}
-        variant={confirm?.action === 'disable' ? 'danger' : 'primary'}
-        loading={resetPassword.isPending || unlockUser.isPending || setUserActive.isPending}
+        confirmLabel={confirm?.action === 'reset' ? 'Reset' : confirm?.action === 'disable' ? 'Disable' : confirm?.action === 'unlock' ? 'Unlock' : confirm?.action === 'delete' ? 'Delete' : 'Enable'}
+        variant={(confirm?.action === 'disable' || confirm?.action === 'delete') ? 'danger' : 'primary'}
+        loading={resetPassword.isPending || unlockUser.isPending || setUserActive.isPending || deleteUser.isPending}
         onConfirm={handleAction}
         onCancel={() => setConfirm(null)}
       />

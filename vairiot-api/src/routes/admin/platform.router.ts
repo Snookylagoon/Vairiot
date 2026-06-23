@@ -10,6 +10,7 @@ import {
   adminResetPassword,
   unlockUser,
   setUserActiveStatus,
+  softDeleteUser,
 } from '../../services/platform-admin.service';
 import {
   getUserPermissionsView,
@@ -123,6 +124,17 @@ platformRouter.patch('/users/:id/active', async (req: Request, res: Response) =>
   }
   await setUserActiveStatus(req.params.id, active, req.user!.sub);
   res.json({ message: active ? 'User enabled' : 'User disabled' });
+});
+
+platformRouter.delete('/users/:id', async (req: Request, res: Response) => {
+  try {
+    await softDeleteUser(req.params.id, req.user!.sub);
+    res.json({ message: 'User deleted' });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Failed to delete user';
+    const status = msg.toLowerCase().includes('your own') ? 400 : (msg.toLowerCase().includes('not found') ? 404 : 500);
+    res.status(status).json({ error: msg });
+  }
 });
 
 // ─── Tenant Company ────────────────────────────────────────────────────────

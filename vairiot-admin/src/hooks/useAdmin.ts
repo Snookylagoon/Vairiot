@@ -90,6 +90,15 @@ export function useSetUserActive() {
   });
 }
 
+export function useDeleteUser() {
+  return useMutationWithToast<unknown, string>({
+    mutationFn: (userId) => api.delete(`/api/v1/admin/platform/users/${userId}`).then(r => r.data),
+    invalidate: ['admin', 'users'],
+    success: 'User deleted',
+    error: 'Failed to delete user',
+  });
+}
+
 // ─── Tenant Onboarding (admin-driven) ───────────────────────────────────────
 
 export interface TenantOnboardingView {
