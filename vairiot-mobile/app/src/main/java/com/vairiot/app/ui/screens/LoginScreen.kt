@@ -64,7 +64,7 @@ fun LoginScreen(
                     )
                 )
             }
-            Text("Enhanced Asset Management", style = MaterialTheme.typography.bodyMedium,
+            Text("Asset Intelligence", style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
 
             Spacer(Modifier.height(40.dp))
