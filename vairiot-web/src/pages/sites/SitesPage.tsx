@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, MapPin, Trash2, Search } from 'lucide-react';
 import { useSites, useCreateSite, useDeleteSite } from '@/hooks/useSites';
 import { Button } from '@/components/ui/Button';
@@ -9,6 +10,7 @@ import { CountrySelect } from '@/components/ui/CountrySelect';
 import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
 export function SitesPage() {
+  const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
   const canWrite = hasAnyPermission(user, 'site:write');
   const { data: sites = [], isLoading } = useSites();
@@ -91,13 +93,17 @@ export function SitesPage() {
           )}
           {filtered.map((s: { id: string; name: string; city?: string; country?: string; _count?: { assets: number } }) => (
             <div key={s.id} className="flex items-center justify-between py-3">
-              <div>
+              <button
+                type="button"
+                onClick={() => navigate(`/assets?siteId=${s.id}`)}
+                className="flex-1 text-left rounded-md -mx-2 px-2 py-1 hover:bg-v-wash transition-colors"
+                title={`View assets at ${s.name}`}>
                 <p className="text-sm font-medium text-v-charcoal">{s.name}</p>
                 {(s.city || s.country) && (
                   <p className="text-xs text-gray-400">{[s.city, s.country].filter(Boolean).join(', ')}</p>
                 )}
                 <p className="text-xs text-v-mauve mt-0.5">{s._count?.assets ?? 0} assets</p>
-              </div>
+              </button>
               {canWrite && (
                 <button onClick={() => setDeleteId(s.id)}
                   className="p-1.5 text-gray-300 hover:text-red-500 transition-colors rounded">

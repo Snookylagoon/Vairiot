@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Package, ClipboardList, AlertTriangle, CheckCircle, Activity, TrendingDown, Coins } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -10,10 +11,15 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useCurrency } from '@/hooks/useCurrency';
 import type { AssetStats } from '@/types';
 
-function StatCard({ icon: Icon, label, value, colour }: { icon: React.ElementType; label: string; value: string | number; colour: string }) {
+function StatCard({ icon: Icon, label, value, colour, to }: { icon: React.ElementType; label: string; value: string | number; colour: string; to?: string }) {
+  const navigate = useNavigate();
+  const clickable = !!to;
   return (
     <Card>
-      <CardBody className="flex items-center gap-4">
+      <CardBody
+        className={`flex items-center gap-4 ${clickable ? 'cursor-pointer hover:bg-v-wash transition-colors' : ''}`}
+        onClick={clickable ? () => navigate(to!) : undefined}
+        title={clickable ? `View ${label}` : undefined}>
         <div className={`p-3 rounded-xl ${colour}`}>
           <Icon size={22} className="text-white" />
         </div>
@@ -66,10 +72,10 @@ export function DashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard icon={Package}        label="Total Assets"          value={assetData?.total ?? '—'}       colour="bg-v-violet" />
-        <StatCard icon={Coins}            label="Total Asset Value"     value={assetStats ? fmt(assetStats.totalAssetValue, 0) : '—'} colour="bg-v-pink" />
-        <StatCard icon={TrendingDown}   label="Net Book Value"        value={assetStats ? fmt(assetStats.totalNetBookValue, 0) : '—'} colour="bg-v-mauve" />
-        <StatCard icon={AlertTriangle}  label="Overdue Returns"       value={overdueData?.length ?? '—'}    colour="bg-amber-500" />
+        <StatCard icon={Package}        label="Total Assets"          value={assetData?.total ?? '—'}       colour="bg-v-violet" to="/assets" />
+        <StatCard icon={Coins}            label="Total Asset Value"     value={assetStats ? fmt(assetStats.totalAssetValue, 0) : '—'} colour="bg-v-pink" to="/assets" />
+        <StatCard icon={TrendingDown}   label="Net Book Value"        value={assetStats ? fmt(assetStats.totalNetBookValue, 0) : '—'} colour="bg-v-mauve" to="/assets" />
+        <StatCard icon={AlertTriangle}  label="Overdue Returns"       value={overdueData?.length ?? '—'}    colour="bg-amber-500" to="/checkouts" />
       </div>
 
       <div className="h-1.5 rounded-full bg-v-gradient" />
