@@ -6,8 +6,15 @@ import { registerNewTenant } from '../../services/registration.service';
 import { authenticate } from '../../middleware/authenticate';
 import { asyncHandler } from '../../middleware/error-handler';
 import { blacklistToken } from '../../lib/redis';
-import { verifyRefreshToken } from '../../lib/jwt';
+import { signAccessToken, signRefreshToken, verifyRefreshToken, verifySetupToken } from '../../lib/jwt';
 import { loginLimiter } from '../../middleware/rate-limit';
+import { generateTwoFactorSetup, verifyAndEnableTwoFactor } from '../../services/two-factor.service';
+import { effectivePermissionsForUser } from '../../services/user-permissions.service';
+import { prisma } from '../../lib/prisma';
+import { logger } from '../../lib/logger';
+import { recordLoginAttempt } from '../../services/login-protection.service';
+import { touchDeviceOnLogin } from '../../services/licence.service';
+import { UnauthorizedError } from '../../lib/errors';
 
 export const authRouter = Router();
 
@@ -95,6 +102,49 @@ authRouter.post('/change-password/forced', loginLimiter,
       req.body.device,
     );
     res.json(result);
+  }),
+);
+
+// ── First-time 2FA enrolment (no access token yet — uses a short-lived setupToken) ──
+authRouter.post('/2fa-setup/generate', loginLimiter,
+  [body('setupToken').isString().notEmpty()],
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    let payload;
+    try { payload = verifySetupToken(req.body.setupToken); }
+    catch { throw new UnauthorizedError('2FA setup session expired — please sign in again'); }
+    const setup = await generateTwoFactorSetup(payload.sub, payload.email);
+    res.json(setup);
+  }),
+);
+
+authRouter.post('/2fa-setup/verify', loginLimiter,
+  [body('setupToken').isString().notEmpty(), body('token').isString().notEmpty()],
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+    let payload;
+    try { payload = verifySetupToken(req.body.setupToken); }
+    catch { throw new UnauthorizedError('2FA setup session expired — please sign in again'); }
+
+    await verifyAndEnableTwoFactor(payload.sub, req.body.token);
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { roles: { include: { role: true } } },
+    });
+    if (!user || !user.active) throw new UnauthorizedError('User not found or inactive');
+
+    const ipAddress = req.ip ?? req.socket.remoteAddress ?? '0.0.0.0';
+    const roles       = user.roles.map((ur) => ur.role.name);
+    const permissions = await effectivePermissionsForUser(user.id, user);
+    const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
+    const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
+    await recordLoginAttempt(user.tenantId, user.email, ipAddress, true, user.id, '2fa_setup_complete');
+    prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
+    if (req.body.device) await touchDeviceOnLogin(user.tenantId, user.id, req.body.device);
+    res.json({ accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' });
   }),
 );
 

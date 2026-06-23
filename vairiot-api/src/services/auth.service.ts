@@ -1,14 +1,19 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt';
+import { signAccessToken, signRefreshToken, signSetupToken, verifyRefreshToken } from '../lib/jwt';
 import { logger } from '../lib/logger';
-import { UnauthorizedError, ValidationError, NotFoundError } from '../lib/errors';
+import { AppError, UnauthorizedError, ValidationError, NotFoundError } from '../lib/errors';
 import { checkAccountLock, recordLoginAttempt } from './login-protection.service';
 import { touchDeviceOnLogin } from './licence.service';
 import { effectivePermissionsForUser } from './user-permissions.service';
 import { validatePasswordPolicy } from './password-policy.service';
+import { ROLES_REQUIRING_2FA, type RoleName } from 'vairiot-shared';
 import type { LoginRequest as LoginInput, AuthTokens } from 'vairiot-shared';
 export type { LoginInput, AuthTokens };
+
+function rolesRequire2FA(roles: string[]): boolean {
+  return roles.some((r) => ROLES_REQUIRING_2FA.includes(r as RoleName));
+}
 
 export interface DeviceCheckIn {
   fingerprint: string;
@@ -24,6 +29,8 @@ export interface LoginResult {
   twoFactorUserId?: string;
   requiresPasswordChange?: boolean;
   passwordChangeUserId?: string;
+  requiresTwoFactorSetup?: boolean;
+  twoFactorSetupToken?: string;
 }
 
 export async function login(
@@ -62,6 +69,14 @@ export async function login(
   }
 
   const roles       = user.roles.map((ur) => ur.role.name);
+
+  // Force 2FA enrolment if the user's role mandates it and they haven't set it up.
+  if (rolesRequire2FA(roles)) {
+    await recordLoginAttempt(tenantId, email, ipAddress, true, user.id, 'awaiting_2fa_setup');
+    const setupToken = signSetupToken({ sub: user.id, tenantId: user.tenantId, email: user.email });
+    return { requiresTwoFactorSetup: true, twoFactorUserId: user.id, twoFactorSetupToken: setupToken };
+  }
+
   const permissions = await effectivePermissionsForUser(user.id, user);
   const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
   const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
@@ -121,6 +136,13 @@ export async function changeOwnPassword(
 ): Promise<{ message: string }> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || !user.active) throw new UnauthorizedError('User not found or inactive');
+  if (!user.twoFactorEnabled) {
+    throw new AppError(
+      412,
+      'Two-factor authentication must be enabled before you can change your password',
+      'TWO_FA_REQUIRED',
+    );
+  }
   if (!user.passwordHash) throw new ValidationError('This account does not have a password');
   if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
     throw new UnauthorizedError('Current password is incorrect', 'INVALID_CREDENTIALS');
@@ -187,12 +209,8 @@ export async function completeForcedPasswordChange(
     return { requiresTwoFactor: true, twoFactorUserId: user.id };
   }
 
-  const roles       = user.roles.map((ur) => ur.role.name);
-  const permissions = await effectivePermissionsForUser(user.id, user);
-  const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
-  const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
-  await recordLoginAttempt(user.tenantId, user.email, ipAddress, true, user.id, 'forced_change_complete');
-  prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
+  // After any forced password change, 2FA enrolment is mandatory before tokens are issued.
+  await recordLoginAttempt(user.tenantId, user.email, ipAddress, true, user.id, 'awaiting_2fa_setup');
   prisma.auditEvent.create({
     data: {
       tenantId: user.tenantId,
@@ -204,5 +222,6 @@ export async function completeForcedPasswordChange(
     },
   }).catch((e) => logger.error('audit', { error: e }));
   if (device) await touchDeviceOnLogin(user.tenantId, user.id, device);
-  return { accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' };
+  const setupToken = signSetupToken({ sub: user.id, tenantId: user.tenantId, email: user.email });
+  return { requiresTwoFactorSetup: true, twoFactorUserId: user.id, twoFactorSetupToken: setupToken };
 }

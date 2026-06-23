@@ -21,6 +21,45 @@ export function LoginPage() {
   const [pwNew, setPwNew] = useState('');
   const [pwConfirm, setPwConfirm] = useState('');
   const [pwLoading, setPwLoading] = useState(false);
+  const [setup, setSetup] = useState<{ setupToken: string; secret: string; otpauthUrl: string; backupCodes: string[] } | null>(null);
+  const [setupVerify, setSetupVerify] = useState('');
+  const [setupLoading, setSetupLoading] = useState(false);
+
+  const beginSetup = async (token: string) => {
+    setSetupLoading(true);
+    setError('');
+    try {
+      const { data } = await api.post('/api/v1/auth/2fa-setup/generate', { setupToken: token });
+      setSetup({ setupToken: token, ...data });
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(msg ?? 'Could not start 2FA setup.');
+    } finally {
+      setSetupLoading(false);
+    }
+  };
+
+  const submitSetupVerify = async () => {
+    if (!setup) return;
+    setSetupLoading(true);
+    setError('');
+    try {
+      const { data: result } = await api.post('/api/v1/auth/2fa-setup/verify', {
+        setupToken: setup.setupToken,
+        token: setupVerify,
+        device: getDeviceCheckIn(),
+      });
+      localStorage.setItem('vairiot_access_token', result.accessToken);
+      localStorage.setItem('vairiot_refresh_token', result.refreshToken);
+      await hydrate();
+      navigate('/dashboard');
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(msg ?? 'Invalid verification code.');
+    } finally {
+      setSetupLoading(false);
+    }
+  };
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -41,6 +80,11 @@ export function LoginPage() {
 
       if (result.requiresTwoFactor) {
         setTwoFactor({ userId: result.twoFactorUserId });
+        return;
+      }
+
+      if (result.requiresTwoFactorSetup) {
+        await beginSetup(result.twoFactorSetupToken);
         return;
       }
 
@@ -74,6 +118,13 @@ export function LoginPage() {
         setForced(null);
         setPwNew(''); setPwConfirm('');
         setTwoFactor({ userId: result.twoFactorUserId });
+        return;
+      }
+
+      if (result.requiresTwoFactorSetup) {
+        setForced(null);
+        setPwNew(''); setPwConfirm('');
+        await beginSetup(result.twoFactorSetupToken);
         return;
       }
 
@@ -125,7 +176,64 @@ export function LoginPage() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-v-card border border-gray-100 p-8 space-y-5">
-            {forced ? (
+            {setup ? (
+              <>
+                <h2 className="text-lg font-bold text-v-charcoal">Set Up Two-Factor Authentication</h2>
+                <p className="text-sm text-gray-500">
+                  2FA is required for your account. Scan the QR code with an authenticator app, save your backup codes, then enter a code to confirm.
+                </p>
+
+                {error && (
+                  <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex flex-col items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setup.otpauthUrl)}`}
+                    alt="2FA QR Code"
+                    className="w-44 h-44 rounded-lg"
+                  />
+                  <div className="text-center">
+                    <div className="text-xs text-gray-500 uppercase tracking-wide">Secret Key</div>
+                    <code className="text-sm font-mono text-v-charcoal select-all break-all">{setup.secret}</code>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    Save these backup codes somewhere safe — each can be used once if you lose your authenticator:
+                  </p>
+                  <div className="grid grid-cols-4 gap-2 p-3 bg-gray-50 rounded-xl">
+                    {setup.backupCodes.map((c) => (
+                      <code key={c} className="text-xs font-mono text-center text-v-charcoal">{c}</code>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Input
+                    label="Verification Code"
+                    value={setupVerify}
+                    onChange={e => setSetupVerify(e.target.value)}
+                    placeholder="123456"
+                    maxLength={8}
+                    className="text-center font-mono text-lg tracking-widest"
+                    autoFocus
+                  />
+                  <Button
+                    size="lg"
+                    loading={setupLoading}
+                    onClick={submitSetupVerify}
+                    disabled={setupVerify.length < 6}
+                    className="w-full"
+                  >
+                    Verify &amp; Sign in
+                  </Button>
+                </div>
+              </>
+            ) : forced ? (
               <>
                 <h2 className="text-lg font-bold text-v-charcoal">Set a new password</h2>
                 <p className="text-sm text-gray-500">
