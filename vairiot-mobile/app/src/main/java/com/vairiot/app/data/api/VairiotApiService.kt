@@ -21,6 +21,15 @@ interface VairiotApiService {
     @POST("api/v1/auth/refresh")
     suspend fun refreshTokens(@Body request: RefreshRequest): RefreshResponse
 
+    @POST("api/v1/auth/login/2fa")
+    suspend fun loginWithTwoFactor(@Body request: TwoFactorLoginRequest): LoginResponse
+
+    @POST("api/v1/auth/2fa-setup/generate")
+    suspend fun generateTwoFactorSetup(@Body request: TwoFactorSetupGenerateRequest): TwoFactorSetupResponse
+
+    @POST("api/v1/auth/2fa-setup/verify")
+    suspend fun verifyTwoFactorSetup(@Body request: TwoFactorSetupVerifyRequest): LoginResponse
+
     @GET("api/v1/auth/me")
     suspend fun getMe(): UserProfileResponse
 

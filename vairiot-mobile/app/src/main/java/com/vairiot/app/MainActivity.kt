@@ -100,7 +100,43 @@ class MainActivity : ComponentActivity() {
                                 rootNav.navigate("home") {
                                     popUpTo("login") { inclusive = true }
                                 }
-                            }
+                            },
+                            onTwoFactorSetup = { setupToken, tenantId ->
+                                val encoded = android.net.Uri.encode(setupToken)
+                                rootNav.navigate("2fa-setup/$encoded/$tenantId")
+                            },
+                            onTwoFactorVerify = { userId, tenantId ->
+                                rootNav.navigate("2fa-verify/$userId/$tenantId")
+                            },
+                        )
+                    }
+                    composable("2fa-setup/{setupToken}/{tenantId}") {
+                        val setupToken = android.net.Uri.decode(
+                            it.arguments?.getString("setupToken").orEmpty())
+                        val tenantId   = it.arguments?.getString("tenantId").orEmpty()
+                        TwoFactorSetupScreen(
+                            setupToken = setupToken,
+                            tenantId   = tenantId,
+                            onComplete = {
+                                rootNav.navigate("home") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+                            },
+                            onCancel = { rootNav.popBackStack() },
+                        )
+                    }
+                    composable("2fa-verify/{userId}/{tenantId}") {
+                        val userId   = it.arguments?.getString("userId").orEmpty()
+                        val tenantId = it.arguments?.getString("tenantId").orEmpty()
+                        TwoFactorVerifyScreen(
+                            userId   = userId,
+                            tenantId = tenantId,
+                            onSuccess = {
+                                rootNav.navigate("home") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+                            },
+                            onCancel = { rootNav.popBackStack() },
                         )
                     }
                     composable("home")                        { HomeScaffold(rootNav = rootNav) }

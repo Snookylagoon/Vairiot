@@ -13,10 +13,41 @@ data class DeviceCheckIn(
     val deviceType:  String = "mobile",
 )
 
+// The API returns ONE of three shapes for /auth/login:
+//   1. {accessToken, refreshToken, expiresIn}                          — normal
+//   2. {requiresTwoFactor, twoFactorUserId}                            — TOTP challenge
+//   3. {requiresTwoFactorSetup, twoFactorUserId, twoFactorSetupToken}  — first-time enrol
+// All fields are nullable so Gson can deserialise whichever shape comes back.
 data class LoginResponse(
-    val accessToken:  String,
-    val refreshToken: String,
-    val expiresIn:    String,
+    val accessToken:           String? = null,
+    val refreshToken:          String? = null,
+    val expiresIn:             String? = null,
+    val requiresTwoFactor:     Boolean? = null,
+    val twoFactorUserId:       String? = null,
+    val requiresTwoFactorSetup: Boolean? = null,
+    val twoFactorSetupToken:   String? = null,
+)
+
+data class TwoFactorLoginRequest(
+    val userId: String,
+    val token:  String,
+    val device: DeviceCheckIn? = null,
+)
+
+data class TwoFactorSetupGenerateRequest(
+    val setupToken: String,
+)
+
+data class TwoFactorSetupResponse(
+    val secret:      String,
+    val otpauthUrl:  String,
+    val backupCodes: List<String>,
+)
+
+data class TwoFactorSetupVerifyRequest(
+    val setupToken: String,
+    val token:      String,
+    val device:     DeviceCheckIn? = null,
 )
 
 data class UserProfileResponse(

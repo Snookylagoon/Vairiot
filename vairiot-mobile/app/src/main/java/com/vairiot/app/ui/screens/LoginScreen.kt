@@ -24,6 +24,8 @@ import com.vairiot.app.ui.theme.*
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
+    onTwoFactorSetup: (setupToken: String, tenantId: String) -> Unit = { _, _ -> },
+    onTwoFactorVerify: (userId: String, tenantId: String) -> Unit = { _, _ -> },
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -34,6 +36,20 @@ fun LoginScreen(
 
     LaunchedEffect(uiState.isLoggedIn) {
         if (uiState.isLoggedIn) onLoginSuccess()
+    }
+
+    LaunchedEffect(uiState.challenge) {
+        when (val ch = uiState.challenge) {
+            is LoginChallenge.TwoFactorSetup  -> {
+                onTwoFactorSetup(ch.setupToken, ch.tenantId)
+                viewModel.resetChallenge()
+            }
+            is LoginChallenge.TwoFactorVerify -> {
+                onTwoFactorVerify(ch.userId, ch.tenantId)
+                viewModel.resetChallenge()
+            }
+            null -> Unit
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {

@@ -15,10 +15,16 @@ import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
 
+sealed class LoginChallenge {
+    data class TwoFactorSetup(val setupToken: String, val tenantId: String) : LoginChallenge()
+    data class TwoFactorVerify(val userId: String, val tenantId: String) : LoginChallenge()
+}
+
 data class LoginUiState(
-    val isLoading:    Boolean = false,
-    val error:        String? = null,
-    val isLoggedIn:   Boolean = false,
+    val isLoading:  Boolean = false,
+    val error:      String? = null,
+    val isLoggedIn: Boolean = false,
+    val challenge:  LoginChallenge? = null,
 )
 
 @HiltViewModel
@@ -36,8 +42,28 @@ class LoginViewModel @Inject constructor(
             _uiState.value = LoginUiState(isLoading = true)
             try {
                 val response = api.login(LoginRequest(email, password, tenantId, deviceInfo.checkIn()))
-                tokenStore.saveTokens(response.accessToken, response.refreshToken, tenantId)
-                _uiState.value = LoginUiState(isLoggedIn = true)
+
+                when {
+                    response.requiresTwoFactorSetup == true && response.twoFactorSetupToken != null -> {
+                        _uiState.value = LoginUiState(
+                            challenge = LoginChallenge.TwoFactorSetup(response.twoFactorSetupToken, tenantId),
+                        )
+                    }
+                    response.requiresTwoFactor == true && response.twoFactorUserId != null -> {
+                        _uiState.value = LoginUiState(
+                            challenge = LoginChallenge.TwoFactorVerify(response.twoFactorUserId, tenantId),
+                        )
+                    }
+                    response.accessToken != null && response.refreshToken != null -> {
+                        tokenStore.saveTokens(response.accessToken, response.refreshToken, tenantId)
+                        _uiState.value = LoginUiState(isLoggedIn = true)
+                    }
+                    else -> {
+                        _uiState.value = LoginUiState(
+                            error = "Unexpected login response. Try again or contact support.",
+                        )
+                    }
+                }
             } catch (e: HttpException) {
                 Log.w(TAG, "Login HTTP ${e.code()}: ${e.message()}", e)
                 val msg = when (e.code()) {
@@ -58,6 +84,9 @@ class LoginViewModel @Inject constructor(
             }
         }
     }
+
+    /** Clear the challenge so the user returns to a fresh login form. */
+    fun resetChallenge() { _uiState.value = LoginUiState() }
 
     companion object { private const val TAG = "LoginViewModel" }
 }
