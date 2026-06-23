@@ -1,5 +1,7 @@
 import java.util.Properties
+import java.util.Date
 import java.io.FileInputStream
+import java.text.SimpleDateFormat
 
 plugins {
     alias(libs.plugins.android.application)
@@ -19,6 +21,10 @@ val keystoreProps = Properties().apply {
 }
 val hasReleaseSigning = keystoreProps.getProperty("storeFile") != null
 
+// Build date stamped at gradle configuration time. Surfaces in the Profile
+// screen via BuildConfig.BUILD_DATE.
+val buildDateStamp: String = SimpleDateFormat("yyyy-MM-dd").format(Date())
+
 android {
     namespace = "com.vairiot.app"
     compileSdk = 36
@@ -27,13 +33,17 @@ android {
         applicationId = "com.vairiot.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.3.2"
+        versionCode = 8
+        versionName = "1.3.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Production API. For local dev on a USB device, swap to
         // "http://localhost:3001/" and run `adb reverse tcp:3001 tcp:3001`.
         // For the Android emulator, use "http://10.0.2.2:3001/".
         buildConfigField("String", "API_BASE_URL", "\"https://vai.vairiot.com/\"")
+        // Build date stamped at Gradle configuration time. Refreshes whenever
+        // gradle re-evaluates the project (i.e. every assemble when config
+        // caching is off, which is the default here).
+        buildConfigField("String", "BUILD_DATE", "\"$buildDateStamp\"")
     }
 
     signingConfigs {

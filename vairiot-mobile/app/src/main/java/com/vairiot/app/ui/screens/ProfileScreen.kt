@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.vairiot.app.BuildConfig
 import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.ui.theme.*
 
@@ -91,8 +92,34 @@ fun ProfileScreen(
 
             Spacer(Modifier.weight(1f))
 
+            AppVersionCard()
+
             OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
                 Text("Sign out")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppVersionCard() {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("App version", fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("Released", fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(BuildConfig.BUILD_DATE, fontWeight = FontWeight.Medium)
             }
         }
     }
