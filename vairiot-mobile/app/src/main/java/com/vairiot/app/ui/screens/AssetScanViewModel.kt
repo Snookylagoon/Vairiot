@@ -68,6 +68,11 @@ class AssetScanViewModel @Inject constructor(
         }
     }
 
+    /** Whether the underlying device exposes a UHF RFID radio. */
+    val supportsRfid:    Boolean get() = scanner.supportsRfid
+    /** Whether the underlying device exposes a barcode imager. */
+    val supportsBarcode: Boolean get() = scanner.supportsBarcode
+
     fun triggerScan(type: ScanType = ScanType.RFID_UHF) {
         _state.value = ScanUiState.Scanning(type)
         scanner.startScan(type)

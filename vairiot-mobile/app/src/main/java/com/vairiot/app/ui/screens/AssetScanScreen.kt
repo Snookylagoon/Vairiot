@@ -69,10 +69,12 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
                 }
             }
 
-            // Scan trigger buttons — RFID (hardware trigger default) + Barcode
+            // Scan trigger buttons — each disabled if the underlying hardware
+            // doesn't support that scan type (e.g. ME65 has no UHF RFID).
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { viewModel.triggerScan() },
+                    enabled = viewModel.supportsRfid,
                     modifier = Modifier.weight(1f).height(56.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = VairiotPink),
@@ -80,10 +82,12 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
                     Icon(Icons.Default.QrCodeScanner, contentDescription = null,
                         modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("RFID", fontFamily = MontserratFamily, fontWeight = FontWeight.Bold)
+                    Text(if (viewModel.supportsRfid) "RFID" else "RFID (n/a)",
+                        fontFamily = MontserratFamily, fontWeight = FontWeight.Bold)
                 }
                 Button(
                     onClick = { viewModel.triggerBarcodeScan() },
+                    enabled = viewModel.supportsBarcode,
                     modifier = Modifier.weight(1f).height(56.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
@@ -91,7 +95,8 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
                     Icon(Icons.Default.QrCode2, contentDescription = null,
                         modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Barcode", fontFamily = MontserratFamily, fontWeight = FontWeight.Bold)
+                    Text(if (viewModel.supportsBarcode) "Barcode" else "Barcode (n/a)",
+                        fontFamily = MontserratFamily, fontWeight = FontWeight.Bold)
                 }
             }
 

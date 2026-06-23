@@ -20,6 +20,10 @@ class MeferiScannerService @Inject constructor(
     private val _scanResults = MutableSharedFlow<ScanResult>(extraBufferCapacity = 8)
     override val scanResults: SharedFlow<ScanResult> = _scanResults
 
+    // ME65 has a barcode imager but no UHF RFID radio.
+    override val supportsRfid:    Boolean = false
+    override val supportsBarcode: Boolean = true
+
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
             if (intent == null) return
