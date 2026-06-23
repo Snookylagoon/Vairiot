@@ -25,12 +25,12 @@ const SEED_USERS: { email: string; name: string; roleName: string }[] = [
 ];
 
 const DEMO_ASSETS = [
-  { num: 'A-1001', name: 'Dell Latitude 7440',   desc: '14" business laptop',    status: 'active', condition: 'good',      serial: 'DL7440-001', barcode: '1001-DL7440', rfid: 'E280-1001-DL7440' },
-  { num: 'A-1002', name: 'HP LaserJet Pro M404',  desc: 'Office laser printer',   status: 'active', condition: 'good',      serial: 'HP404-002',  barcode: '1002-HP404',  rfid: 'E280-1002-HP404' },
-  { num: 'A-1003', name: 'Logitech MX Keys',      desc: 'Wireless keyboard',      status: 'active', condition: 'excellent', serial: 'LG-MXK-003', barcode: '1003-MXKEYS', rfid: 'E280-1003-MXKEYS' },
-  { num: 'A-1004', name: 'Herman Miller Aeron',   desc: 'Ergonomic office chair',  status: 'active', condition: 'good',     serial: 'HM-AER-004', barcode: '1004-AERON',  rfid: 'E280-1004-AERON' },
-  { num: 'A-1005', name: 'Cisco Catalyst 2960',   desc: '24-port managed switch',  status: 'active', condition: 'good',     serial: 'CS-2960-005', barcode: '1005-CSC2960', rfid: 'E280-1005-CSC2960' },
-  { num: 'A-1006', name: 'Meferi ME65 Handheld',  desc: 'RFID/barcode handheld',   status: 'active', condition: 'good',     serial: 'MF-ME65-006', barcode: '1006-ME65',    rfid: 'E280-1006-ME65' },
+  { num: 'AST-000001', name: 'Dell Latitude 7440',   desc: '14" business laptop',    status: 'active', condition: 'good',      serial: 'DL7440-001', barcode: '1001-DL7440', rfid: 'E280-1001-DL7440' },
+  { num: 'AST-000002', name: 'HP LaserJet Pro M404',  desc: 'Office laser printer',   status: 'active', condition: 'good',      serial: 'HP404-002',  barcode: '1002-HP404',  rfid: 'E280-1002-HP404' },
+  { num: 'AST-000003', name: 'Logitech MX Keys',      desc: 'Wireless keyboard',      status: 'active', condition: 'excellent', serial: 'LG-MXK-003', barcode: '1003-MXKEYS', rfid: 'E280-1003-MXKEYS' },
+  { num: 'AST-000004', name: 'Herman Miller Aeron',   desc: 'Ergonomic office chair',  status: 'active', condition: 'good',     serial: 'HM-AER-004', barcode: '1004-AERON',  rfid: 'E280-1004-AERON' },
+  { num: 'AST-000005', name: 'Cisco Catalyst 2960',   desc: '24-port managed switch',  status: 'active', condition: 'good',     serial: 'CS-2960-005', barcode: '1005-CSC2960', rfid: 'E280-1005-CSC2960' },
+  { num: 'AST-000006', name: 'Meferi ME65 Handheld',  desc: 'RFID/barcode handheld',   status: 'active', condition: 'good',     serial: 'MF-ME65-006', barcode: '1006-ME65',    rfid: 'E280-1006-ME65' },
 ];
 
 async function main() {

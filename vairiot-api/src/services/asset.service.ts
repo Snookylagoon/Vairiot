@@ -27,8 +27,13 @@ function toDate(v: string | undefined | null): Date | undefined {
 }
 
 async function nextAssetNumber(tenantId: string): Promise<string> {
-  const count = await prisma.asset.count({ where: { tenantId } });
-  return 'AST-' + String(count + 1).padStart(6, '0');
+  const last = await prisma.asset.findFirst({
+    where: { tenantId, assetNumber: { startsWith: 'AST-' } },
+    orderBy: { assetNumber: 'desc' },
+    select: { assetNumber: true },
+  });
+  const next = last ? parseInt(last.assetNumber.replace('AST-', ''), 10) + 1 : 1;
+  return 'AST-' + String(next).padStart(6, '0');
 }
 
 const SORTABLE_COLUMNS: Record<string, string> = {
