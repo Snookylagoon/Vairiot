@@ -17,7 +17,7 @@ set -u
 set -o pipefail
 
 REPO="${REPO:-/Volumes/DRSssd/Projects/GitHub/Vairiot}"
-APK="${APK:-$REPO/vairiot-mobile/app/build/outputs/apk/debug/app-debug.apk}"
+APK="${APK:-$REPO/vairiot-mobile/app/build/outputs/apk/debug/Vairiot-Current.apk}"
 ADB="${ADB:-$HOME/Library/Android/sdk/platform-tools/adb}"
 POLL_SECONDS="${POLL_SECONDS:-3}"
 STATE_DIR="$REPO/.claude/hh83-auto-flash"

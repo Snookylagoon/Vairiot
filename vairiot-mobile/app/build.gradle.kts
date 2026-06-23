@@ -70,6 +70,16 @@ android {
         compose     = true
         buildConfig = true
     }
+
+    // Emit every variant's APK as Vairiot-Current.apk so it's obvious which
+    // file to upload to vaiadmin → Mobile Releases. Lives next to the original
+    // gradle output dir (app/build/outputs/apk/<variant>/Vairiot-Current.apk).
+    applicationVariants.all {
+        outputs.all {
+            (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl)
+                .outputFileName = "Vairiot-Current.apk"
+        }
+    }
 }
 
 dependencies {
