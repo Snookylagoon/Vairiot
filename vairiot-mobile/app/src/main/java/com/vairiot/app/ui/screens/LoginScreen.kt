@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -109,16 +110,18 @@ fun LoginScreen(
                         label = { Text("Organisation ID") },
                         modifier = Modifier.fillMaxWidth(), singleLine = true)
 
-                    OutlinedTextField(value = email, onValueChange = { email = it },
+                    OutlinedTextField(value = email, onValueChange = { email = it.trim() },
                         label = { Text("Email") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email,
+                            autoCorrect = false, capitalization = KeyboardCapitalization.None),
                         modifier = Modifier.fillMaxWidth(), singleLine = true)
 
                     OutlinedTextField(value = password, onValueChange = { password = it },
                         label = { Text("Password") },
                         visualTransformation = if (passwordVisible) VisualTransformation.None
                                                else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password,
+                            autoCorrect = false, capitalization = KeyboardCapitalization.None),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         trailingIcon = {
