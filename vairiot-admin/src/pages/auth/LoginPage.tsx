@@ -318,7 +318,7 @@ export function LoginPage() {
                 )}
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  <Input label="Organisation ID" placeholder="platform" error={errors.tenantId?.message} {...register('tenantId')} />
+                  <Input label="Organisation" placeholder="Company name or ID" error={errors.tenantId?.message} {...register('tenantId')} />
                   <Input label="Email address" type="email" placeholder="admin@vairiot.com" error={errors.email?.message} {...register('email')} />
                   <Input label="Password" type="password" placeholder="••••••••" error={errors.password?.message} {...register('password')} />
                   <Button type="submit" size="lg" loading={isSubmitting} className="w-full mt-2">Sign in</Button>

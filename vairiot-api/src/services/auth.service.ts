@@ -33,11 +33,25 @@ export interface LoginResult {
   twoFactorSetupToken?: string;
 }
 
+async function resolveTenantId(input: string): Promise<string> {
+  const existing = await prisma.tenant.findUnique({ where: { id: input }, select: { id: true } });
+  if (existing) return existing.id;
+  const byName = await prisma.tenant.findUnique({ where: { name: input }, select: { id: true } });
+  if (byName) return byName.id;
+  const byNameInsensitive = await prisma.tenant.findFirst({
+    where: { name: { equals: input, mode: 'insensitive' } },
+    select: { id: true },
+  });
+  return byNameInsensitive?.id ?? input;
+}
+
 export async function login(
-  { email, password, tenantId }: LoginInput,
+  { email, password, tenantId: rawTenantId }: LoginInput,
   ipAddress = '0.0.0.0',
   device?: DeviceCheckIn,
 ): Promise<LoginResult> {
+  const tenantId = await resolveTenantId(rawTenantId);
+
   // Check lockout before anything else
   await checkAccountLock(tenantId, email);
 
