@@ -114,12 +114,13 @@ export function SmtpPage() {
                   <Button size="sm" variant="ghost" onClick={() => setForm(f => ({ ...f, changePassword: true }))}>Change</Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <input type="password" autoComplete="new-password"
-                    placeholder={data?.hasPassword ? 'New password (leave blank to clear)' : ''}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-v-violet"
-                    value={form.password}
-                    onChange={e => setForm(f => ({ ...f, password: e.target.value, changePassword: true }))} />
+                <div className="flex items-start gap-2">
+                  <div className="flex-1">
+                    <Input type="password" autoComplete="new-password"
+                      placeholder={data?.hasPassword ? 'New password (leave blank to clear)' : ''}
+                      value={form.password}
+                      onChange={e => setForm(f => ({ ...f, password: e.target.value, changePassword: true }))} />
+                  </div>
                   {data?.hasPassword && (
                     <Button size="sm" variant="ghost"
                       onClick={() => setForm(f => ({ ...f, password: '', changePassword: false }))}>Cancel</Button>
