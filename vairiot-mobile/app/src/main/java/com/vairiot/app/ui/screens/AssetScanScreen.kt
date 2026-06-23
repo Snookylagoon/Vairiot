@@ -69,17 +69,30 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
                 }
             }
 
-            // Scan trigger button
-            Button(
-                onClick = { viewModel.triggerScan() },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = VairiotPink),
-            ) {
-                Icon(Icons.Default.QrCodeScanner, contentDescription = null,
-                    modifier = Modifier.size(22.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Scan Tag", fontFamily = MontserratFamily, fontWeight = FontWeight.Bold)
+            // Scan trigger buttons — RFID (hardware trigger default) + Barcode
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { viewModel.triggerScan() },
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = VairiotPink),
+                ) {
+                    Icon(Icons.Default.QrCodeScanner, contentDescription = null,
+                        modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("RFID", fontFamily = MontserratFamily, fontWeight = FontWeight.Bold)
+                }
+                Button(
+                    onClick = { viewModel.triggerBarcodeScan() },
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+                ) {
+                    Icon(Icons.Default.QrCode2, contentDescription = null,
+                        modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Barcode", fontFamily = MontserratFamily, fontWeight = FontWeight.Bold)
+                }
             }
 
             // Result area

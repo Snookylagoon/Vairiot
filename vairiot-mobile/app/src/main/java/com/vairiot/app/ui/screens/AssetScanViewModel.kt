@@ -68,9 +68,9 @@ class AssetScanViewModel @Inject constructor(
         }
     }
 
-    fun triggerScan() {
+    fun triggerScan(type: ScanType = ScanType.RFID_UHF) {
         _state.value = ScanUiState.Scanning
-        scanner.startScan()
+        scanner.startScan(type)
         scanTimeoutJob?.cancel()
         scanTimeoutJob = viewModelScope.launch {
             delay(SCAN_TIMEOUT_MS)
@@ -81,6 +81,8 @@ class AssetScanViewModel @Inject constructor(
             }
         }
     }
+
+    fun triggerBarcodeScan() = triggerScan(ScanType.BARCODE)
 
     fun cancelScan() {
         scanTimeoutJob?.cancel()

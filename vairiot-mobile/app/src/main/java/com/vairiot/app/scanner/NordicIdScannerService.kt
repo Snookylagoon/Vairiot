@@ -20,6 +20,8 @@ import com.nordicid.nurapi.NurEventTagTrackingChange
 import com.nordicid.nurapi.NurEventTagTrackingData
 import com.nordicid.nurapi.NurEventTraceTag
 import com.nordicid.nurapi.NurEventTriggeredRead
+import com.nordicid.nuraccessory.AccessoryBarcodeResult
+import com.nordicid.nuraccessory.AccessoryBarcodeResultListener
 import com.nordicid.nuraccessory.NurAccessoryExtension
 import android.content.BroadcastReceiver
 import android.content.Intent
@@ -50,6 +52,20 @@ class NordicIdScannerService @Inject constructor(
     private var streaming = false
     private var activeScanType: ScanType = ScanType.RFID_UHF
 
+    // Nordic ID's NUR Accessory API delivers barcode results via this listener
+    // (HH83 / EXA51 / SAMPO etc. integrated 1D/2D imager).
+    private val barcodeListener = AccessoryBarcodeResultListener { result: AccessoryBarcodeResult? ->
+        val value = result?.strBarcode?.trim().orEmpty()
+        if (value.isNotEmpty()) {
+            Log.d(TAG, "Nordic ID barcode result: status=${result?.status} value=$value")
+            _scanResults.tryEmit(ScanResult(value, ScanType.BARCODE))
+        } else {
+            Log.d(TAG, "Nordic ID barcode result: status=${result?.status} (empty)")
+        }
+    }
+
+    // Legacy Newland / Meferi style broadcast receiver — graceful no-op on HH83
+    // but kept so a single APK still works on other vendor handhelds.
     private val barcodeReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
             if (intent == null) return
@@ -67,7 +83,15 @@ class NordicIdScannerService @Inject constructor(
     private val nurListener = object : NurApiListener {
         override fun connectedEvent() {
             Log.i(TAG, "NUR reader connected (fw=${nurApi.fileVersion ?: "?"})")
-            try { accessoryExt = NurAccessoryExtension(nurApi) }
+            try {
+                val ext = NurAccessoryExtension(nurApi)
+                accessoryExt = ext
+                ext.registerBarcodeResultListener(barcodeListener)
+                try { ext.imagerPower(true) } catch (e: Exception) {
+                    Log.d(TAG, "imagerPower(true) not supported: ${e.message}")
+                }
+                Log.i(TAG, "Nordic ID barcode imager listener registered")
+            }
             catch (e: Exception) { Log.w(TAG, "AccessoryExtension init failed", e) }
         }
 
@@ -124,10 +148,20 @@ class NordicIdScannerService @Inject constructor(
         activeScanType = type
         when (type) {
             ScanType.BARCODE -> {
-                Log.d(TAG, "Starting barcode scan via broadcast")
+                val ext = accessoryExt
+                if (ext != null) {
+                    try {
+                        Log.d(TAG, "Starting barcode scan via NurAccessoryExtension (timeout=${BARCODE_TIMEOUT_MS}ms)")
+                        ext.readBarcodeAsync(BARCODE_TIMEOUT_MS)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "readBarcodeAsync failed: ${e.message}")
+                    }
+                } else {
+                    Log.w(TAG, "NurAccessoryExtension not ready — cannot fire barcode scan")
+                }
+                // Also fan out legacy broadcasts so non-Nordic handhelds still react.
                 START_BARCODE_ACTIONS.forEach { action ->
                     runCatching { context.sendBroadcast(Intent(action).setPackage(null)) }
-                        .onFailure { Log.w(TAG, "startScan barcode: $action failed: ${it.message}") }
                 }
             }
             else -> {
@@ -149,6 +183,9 @@ class NordicIdScannerService @Inject constructor(
     }
 
     override fun stopScan() {
+        try { accessoryExt?.cancelBarcodeAsync() } catch (e: Exception) {
+            Log.d(TAG, "cancelBarcodeAsync ignored: ${e.message}")
+        }
         STOP_BARCODE_ACTIONS.forEach { action ->
             runCatching { context.sendBroadcast(Intent(action)) }
         }
@@ -197,6 +234,7 @@ class NordicIdScannerService @Inject constructor(
         private const val TRIGGER_PRESSED = 1
         private const val INT_READER_SPEC = "type=INT;addr=integrated_reader"
         private const val INT_READER_ADDR = "integrated_reader"
+        private const val BARCODE_TIMEOUT_MS = 5000
 
         private val BARCODE_ACTIONS = listOf(
             "nlscan.action.SCANNER_RESULT",
