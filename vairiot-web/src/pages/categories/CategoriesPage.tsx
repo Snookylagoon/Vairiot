@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Tag, Search } from 'lucide-react';
 import { useCategories, useCreateCategory, useDeleteCategory } from '@/hooks/useCategories';
 import { Button } from '@/components/ui/Button';
@@ -8,6 +9,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
 export function CategoriesPage() {
+  const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
   const canWrite = hasAnyPermission(user, 'category:write');
   const { data: categories = [], isLoading } = useCategories();
@@ -77,11 +79,15 @@ export function CategoriesPage() {
           )}
           {filtered.map((c: { id: string; name: string; description?: string; _count?: { assets: number } }) => (
             <div key={c.id} className="flex items-center justify-between py-3">
-              <div>
+              <button
+                type="button"
+                onClick={() => navigate(`/assets?categoryId=${c.id}`)}
+                className="flex-1 text-left rounded-md -mx-2 px-2 py-1 hover:bg-v-wash transition-colors"
+                title={`View assets in ${c.name}`}>
                 <p className="text-sm font-medium text-v-charcoal">{c.name}</p>
                 {c.description && <p className="text-xs text-gray-400">{c.description}</p>}
                 <p className="text-xs text-v-mauve mt-0.5">{c._count?.assets ?? 0} assets</p>
-              </div>
+              </button>
               {canWrite && (
                 <button onClick={() => setDeleteId(c.id)}
                   className="p-1.5 text-gray-300 hover:text-red-500 transition-colors rounded">
