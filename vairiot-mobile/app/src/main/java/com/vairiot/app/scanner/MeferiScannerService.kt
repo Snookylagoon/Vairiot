@@ -28,6 +28,10 @@ class MeferiScannerService @Inject constructor(
                 in BARCODE_ACTIONS -> ScanType.BARCODE
                 else               -> ScanType.UNKNOWN
             }
+            // Always log every received scan-related broadcast so we can adjust
+            // the action whitelist if a new firmware uses a different one.
+            val extras = intent.extras?.keySet()?.joinToString(",") ?: "(none)"
+            Log.d(TAG, "Broadcast: action=${intent.action} extras=[$extras]")
             val value = extractFirstExtra(intent, type)
             if (!value.isNullOrBlank()) {
                 Log.d(TAG, "Scan received: action=${intent.action} type=$type value=$value")
@@ -78,21 +82,35 @@ class MeferiScannerService @Inject constructor(
     companion object {
         private const val TAG = "MeferiScanner"
 
+        // Action names the scanner subsystem might use to deliver a barcode.
+        // We listen for every plausible one so a MeWedge profile change on
+        // device doesn't require a new APK. Tell the user to configure MeWedge
+        // output to one of these (com.vairiot.scan.RESULT is reserved for us
+        // and won't clash with anything else).
         private val BARCODE_ACTIONS = listOf(
+            "com.meferi.action.SCANNER.RESULTS",                // ME65 stock (verified — note plural)
+            "com.meferi.action.SCANNER.RESULT",                 // older Meferi firmwares (singular)
+            "com.vairiot.scan.RESULT",                          // our reserved action
+            "com.meferi.decoderesult",                          // ME65 stock Scanner.apk default
             "android.intent.action.MEF_ACTION",
             "android.intent.action.RECEIVE_SCANDATA_BROADCAST",
-            "com.meferi.action.SCANNER.RESULT",
+            "com.android.action.SEND_SCAN_RESULT",              // generic AOSP wedge
+            "nlscan.action.SCANNER_RESULT",                     // Newland passthrough
         )
 
         private val UHF_ACTIONS = listOf(
             "com.android.action.UHF_DATA",
             "com.rfid.UHF_DATA",
+            "com.meferi.UHF_DATA",
         )
 
         private val BARCODE_EXTRAS = listOf(
+            "com.meferi.mewedge.data_string",                   // MeWedge canonical
             "data",
-            "com.meferi.mewedge.data_string",
             "meferi.scan.result.param.barcode",
+            "barocode_string",
+            "barcode_string",
+            "SCAN_BARCODE1",
         )
 
         private val UHF_EXTRAS = listOf("UHF_DATA", "EPC", "epc", "tag")

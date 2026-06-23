@@ -19,7 +19,7 @@ import javax.inject.Inject
 
 sealed class ScanUiState {
     object Idle    : ScanUiState()
-    object Scanning: ScanUiState()
+    data class Scanning(val expecting: ScanType = ScanType.RFID_UHF) : ScanUiState()
     object Loading : ScanUiState()
     data class Found(val asset: AssetResponse, val fromCache: Boolean = false) : ScanUiState()
     /**
@@ -69,7 +69,7 @@ class AssetScanViewModel @Inject constructor(
     }
 
     fun triggerScan(type: ScanType = ScanType.RFID_UHF) {
-        _state.value = ScanUiState.Scanning
+        _state.value = ScanUiState.Scanning(type)
         scanner.startScan(type)
         scanTimeoutJob?.cancel()
         scanTimeoutJob = viewModelScope.launch {

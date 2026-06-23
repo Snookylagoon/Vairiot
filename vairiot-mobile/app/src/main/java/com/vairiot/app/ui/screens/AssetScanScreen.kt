@@ -98,7 +98,7 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
             // Result area
             when (val s = state) {
                 is ScanUiState.Idle       -> IdleCard()
-                is ScanUiState.Scanning   -> ScanningCard(onCancel = { viewModel.cancelScan() })
+                is ScanUiState.Scanning   -> ScanningCard(expecting = s.expecting, onCancel = { viewModel.cancelScan() })
                 is ScanUiState.Loading    -> LoadingCard()
                 is ScanUiState.Found      -> AssetResultCard(s.asset, onReset = { viewModel.reset() })
                 is ScanUiState.NotFound   -> NotFoundCard(
@@ -148,17 +148,22 @@ fun LoadingCard() {
 }
 
 @Composable
-fun ScanningCard(onCancel: () -> Unit) {
+fun ScanningCard(expecting: com.vairiot.app.scanner.ScanType, onCancel: () -> Unit) {
+    val title = if (expecting == com.vairiot.app.scanner.ScanType.BARCODE)
+        "Waiting for barcode…" else "Waiting for RFID tag…"
+    val hint = if (expecting == com.vairiot.app.scanner.ScanType.BARCODE)
+        "Press the device's hardware trigger and point at a barcode."
+    else
+        "Press the device's hardware trigger to read an RFID tag, or type the value above and tap the search icon."
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 CircularProgressIndicator(color = VairiotPink, modifier = Modifier.size(24.dp))
-                Text("Waiting for scanner…", style = MaterialTheme.typography.titleMedium,
+                Text(title, style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold)
             }
-            Text(
-                "Press the device's hardware trigger to capture a tag, or type the barcode / RFID into the field above and tap the search icon.",
+            Text(hint,
                 style = MaterialTheme.typography.bodySmall,
                 color  = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             )
