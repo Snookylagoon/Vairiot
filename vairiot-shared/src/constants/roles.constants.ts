@@ -32,10 +32,11 @@ export type RoleName = (typeof RoleName)[keyof typeof RoleName];
 export const ALL_ROLE_NAMES = Object.values(RoleName);
 
 // ─── Roles that require mandatory TOTP 2FA ───────────────────────────────────
-export const ROLES_REQUIRING_2FA: RoleName[] = [
-  RoleName.PlatformSuperAdmin,
-  RoleName.LicensingAuthority,
-];
+// 2FA is OFF by default for all roles. A Platform Super Admin can enable it
+// per user via the admin console, and any user may opt in from their own
+// security settings. Leave this list empty unless a compliance regime
+// reintroduces a hard role-level requirement.
+export const ROLES_REQUIRING_2FA: RoleName[] = [];
 
 // ─── Platform-level roles (not scoped to a single tenant) ────────────────────
 export const PLATFORM_ROLES: RoleName[] = [

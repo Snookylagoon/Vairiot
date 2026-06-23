@@ -265,10 +265,12 @@ export function LoginPage() {
                   <Input
                     label="New password"
                     type="password"
-                    placeholder="At least 12 characters"
+                    placeholder="12 letters and numbers"
                     value={pwNew}
                     onChange={(e) => setPwNew(e.target.value)}
+                    maxLength={12}
                     autoFocus
+                    hint="Exactly 12 characters — letters (A–Z, a–z) and numbers (0–9) only. No spaces or special characters."
                   />
                   <Input
                     label="Confirm new password"
@@ -276,15 +278,22 @@ export function LoginPage() {
                     placeholder="Repeat the new password"
                     value={pwConfirm}
                     onChange={(e) => setPwConfirm(e.target.value)}
+                    maxLength={12}
+                    success={
+                      pwNew.length === 12 && /^[A-Za-z0-9]+$/.test(pwNew) && pwNew === pwConfirm
+                        ? 'Passwords match'
+                        : undefined
+                    }
                   />
-                  <p className="text-xs text-gray-500">
-                    Must contain at least 12 characters, with an uppercase letter, a lowercase letter, a digit and a special character.
-                  </p>
                   <Button
                     size="lg"
                     loading={pwLoading}
                     onClick={submitForced}
-                    disabled={pwNew.length < 12 || pwConfirm.length < 12}
+                    disabled={
+                      pwNew.length !== 12 ||
+                      !/^[A-Za-z0-9]+$/.test(pwNew) ||
+                      pwNew !== pwConfirm
+                    }
                     className="w-full"
                   >
                     Update password &amp; sign in

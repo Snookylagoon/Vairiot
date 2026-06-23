@@ -47,6 +47,16 @@ export function useResetPassword() {
   });
 }
 
+export function useDisableUserTwoFactor() {
+  return useMutationWithToast<{ twoFactorEnabled: boolean }, string>({
+    mutationFn: (userId) =>
+      api.post(`/api/v1/admin/platform/users/${userId}/two-factor/disable`).then(r => r.data),
+    invalidate: ['admin', 'users'],
+    success: 'Two-factor authentication disabled',
+    error: 'Failed to disable 2FA',
+  });
+}
+
 export function useUnlockUser() {
   return useMutationWithToast<unknown, string>({
     mutationFn: (userId) => api.patch(`/api/v1/admin/platform/users/${userId}/unlock`).then(r => r.data),

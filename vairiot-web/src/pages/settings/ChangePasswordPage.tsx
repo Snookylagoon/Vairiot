@@ -4,6 +4,15 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
+const PASSWORD_LENGTH = 12;
+const ALPHANUMERIC = /^[A-Za-z0-9]+$/;
+const PASSWORD_HINT =
+  `Exactly ${PASSWORD_LENGTH} characters — letters (A–Z, a–z) and numbers (0–9) only. No spaces or special characters.`;
+
+function isValidPassword(value: string) {
+  return value.length === PASSWORD_LENGTH && ALPHANUMERIC.test(value);
+}
+
 export function ChangePasswordPage() {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -11,9 +20,16 @@ export function ChangePasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const nextValid = isValidPassword(next);
+  const matches = nextValid && next === confirm;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!nextValid) {
+      setError(PASSWORD_HINT);
+      return;
+    }
     if (next !== confirm) {
       setError('New passwords do not match.');
       return;
@@ -68,7 +84,8 @@ export function ChangePasswordPage() {
           onChange={(e) => setNext(e.target.value)}
           autoComplete="new-password"
           required
-          hint="At least 12 characters, with uppercase, lowercase, digit, and special character."
+          maxLength={PASSWORD_LENGTH}
+          hint={PASSWORD_HINT}
         />
         <Input
           label="Confirm new password"
@@ -77,13 +94,15 @@ export function ChangePasswordPage() {
           onChange={(e) => setConfirm(e.target.value)}
           autoComplete="new-password"
           required
+          maxLength={PASSWORD_LENGTH}
+          success={matches ? 'Passwords match' : undefined}
         />
 
         <Button
           type="submit"
           size="lg"
           loading={loading}
-          disabled={!current || next.length < 12 || confirm.length < 12}
+          disabled={!current || !matches}
         >
           Update password
         </Button>

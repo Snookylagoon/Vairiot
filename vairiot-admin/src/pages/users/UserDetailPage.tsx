@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Check, X, RotateCcw, ShieldOff } from 'lucide-react';
 import type { Permission } from 'vairiot-shared';
-import { useAllUsers, useUserPermissions, useSetUserPermissions } from '@/hooks/useAdmin';
+import { useAllUsers, useUserPermissions, useSetUserPermissions, useDisableUserTwoFactor } from '@/hooks/useAdmin';
 import { useAuthStore } from '@/stores/auth.store';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -54,6 +54,9 @@ export function UserDetailPage() {
   const { data: users = [], isLoading } = useAllUsers();
   const { data: perms, isLoading: permsLoading } = useUserPermissions(id);
   const save = useSetUserPermissions();
+  const disable2fa = useDisableUserTwoFactor();
+
+  const isPlatformSuperAdmin = me?.roles?.includes('Platform Super Admin') ?? false;
 
   const user = (users as UserRow[]).find(u => u.id === id);
 
@@ -119,6 +122,21 @@ export function UserDetailPage() {
         <Badge variant={user.active ? 'green' : 'gray'}>{user.active ? 'Active' : 'Disabled'}</Badge>
         {isLocked && <Badge variant="red">Locked</Badge>}
         <Badge variant={user.twoFactorEnabled ? 'green' : 'gray'}>{user.twoFactorEnabled ? '2FA On' : '2FA Off'}</Badge>
+        {isPlatformSuperAdmin && user.twoFactorEnabled && id && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={disable2fa.isPending}
+            onClick={() => {
+              if (confirm(`Disable two-factor authentication for ${user.name}? They can re-enrol themselves from their account settings.`)) {
+                disable2fa.mutate(id);
+              }
+            }}
+          >
+            <ShieldOff size={14} className="mr-1" />
+            {disable2fa.isPending ? 'Disabling…' : 'Disable 2FA'}
+          </Button>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">

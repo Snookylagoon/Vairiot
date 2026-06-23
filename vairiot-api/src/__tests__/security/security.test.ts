@@ -71,28 +71,28 @@ describe('Password policy', () => {
   it('rejects password shorter than 12 characters', async () => {
     const res = await request(app).post('/api/v1/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'weak@sec.test', name: 'Weak', password: 'Short1!a' });
+      .send({ email: 'weak@sec.test', name: 'Weak', password: 'Short123' });
     expect(res.status).toBe(400);
   });
 
-  it('rejects password without uppercase', async () => {
+  it('rejects password longer than 12 characters', async () => {
     const res = await request(app).post('/api/v1/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'weak2@sec.test', name: 'Weak', password: 'alllowercase1!' });
+      .send({ email: 'weak2@sec.test', name: 'Weak', password: 'WayTooLong12345' });
     expect(res.status).toBe(400);
   });
 
-  it('rejects password without special character', async () => {
+  it('rejects password containing a special character', async () => {
     const res = await request(app).post('/api/v1/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'weak3@sec.test', name: 'Weak', password: 'NoSpecialChar1Abc' });
+      .send({ email: 'weak3@sec.test', name: 'Weak', password: 'HasSpecial1!' });
     expect(res.status).toBe(400);
   });
 
-  it('accepts strong password', async () => {
+  it('accepts a 12-character alphanumeric password', async () => {
     const res = await request(app).post('/api/v1/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'strong@sec.test', name: 'Strong', password: 'StrongPass123!' });
+      .send({ email: 'strong@sec.test', name: 'Strong', password: 'StrongPass12' });
     expect(res.status).toBe(201);
   });
 });

@@ -278,6 +278,35 @@ export async function unlockUser(userId: string, actorId: string) {
   }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
 }
 
+/**
+ * Platform Super Admin action: disable 2FA on a user's account.
+ * Clears any stored TOTP secret and backup codes. The user can re-enrol
+ * themselves from their own security settings on next sign-in.
+ */
+export async function disableUserTwoFactor(userId: string, actorId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new NotFoundError('User not found');
+
+  await prisma.userTwoFactor.deleteMany({ where: { userId } });
+  await prisma.user.update({
+    where: { id: userId },
+    data: { twoFactorEnabled: false },
+  });
+
+  prisma.auditEvent.create({
+    data: {
+      tenantId: user.tenantId,
+      actorId,
+      entityType: 'user',
+      entityId: userId,
+      action: 'admin_two_factor_disabled',
+      metadata: { email: user.email },
+    },
+  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+
+  return { twoFactorEnabled: false };
+}
+
 export async function setUserActiveStatus(userId: string, active: boolean, actorId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new NotFoundError('User not found');

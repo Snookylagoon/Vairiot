@@ -11,6 +11,7 @@ import {
   unlockUser,
   setUserActiveStatus,
   softDeleteUser,
+  disableUserTwoFactor,
 } from '../../services/platform-admin.service';
 import {
   getUserPermissionsView,
@@ -99,6 +100,13 @@ platformRouter.post('/users/:id/reset-password', async (req: Request, res: Respo
 platformRouter.patch('/users/:id/unlock', async (req: Request, res: Response) => {
   await unlockUser(req.params.id, req.user!.sub);
   res.json({ message: 'User unlocked' });
+});
+
+// Platform Super Admin can switch 2FA off for any user; the user re-enrols
+// themselves from /settings/security if they want it back on.
+platformRouter.post('/users/:id/two-factor/disable', async (req: Request, res: Response) => {
+  const result = await disableUserTwoFactor(req.params.id, req.user!.sub);
+  res.json(result);
 });
 
 platformRouter.get('/users/:id/permissions', async (req: Request, res: Response) => {
