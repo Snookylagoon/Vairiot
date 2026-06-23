@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Loaded by vairiot-mobile/scripts/install-hh83-auto-flash.sh — __REPO_PATH__
+     is substituted at install time. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.vairiot.hh83-auto-flash</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO_PATH__/vairiot-mobile/scripts/hh83-auto-flash.sh</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>REPO</key>
+    <string>__REPO_PATH__</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/hh83-auto-flash.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/tmp/hh83-auto-flash.err.log</string>
+</dict>
+</plist>
