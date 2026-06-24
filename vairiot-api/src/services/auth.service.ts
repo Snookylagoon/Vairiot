@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
-import { signAccessToken, signRefreshToken, signSetupToken, verifyRefreshToken } from '../lib/jwt';
+import { signAccessToken, signRefreshToken, signSetupToken, signChallengeToken, verifyChallengeToken, verifyRefreshToken } from '../lib/jwt';
 import { logger } from '../lib/logger';
 import { UnauthorizedError, ValidationError, NotFoundError } from '../lib/errors';
 import { checkAccountLock, recordLoginAttempt } from './login-protection.service';
@@ -26,11 +26,13 @@ export interface LoginResult {
   refreshToken?: string;
   expiresIn?: string;
   requiresTwoFactor?: boolean;
-  twoFactorUserId?: string;
+  twoFactorChallengeToken?: string;
   requiresPasswordChange?: boolean;
-  passwordChangeUserId?: string;
+  passwordChangeToken?: string;
   requiresTwoFactorSetup?: boolean;
   twoFactorSetupToken?: string;
+  /** @deprecated use twoFactorChallengeToken */
+  twoFactorUserId?: string;
 }
 
 async function resolveTenantId(input: string): Promise<string> {
@@ -73,13 +75,15 @@ export async function login(
   // If a forced password change is pending, return a challenge before tokens or 2FA
   if (user.mustChangePassword) {
     await recordLoginAttempt(tenantId, email, ipAddress, true, user.id, 'awaiting_password_change');
-    return { requiresPasswordChange: true, passwordChangeUserId: user.id };
+    const passwordChangeToken = signChallengeToken({ sub: user.id, tenantId: user.tenantId, scope: 'password_change' });
+    return { requiresPasswordChange: true, passwordChangeToken };
   }
 
   // If 2FA is enabled, return a challenge instead of tokens
   if (user.twoFactorEnabled) {
     await recordLoginAttempt(tenantId, email, ipAddress, true, user.id, 'awaiting_2fa');
-    return { requiresTwoFactor: true, twoFactorUserId: user.id };
+    const twoFactorChallengeToken = signChallengeToken({ sub: user.id, tenantId: user.tenantId, scope: '2fa_challenge' });
+    return { requiresTwoFactor: true, twoFactorChallengeToken };
   }
 
   const roles       = user.roles.map((ur) => ur.role.name);
@@ -88,7 +92,7 @@ export async function login(
   if (rolesRequire2FA(roles)) {
     await recordLoginAttempt(tenantId, email, ipAddress, true, user.id, 'awaiting_2fa_setup');
     const setupToken = signSetupToken({ sub: user.id, tenantId: user.tenantId, email: user.email });
-    return { requiresTwoFactorSetup: true, twoFactorUserId: user.id, twoFactorSetupToken: setupToken };
+    return { requiresTwoFactorSetup: true, twoFactorSetupToken: setupToken };
   }
 
   const permissions = await effectivePermissionsForUser(user.id, user);
@@ -101,16 +105,20 @@ export async function login(
   return { accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' };
 }
 export async function loginWithTwoFactor(
-  userId: string,
-  twoFactorToken: string,
+  challengeToken: string,
+  twoFactorCode: string,
   ipAddress = '0.0.0.0',
   device?: DeviceCheckIn,
 ): Promise<LoginResult> {
+  let payload;
+  try { payload = verifyChallengeToken(challengeToken, '2fa_challenge'); }
+  catch { throw new UnauthorizedError('2FA session expired — please sign in again'); }
+
   const { validateTwoFactorToken } = await import('./two-factor.service');
-  await validateTwoFactorToken(userId, twoFactorToken);
+  await validateTwoFactorToken(payload.sub, twoFactorCode);
 
   const user = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { id: payload.sub },
     include: { roles: { include: { role: true } } },
   });
   if (!user || !user.active) throw new UnauthorizedError('User not found or inactive');
@@ -181,14 +189,18 @@ export async function changeOwnPassword(
  * Verifies current (temp) password, enforces policy, clears flag, returns tokens.
  */
 export async function completeForcedPasswordChange(
-  userId: string,
+  challengeToken: string,
   currentPassword: string,
   newPassword: string,
   ipAddress = '0.0.0.0',
   device?: DeviceCheckIn,
 ): Promise<LoginResult> {
+  let payload;
+  try { payload = verifyChallengeToken(challengeToken, 'password_change'); }
+  catch { throw new UnauthorizedError('Password change session expired — please sign in again'); }
+
   const user = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { id: payload.sub },
     include: { roles: { include: { role: true } } },
   });
   if (!user || !user.active) throw new NotFoundError('User not found');
@@ -213,7 +225,8 @@ export async function completeForcedPasswordChange(
   // If 2FA is enabled, return the 2FA challenge instead of tokens
   if (user.twoFactorEnabled) {
     await recordLoginAttempt(user.tenantId, user.email, ipAddress, true, user.id, 'awaiting_2fa');
-    return { requiresTwoFactor: true, twoFactorUserId: user.id };
+    const twoFactorChallengeToken = signChallengeToken({ sub: user.id, tenantId: user.tenantId, scope: '2fa_challenge' });
+    return { requiresTwoFactor: true, twoFactorChallengeToken };
   }
 
   // 2FA is optional — issue tokens directly once the forced change is complete.

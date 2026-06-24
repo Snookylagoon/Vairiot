@@ -26,7 +26,7 @@ import com.vairiot.app.ui.theme.*
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onTwoFactorSetup: (setupToken: String, tenantId: String) -> Unit = { _, _ -> },
-    onTwoFactorVerify: (userId: String, tenantId: String) -> Unit = { _, _ -> },
+    onTwoFactorVerify: (challengeToken: String, tenantId: String) -> Unit = { _, _ -> },
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -46,7 +46,7 @@ fun LoginScreen(
                 viewModel.resetChallenge()
             }
             is LoginChallenge.TwoFactorVerify -> {
-                onTwoFactorVerify(ch.userId, ch.tenantId)
+                onTwoFactorVerify(ch.challengeToken, ch.tenantId)
                 viewModel.resetChallenge()
             }
             null -> Unit

@@ -17,7 +17,7 @@ import javax.inject.Inject
 
 sealed class LoginChallenge {
     data class TwoFactorSetup(val setupToken: String, val tenantId: String) : LoginChallenge()
-    data class TwoFactorVerify(val userId: String, val tenantId: String) : LoginChallenge()
+    data class TwoFactorVerify(val challengeToken: String, val tenantId: String) : LoginChallenge()
 }
 
 data class LoginUiState(
@@ -49,9 +49,9 @@ class LoginViewModel @Inject constructor(
                             challenge = LoginChallenge.TwoFactorSetup(response.twoFactorSetupToken, tenantId),
                         )
                     }
-                    response.requiresTwoFactor == true && response.twoFactorUserId != null -> {
+                    response.requiresTwoFactor == true && response.twoFactorChallengeToken != null -> {
                         _uiState.value = LoginUiState(
-                            challenge = LoginChallenge.TwoFactorVerify(response.twoFactorUserId, tenantId),
+                            challenge = LoginChallenge.TwoFactorVerify(response.twoFactorChallengeToken, tenantId),
                         )
                     }
                     response.accessToken != null && response.refreshToken != null -> {

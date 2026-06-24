@@ -34,12 +34,12 @@ authRouter.post('/login', loginLimiter,
 );
 
 authRouter.post('/login/2fa', loginLimiter,
-  [body('userId').notEmpty(), body('token').notEmpty()],
+  [body('challengeToken').isString().notEmpty(), body('token').notEmpty()],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     const ipAddress = req.ip ?? req.socket.remoteAddress ?? '0.0.0.0';
-    const result = await loginWithTwoFactor(req.body.userId, req.body.token, ipAddress, req.body.device);
+    const result = await loginWithTwoFactor(req.body.challengeToken, req.body.token, ipAddress, req.body.device);
     res.json(result);
   }),
 );
@@ -65,7 +65,7 @@ authRouter.post('/register', loginLimiter,
 );
 
 authRouter.post('/accept-invite',
-  [body('token').notEmpty(), body('password').isLength({ min: 8 })],
+  [body('token').notEmpty(), body('password').isLength({ min: 12 })],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
@@ -86,7 +86,7 @@ authRouter.post('/change-password', authenticate,
 // Unauthenticated: complete a forced password change after the login challenge
 authRouter.post('/change-password/forced', loginLimiter,
   [
-    body('userId').isString().notEmpty(),
+    body('challengeToken').isString().notEmpty(),
     body('currentPassword').isString().notEmpty(),
     body('newPassword').isString().isLength({ min: 12 }),
   ],
@@ -95,7 +95,7 @@ authRouter.post('/change-password/forced', loginLimiter,
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     const ipAddress = req.ip ?? req.socket.remoteAddress ?? '0.0.0.0';
     const result = await completeForcedPasswordChange(
-      req.body.userId,
+      req.body.challengeToken,
       req.body.currentPassword,
       req.body.newPassword,
       ipAddress,

@@ -23,11 +23,11 @@ import com.vairiot.app.ui.theme.VairiotViolet
 
 @Composable
 fun TwoFactorVerifyScreen(
-    userId:      String,
-    tenantId:    String,
-    onSuccess:   () -> Unit,
-    onCancel:    () -> Unit,
-    viewModel:   TwoFactorVerifyViewModel = hiltViewModel(),
+    challengeToken: String,
+    tenantId:       String,
+    onSuccess:      () -> Unit,
+    onCancel:       () -> Unit,
+    viewModel:      TwoFactorVerifyViewModel = hiltViewModel(),
 ) {
     val ui by viewModel.uiState.collectAsState()
     var code by remember { mutableStateOf("") }
@@ -82,7 +82,7 @@ fun TwoFactorVerifyScreen(
                     )
 
                     Button(
-                        onClick  = { viewModel.verify(userId, code, tenantId) },
+                        onClick  = { viewModel.verify(challengeToken, code, tenantId) },
                         enabled  = !ui.isLoading && code.length == 6,
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                     ) {

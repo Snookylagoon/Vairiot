@@ -205,16 +205,16 @@ describe('Two-factor authentication', () => {
       .send({ email: 'tfa@sec.test', password: 'TwoFactorTest1!', tenantId: TID });
     expect(res.status).toBe(200);
     expect(res.body.requiresTwoFactor).toBe(true);
-    expect(res.body.twoFactorUserId).toBeDefined();
+    expect(res.body.twoFactorChallengeToken).toBeDefined();
   });
 
   it('completes login with 2FA token', async () => {
     const loginRes = await request(app).post('/api/v1/auth/login')
       .send({ email: 'tfa@sec.test', password: 'TwoFactorTest1!', tenantId: TID });
-    const { twoFactorUserId } = loginRes.body;
+    const { twoFactorChallengeToken } = loginRes.body;
 
     const res = await request(app).post('/api/v1/auth/login/2fa')
-      .send({ userId: twoFactorUserId, token: '123456' });
+      .send({ challengeToken: twoFactorChallengeToken, token: '123456' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('accessToken');
     expect(res.body).toHaveProperty('refreshToken');
@@ -261,7 +261,7 @@ describe('2FA mandatory for platform roles', () => {
     const loginRes = await request(app).post('/api/v1/auth/login')
       .send({ email: 'platform@sec.test', password: 'PlatformAdmin1!', tenantId: TID });
     const tfaRes = await request(app).post('/api/v1/auth/login/2fa')
-      .send({ userId: loginRes.body.twoFactorUserId, token: '123456' });
+      .send({ challengeToken: loginRes.body.twoFactorChallengeToken, token: '123456' });
     platformToken = tfaRes.body.accessToken;
   });
 

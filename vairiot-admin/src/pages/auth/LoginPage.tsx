@@ -13,10 +13,10 @@ export function LoginPage() {
   const { hydrate } = useAuthStore();
   const navigate = useNavigate();
   const [error, setError] = useState('');
-  const [twoFactor, setTwoFactor] = useState<{ userId: string } | null>(null);
+  const [twoFactor, setTwoFactor] = useState<{ challengeToken: string } | null>(null);
   const [tfaToken, setTfaToken] = useState('');
   const [tfaLoading, setTfaLoading] = useState(false);
-  const [forced, setForced] = useState<{ userId: string; currentPassword: string } | null>(null);
+  const [forced, setForced] = useState<{ challengeToken: string; currentPassword: string } | null>(null);
   const [pwNew, setPwNew] = useState('');
   const [pwConfirm, setPwConfirm] = useState('');
   const [pwLoading, setPwLoading] = useState(false);
@@ -76,12 +76,12 @@ export function LoginPage() {
       });
 
       if (result.requiresPasswordChange) {
-        setForced({ userId: result.passwordChangeUserId, currentPassword: data.password });
+        setForced({ challengeToken: result.passwordChangeToken, currentPassword: data.password });
         return;
       }
 
       if (result.requiresTwoFactor) {
-        setTwoFactor({ userId: result.twoFactorUserId });
+        setTwoFactor({ challengeToken: result.twoFactorChallengeToken });
         return;
       }
 
@@ -115,7 +115,7 @@ export function LoginPage() {
     setError('');
     try {
       const { data: result } = await api.post('/api/v1/auth/change-password/forced', {
-        userId: forced.userId,
+        challengeToken: forced.challengeToken,
         currentPassword: forced.currentPassword,
         newPassword: pwNew,
       });
@@ -123,7 +123,7 @@ export function LoginPage() {
       if (result.requiresTwoFactor) {
         setForced(null);
         setPwNew(''); setPwConfirm('');
-        setTwoFactor({ userId: result.twoFactorUserId });
+        setTwoFactor({ challengeToken: result.twoFactorChallengeToken });
         return;
       }
 
@@ -158,7 +158,7 @@ export function LoginPage() {
     setError('');
     try {
       const { data: result } = await api.post('/api/v1/auth/login/2fa', {
-        userId: twoFactor.userId, token: tfaToken,
+        challengeToken: twoFactor.challengeToken, token: tfaToken,
       });
       localStorage.setItem(TOKEN_KEY, result.accessToken);
       localStorage.setItem(REFRESH_KEY, result.refreshToken);

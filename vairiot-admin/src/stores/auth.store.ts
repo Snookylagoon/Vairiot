@@ -19,7 +19,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { data } = await api.post('/api/v1/auth/login', { email, password, tenantId });
 
     if (data.requiresTwoFactor) {
-      throw Object.assign(new Error('2FA required'), { twoFactorUserId: data.twoFactorUserId });
+      throw Object.assign(new Error('2FA required'), { twoFactorChallengeToken: data.twoFactorChallengeToken });
     }
 
     localStorage.setItem(TOKEN_KEY,   data.accessToken);

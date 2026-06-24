@@ -31,12 +31,12 @@ class TwoFactorVerifyViewModel @Inject constructor(
     private val _ui = MutableStateFlow(TwoFactorVerifyUiState())
     val uiState: StateFlow<TwoFactorVerifyUiState> = _ui
 
-    fun verify(userId: String, code: String, tenantId: String) {
+    fun verify(challengeToken: String, code: String, tenantId: String) {
         viewModelScope.launch {
             _ui.value = TwoFactorVerifyUiState(isLoading = true)
             try {
                 val response = api.loginWithTwoFactor(
-                    TwoFactorLoginRequest(userId, code.trim(), deviceInfo.checkIn()),
+                    TwoFactorLoginRequest(challengeToken, code.trim(), deviceInfo.checkIn()),
                 )
                 val accessToken  = response.accessToken
                 val refreshToken = response.refreshToken
