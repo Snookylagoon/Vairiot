@@ -1,4 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 import { PrismaClient } from '@prisma/client';
 import { logger } from './logger';
 import { decryptSecret } from './crypto';
@@ -6,24 +7,38 @@ import { decryptSecret } from './crypto';
 const prisma = new PrismaClient();
 
 interface TransportSpec {
-  transporter: Transporter;
+  provider: 'smtp' | 'resend';
   fromAddress: string;
   source: 'db' | 'env' | 'json';
+  nodemailer?: Transporter;
+  resend?: Resend;
 }
 
 let cached: TransportSpec | null = null;
 let cachedAt = 0;
-const CACHE_MS = 60_000; // refetch DB config at most every minute
+const CACHE_MS = 60_000;
 
 async function buildFromDb(): Promise<TransportSpec | null> {
   try {
     const row = await prisma.smtpConfig.findUnique({ where: { id: 'singleton' } });
     if (!row || !row.active) return null;
+
+    if (row.provider === 'resend') {
+      if (!row.passwordEnc) return null;
+      return {
+        provider: 'resend',
+        fromAddress: row.fromAddress,
+        source: 'db',
+        resend: new Resend(decryptSecret(row.passwordEnc)),
+      };
+    }
+
     const auth = row.username && row.passwordEnc
       ? { user: row.username, pass: decryptSecret(row.passwordEnc) }
       : undefined;
     return {
-      transporter: nodemailer.createTransport({
+      provider: 'smtp',
+      nodemailer: nodemailer.createTransport({
         host: row.host, port: row.port, secure: row.secure, auth,
       }),
       fromAddress: row.fromAddress,
@@ -43,7 +58,8 @@ function buildFromEnv(): TransportSpec | null {
     ? process.env.SMTP_SECURE === 'true'
     : port === 465;
   return {
-    transporter: nodemailer.createTransport({
+    provider: 'smtp',
+    nodemailer: nodemailer.createTransport({
       host, port, secure,
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
     }),
@@ -54,7 +70,8 @@ function buildFromEnv(): TransportSpec | null {
 
 function buildJson(): TransportSpec {
   return {
-    transporter: nodemailer.createTransport({ jsonTransport: true }),
+    provider: 'smtp',
+    nodemailer: nodemailer.createTransport({ jsonTransport: true }),
     fromAddress: 'Vairiot <no-reply@vairiot.local>',
     source: 'json',
   };
@@ -65,7 +82,7 @@ async function resolve(): Promise<TransportSpec> {
   if (cached && now - cachedAt < CACHE_MS) return cached;
   const spec = (await buildFromDb()) ?? buildFromEnv() ?? buildJson();
   if (!cached || cached.source !== spec.source) {
-    logger.info(`SMTP transport source: ${spec.source}`);
+    logger.info(`Mail transport source: ${spec.source} (provider: ${spec.provider})`);
   }
   cached = spec;
   cachedAt = now;
@@ -73,27 +90,72 @@ async function resolve(): Promise<TransportSpec> {
 }
 
 export async function getMailer(): Promise<Transporter> {
-  return (await resolve()).transporter;
+  const spec = await resolve();
+  if (spec.provider === 'resend') {
+    return createResendTransport(spec.resend!, spec.fromAddress);
+  }
+  return spec.nodemailer!;
 }
 
 export async function getFromAddress(): Promise<string> {
   return (await resolve()).fromAddress;
 }
 
-/**
- * Verify connectivity at boot. Tries DB first, then env. JSON transport is skipped.
- */
+function createResendTransport(resend: Resend, defaultFrom: string): Transporter {
+  return nodemailer.createTransport({
+    name: 'resend',
+    version: '1.0.0',
+    send: async (mail: any, callback: any) => {
+      try {
+        const msg = mail.message.createReadStream();
+        const chunks: Buffer[] = [];
+        for await (const chunk of msg) chunks.push(chunk as Buffer);
+        const raw = Buffer.concat(chunks).toString();
+
+        const envelope = mail.message.getEnvelope();
+        const { data, error } = await resend.emails.send({
+          from: (mail.data.from as string) ?? defaultFrom,
+          to: Array.isArray(envelope.to) ? envelope.to : [envelope.to],
+          subject: mail.data.subject ?? '',
+          text: typeof mail.data.text === 'string' ? mail.data.text : undefined,
+          html: typeof mail.data.html === 'string' ? mail.data.html : undefined,
+          attachments: mail.data.attachments
+            ? (mail.data.attachments as any[]).map(a => ({
+                filename: a.filename,
+                content: a.content,
+                content_type: a.contentType,
+              }))
+            : undefined,
+        });
+        if (error) {
+          callback(new Error(error.message));
+        } else {
+          callback(null, { messageId: data?.id, envelope, accepted: envelope.to, rejected: [] } as any);
+        }
+      } catch (e) {
+        callback(e as Error);
+      }
+    },
+  } as any);
+}
+
 export async function verifyMailer(): Promise<void> {
   const spec = await resolve();
   if (spec.source === 'json') {
-    logger.warn('No SMTP configured — emails will be logged via JSON transport.');
+    logger.warn('No email configured — emails will be logged via JSON transport.');
     return;
   }
   try {
-    await spec.transporter.verify();
-    logger.info(`SMTP connection verified (source=${spec.source}, from=${spec.fromAddress})`);
+    if (spec.provider === 'resend') {
+      const { error } = await spec.resend!.domains.list();
+      if (error) throw new Error(error.message);
+      logger.info(`Resend connection verified (source=${spec.source}, from=${spec.fromAddress})`);
+    } else {
+      await spec.nodemailer!.verify();
+      logger.info(`SMTP connection verified (source=${spec.source}, from=${spec.fromAddress})`);
+    }
   } catch (e) {
-    logger.error(`SMTP verification failed (source=${spec.source}): ${(e as Error).message}`);
+    logger.error(`Mail verification failed (source=${spec.source}): ${(e as Error).message}`);
   }
 }
 

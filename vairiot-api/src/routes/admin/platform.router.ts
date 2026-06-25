@@ -416,16 +416,18 @@ platformRouter.get('/smtp', async (_req: Request, res: Response) => {
 });
 
 platformRouter.put('/smtp', async (req: Request, res: Response) => {
-  const { host, port, secure, username, password, fromAddress, active } = req.body ?? {};
-  if (!host?.trim()) { res.status(400).json({ error: 'host is required' }); return; }
+  const { provider, host, port, secure, username, password, fromAddress, active } = req.body ?? {};
+  const prov = provider === 'resend' ? 'resend' : 'smtp';
+  if (prov === 'smtp' && !host?.trim()) { res.status(400).json({ error: 'host is required' }); return; }
   if (!fromAddress?.trim()) { res.status(400).json({ error: 'fromAddress is required' }); return; }
-  const portNum = Number(port);
+  const portNum = Number(port ?? 587);
   if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
     res.status(400).json({ error: 'port must be 1-65535' }); return;
   }
   const view = await upsertSmtpConfig(
     {
-      host: host.trim(),
+      provider: prov,
+      host: prov === 'resend' ? 'api.resend.com' : host.trim(),
       port: portNum,
       secure: !!secure,
       username: username?.trim() || null,

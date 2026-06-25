@@ -1,9 +1,13 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { prisma } from '../lib/prisma';
 import { encryptSecret, decryptSecret } from '../lib/crypto';
 
+export type SmtpProvider = 'smtp' | 'resend';
+
 export interface SmtpView {
   configured: boolean;
+  provider: SmtpProvider;
   host: string | null;
   port: number;
   secure: boolean;
@@ -17,6 +21,7 @@ export interface SmtpView {
 }
 
 export interface SmtpUpsertInput {
+  provider?: SmtpProvider;
   host: string;
   port: number;
   secure?: boolean;
@@ -30,13 +35,14 @@ export async function getSmtpConfig(): Promise<SmtpView> {
   const row = await prisma.smtpConfig.findUnique({ where: { id: 'singleton' } });
   if (!row) {
     return {
-      configured: false, host: null, port: 587, secure: false,
+      configured: false, provider: 'smtp', host: null, port: 587, secure: false,
       username: null, hasPassword: false, fromAddress: null,
       active: true, lastVerifiedAt: null, lastVerifyError: null, updatedAt: null,
     };
   }
   return {
     configured: true,
+    provider: (row.provider as SmtpProvider) ?? 'smtp',
     host: row.host,
     port: row.port,
     secure: row.secure,
@@ -63,6 +69,7 @@ export async function upsertSmtpConfig(input: SmtpUpsertInput, userId: string): 
   }
 
   const data = {
+    provider: input.provider ?? 'smtp',
     host: input.host,
     port: input.port,
     secure: input.secure ?? false,
@@ -83,24 +90,51 @@ export async function upsertSmtpConfig(input: SmtpUpsertInput, userId: string): 
   return getSmtpConfig();
 }
 
-async function buildTransport() {
+interface MailTransport {
+  provider: SmtpProvider;
+  fromAddress: string;
+  nodemailer?: nodemailer.Transporter;
+  resend?: Resend;
+}
+
+async function buildTransport(): Promise<MailTransport> {
   const row = await prisma.smtpConfig.findUnique({ where: { id: 'singleton' } });
-  if (!row || !row.active) throw new Error('SMTP is not configured or is disabled.');
+  if (!row || !row.active) throw new Error('Email is not configured or is disabled.');
+
+  if (row.provider === 'resend') {
+    if (!row.passwordEnc) throw new Error('Resend API key is required.');
+    return {
+      provider: 'resend',
+      fromAddress: row.fromAddress,
+      resend: new Resend(decryptSecret(row.passwordEnc)),
+    };
+  }
+
   const auth = row.username && row.passwordEnc
     ? { user: row.username, pass: decryptSecret(row.passwordEnc) }
     : undefined;
   return {
-    transport: nodemailer.createTransport({
+    provider: 'smtp',
+    fromAddress: row.fromAddress,
+    nodemailer: nodemailer.createTransport({
       host: row.host, port: row.port, secure: row.secure, auth,
     }),
-    fromAddress: row.fromAddress,
   };
 }
 
 export async function verifySmtp(): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { transport } = await buildTransport();
-    await transport.verify();
+    const t = await buildTransport();
+    if (t.provider === 'resend') {
+      const { data, error } = await t.resend!.domains.list();
+      if (error) throw new Error(error.message);
+      await prisma.smtpConfig.update({
+        where: { id: 'singleton' },
+        data: { lastVerifiedAt: new Date(), lastVerifyError: null },
+      });
+      return { ok: true };
+    }
+    await t.nodemailer!.verify();
     await prisma.smtpConfig.update({
       where: { id: 'singleton' },
       data: { lastVerifiedAt: new Date(), lastVerifyError: null },
@@ -118,9 +152,26 @@ export async function verifySmtp(): Promise<{ ok: boolean; error?: string }> {
 
 export async function sendTestEmail(to: string): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   try {
-    const { transport, fromAddress } = await buildTransport();
-    const info = await transport.sendMail({
-      from: fromAddress,
+    const t = await buildTransport();
+
+    if (t.provider === 'resend') {
+      const { data, error } = await t.resend!.emails.send({
+        from: t.fromAddress,
+        to,
+        subject: 'Vairiot email test',
+        text: 'This is a test email from Vairiot. If you received this, email delivery is configured correctly.',
+        html: '<p>This is a test email from <strong>Vairiot</strong>. If you received this, email delivery is configured correctly.</p>',
+      });
+      if (error) throw new Error(error.message);
+      await prisma.smtpConfig.update({
+        where: { id: 'singleton' },
+        data: { lastVerifiedAt: new Date(), lastVerifyError: null },
+      });
+      return { ok: true, messageId: data?.id };
+    }
+
+    const info = await t.nodemailer!.sendMail({
+      from: t.fromAddress,
       to,
       subject: 'Vairiot SMTP test',
       text: 'This is a test email from Vairiot. If you received this, SMTP is configured correctly.',

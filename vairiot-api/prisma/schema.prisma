@@ -944,6 +944,7 @@ model MobileRelease {
 // ─── Platform SMTP Config (singleton row, id = "singleton") ──────────────────
 model SmtpConfig {
   id               String    @id @default("singleton")
+  provider         String    @default("smtp") // "smtp" | "resend"
   host             String
   port             Int       @default(587)
   secure           Boolean   @default(false)

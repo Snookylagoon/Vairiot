@@ -2,8 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useMutationWithToast } from './useMutationWithToast';
 
+export type SmtpProvider = 'smtp' | 'resend';
+
 export interface SmtpView {
   configured: boolean;
+  provider: SmtpProvider;
   host: string | null;
   port: number;
   secure: boolean;
@@ -17,11 +20,12 @@ export interface SmtpView {
 }
 
 export interface SmtpInput {
+  provider: SmtpProvider;
   host: string;
   port: number;
   secure: boolean;
   username: string | null;
-  password: string | null; // null = leave unchanged, '' = clear, string = set
+  password: string | null;
   fromAddress: string;
   active: boolean;
 }
