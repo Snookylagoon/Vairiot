@@ -7,7 +7,10 @@ import com.vairiot.app.data.TagLookup
 import com.vairiot.app.data.api.AssetCreateRequest
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.scanner.ScanResult
 import com.vairiot.app.scanner.ScanType
+import com.vairiot.app.scanner.ScannerHealth
+import com.vairiot.app.scanner.ScannerHealthMonitor
 import com.vairiot.app.scanner.ScannerService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -22,11 +25,6 @@ sealed class ScanUiState {
     data class Scanning(val expecting: ScanType = ScanType.RFID_UHF) : ScanUiState()
     object Loading : ScanUiState()
     data class Found(val asset: AssetResponse, val fromCache: Boolean = false) : ScanUiState()
-    /**
-     * An unregistered code. [value] is what was read, [isRfid] says whether it
-     * came from the RFID antenna (true) or the barcode scanner (false).
-     * [secondaryValue] holds the other code if the user scans it during registration.
-     */
     data class NotFound(
         val value: String,
         val isRfid: Boolean,
@@ -42,19 +40,27 @@ class AssetScanViewModel @Inject constructor(
     private val api: VairiotApiService,
     private val repo: AssetRepository,
     private val scanner: ScannerService,
+    private val healthMonitor: ScannerHealthMonitor,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
     val state: StateFlow<ScanUiState> = _state
 
+    val scannerHealth: StateFlow<ScannerHealth> = healthMonitor.health
+
+    private val _showCameraFallback = MutableStateFlow(false)
+    val showCameraFallback: StateFlow<Boolean> = _showCameraFallback
+
     private var scanTimeoutJob: Job? = null
     private var awaitingSecondary = false
+    private var consecutiveTimeouts = 0
 
     init {
         viewModelScope.launch {
             scanner.scanResults.collect { result ->
+                consecutiveTimeouts = 0
+                healthMonitor.markScanReceived()
                 if (awaitingSecondary) {
-                    // User is deliberately scanning the *other* code for an unknown asset.
                     awaitingSecondary = false
                     scanner.stopScan()
                     val current = _state.value
@@ -68,9 +74,7 @@ class AssetScanViewModel @Inject constructor(
         }
     }
 
-    /** Whether the underlying device exposes a UHF RFID radio. */
     val supportsRfid:    Boolean get() = scanner.supportsRfid
-    /** Whether the underlying device exposes a barcode imager. */
     val supportsBarcode: Boolean get() = scanner.supportsBarcode
 
     fun triggerScan(type: ScanType = ScanType.RFID_UHF) {
@@ -80,9 +84,18 @@ class AssetScanViewModel @Inject constructor(
         scanTimeoutJob = viewModelScope.launch {
             delay(SCAN_TIMEOUT_MS)
             if (_state.value is ScanUiState.Scanning) {
-                _state.value = ScanUiState.Error(
-                    "No scan detected. Press the device's hardware trigger, or type the code in the field above."
-                )
+                consecutiveTimeouts++
+                if (consecutiveTimeouts >= 2) {
+                    healthMonitor.markScanTimeout()
+                    healthMonitor.attemptRecovery()
+                    _state.value = ScanUiState.Error(
+                        "Scanner not responding. Attempting recovery… Use the camera scanner or type the code manually."
+                    )
+                } else {
+                    _state.value = ScanUiState.Error(
+                        "No scan detected. Press the device's hardware trigger, or type the code in the field above."
+                    )
+                }
             }
         }
     }
@@ -95,9 +108,25 @@ class AssetScanViewModel @Inject constructor(
         _state.value = ScanUiState.Idle
     }
 
-    /** A scan arrived from hardware, carrying its read source ([type]). */
+    fun openCameraFallback() {
+        _showCameraFallback.value = true
+    }
+
+    fun closeCameraFallback() {
+        _showCameraFallback.value = false
+    }
+
+    fun onCameraBarcodeScanned(value: String) {
+        _showCameraFallback.value = false
+        scanner.injectResult(ScanResult(value, ScanType.BARCODE))
+    }
+
+    fun retryRecovery() {
+        healthMonitor.attemptRecovery()
+    }
+
     private fun onScan(value: String, type: ScanType) {
-        val isRfid = type != ScanType.BARCODE   // RFID_UHF or UNKNOWN treated as tag
+        val isRfid = type != ScanType.BARCODE
         lookup(value, isRfid)
     }
 
@@ -114,11 +143,9 @@ class AssetScanViewModel @Inject constructor(
         }
     }
 
-    /** Start a deliberate scan of the *other* code type during registration. */
     fun scanSecondary() {
         awaitingSecondary = true
         val current = _state.value
-        // If the primary was RFID, we now want a barcode, and vice versa.
         val wantType = if (current is ScanUiState.NotFound && current.isRfid)
             ScanType.BARCODE else ScanType.RFID_UHF
         scanner.startScan(wantType)
@@ -131,11 +158,6 @@ class AssetScanViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Register a new asset, routing each scanned value to the correct field by
-     * its read source. The primary value goes to rfidTag or barcode depending
-     * on [isRfid]; the secondary (if any) fills the other field.
-     */
     fun registerAsset(name: String, value: String, isRfid: Boolean, secondaryValue: String? = null) {
         viewModelScope.launch {
             _state.value = ScanUiState.Registering
@@ -152,7 +174,6 @@ class AssetScanViewModel @Inject constructor(
         }
     }
 
-    /** Manual text lookup: source unknown, so treat as an RFID tag by default. */
     fun lookupManual(query: String) = lookup(query, isRfid = true)
 
     fun reset() {

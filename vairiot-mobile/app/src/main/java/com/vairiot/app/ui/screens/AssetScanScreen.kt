@@ -2,6 +2,7 @@ package com.vairiot.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -9,24 +10,36 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.AssetResponse
+import com.vairiot.app.scanner.CameraBarcodeScannerScreen
+import com.vairiot.app.scanner.ScannerHealth
 import com.vairiot.app.ui.theme.*
 
 @Composable
 fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
+    val health by viewModel.scannerHealth.collectAsState()
+    val showCamera by viewModel.showCameraFallback.collectAsState()
     var manualQuery by remember { mutableStateOf("") }
     val sideRail = LocalUseSideRail.current
+
+    if (showCamera) {
+        CameraBarcodeScannerScreen(
+            onBarcodeScanned = { viewModel.onCameraBarcodeScanned(it) },
+            onDismiss = { viewModel.closeCameraFallback() },
+        )
+        return
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         if (!sideRail) {
-            // Gradient header
             Box(
                 modifier = Modifier.fillMaxWidth()
                     .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))
@@ -43,6 +56,8 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
                         Text("VAIRIOT", style = MaterialTheme.typography.titleLarge,
                             fontFamily = MontserratFamily, fontWeight = FontWeight.ExtraBold,
                             color = White)
+                        Spacer(Modifier.weight(1f))
+                        ScannerHealthIndicator(health, onRetry = { viewModel.retryRecovery() })
                     }
                     Spacer(Modifier.height(4.dp))
                     Text("Asset Scanner", style = MaterialTheme.typography.bodySmall,
@@ -53,6 +68,16 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
 
         Column(modifier = Modifier.fillMaxSize().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+            // Scanner health warning banner
+            if (health == ScannerHealth.UNAVAILABLE) {
+                ScannerUnavailableBanner(
+                    onRetry = { viewModel.retryRecovery() },
+                    onUseCamera = { viewModel.openCameraFallback() },
+                )
+            } else if (health == ScannerHealth.RECOVERING) {
+                ScannerRecoveringBanner()
+            }
 
             // Manual lookup
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
@@ -69,8 +94,7 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
                 }
             }
 
-            // Scan trigger buttons — each disabled if the underlying hardware
-            // doesn't support that scan type (e.g. ME65 has no UHF RFID).
+            // Scan trigger buttons
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { viewModel.triggerScan() },
@@ -100,6 +124,18 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
                 }
             }
 
+            // Camera fallback button
+            OutlinedButton(
+                onClick = { viewModel.openCameraFallback() },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Icon(Icons.Default.PhotoCamera, contentDescription = null,
+                    modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Scan with Camera", fontFamily = MontserratFamily)
+            }
+
             // Result area
             when (val s = state) {
                 is ScanUiState.Idle       -> IdleCard()
@@ -121,6 +157,82 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
                 is ScanUiState.Registered  -> AssetResultCard(s.asset, onReset = { viewModel.reset() }, isNew = true)
                 is ScanUiState.Error      -> ErrorCard(s.message, onReset = { viewModel.reset() })
             }
+        }
+    }
+}
+
+@Composable
+fun ScannerHealthIndicator(health: ScannerHealth, onRetry: () -> Unit) {
+    val (color, label) = when (health) {
+        ScannerHealth.READY       -> SuccessGreen to "Scanner ready"
+        ScannerHealth.UNAVAILABLE -> ErrorRed to "Scanner offline"
+        ScannerHealth.RECOVERING  -> WarningAmber to "Recovering…"
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(color))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = White.copy(alpha = 0.8f))
+        if (health == ScannerHealth.UNAVAILABLE) {
+            IconButton(onClick = onRetry, modifier = Modifier.size(24.dp)) {
+                Icon(Icons.Default.Refresh, contentDescription = "Retry",
+                    tint = White.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun ScannerUnavailableBanner(onRetry: () -> Unit, onUseCamera: () -> Unit) {
+    Surface(
+        color = ErrorRed.copy(alpha = 0.1f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.Warning, contentDescription = null,
+                    tint = ErrorRed, modifier = Modifier.size(20.dp))
+                Text("Hardware scanner is offline",
+                    style = MaterialTheme.typography.labelLarge, color = ErrorRed)
+            }
+            Text("The scanner service is not responding. Use the camera to scan barcodes, type codes manually, or try restarting the scanner.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onUseCamera,
+                    colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+                    modifier = Modifier.height(36.dp),
+                ) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = null,
+                        modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Use Camera", style = MaterialTheme.typography.labelMedium)
+                }
+                OutlinedButton(onClick = onRetry, modifier = Modifier.height(36.dp)) {
+                    Icon(Icons.Default.Refresh, contentDescription = null,
+                        modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Retry", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ScannerRecoveringBanner() {
+    Surface(
+        color = WarningAmber.copy(alpha = 0.1f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CircularProgressIndicator(modifier = Modifier.size(16.dp),
+                color = WarningAmber, strokeWidth = 2.dp)
+            Text("Attempting to restart scanner…",
+                style = MaterialTheme.typography.labelMedium, color = WarningAmber)
         }
     }
 }

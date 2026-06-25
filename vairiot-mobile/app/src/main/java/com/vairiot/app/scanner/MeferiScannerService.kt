@@ -70,6 +70,10 @@ class MeferiScannerService @Inject constructor(
         }
     }
 
+    override fun injectResult(result: ScanResult) {
+        _scanResults.tryEmit(result)
+    }
+
     private fun extractFirstExtra(intent: Intent, type: ScanType): String? {
         val keys = if (type == ScanType.RFID_UHF) UHF_EXTRAS else BARCODE_EXTRAS
         for (key in keys) {

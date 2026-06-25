@@ -33,8 +33,8 @@ android {
         applicationId = "com.vairiot.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 10
-        versionName = "1.3.5"
+        versionCode = 11
+        versionName = "1.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Production API. For local dev on a USB device, swap to
         // "http://localhost:3001/" and run `adb reverse tcp:3001 tcp:3001`.
@@ -126,6 +126,10 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.hilt.work)
     implementation("com.google.zxing:core:3.5.3")
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+    implementation("androidx.camera:camera-view:1.4.2")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
     ksp(libs.androidx.hilt.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
