@@ -24,6 +24,9 @@ interface VairiotApiService {
     @POST("api/v1/auth/login/2fa")
     suspend fun loginWithTwoFactor(@Body request: TwoFactorLoginRequest): LoginResponse
 
+    @POST("api/v1/auth/change-password/forced")
+    suspend fun completeForcedPasswordChange(@Body request: ForcedPasswordChangeRequest): LoginResponse
+
     @POST("api/v1/auth/2fa-setup/generate")
     suspend fun generateTwoFactorSetup(@Body request: TwoFactorSetupGenerateRequest): TwoFactorSetupResponse
 

@@ -18,6 +18,7 @@ import javax.inject.Inject
 sealed class LoginChallenge {
     data class TwoFactorSetup(val setupToken: String, val tenantId: String) : LoginChallenge()
     data class TwoFactorVerify(val challengeToken: String, val tenantId: String) : LoginChallenge()
+    data class PasswordChange(val challengeToken: String, val currentPassword: String, val tenantId: String) : LoginChallenge()
 }
 
 data class LoginUiState(
@@ -44,6 +45,11 @@ class LoginViewModel @Inject constructor(
                 val response = api.login(LoginRequest(email, password, tenantId, deviceInfo.checkIn()))
 
                 when {
+                    response.requiresPasswordChange == true && response.passwordChangeToken != null -> {
+                        _uiState.value = LoginUiState(
+                            challenge = LoginChallenge.PasswordChange(response.passwordChangeToken, password, tenantId),
+                        )
+                    }
                     response.requiresTwoFactorSetup == true && response.twoFactorSetupToken != null -> {
                         _uiState.value = LoginUiState(
                             challenge = LoginChallenge.TwoFactorSetup(response.twoFactorSetupToken, tenantId),

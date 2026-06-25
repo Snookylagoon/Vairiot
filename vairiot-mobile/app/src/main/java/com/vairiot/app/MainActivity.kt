@@ -109,6 +109,11 @@ class MainActivity : ComponentActivity() {
                                 val encoded = android.net.Uri.encode(challengeToken)
                                 rootNav.navigate("2fa-verify/$encoded/$tenantId")
                             },
+                            onPasswordChange = { challengeToken, currentPassword, tenantId ->
+                                val encToken = android.net.Uri.encode(challengeToken)
+                                val encPw    = android.net.Uri.encode(currentPassword)
+                                rootNav.navigate("password-change/$encToken/$encPw/$tenantId")
+                            },
                         )
                     }
                     composable("2fa-setup/{setupToken}/{tenantId}") {
@@ -136,6 +141,36 @@ class MainActivity : ComponentActivity() {
                             onSuccess = {
                                 rootNav.navigate("home") {
                                     popUpTo("login") { inclusive = true }
+                                }
+                            },
+                            onCancel = { rootNav.popBackStack() },
+                        )
+                    }
+                    composable("password-change/{challengeToken}/{currentPassword}/{tenantId}") {
+                        val challengeToken  = android.net.Uri.decode(
+                            it.arguments?.getString("challengeToken").orEmpty())
+                        val currentPassword = android.net.Uri.decode(
+                            it.arguments?.getString("currentPassword").orEmpty())
+                        val tenantId        = it.arguments?.getString("tenantId").orEmpty()
+                        ForcedPasswordChangeScreen(
+                            challengeToken  = challengeToken,
+                            currentPassword = currentPassword,
+                            tenantId        = tenantId,
+                            onSuccess = {
+                                rootNav.navigate("home") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+                            },
+                            onTwoFactorVerify = { token, tenant ->
+                                val encoded = android.net.Uri.encode(token)
+                                rootNav.navigate("2fa-verify/$encoded/$tenant") {
+                                    popUpTo("login")
+                                }
+                            },
+                            onTwoFactorSetup = { token, tenant ->
+                                val encoded = android.net.Uri.encode(token)
+                                rootNav.navigate("2fa-setup/$encoded/$tenant") {
+                                    popUpTo("login")
                                 }
                             },
                             onCancel = { rootNav.popBackStack() },

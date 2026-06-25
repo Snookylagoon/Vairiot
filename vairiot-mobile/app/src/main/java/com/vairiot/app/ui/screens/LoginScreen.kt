@@ -27,6 +27,7 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onTwoFactorSetup: (setupToken: String, tenantId: String) -> Unit = { _, _ -> },
     onTwoFactorVerify: (challengeToken: String, tenantId: String) -> Unit = { _, _ -> },
+    onPasswordChange: (challengeToken: String, currentPassword: String, tenantId: String) -> Unit = { _, _, _ -> },
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -47,6 +48,10 @@ fun LoginScreen(
             }
             is LoginChallenge.TwoFactorVerify -> {
                 onTwoFactorVerify(ch.challengeToken, ch.tenantId)
+                viewModel.resetChallenge()
+            }
+            is LoginChallenge.PasswordChange -> {
+                onPasswordChange(ch.challengeToken, ch.currentPassword, ch.tenantId)
                 viewModel.resetChallenge()
             }
             null -> Unit
