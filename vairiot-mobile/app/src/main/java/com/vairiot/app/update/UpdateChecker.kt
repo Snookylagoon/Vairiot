@@ -1,21 +1,28 @@
 package com.vairiot.app.update
 
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import android.content.IntentFilter
+import android.content.pm.PackageInstaller
+import android.os.Build
 import android.util.Log
-import androidx.core.content.FileProvider
 import com.vairiot.app.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
 
 private const val TAG = "UpdateChecker"
+private const val ACTION_INSTALL_STATUS = "com.vairiot.app.INSTALL_STATUS"
 
 @Singleton
 class UpdateChecker @Inject constructor(
@@ -23,7 +30,7 @@ class UpdateChecker @Inject constructor(
     private val api: UpdateApi,
 ) {
     /**
-     * Returns true if an update was downloaded and the install intent fired.
+     * Returns true if an update was downloaded and installed successfully.
      */
     suspend fun checkAndInstall(): Boolean = withContext(Dispatchers.IO) {
         val info = try { api.checkVersion() } catch (e: Exception) {
@@ -39,11 +46,6 @@ class UpdateChecker @Inject constructor(
             return@withContext false
         }
 
-        // Idempotency guard: if we've already fired the install prompt for this
-        // exact (versionCode, sha256) in a previous process and the device is
-        // still behind, the upload's versionCode metadata doesn't match its
-        // binary — installing again would loop forever. Force-stop + relaunch
-        // bypasses by clearing the key below.
         val prefs    = context.getSharedPreferences("vairiot.update", Context.MODE_PRIVATE)
         val promptKey = "${info.versionCode}:${info.sha256 ?: ""}"
         if (prefs.getString("lastPromptedKey", null) == promptKey) {
@@ -64,15 +66,149 @@ class UpdateChecker @Inject constructor(
         }
 
         prefs.edit().putString("lastPromptedKey", promptKey).apply()
-        promptInstall(apk)
-        true
+        val result = installViaSession(apk)
+
+        if (result == PackageInstaller.STATUS_FAILURE_CONFLICT) {
+            Log.w(TAG, "signing conflict detected — uninstalling old package and retrying")
+            val uninstalled = uninstallPackage()
+            if (uninstalled) {
+                val retryResult = installViaSession(apk)
+                retryResult == PackageInstaller.STATUS_SUCCESS
+            } else {
+                Log.e(TAG, "uninstall failed — cannot resolve signing conflict")
+                false
+            }
+        } else {
+            result == PackageInstaller.STATUS_SUCCESS
+        }
+    }
+
+    private suspend fun installViaSession(apk: File): Int = withContext(Dispatchers.IO) {
+        val installer = context.packageManager.packageInstaller
+        val params = PackageInstaller.SessionParams(
+            PackageInstaller.SessionParams.MODE_FULL_INSTALL
+        ).apply {
+            setSize(apk.length())
+        }
+
+        val sessionId = installer.createSession(params)
+        installer.openSession(sessionId).use { session ->
+            session.openWrite("vairiot-update", 0, apk.length()).use { out ->
+                FileInputStream(apk).use { input -> input.copyTo(out) }
+                session.fsync(out)
+            }
+
+            suspendCancellableCoroutine { cont ->
+                val receiver = object : BroadcastReceiver() {
+                    override fun onReceive(ctx: Context, intent: Intent) {
+                        val status = intent.getIntExtra(
+                            PackageInstaller.EXTRA_STATUS,
+                            PackageInstaller.STATUS_FAILURE
+                        )
+                        val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+                        Log.i(TAG, "install status=$status msg=$msg")
+
+                        if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                            val confirmIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                intent.getParcelableExtra(Intent.EXTRA_INTENT)
+                            }
+                            confirmIntent?.let {
+                                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.startActivity(it)
+                            }
+                            return
+                        }
+                        context.unregisterReceiver(this)
+                        if (cont.isActive) cont.resume(status)
+                    }
+                }
+
+                val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                } else {
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    context.registerReceiver(receiver, IntentFilter(ACTION_INSTALL_STATUS), Context.RECEIVER_EXPORTED)
+                } else {
+                    context.registerReceiver(receiver, IntentFilter(ACTION_INSTALL_STATUS))
+                }
+
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context, sessionId, Intent(ACTION_INSTALL_STATUS), flags
+                )
+                session.commit(pendingIntent.intentSender)
+
+                cont.invokeOnCancellation {
+                    try { context.unregisterReceiver(receiver) } catch (_: Exception) {}
+                    try { installer.abandonSession(sessionId) } catch (_: Exception) {}
+                }
+            }
+        }
+    }
+
+    private suspend fun uninstallPackage(): Boolean = withContext(Dispatchers.IO) {
+        suspendCancellableCoroutine { cont ->
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(ctx: Context, intent: Intent) {
+                    val status = intent.getIntExtra(
+                        PackageInstaller.EXTRA_STATUS,
+                        PackageInstaller.STATUS_FAILURE
+                    )
+                    val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+                    Log.i(TAG, "uninstall status=$status msg=$msg")
+
+                    if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                        val confirmIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            intent.getParcelableExtra(Intent.EXTRA_INTENT)
+                        }
+                        confirmIntent?.let {
+                            it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(it)
+                        }
+                        return
+                    }
+                    context.unregisterReceiver(this)
+                    if (cont.isActive) cont.resume(status == PackageInstaller.STATUS_SUCCESS)
+                }
+            }
+
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, IntentFilter(ACTION_INSTALL_STATUS), Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(receiver, IntentFilter(ACTION_INSTALL_STATUS))
+            }
+
+            val pendingIntent = PendingIntent.getBroadcast(
+                context, 0, Intent(ACTION_INSTALL_STATUS), flags
+            )
+            context.packageManager.packageInstaller.uninstall(
+                context.packageName, pendingIntent.intentSender
+            )
+
+            cont.invokeOnCancellation {
+                try { context.unregisterReceiver(receiver) } catch (_: Exception) {}
+            }
+        }
     }
 
     private suspend fun downloadToCache(info: MobileVersionResponse): File? = withContext(Dispatchers.IO) {
         try {
             val body = api.downloadApk()
             val updatesDir = File(context.cacheDir, "updates").apply { mkdirs() }
-            // Clean older APKs first
             updatesDir.listFiles()?.forEach { it.delete() }
             val out = File(updatesDir, "vairiot-${info.versionCode}.apk")
             body.byteStream().use { input ->
@@ -96,15 +232,5 @@ class UpdateChecker @Inject constructor(
             }
         }
         return md.digest().joinToString("") { "%02x".format(it) }
-    }
-
-    private fun promptInstall(apk: File) {
-        val authority = "${context.packageName}.fileprovider"
-        val uri: Uri = FileProvider.getUriForFile(context, authority, apk)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
-        }
-        context.startActivity(intent)
     }
 }

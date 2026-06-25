@@ -8,6 +8,7 @@
 
     <!-- In-app over-the-internet auto-updater -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
     <uses-feature android:name="android.hardware.camera"      android:required="false" />
 
