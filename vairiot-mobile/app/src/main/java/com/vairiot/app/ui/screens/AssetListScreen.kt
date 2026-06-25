@@ -25,8 +25,6 @@ import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.ui.theme.*
 
-private val STATUS_OPTIONS = listOf("active", "maintenance", "inactive", "retired")
-private val CONDITION_OPTIONS = listOf("good", "fair", "poor", "damaged")
 
 @Composable
 fun AssetListScreen(
@@ -87,23 +85,6 @@ fun AssetListScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            // Status filter chips
-            FilterChipRow(
-                label = "Status",
-                options = STATUS_OPTIONS,
-                selected = state.status,
-                onSelect = viewModel::onStatusChange,
-            )
-
-            // Condition filter chips
-            FilterChipRow(
-                label = "Condition",
-                options = CONDITION_OPTIONS,
-                selected = state.condition,
-                onSelect = viewModel::onConditionChange,
-            )
-
-            // Sort selector
             SortRow(
                 current = state.sortField,
                 dir = state.sortDir,
@@ -134,47 +115,6 @@ fun AssetListScreen(
                 AssetRow(asset = asset, onClick = { onAssetClick(asset.id) })
             }
             item { Spacer(Modifier.height(12.dp)) }
-        }
-    }
-}
-
-@Composable
-private fun FilterChipRow(
-    label: String,
-    options: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit,
-) {
-    Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
-        options.forEach { option ->
-            val isSelected = selected.equals(option, ignoreCase = true)
-            val bg by animateColorAsState(
-                if (isSelected) VairiotViolet else MaterialTheme.colorScheme.surfaceVariant,
-                label = "chipBg",
-            )
-            val fg by animateColorAsState(
-                if (isSelected) White else MaterialTheme.colorScheme.onSurface,
-                label = "chipFg",
-            )
-            Surface(
-                onClick = { onSelect(option) },
-                color = bg,
-                shape = RoundedCornerShape(8.dp),
-            ) {
-                Text(
-                    option.replaceFirstChar { it.uppercase() },
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = fg,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                )
-            }
         }
     }
 }
