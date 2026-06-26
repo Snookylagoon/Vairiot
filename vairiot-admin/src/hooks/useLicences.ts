@@ -74,6 +74,8 @@ export function useLicenceDevices(licenceId: string | undefined) {
     queryKey: ['admin', 'licence-devices', licenceId],
     queryFn: () => api.get(`/api/v1/licences/${licenceId}/devices`).then(r => r.data),
     enabled: !!licenceId,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
 

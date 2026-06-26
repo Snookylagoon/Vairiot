@@ -369,6 +369,74 @@ async function getAllowanceInfo(
   return { allowance, activeDevices, free: activeDevices < allowance, licenceId: licence?.id ?? null };
 }
 
+type DeviceRow = Awaited<ReturnType<typeof prisma.device.findFirst>> & object;
+
+// Update an existing device row on check-in, claiming a free slot if it was queued.
+async function reuseDeviceRow(
+  tenantId: string,
+  existing: DeviceRow,
+  data: { deviceName: string; deviceType?: string; serialNumber?: string; hardwareId?: string; userId?: string },
+  actorId: string,
+) {
+  let { active, activatedAt, licenceId } = existing;
+  if (!active) {
+    const info = await getAllowanceInfo(tenantId);
+    if (info.free) {
+      active = true;
+      activatedAt = new Date();
+      licenceId = info.licenceId ?? existing.licenceId;
+    }
+  }
+  const updated = await prisma.device.update({
+    where: { id: existing.id },
+    data: {
+      deviceName: data.deviceName,
+      deviceType: data.deviceType ?? existing.deviceType,
+      serialNumber: data.serialNumber ?? existing.serialNumber,
+      hardwareId: data.hardwareId ?? existing.hardwareId,
+      userId: data.userId ?? existing.userId,
+      active,
+      activatedAt,
+      licenceId,
+      lastSeenAt: new Date(),
+    },
+  });
+  if (!existing.active && updated.active) {
+    await auditLicenceEvent(tenantId, actorId, updated.id, 'device_activated',
+      { active: false }, { active: true, reason: 'slot_claimed_on_checkin' });
+  }
+  return updated;
+}
+
+// Survivor when collapsing duplicate handheld rows: prefer active, then most
+// recently seen, then most recently created.
+function pickSurvivor(dups: DeviceRow[]): DeviceRow {
+  return [...dups].sort((a, b) => {
+    if (a.active !== b.active) return a.active ? -1 : 1;
+    const at = a.lastSeenAt?.getTime() ?? 0;
+    const bt = b.lastSeenAt?.getTime() ?? 0;
+    if (at !== bt) return bt - at;
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  })[0];
+}
+
+// Delete any other non-browser rows for the same (user, model) — stale duplicates
+// of the same physical handheld.
+async function collapseMobileDuplicates(
+  tenantId: string,
+  keepId: string,
+  deviceName: string,
+  userId: string,
+): Promise<void> {
+  const others = await prisma.device.findMany({
+    where: { tenantId, deviceName, userId, deviceType: { not: 'browser' }, id: { not: keepId } },
+    select: { id: true },
+  });
+  if (others.length) {
+    await prisma.device.deleteMany({ where: { id: { in: others.map(o => o.id) } } });
+  }
+}
+
 export async function registerDevice(
   tenantId: string,
   data: {
@@ -383,86 +451,75 @@ export async function registerDevice(
 ): Promise<{ deviceId: string; active: boolean; reused: boolean }> {
   const fingerprint = data.fingerprint?.trim() || null;
 
-  // If we have a fingerprint, try to reuse the existing row for this tenant.
+  // Browser fingerprints are stable per browser instance, so each one IS its own
+  // device — two browsers under the same login are two devices. Mobile
+  // fingerprints (ANDROID_ID) can change on reset/reinstall, so for mobile a new
+  // fingerprint for the same model + user is treated as the SAME handheld (newest
+  // wins) and duplicate rows are collapsed.
+  const isBrowser = (data.deviceType ?? '') === 'browser';
+
   if (fingerprint) {
     const existing = await prisma.device.findUnique({
       where: { tenantId_fingerprint: { tenantId, fingerprint } },
     });
     if (existing) {
-      // A previously-queued device should claim a slot the moment one is free —
-      // otherwise it stays inactive forever even after capacity opens up.
-      let { active, activatedAt, licenceId } = existing;
-      if (!active) {
-        const info = await getAllowanceInfo(tenantId);
-        if (info.free) {
-          active = true;
-          activatedAt = new Date();
-          licenceId = info.licenceId ?? existing.licenceId;
-        }
-      }
-      const updated = await prisma.device.update({
-        where: { id: existing.id },
-        data: {
-          deviceName: data.deviceName,
-          deviceType: data.deviceType ?? existing.deviceType,
-          serialNumber: data.serialNumber ?? existing.serialNumber,
-          hardwareId: data.hardwareId ?? existing.hardwareId,
-          userId: data.userId ?? existing.userId,
-          active,
-          activatedAt,
-          licenceId,
-          lastSeenAt: new Date(),
-        },
-      });
-      if (!existing.active && updated.active) {
-        await auditLicenceEvent(tenantId, actorId, updated.id, 'device_activated',
-          { active: false }, { active: true, reason: 'slot_claimed_on_checkin' });
+      const updated = await reuseDeviceRow(tenantId, existing, data, actorId);
+      const ownerId = data.userId ?? existing.userId;
+      if (!isBrowser && ownerId) {
+        await collapseMobileDuplicates(tenantId, updated.id, data.deviceName, ownerId);
       }
       return { deviceId: updated.id, active: updated.active, reused: true };
     }
 
-    // Fingerprint changed (e.g. app reinstall, ANDROID_ID reset) but same
-    // physical device. Match on deviceName + userId and adopt the new fingerprint,
-    // deactivating the stale row's old fingerprint in the process.
-    if (data.userId) {
-      const stale = await prisma.device.findFirst({
-        where: { tenantId, deviceName: data.deviceName, userId: data.userId },
+    // Mobile only: a new fingerprint for an existing (user, model) is the same
+    // physical handheld — adopt it onto the surviving row and drop the duplicates.
+    if (!isBrowser && data.userId) {
+      const dups = await prisma.device.findMany({
+        where: { tenantId, deviceName: data.deviceName, userId: data.userId, deviceType: { not: 'browser' } },
       });
-      if (stale) {
-        let { active, activatedAt, licenceId } = stale;
+      if (dups.length > 0) {
+        const survivor = pickSurvivor(dups);
+        const wasActive = dups.some(d => d.active);
+        let active = survivor.active || wasActive;
+        let activatedAt = active ? (survivor.activatedAt ?? new Date()) : survivor.activatedAt;
+        let licenceId = survivor.licenceId;
         if (!active) {
           const info = await getAllowanceInfo(tenantId);
           if (info.free) {
             active = true;
             activatedAt = new Date();
-            licenceId = info.licenceId ?? stale.licenceId;
+            licenceId = info.licenceId ?? survivor.licenceId;
           }
         }
         const updated = await prisma.device.update({
-          where: { id: stale.id },
+          where: { id: survivor.id },
           data: {
             fingerprint,
-            deviceType: data.deviceType ?? stale.deviceType,
-            serialNumber: data.serialNumber ?? stale.serialNumber,
-            hardwareId: data.hardwareId ?? stale.hardwareId,
+            deviceType: data.deviceType ?? survivor.deviceType,
+            serialNumber: data.serialNumber ?? survivor.serialNumber,
+            hardwareId: data.hardwareId ?? survivor.hardwareId,
             active,
             activatedAt,
             licenceId,
             lastSeenAt: new Date(),
           },
         });
-        if (!stale.active && updated.active) {
-          await auditLicenceEvent(tenantId, actorId, updated.id, 'device_activated',
-            { active: false }, { active: true, reason: 'slot_claimed_on_checkin' });
+        const others = dups.filter(d => d.id !== survivor.id).map(d => d.id);
+        if (others.length) {
+          await prisma.device.deleteMany({ where: { id: { in: others } } });
+          await auditLicenceEvent(tenantId, actorId, updated.id, 'device_deduplicated', null, {
+            deviceName: data.deviceName,
+            mergedCount: others.length,
+          });
         }
         return { deviceId: updated.id, active: updated.active, reused: true };
       }
     }
   }
 
-  // New device — check allowance and decide activation. Over-allowance devices
-  // still register, but as inactive (a visible queue); they claim a slot later
-  // via check-in or manual activation when one frees up.
+  // New device (browser with a new fingerprint, or a first-seen handheld). Over-
+  // allowance devices still register, but as inactive (a visible queue); they
+  // claim a slot later via check-in or manual activation when one frees up.
   const info = await getAllowanceInfo(tenantId);
   const canActivate = info.free;
   const now = new Date();

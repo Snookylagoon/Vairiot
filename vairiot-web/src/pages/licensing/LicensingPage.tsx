@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -103,8 +105,9 @@ function Stat({ label, value, hint }: { label: string; value: string | number; h
 // ── Devices list ─────────────────────────────────────────────────────────────
 
 function DevicesList() {
-  const { data: devices, isLoading } = useDevices();
+  const { data: devices, isLoading, isFetching } = useDevices();
   const { data: status } = useLicenceStatus();
+  const qc = useQueryClient();
   const user = useAuthStore(s => s.user);
   const canManage = hasAnyPermission(user, 'company:manage');
   const activateMutation = useActivateDevice();
@@ -145,7 +148,19 @@ function DevicesList() {
   return (
     <>
       <Card className="p-6 space-y-3">
-        <h2 className="text-lg font-bold text-v-charcoal">Registered Devices</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-v-charcoal">Registered Devices</h2>
+          <button
+            type="button"
+            onClick={() => qc.invalidateQueries({ queryKey: ['licence'] })}
+            disabled={isFetching}
+            className="flex items-center gap-1.5 text-sm text-v-violet hover:underline disabled:opacity-50"
+            title="Refresh device state"
+          >
+            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
         {(!devices || devices.length === 0) ? (
           <p className="text-sm text-gray-500">No devices registered yet.</p>
         ) : (

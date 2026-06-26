@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Input } from '@/components/ui/Input';
-import { ArrowLeft, Plus, Upload, Trash2, Pencil, Check, X } from 'lucide-react';
+import { ArrowLeft, Plus, Upload, Trash2, Pencil, Check, X, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useShellContext } from '@/components/layout/AdminShell';
@@ -364,7 +364,7 @@ export function TenantDetailPage() {
 }
 
 function RegisteredDevicesCard({ licenceId, allowance }: { licenceId: string; allowance: number }) {
-  const { data: devices, isLoading } = useLicenceDevices(licenceId);
+  const { data: devices, isLoading, isFetching, refetch } = useLicenceDevices(licenceId);
   const activate = useActivateDevice();
   const deactivate = useDeactivateDevice();
   const remove = useDeleteDevice();
@@ -389,7 +389,19 @@ function RegisteredDevicesCard({ licenceId, allowance }: { licenceId: string; al
         <CardHeader>
           <div className="flex items-center justify-between">
             <h2 className="text-h3 text-v-charcoal">Registered Devices</h2>
-            <span className="text-xs text-gray-400">{activeCount} / {allowance} slots used</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-400">{activeCount} / {allowance} slots used</span>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="flex items-center gap-1.5 text-sm text-v-violet hover:underline disabled:opacity-50"
+                title="Refresh device state"
+              >
+                <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+                Refresh
+              </button>
+            </div>
           </div>
         </CardHeader>
         <CardBody>

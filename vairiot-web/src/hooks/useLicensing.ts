@@ -64,6 +64,8 @@ export function useLicenceStatus() {
         daysRemaining: d.daysRemaining,
       };
     },
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -71,6 +73,9 @@ export function useDevices() {
   return useQuery<DeviceInfo[]>({
     queryKey: ['licence', 'devices'],
     queryFn: () => api.get('/api/v1/licences/devices').then(r => r.data),
+    // Keep "connected now" roughly live without a manual refresh.
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
 
