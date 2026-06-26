@@ -90,6 +90,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 CompositionLocalProvider(LocalViewConfiguration provides lowSlopConfig) {
+                MandatoryUpdateGate {
                 val rootNav = rememberNavController()
                 val startDest = if (hasToken) "home" else "login"
 
@@ -194,6 +195,7 @@ class MainActivity : ComponentActivity() {
                     composable("audit/{campaignId}/run")      { AuditRunScreen(onBack    = { rootNav.popBackStack() }) }
                     composable("maintenance/{eventId}")       { MaintenanceDetailScreen(onBack = { rootNav.popBackStack() }) }
                 }
+                } // MandatoryUpdateGate
                 } // CompositionLocalProvider
             }
         }

@@ -17,7 +17,11 @@ set -u
 set -o pipefail
 
 REPO="${REPO:-/Volumes/DRSssd/Projects/GitHub/Vairiot}"
-APK="${APK:-$REPO/vairiot-mobile/app/build/outputs/apk/debug/Vairiot-Current.apk}"
+# Field devices must run the RELEASE-signed build so they can also receive
+# over-the-air updates: an OTA APK signed with the release keystore cannot
+# update a debug-signed install (Android reports "App not installed"). Override
+# with APK=…/apk/debug/Vairiot-Current.apk only for throwaway dev handsets.
+APK="${APK:-$REPO/vairiot-mobile/app/build/outputs/apk/release/Vairiot-Current.apk}"
 ADB="${ADB:-$HOME/Library/Android/sdk/platform-tools/adb}"
 POLL_SECONDS="${POLL_SECONDS:-3}"
 STATE_DIR="$REPO/.claude/hh83-auto-flash"
@@ -97,16 +101,32 @@ EOF
     fi
 
     log "HH83 $serial connected. Local APK ${apk_sha:0:12}… differs from last flash (${last_flashed:0:12}…). Installing…"
-    if "$ADB" -s "$serial" install -r "$APK" >> "$LOG" 2>&1; then
+    install_out=$("$ADB" -s "$serial" install -r "$APK" 2>&1)
+    echo "$install_out" >> "$LOG"
+    if printf '%s' "$install_out" | grep -q "Success"; then
       printf '%s' "$apk_sha" > "$STATE_DIR/$serial.sha"
       log "✓ Install OK on $serial. Marker updated."
       SEEN="$SEEN$serial:installed
 "
+    elif printf '%s' "$install_out" | grep -qiE "INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match|INSTALL_FAILED_VERSION_DOWNGRADE"; then
+      # Signing key (or version) changed — e.g. an old debug-signed build is on
+      # the device and we are now flashing the release build. Clear it and retry
+      # once. This wipes local app data, which is safe here: the app force
+      # re-logins on launch and syncs scans from the server.
+      log "⚠ Signature/version conflict on $serial — uninstalling old build and retrying…"
+      "$ADB" -s "$serial" uninstall com.vairiot.app >> "$LOG" 2>&1
+      if "$ADB" -s "$serial" install "$APK" >> "$LOG" 2>&1; then
+        printf '%s' "$apk_sha" > "$STATE_DIR/$serial.sha"
+        log "✓ Clean reinstall OK on $serial. Marker updated."
+        SEEN="$SEEN$serial:installed
+"
+      else
+        log "✗ Reinstall FAILED on $serial after uninstall. Check the device manually."
+        SEEN="$SEEN$serial:failed
+"
+      fi
     else
-      log "✗ Install FAILED on $serial. If this is a signature mismatch, run:"
-      log "    $ADB -s $serial uninstall com.vairiot.app"
-      log "  …and the next reconnect will install cleanly. Use a release keystore"
-      log "  (vairiot-mobile/scripts/gen-release-keystore.sh) to avoid this."
+      log "✗ Install FAILED on $serial (not a signature conflict). See log above."
       SEEN="$SEEN$serial:failed
 "
     fi

@@ -1,16 +1,17 @@
 // One-off OTA release publisher. Mirrors POST /api/admin/mobile-releases.
 // Runs INSIDE the vairiot_api container (has minio + prisma + env).
-//   node upload-release.cjs <apkPath> <versionCode> <versionName> [releaseNotes]
+//   node upload-release.cjs <apkPath> <versionCode> <versionName> [releaseNotes] [mandatory]
 const fs = require('fs');
 const crypto = require('crypto');
 const { minioClient, MOBILE_RELEASES_BUCKET } = require('/app/vairiot-api/dist/lib/minio.js');
 const { prisma } = require('/app/vairiot-api/dist/lib/prisma.js');
 
 (async () => {
-  const [apkPath, versionCodeRaw, versionName, releaseNotes] = process.argv.slice(2);
+  const [apkPath, versionCodeRaw, versionName, releaseNotes, mandatoryRaw] = process.argv.slice(2);
   const versionCode = Number(versionCodeRaw);
+  const mandatory = mandatoryRaw === 'true' || mandatoryRaw === '1';
   if (!apkPath || !Number.isInteger(versionCode) || !versionName) {
-    throw new Error('usage: node upload-release.cjs <apkPath> <versionCode> <versionName> [releaseNotes]');
+    throw new Error('usage: node upload-release.cjs <apkPath> <versionCode> <versionName> [releaseNotes] [mandatory]');
   }
 
   const buffer = fs.readFileSync(apkPath);
@@ -32,11 +33,11 @@ const { prisma } = require('/app/vairiot-api/dist/lib/prisma.js');
         versionCode, versionName, storageKey,
         sizeBytes: buffer.length, sha256,
         releaseNotes: releaseNotes?.trim() || null,
-        mandatory: false, isCurrent: true,
+        mandatory, isCurrent: true,
       },
     });
   });
 
-  console.log(JSON.stringify({ ok: true, id: release.id, versionCode, versionName, sha256, sizeBytes: buffer.length, storageKey }, null, 2));
+  console.log(JSON.stringify({ ok: true, id: release.id, versionCode, versionName, mandatory, sha256, sizeBytes: buffer.length, storageKey }, null, 2));
   await prisma.$disconnect();
 })().catch(async (e) => { console.error('FAILED:', e.message); try { await prisma.$disconnect(); } catch {} process.exit(1); });
