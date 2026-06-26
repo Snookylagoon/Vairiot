@@ -28,6 +28,12 @@ class ScannerHealthMonitor @Inject constructor(
     // Track broadcasts from the scanner to determine liveness
     @Volatile private var lastBroadcastAt = 0L
 
+    // When an active scanner backend (e.g. the Nordic ID NUR reader on the HH83)
+    // drives health from its own connection state, the Meferi package/broadcast
+    // heuristics don't apply and are disabled.
+    @Volatile private var backendBound = false
+    @Volatile private var backendRecovery: (() -> Unit)? = null
+
     private val scannerBroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
             lastBroadcastAt = System.currentTimeMillis()
@@ -71,6 +77,10 @@ class ScannerHealthMonitor @Inject constructor(
         Log.d(TAG, "ScannerHealthMonitor init")
         scope.launch {
             delay(2_000)
+            if (backendBound) {
+                Log.d(TAG, "Backend-bound scanner — skipping Meferi package probe")
+                return@launch
+            }
             val installed = try {
                 context.packageManager.getPackageInfo(SCANNER_PACKAGE, 0)
                 true
@@ -78,6 +88,28 @@ class ScannerHealthMonitor @Inject constructor(
             Log.d(TAG, "Scanner package installed: $installed")
             setState(if (installed) ScannerHealth.READY else ScannerHealth.UNAVAILABLE)
         }
+    }
+
+    /**
+     * Bind an active scanner backend that reports its own hardware liveness
+     * (e.g. the Nordic ID NUR reader on the HH83). This disables the Meferi
+     * package/broadcast heuristics — health then reflects the reader's actual
+     * connection state. [onRecover] is invoked when the user taps Retry.
+     */
+    fun bindBackend(onRecover: (() -> Unit)? = null) {
+        backendBound = true
+        backendRecovery = onRecover
+    }
+
+    /** The active backend reports its scanner hardware is connected and live. */
+    fun reportConnected() {
+        lastBroadcastAt = System.currentTimeMillis()
+        setState(ScannerHealth.READY)
+    }
+
+    /** The active backend reports its scanner hardware has disconnected. */
+    fun reportDisconnected() {
+        setState(ScannerHealth.UNAVAILABLE)
     }
 
     fun markScanReceived() {
@@ -92,6 +124,15 @@ class ScannerHealthMonitor @Inject constructor(
     fun attemptRecovery() {
         scope.launch {
             setState(ScannerHealth.RECOVERING)
+
+            if (backendBound) {
+                // Let the active backend re-establish its own connection. The
+                // callback is responsible for reporting the resolved state.
+                runCatching { backendRecovery?.invoke() }
+                delay(3_000)
+                checkHealth()
+                return@launch
+            }
 
             // Try waking the scanner via a shoot broadcast
             runCatching {
@@ -149,6 +190,20 @@ class ScannerHealthMonitor @Inject constructor(
     }
 
     private fun checkHealth() {
+        if (backendBound) {
+            // Health is driven by the backend's connection reports; trust the
+            // most recent liveness signal rather than the Meferi package probe.
+            val now = System.currentTimeMillis()
+            val recentBroadcast = lastBroadcastAt > 0 && (now - lastBroadcastAt) < 30_000
+            if (recentBroadcast) {
+                setState(ScannerHealth.READY)
+            } else if (_health.value == ScannerHealth.RECOVERING) {
+                // Recovery attempt didn't re-establish the link — report offline.
+                setState(ScannerHealth.UNAVAILABLE)
+            }
+            return
+        }
+
         val installed = try {
             context.packageManager.getPackageInfo(SCANNER_PACKAGE, 0)
             true

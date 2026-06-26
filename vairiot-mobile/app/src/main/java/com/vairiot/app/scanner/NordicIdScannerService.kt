@@ -40,6 +40,7 @@ import javax.inject.Singleton
 @Singleton
 class NordicIdScannerService @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val healthMonitor: ScannerHealthMonitor,
 ) : ScannerService {
 
     private val _scanResults = MutableSharedFlow<ScanResult>(extraBufferCapacity = 64)
@@ -83,6 +84,9 @@ class NordicIdScannerService @Inject constructor(
     private val nurListener = object : NurApiListener {
         override fun connectedEvent() {
             Log.i(TAG, "NUR reader connected (fw=${nurApi.fileVersion ?: "?"})")
+            // The integrated reader is live — clear the "Offline" state without
+            // requiring the user to fire a scan first.
+            healthMonitor.reportConnected()
             try {
                 val ext = NurAccessoryExtension(nurApi)
                 accessoryExt = ext
@@ -98,6 +102,7 @@ class NordicIdScannerService @Inject constructor(
         override fun disconnectedEvent() {
             Log.w(TAG, "NUR reader disconnected")
             streaming = false
+            healthMonitor.reportDisconnected()
         }
 
         override fun inventoryStreamEvent(event: NurEventInventory) {
@@ -135,6 +140,12 @@ class NordicIdScannerService @Inject constructor(
     init {
         BleScanner.init(context)
         nurApi.setListener(nurListener)
+        // Drive scanner health from the NUR reader's connection state, and make
+        // the Retry button re-establish the reader link instead of firing the
+        // (no-op on this hardware) Meferi recovery broadcasts.
+        healthMonitor.bindBackend { reconnectReader() }
+        // If the reader is already connected when the screen opens, reflect it.
+        if (nurApi.isConnected) healthMonitor.reportConnected()
         scope.launch { connectIntegratedReader() }
 
         val filter = IntentFilter().apply {
@@ -215,6 +226,18 @@ class NordicIdScannerService @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Error draining tags", e)
         }
+    }
+
+    // Invoked from the Retry button via ScannerHealthMonitor.attemptRecovery().
+    private fun reconnectReader() {
+        if (nurApi.isConnected) {
+            healthMonitor.reportConnected()
+            return
+        }
+        // Tear down and recreate the auto-connect transport to re-establish the link.
+        runCatching { autoTransport?.dispose() }
+        autoTransport = null
+        scope.launch { connectIntegratedReader() }
     }
 
     private fun connectIntegratedReader() {
