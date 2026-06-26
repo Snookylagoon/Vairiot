@@ -92,36 +92,105 @@ fun ProfileScreen(
 
             Spacer(Modifier.weight(1f))
 
-            AppVersionCard()
+            AppVersionCard(
+                updateState  = state.update,
+                onCheck      = viewModel::checkForUpdates,
+                onInstall    = viewModel::installUpdate,
+                onNotNow     = viewModel::deferUpdate,
+            )
 
             OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
                 Text("Sign out")
             }
         }
     }
+
+    // Transient feedback (up to date / offline / deferred / install failed) as a toast.
+    LaunchedEffect(state.update) {
+        val message = when (state.update) {
+            UpdateUiState.UpToDate      -> "You're on the latest version"
+            UpdateUiState.Failed        -> "Couldn't check for updates. Try again later."
+            UpdateUiState.Deferred      -> "Update will be installed on your next sign in"
+            UpdateUiState.InstallFailed -> "Update failed. Please try again."
+            else                        -> null
+        }
+        if (message != null) {
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            viewModel.dismissUpdateMessage()
+        }
+    }
 }
 
 @Composable
-private fun AppVersionCard() {
+private fun AppVersionCard(
+    updateState: UpdateUiState,
+    onCheck:     () -> Unit,
+    onInstall:   () -> Unit,
+    onNotNow:    () -> Unit,
+) {
+    val busy = updateState is UpdateUiState.Checking || updateState is UpdateUiState.Downloading
+
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("App version", fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(
-                    "${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
-                    fontWeight = FontWeight.SemiBold,
-                )
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("App version", fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Released", fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(BuildConfig.BUILD_DATE, fontWeight = FontWeight.Medium)
+                }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("Released", fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(BuildConfig.BUILD_DATE, fontWeight = FontWeight.Medium)
+
+            Spacer(Modifier.height(4.dp))
+
+            TextButton(
+                onClick = onCheck,
+                enabled = !busy,
+                modifier = Modifier.align(Alignment.Start),
+            ) {
+                if (busy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (updateState is UpdateUiState.Downloading) "Downloading…" else "Checking…")
+                } else {
+                    Text("Check for updates")
+                }
             }
         }
+    }
+
+    if (updateState is UpdateUiState.Available) {
+        val info = updateState.info
+        AlertDialog(
+            onDismissRequest = onNotNow,
+            title   = { Text("Update available") },
+            text    = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Version ${info.versionName ?: ""} (build ${info.versionCode}) is ready to install.",
+                    )
+                    info.releaseNotes?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = onInstall) { Text("Install") } },
+            dismissButton = { TextButton(onClick = onNotNow) { Text("Not now") } },
+        )
     }
 }
 

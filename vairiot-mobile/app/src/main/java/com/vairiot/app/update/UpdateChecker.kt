@@ -23,35 +23,86 @@ import kotlin.coroutines.resume
 
 private const val TAG = "UpdateChecker"
 private const val ACTION_INSTALL_STATUS = "com.vairiot.app.INSTALL_STATUS"
+private const val PREFS_NAME = "vairiot.update"
+private const val KEY_LAST_PROMPTED = "lastPromptedKey"
+
+/** Outcome of a manual "check for updates" request. */
+sealed interface UpdateCheckResult {
+    /** A newer version is available on the server. */
+    data class Available(val info: MobileVersionResponse) : UpdateCheckResult
+    /** The device is already on (or ahead of) the latest release. */
+    object UpToDate : UpdateCheckResult
+    /** The version check could not be completed (offline / server error). */
+    object Failed : UpdateCheckResult
+}
 
 @Singleton
 class UpdateChecker @Inject constructor(
     @ApplicationContext private val context: Context,
     private val api: UpdateApi,
 ) {
+    private val prefs get() = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private fun promptKey(info: MobileVersionResponse) = "${info.versionCode}:${info.sha256 ?: ""}"
+
     /**
-     * Returns true if an update was downloaded and installed successfully.
+     * Queries the server for the latest release without downloading anything.
+     * Safe to call from the UI for an explicit "check for updates" action.
      */
-    suspend fun checkAndInstall(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun checkForUpdate(): UpdateCheckResult = withContext(Dispatchers.IO) {
         val info = try { api.checkVersion() } catch (e: Exception) {
             Log.w(TAG, "version check failed: ${e.message}")
-            return@withContext false
+            return@withContext UpdateCheckResult.Failed
         }
         if (!info.available || info.versionCode == null) {
             Log.i(TAG, "no update available")
-            return@withContext false
+            return@withContext UpdateCheckResult.UpToDate
         }
         if (info.versionCode <= BuildConfig.VERSION_CODE) {
             Log.i(TAG, "already on or ahead of latest (have=${BuildConfig.VERSION_CODE}, latest=${info.versionCode})")
+            return@withContext UpdateCheckResult.UpToDate
+        }
+        UpdateCheckResult.Available(info)
+    }
+
+    /**
+     * Forget that we have already prompted for [info], so the next automatic
+     * check (e.g. on the next cold-start / sign-in) will download and install it.
+     * Used when the user picks "Not now" but we still want the update applied
+     * on their next session.
+     */
+    fun deferToNextSignIn(info: MobileVersionResponse) {
+        if (prefs.getString(KEY_LAST_PROMPTED, null) == promptKey(info)) {
+            prefs.edit().remove(KEY_LAST_PROMPTED).apply()
+        }
+        Log.i(TAG, "update ${info.versionName} deferred — will auto-download on next sign in")
+    }
+
+    /**
+     * Returns true if an update was downloaded and installed successfully.
+     * Used by the background worker (cold-start / periodic checks).
+     */
+    suspend fun checkAndInstall(): Boolean = withContext(Dispatchers.IO) {
+        val info = when (val result = checkForUpdate()) {
+            is UpdateCheckResult.Available -> result.info
+            else -> return@withContext false
+        }
+
+        val key = promptKey(info)
+        if (prefs.getString(KEY_LAST_PROMPTED, null) == key) {
+            Log.w(TAG, "already prompted for $key but device is still behind — skipping to break loop")
             return@withContext false
         }
 
-        val prefs    = context.getSharedPreferences("vairiot.update", Context.MODE_PRIVATE)
-        val promptKey = "${info.versionCode}:${info.sha256 ?: ""}"
-        if (prefs.getString("lastPromptedKey", null) == promptKey) {
-            Log.w(TAG, "already prompted for $promptKey but device is still behind — skipping to break loop")
-            return@withContext false
-        }
+        downloadAndInstall(info)
+    }
+
+    /**
+     * Downloads, verifies and installs [info]. Returns true on success.
+     * Records the prompt key so the automatic checker does not re-prompt in a loop.
+     */
+    suspend fun downloadAndInstall(info: MobileVersionResponse): Boolean = withContext(Dispatchers.IO) {
+        if (info.versionCode == null) return@withContext false
 
         Log.i(TAG, "update available: ${info.versionName} (code ${info.versionCode}); downloading…")
         val apk = downloadToCache(info) ?: return@withContext false
@@ -65,7 +116,7 @@ class UpdateChecker @Inject constructor(
             }
         }
 
-        prefs.edit().putString("lastPromptedKey", promptKey).apply()
+        prefs.edit().putString(KEY_LAST_PROMPTED, promptKey(info)).apply()
         val result = installViaSession(apk)
 
         if (result == PackageInstaller.STATUS_FAILURE_CONFLICT) {
