@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# hh83-auto-flash.sh — Channel B of the field-device auto-update plan.
+# vairiot-mobile-auto-flash.sh — Channel B of the field-device auto-update plan.
 #
 # Watches for any supported field device (Nordic ID HH83, ME65; configurable via
 # MODELS=) connecting over USB and, when one appears, installs the latest local
@@ -8,8 +8,8 @@
 # Bash 3.2 compatible (stock macOS /bin/bash).
 #
 # Run continuously, either:
-#   • foreground in a Terminal tab:   ./hh83-auto-flash.sh
-#   • via the launchd agent installed by install-hh83-auto-flash.sh — but note
+#   • foreground in a Terminal tab:   ./vairiot-mobile-auto-flash.sh
+#   • via the launchd agent installed by install-vairiot-mobile-auto-flash.sh — but note
 #     that launchd-spawned shells need Full Disk Access (System Settings →
 #     Privacy & Security → Full Disk Access) to read scripts/APKs that live on
 #     an external volume like /Volumes/DRSssd.
@@ -28,7 +28,7 @@ ADB="${ADB:-$HOME/Library/Android/sdk/platform-tools/adb}"
 # ro.product.model. Override to add/restrict, e.g. MODELS="HH83".
 MODELS="${MODELS:-HH83 ME65}"
 POLL_SECONDS="${POLL_SECONDS:-3}"
-STATE_DIR="$REPO/.claude/hh83-auto-flash"
+STATE_DIR="$REPO/.claude/vairiot-mobile-auto-flash"
 LOG="$STATE_DIR/auto-flash.log"
 
 mkdir -p "$STATE_DIR"
@@ -45,7 +45,7 @@ if [ ! -x "$ADB" ]; then
   exit 1
 fi
 
-log "hh83-auto-flash started. Models: [$MODELS]. Polling every ${POLL_SECONDS}s. Log: $LOG"
+log "vairiot-mobile-auto-flash started. Models: [$MODELS]. Polling every ${POLL_SECONDS}s. Log: $LOG"
 
 # SEEN is a newline-separated list of "<serial>:<outcome>" entries representing
 # devices we've already evaluated in their current connection cycle. When a
