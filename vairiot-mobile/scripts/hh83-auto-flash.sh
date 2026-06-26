@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# hh83-auto-flash.sh — Channel B of the HH83 auto-update plan.
+# hh83-auto-flash.sh — Channel B of the field-device auto-update plan.
 #
-# Watches for any Nordic ID HH83 connecting over USB and, when one appears,
-# installs the latest local debug APK if it differs from what was last flashed.
+# Watches for any supported field device (Nordic ID HH83, ME65; configurable via
+# MODELS=) connecting over USB and, when one appears, installs the latest local
+# release APK if it differs from what was last flashed.
 #
 # Bash 3.2 compatible (stock macOS /bin/bash).
 #
@@ -23,6 +24,9 @@ REPO="${REPO:-/Volumes/DRSssd/Projects/GitHub/Vairiot}"
 # with APK=…/apk/debug/Vairiot-Current.apk only for throwaway dev handsets.
 APK="${APK:-$REPO/vairiot-mobile/app/build/outputs/apk/release/Vairiot-Current.apk}"
 ADB="${ADB:-$HOME/Library/Android/sdk/platform-tools/adb}"
+# Device models to auto-flash, space-separated, matched exactly against
+# ro.product.model. Override to add/restrict, e.g. MODELS="HH83".
+MODELS="${MODELS:-HH83 ME65}"
 POLL_SECONDS="${POLL_SECONDS:-3}"
 STATE_DIR="$REPO/.claude/hh83-auto-flash"
 LOG="$STATE_DIR/auto-flash.log"
@@ -41,7 +45,7 @@ if [ ! -x "$ADB" ]; then
   exit 1
 fi
 
-log "hh83-auto-flash started. Polling every ${POLL_SECONDS}s. Log: $LOG"
+log "hh83-auto-flash started. Models: [$MODELS]. Polling every ${POLL_SECONDS}s. Log: $LOG"
 
 # SEEN is a newline-separated list of "<serial>:<outcome>" entries representing
 # devices we've already evaluated in their current connection cycle. When a
@@ -84,7 +88,14 @@ EOF
     fi
 
     model=$("$ADB" -s "$serial" shell getprop ro.product.model 2>/dev/null | tr -d '\r\n')
-    if [ "$model" != "HH83" ]; then
+    matched=""
+    for m in $MODELS; do
+      [ "$model" = "$m" ] && { matched="yes"; break; }
+    done
+    if [ -z "$matched" ]; then
+      # Log once per connection so an unexpected model string (e.g. ME65 not
+      # reporting exactly "ME65") is visible rather than silently ignored.
+      log "Skipping $serial — model '$model' not in [$MODELS]. Set MODELS= to include it."
       SEEN="$SEEN$serial:skip
 "
       continue
@@ -94,13 +105,13 @@ EOF
     [ -f "$STATE_DIR/$serial.sha" ] && last_flashed=$(cat "$STATE_DIR/$serial.sha")
 
     if [ "$last_flashed" = "$apk_sha" ]; then
-      log "HH83 $serial reconnected — already on the current APK (sha256=${apk_sha:0:12}…). No action."
+      log "$model $serial reconnected — already on the current APK (sha256=${apk_sha:0:12}…). No action."
       SEEN="$SEEN$serial:current
 "
       continue
     fi
 
-    log "HH83 $serial connected. Local APK ${apk_sha:0:12}… differs from last flash (${last_flashed:0:12}…). Installing…"
+    log "$model $serial connected. Local APK ${apk_sha:0:12}… differs from last flash (${last_flashed:0:12}…). Installing…"
     install_out=$("$ADB" -s "$serial" install -r "$APK" 2>&1)
     echo "$install_out" >> "$LOG"
     if printf '%s' "$install_out" | grep -q "Success"; then
