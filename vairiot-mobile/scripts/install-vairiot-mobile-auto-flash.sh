@@ -38,7 +38,7 @@ launchctl bootout "gui/$UID_NUM/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$UID_NUM" "$PLIST_DST"
 
 echo "✅ $LABEL installed."
-echo "   Watching: $REPO/vairiot-mobile/app/build/outputs/apk/release/Vairiot-Current.apk"
+echo "   Watching: $REPO/vairiot-mobile/app/build/outputs/apk/release/Vairiot-Mobile.apk"
 echo "   Stdout:   /tmp/vairiot-mobile-auto-flash.out.log"
 echo "   Stderr:   /tmp/vairiot-mobile-auto-flash.err.log"
 echo "   State:    $REPO/.claude/vairiot-mobile-auto-flash/"

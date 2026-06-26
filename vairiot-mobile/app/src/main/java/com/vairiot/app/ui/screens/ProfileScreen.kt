@@ -153,10 +153,11 @@ private fun AppVersionCard(
 
             Spacer(Modifier.height(4.dp))
 
-            TextButton(
+            OutlinedButton(
                 onClick = onCheck,
                 enabled = !busy,
-                modifier = Modifier.align(Alignment.Start),
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.align(Alignment.CenterHorizontally),
             ) {
                 if (busy) {
                     CircularProgressIndicator(

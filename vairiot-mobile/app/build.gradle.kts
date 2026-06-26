@@ -33,8 +33,8 @@ android {
         applicationId = "com.vairiot.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.4.2"
+        versionCode = 14
+        versionName = "1.4.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Production API. For local dev on a USB device, swap to
         // "http://localhost:3001/" and run `adb reverse tcp:3001 tcp:3001`.
@@ -81,13 +81,13 @@ android {
         buildConfig = true
     }
 
-    // Emit every variant's APK as Vairiot-Current.apk so it's obvious which
+    // Emit every variant's APK as Vairiot-Mobile.apk so it's obvious which
     // file to upload to vaiadmin → Mobile Releases. Lives next to the original
-    // gradle output dir (app/build/outputs/apk/<variant>/Vairiot-Current.apk).
+    // gradle output dir (app/build/outputs/apk/<variant>/Vairiot-Mobile.apk).
     applicationVariants.all {
         outputs.all {
             (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl)
-                .outputFileName = "Vairiot-Current.apk"
+                .outputFileName = "Vairiot-Mobile.apk"
         }
     }
 }

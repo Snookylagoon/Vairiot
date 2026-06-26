@@ -21,8 +21,8 @@ REPO="${REPO:-/Volumes/DRSssd/Projects/GitHub/Vairiot}"
 # Field devices must run the RELEASE-signed build so they can also receive
 # over-the-air updates: an OTA APK signed with the release keystore cannot
 # update a debug-signed install (Android reports "App not installed"). Override
-# with APK=…/apk/debug/Vairiot-Current.apk only for throwaway dev handsets.
-APK="${APK:-$REPO/vairiot-mobile/app/build/outputs/apk/release/Vairiot-Current.apk}"
+# with APK=…/apk/debug/Vairiot-Mobile.apk only for throwaway dev handsets.
+APK="${APK:-$REPO/vairiot-mobile/app/build/outputs/apk/release/Vairiot-Mobile.apk}"
 ADB="${ADB:-$HOME/Library/Android/sdk/platform-tools/adb}"
 # Device models to auto-flash, space-separated, matched exactly against
 # ro.product.model. Override to add/restrict, e.g. MODELS="HH83".
