@@ -35,3 +35,10 @@ export const LICENCE_TIER_CONFIG = {
 export const DEFAULT_GRACE_PERIOD_DAYS = 14;
 export const DEFAULT_EXPIRY_WARNING_DAYS = 30;
 export const DEFAULT_LICENCE_DURATION_MONTHS = 12;
+
+// How often a logged-in client (mobile handset, browser) pings the device
+// heartbeat endpoint, and how long after the last ping a device is still
+// considered "online / connected now". The threshold allows a few intervals of
+// grace so a single missed ping doesn't flip a device offline.
+export const DEVICE_HEARTBEAT_INTERVAL_SECONDS = 60;
+export const DEVICE_ONLINE_THRESHOLD_SECONDS = 180;

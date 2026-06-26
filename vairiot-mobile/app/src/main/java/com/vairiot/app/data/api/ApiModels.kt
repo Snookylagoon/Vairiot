@@ -13,6 +13,15 @@ data class DeviceCheckIn(
     val deviceType:  String = "mobile",
 )
 
+data class DeviceHeartbeatRequest(
+    val fingerprint: String,
+)
+
+data class DeviceHeartbeatResponse(
+    val online: Boolean = false,
+    val active: Boolean = false,
+)
+
 // The API returns ONE of four shapes for /auth/login:
 //   1. {accessToken, refreshToken, expiresIn}                                     — normal
 //   2. {requiresTwoFactor, twoFactorChallengeToken}                               — TOTP challenge

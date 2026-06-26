@@ -39,6 +39,9 @@ interface VairiotApiService {
     @GET("api/v1/licences/status")
     suspend fun getLicenceStatus(): LicenceStatusResponse
 
+    @POST("api/v1/licences/devices/heartbeat")
+    suspend fun sendDeviceHeartbeat(@Body request: DeviceHeartbeatRequest): DeviceHeartbeatResponse
+
     @GET("api/v1/assets")
     suspend fun listAssets(
         @Query("search")    search:    String? = null,

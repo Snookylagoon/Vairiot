@@ -77,6 +77,16 @@ export function useLicenceDevices(licenceId: string | undefined) {
   });
 }
 
+export function useActivateDevice() {
+  return useMutationWithToast<unknown, { licenceId: string; deviceId: string }>({
+    mutationFn: ({ licenceId, deviceId }) =>
+      api.patch(`/api/v1/licences/${licenceId}/devices/${deviceId}/activate`).then(r => r.data),
+    invalidate: ['admin', 'licence-devices'],
+    success: 'Device activated',
+    error: 'Failed to activate device',
+  });
+}
+
 export function useDeactivateDevice() {
   return useMutationWithToast<unknown, { licenceId: string; deviceId: string }>({
     mutationFn: ({ licenceId, deviceId }) =>

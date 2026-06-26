@@ -43,6 +43,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.vairiot.app.data.api.DeviceHeartbeatRequest
+import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.data.local.DeviceInfoProvider
 import com.vairiot.app.data.local.TokenStore
 import com.vairiot.app.scanner.ScannerService
 import com.vairiot.app.ui.screens.*
@@ -53,6 +59,7 @@ import com.vairiot.app.ui.theme.VairiotTheme
 import com.vairiot.app.ui.theme.VairiotViolet
 import com.vairiot.app.ui.theme.White
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
@@ -73,10 +80,14 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var tokenStore: TokenStore
     @Inject lateinit var scanner: ScannerService
+    @Inject lateinit var api: VairiotApiService
+    @Inject lateinit var deviceInfo: DeviceInfoProvider
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        startDeviceHeartbeat()
 
         val hasToken = runBlocking { tokenStore.getAccessToken() != null }
 
@@ -201,6 +212,29 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Pings the licence heartbeat endpoint every 60s while the app is in the
+     * foreground and a session token exists, so the device shows as
+     * "connected now" in the licensing panel. Runs only between onStart/onStop.
+     */
+    private fun startDeviceHeartbeat() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                val fingerprint = deviceInfo.fingerprint()
+                while (true) {
+                    if (tokenStore.getAccessToken() != null) {
+                        try {
+                            api.sendDeviceHeartbeat(DeviceHeartbeatRequest(fingerprint))
+                        } catch (_: Exception) {
+                            // Best-effort — a missed ping just shows the device offline.
+                        }
+                    }
+                    delay(HEARTBEAT_INTERVAL_MS)
+                }
+            }
+        }
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode in HARDWARE_SCAN_KEYS && event?.repeatCount == 0) {
             scanner.startScan(); return true
@@ -209,6 +243,7 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        private const val HEARTBEAT_INTERVAL_MS = 60_000L
         private val HARDWARE_SCAN_KEYS = setOf(
             KeyEvent.KEYCODE_F1, KeyEvent.KEYCODE_F2,
             KeyEvent.KEYCODE_FOCUS, KeyEvent.KEYCODE_CAMERA,

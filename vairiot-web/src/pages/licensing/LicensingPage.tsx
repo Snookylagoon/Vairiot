@@ -8,6 +8,7 @@ import { useUrlTableState } from '@/hooks/useUrlTableState';
 import {
   useLicenceStatus,
   useDevices,
+  useActivateDevice,
   useDeactivateDevice,
   useDeleteDevice,
   useAllLicences,
@@ -74,18 +75,27 @@ function CurrentLicence() {
         <Stat label="Tier" value={licence.tierName} />
         <Stat label="Start date" value={licence.startDate ? new Date(licence.startDate).toLocaleDateString() : '—'} />
         <Stat label="Assets" value={`${usage.assetCount} / ${tier?.maxAssets ?? '∞'}`} />
-        <Stat label="Devices" value={`${usage.deviceCount} / ${usage.deviceAllowance}`} />
+        <Stat
+          label="Device slots"
+          value={`${usage.deviceCount} / ${usage.deviceAllowance}`}
+          hint={
+            usage.deviceCount >= usage.deviceAllowance
+              ? `Full · ${usage.deviceOnline} online${usage.deviceWaiting ? ` · ${usage.deviceWaiting} waiting` : ''}`
+              : `${usage.deviceOnline} online${usage.deviceWaiting ? ` · ${usage.deviceWaiting} waiting` : ''}`
+          }
+        />
         <Stat label="Expires" value={licence.isPerpetual ? 'Never' : daysRemaining != null ? `${daysRemaining} days` : '—'} />
       </div>
     </Card>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Stat({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
     <div>
       <div className="text-xs text-gray-500 uppercase tracking-wide">{label}</div>
       <div className="mt-1 font-semibold text-v-charcoal">{value}</div>
+      {hint && <div className="text-xs text-gray-400">{hint}</div>}
     </div>
   );
 }
@@ -94,14 +104,27 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 
 function DevicesList() {
   const { data: devices, isLoading } = useDevices();
+  const { data: status } = useLicenceStatus();
   const user = useAuthStore(s => s.user);
   const canManage = hasAnyPermission(user, 'company:manage');
+  const activateMutation = useActivateDevice();
   const deactivateMutation = useDeactivateDevice();
   const deleteMutation = useDeleteDevice();
   const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'deactivate' | 'delete' } | null>(null);
   const currentFingerprint = getDeviceFingerprint();
 
   if (isLoading) return <CardSkeleton />;
+
+  const slotsFull = status ? status.usage.deviceCount >= status.usage.deviceAllowance : false;
+
+  const handleActivate = async (id: string) => {
+    try {
+      await activateMutation.mutateAsync(id);
+      toast.success('Device activated');
+    } catch (e: unknown) {
+      toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to activate device');
+    }
+  };
 
   const handleConfirm = async () => {
     if (!confirmAction) return;
@@ -132,9 +155,13 @@ function DevicesList() {
               return (
                 <div key={d.id} className="flex items-center justify-between py-3 gap-4">
                   <div className="min-w-0">
-                    <div className="font-medium text-v-charcoal text-sm truncate">
-                      {d.deviceName}
-                      {isCurrentDevice && <span className="ml-2 text-xs text-v-violet">(this device)</span>}
+                    <div className="font-medium text-v-charcoal text-sm truncate flex items-center gap-2">
+                      <span
+                        className={`inline-block h-2 w-2 rounded-full shrink-0 ${d.online ? 'bg-green-500' : 'bg-gray-300'}`}
+                        title={d.online ? 'Connected now' : 'Offline'}
+                      />
+                      <span className="truncate">{d.deviceName}</span>
+                      {isCurrentDevice && <span className="text-xs text-v-violet shrink-0">(this device)</span>}
                     </div>
                     <div className="text-xs text-gray-400 truncate">
                       {d.deviceType}
@@ -144,9 +171,20 @@ function DevicesList() {
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <span className="text-xs text-gray-400 hidden sm:block">
-                      {d.lastSeenAt ? `Seen ${new Date(d.lastSeenAt).toLocaleString()}` : '—'}
+                      {d.online ? 'Connected now' : d.lastSeenAt ? `Seen ${new Date(d.lastSeenAt).toLocaleString()}` : '—'}
                     </span>
-                    <Badge variant={d.active ? 'green' : 'gray'}>{d.active ? 'Active' : 'Inactive'}</Badge>
+                    <Badge variant={d.active ? 'green' : 'gray'}>{d.active ? 'Active' : 'Waiting'}</Badge>
+                    {canManage && !d.active && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={slotsFull || activateMutation.isPending}
+                        title={slotsFull ? 'All device slots are full — deactivate another device or add a slot' : undefined}
+                        onClick={() => handleActivate(d.id)}
+                      >
+                        Activate
+                      </Button>
+                    )}
                     {canManage && d.active && !isCurrentDevice && (
                       <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ id: d.id, action: 'deactivate' })}>
                         Deactivate

@@ -8,6 +8,7 @@ import {
   DEFAULT_GRACE_PERIOD_DAYS,
   DEFAULT_EXPIRY_WARNING_DAYS,
   DEFAULT_LICENCE_DURATION_MONTHS,
+  DEVICE_ONLINE_THRESHOLD_SECONDS,
 } from 'vairiot-shared';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -28,7 +29,9 @@ export interface LicenceStatusResult {
   assetCap: number;
   assetCount: number;
   deviceAllowance: number;
-  deviceCount: number;
+  deviceCount: number;    // active devices occupying a slot
+  deviceOnline: number;   // active devices seen within the online threshold
+  deviceWaiting: number;  // registered but inactive (queued, no free slot)
 }
 
 // ─── Deployment mode ─────────────────────────────────────────────────────────
@@ -58,6 +61,15 @@ export async function getLicenceStatus(tenantId: string): Promise<LicenceStatusR
 
   const deviceCount = await prisma.device.count({
     where: { tenantId, active: true },
+  });
+
+  const onlineSince = new Date(Date.now() - DEVICE_ONLINE_THRESHOLD_SECONDS * 1000);
+  const deviceOnline = await prisma.device.count({
+    where: { tenantId, active: true, lastSeenAt: { gt: onlineSince } },
+  });
+
+  const deviceWaiting = await prisma.device.count({
+    where: { tenantId, active: false },
   });
 
   const deviceAllowance = licence.tier.baseDevices + licence.deviceSlots.length;
@@ -96,6 +108,8 @@ export async function getLicenceStatus(tenantId: string): Promise<LicenceStatusR
     assetCount,
     deviceAllowance,
     deviceCount,
+    deviceOnline,
+    deviceWaiting,
   };
 }
 
@@ -339,6 +353,22 @@ export async function addDeviceSlot(
   return { slotId: slot.id, totalAllowance };
 }
 
+/**
+ * Current slot accounting for a tenant: how many slots the active licence
+ * grants, how many are currently occupied, and whether one is free.
+ */
+async function getAllowanceInfo(
+  tenantId: string,
+): Promise<{ allowance: number; activeDevices: number; free: boolean; licenceId: string | null }> {
+  const licence = await prisma.licence.findFirst({
+    where: { tenantId, status: { in: ['active', 'expiring'] } },
+    include: { tier: true, deviceSlots: true },
+  });
+  const activeDevices = await prisma.device.count({ where: { tenantId, active: true } });
+  const allowance = licence ? licence.tier.baseDevices + licence.deviceSlots.length : 1;
+  return { allowance, activeDevices, free: activeDevices < allowance, licenceId: licence?.id ?? null };
+}
+
 export async function registerDevice(
   tenantId: string,
   data: {
@@ -359,6 +389,17 @@ export async function registerDevice(
       where: { tenantId_fingerprint: { tenantId, fingerprint } },
     });
     if (existing) {
+      // A previously-queued device should claim a slot the moment one is free —
+      // otherwise it stays inactive forever even after capacity opens up.
+      let { active, activatedAt, licenceId } = existing;
+      if (!active) {
+        const info = await getAllowanceInfo(tenantId);
+        if (info.free) {
+          active = true;
+          activatedAt = new Date();
+          licenceId = info.licenceId ?? existing.licenceId;
+        }
+      }
       const updated = await prisma.device.update({
         where: { id: existing.id },
         data: {
@@ -367,9 +408,16 @@ export async function registerDevice(
           serialNumber: data.serialNumber ?? existing.serialNumber,
           hardwareId: data.hardwareId ?? existing.hardwareId,
           userId: data.userId ?? existing.userId,
+          active,
+          activatedAt,
+          licenceId,
           lastSeenAt: new Date(),
         },
       });
+      if (!existing.active && updated.active) {
+        await auditLicenceEvent(tenantId, actorId, updated.id, 'device_activated',
+          { active: false }, { active: true, reason: 'slot_claimed_on_checkin' });
+      }
       return { deviceId: updated.id, active: updated.active, reused: true };
     }
 
@@ -381,6 +429,15 @@ export async function registerDevice(
         where: { tenantId, deviceName: data.deviceName, userId: data.userId },
       });
       if (stale) {
+        let { active, activatedAt, licenceId } = stale;
+        if (!active) {
+          const info = await getAllowanceInfo(tenantId);
+          if (info.free) {
+            active = true;
+            activatedAt = new Date();
+            licenceId = info.licenceId ?? stale.licenceId;
+          }
+        }
         const updated = await prisma.device.update({
           where: { id: stale.id },
           data: {
@@ -388,26 +445,26 @@ export async function registerDevice(
             deviceType: data.deviceType ?? stale.deviceType,
             serialNumber: data.serialNumber ?? stale.serialNumber,
             hardwareId: data.hardwareId ?? stale.hardwareId,
+            active,
+            activatedAt,
+            licenceId,
             lastSeenAt: new Date(),
           },
         });
+        if (!stale.active && updated.active) {
+          await auditLicenceEvent(tenantId, actorId, updated.id, 'device_activated',
+            { active: false }, { active: true, reason: 'slot_claimed_on_checkin' });
+        }
         return { deviceId: updated.id, active: updated.active, reused: true };
       }
     }
   }
 
-  // New device — check allowance and decide activation.
-  const licence = await prisma.licence.findFirst({
-    where: { tenantId, status: { in: ['active', 'expiring'] } },
-    include: { tier: true, deviceSlots: true },
-  });
-
-  const activeDevices = await prisma.device.count({ where: { tenantId, active: true } });
-  const allowance = licence
-    ? licence.tier.baseDevices + licence.deviceSlots.length
-    : 1;
-
-  const canActivate = activeDevices < allowance;
+  // New device — check allowance and decide activation. Over-allowance devices
+  // still register, but as inactive (a visible queue); they claim a slot later
+  // via check-in or manual activation when one frees up.
+  const info = await getAllowanceInfo(tenantId);
+  const canActivate = info.free;
   const now = new Date();
 
   const device = await prisma.device.create({
@@ -419,7 +476,7 @@ export async function registerDevice(
       hardwareId: data.hardwareId,
       fingerprint,
       userId: data.userId,
-      licenceId: licence?.id,
+      licenceId: info.licenceId,
       active: canActivate,
       activatedAt: canActivate ? now : null,
       lastSeenAt: now,
@@ -429,11 +486,89 @@ export async function registerDevice(
   await auditLicenceEvent(tenantId, actorId, device.id, 'device_registered', null, {
     deviceName: data.deviceName,
     activated: canActivate,
-    activeDevices: activeDevices + (canActivate ? 1 : 0),
-    allowance,
+    activeDevices: info.activeDevices + (canActivate ? 1 : 0),
+    allowance: info.allowance,
   });
 
   return { deviceId: device.id, active: canActivate, reused: false };
+}
+
+/**
+ * Manually promote a queued (inactive) device into a free licence slot.
+ * Refuses when the allowance is already full.
+ */
+export async function activateDevice(
+  deviceId: string,
+  tenantId: string,
+  actorId: string,
+): Promise<void> {
+  const device = await prisma.device.findUnique({ where: { id: deviceId } });
+  if (!device) throw new NotFoundError('Device not found');
+  if (device.tenantId !== tenantId) throw new ForbiddenError('Device does not belong to this tenant');
+  if (device.active) throw new ValidationError('Device is already active');
+
+  const info = await getAllowanceInfo(tenantId);
+  if (!info.free) {
+    throw new AppError(
+      409,
+      `All ${info.allowance} device slots are in use. Deactivate another device or add a slot first.`,
+      'DEVICE_LIMIT_REACHED',
+    );
+  }
+
+  await prisma.device.update({
+    where: { id: deviceId },
+    data: { active: true, activatedAt: new Date(), licenceId: info.licenceId ?? device.licenceId },
+  });
+
+  await auditLicenceEvent(tenantId, actorId, deviceId, 'device_activated', {
+    active: false,
+    deviceName: device.deviceName,
+  }, {
+    active: true,
+    activatedBy: actorId,
+  });
+}
+
+/**
+ * Liveness check-in. Updates lastSeenAt for the matching device so the panel
+ * can show "connected now", and opportunistically claims a free slot for a
+ * queued device. Best-effort — returns whether the device was found/active.
+ */
+export async function heartbeatDevice(
+  tenantId: string,
+  fingerprint: string,
+  userId?: string,
+): Promise<{ online: boolean; active: boolean }> {
+  const fp = fingerprint?.trim();
+  if (!fp) return { online: false, active: false };
+
+  const device = await prisma.device.findUnique({
+    where: { tenantId_fingerprint: { tenantId, fingerprint: fp } },
+  });
+  if (!device) return { online: false, active: false };
+
+  let { active, activatedAt, licenceId } = device;
+  if (!active) {
+    const info = await getAllowanceInfo(tenantId);
+    if (info.free) {
+      active = true;
+      activatedAt = new Date();
+      licenceId = info.licenceId ?? device.licenceId;
+    }
+  }
+
+  const updated = await prisma.device.update({
+    where: { id: device.id },
+    data: { lastSeenAt: new Date(), active, activatedAt, licenceId, userId: userId ?? device.userId },
+  });
+
+  if (!device.active && updated.active) {
+    await auditLicenceEvent(tenantId, userId ?? device.userId ?? 'system', updated.id, 'device_activated',
+      { active: false }, { active: true, reason: 'slot_claimed_on_heartbeat' });
+  }
+
+  return { online: true, active: updated.active };
 }
 
 /**
@@ -509,7 +644,7 @@ export async function deleteDevice(
 }
 
 export async function listDevices(tenantId: string) {
-  return prisma.device.findMany({
+  const devices = await prisma.device.findMany({
     where: { tenantId },
     orderBy: [{ active: 'desc' }, { lastSeenAt: 'desc' }, { createdAt: 'desc' }],
     include: {
@@ -517,6 +652,11 @@ export async function listDevices(tenantId: string) {
       licence: { select: { id: true, licenceNumber: true } },
     },
   });
+  const onlineSince = Date.now() - DEVICE_ONLINE_THRESHOLD_SECONDS * 1000;
+  return devices.map(d => ({
+    ...d,
+    online: !!d.lastSeenAt && d.lastSeenAt.getTime() > onlineSince,
+  }));
 }
 
 // ─── Asset cap enforcement ───────────────────────────────────────────────────

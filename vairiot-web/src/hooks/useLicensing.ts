@@ -1,5 +1,9 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { getDeviceFingerprint } from '@/lib/device';
+import { useAuthStore } from '@/stores/auth.store';
+import { DEVICE_HEARTBEAT_INTERVAL_SECONDS } from 'vairiot-shared';
 
 export interface LicenceStatus {
   licence: {
@@ -12,7 +16,13 @@ export interface LicenceStatus {
     isPerpetual: boolean;
   } | null;
   tier: { maxAssets: number; pricePerYear: number } | null;
-  usage: { assetCount: number; deviceCount: number; deviceAllowance: number };
+  usage: {
+    assetCount: number;
+    deviceCount: number;
+    deviceAllowance: number;
+    deviceOnline: number;
+    deviceWaiting: number;
+  };
   daysRemaining: number | null;
 }
 
@@ -23,6 +33,7 @@ export interface DeviceInfo {
   fingerprint: string | null;
   lastSeenAt: string | null;
   active: boolean;
+  online: boolean;
   user: { id: string; name: string; email: string } | null;
   licence: { id: string; licenceNumber: string } | null;
 }
@@ -43,7 +54,13 @@ export function useLicenceStatus() {
           isPerpetual: d.expiresAt === null,
         },
         tier: { maxAssets: d.assetCap, pricePerYear: 0 },
-        usage: { assetCount: d.assetCount, deviceCount: d.deviceCount, deviceAllowance: d.deviceAllowance },
+        usage: {
+          assetCount: d.assetCount,
+          deviceCount: d.deviceCount,
+          deviceAllowance: d.deviceAllowance,
+          deviceOnline: d.deviceOnline ?? 0,
+          deviceWaiting: d.deviceWaiting ?? 0,
+        },
         daysRemaining: d.daysRemaining,
       };
     },
@@ -64,6 +81,32 @@ export function useRegisterDevice() {
       api.post('/api/v1/licences/devices', data).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['licence'] }),
   });
+}
+
+export function useActivateDevice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (deviceId: string) =>
+      api.patch(`/api/v1/licences/devices/${deviceId}/activate`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['licence'] }),
+  });
+}
+
+/**
+ * Keeps this browser's device row marked "connected" while the app is open by
+ * pinging the heartbeat endpoint on an interval. No-op when logged out.
+ */
+export function useDeviceHeartbeat() {
+  const user = useAuthStore(s => s.user);
+  useEffect(() => {
+    if (!user) return;
+    const fingerprint = getDeviceFingerprint();
+    const ping = () =>
+      api.post('/api/v1/licences/devices/heartbeat', { fingerprint }).catch(() => {});
+    ping();
+    const id = setInterval(ping, DEVICE_HEARTBEAT_INTERVAL_SECONDS * 1000);
+    return () => clearInterval(id);
+  }, [user]);
 }
 
 export function useDeactivateDevice() {

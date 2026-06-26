@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTenantDetail, useCreateSubTenant, useUploadTenantLogo, useDeleteTenantLogo, useUpdateTenantCompany } from '@/hooks/useAdmin';
-import { useRenewLicence, useSuspendLicence, useRevokeLicence, useReactivateLicence, useLicenceDevices, useDeactivateDevice, useDeleteDevice } from '@/hooks/useLicences';
+import { useRenewLicence, useSuspendLicence, useRevokeLicence, useReactivateLicence, useLicenceDevices, useActivateDevice, useDeactivateDevice, useDeleteDevice } from '@/hooks/useLicences';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -313,7 +313,12 @@ export function TenantDetailPage() {
         </Card>
       </div>
 
-      {licence && <RegisteredDevicesCard licenceId={licence.id} />}
+      {licence && (
+        <RegisteredDevicesCard
+          licenceId={licence.id}
+          allowance={(licence.tier?.baseDevices ?? 0) + (licence.deviceSlots?.length ?? 0)}
+        />
+      )}
 
       <ConfirmDialog
         open={showAddClient}
@@ -358,11 +363,15 @@ export function TenantDetailPage() {
   );
 }
 
-function RegisteredDevicesCard({ licenceId }: { licenceId: string }) {
+function RegisteredDevicesCard({ licenceId, allowance }: { licenceId: string; allowance: number }) {
   const { data: devices, isLoading } = useLicenceDevices(licenceId);
+  const activate = useActivateDevice();
   const deactivate = useDeactivateDevice();
   const remove = useDeleteDevice();
   const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'deactivate' | 'delete' } | null>(null);
+
+  const activeCount = (devices as any[] | undefined)?.filter((d) => d.active).length ?? 0;
+  const slotsFull = activeCount >= allowance;
 
   const handleConfirm = async () => {
     if (!confirmAction) return;
@@ -377,7 +386,12 @@ function RegisteredDevicesCard({ licenceId }: { licenceId: string }) {
   return (
     <>
       <Card>
-        <CardHeader><h2 className="text-h3 text-v-charcoal">Registered Devices</h2></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <h2 className="text-h3 text-v-charcoal">Registered Devices</h2>
+            <span className="text-xs text-gray-400">{activeCount} / {allowance} slots used</span>
+          </div>
+        </CardHeader>
         <CardBody>
           {isLoading ? (
             <p className="text-sm text-gray-400">Loading...</p>
@@ -388,7 +402,13 @@ function RegisteredDevicesCard({ licenceId }: { licenceId: string }) {
               {devices.map((d: any) => (
                 <div key={d.id} className="flex items-center justify-between py-2.5 gap-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-v-charcoal truncate">{d.deviceName}</p>
+                    <p className="text-sm font-medium text-v-charcoal truncate flex items-center gap-2">
+                      <span
+                        className={`inline-block h-2 w-2 rounded-full shrink-0 ${d.online ? 'bg-green-500' : 'bg-gray-300'}`}
+                        title={d.online ? 'Connected now' : 'Offline'}
+                      />
+                      <span className="truncate">{d.deviceName}</span>
+                    </p>
                     <p className="text-xs text-gray-400 truncate">
                       {d.deviceType}
                       {d.user && <> · {d.user.name}</>}
@@ -397,9 +417,20 @@ function RegisteredDevicesCard({ licenceId }: { licenceId: string }) {
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <span className="text-xs text-gray-400">
-                      {d.lastSeenAt ? `Seen ${new Date(d.lastSeenAt).toLocaleString()}` : '—'}
+                      {d.online ? 'Connected now' : d.lastSeenAt ? `Seen ${new Date(d.lastSeenAt).toLocaleString()}` : '—'}
                     </span>
-                    <Badge variant={d.active ? 'green' : 'gray'}>{d.active ? 'Active' : 'Inactive'}</Badge>
+                    <Badge variant={d.active ? 'green' : 'gray'}>{d.active ? 'Active' : 'Waiting'}</Badge>
+                    {!d.active && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={slotsFull || activate.isPending}
+                        title={slotsFull ? 'All device slots are full — deactivate another device or add a slot' : undefined}
+                        onClick={() => activate.mutateAsync({ licenceId, deviceId: d.id })}
+                      >
+                        Activate
+                      </Button>
+                    )}
                     {d.active && (
                       <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ id: d.id, action: 'deactivate' })}>
                         Deactivate

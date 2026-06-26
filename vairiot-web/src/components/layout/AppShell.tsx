@@ -3,6 +3,7 @@ import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Use
 import { useState, useCallback, useEffect } from 'react';
 import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
 import { useCurrencyStore, CURRENCIES } from '@/stores/currency.store';
+import { useDeviceHeartbeat } from '@/hooks/useLicensing';
 import clsx from 'clsx';
 
 type NavItem = { to: string; label: string; icon: LucideIcon; require?: readonly string[] };
@@ -82,6 +83,9 @@ export function AppShell() {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
   const location = useLocation();
+
+  // Mark this browser as a "connected" device for the duration of the session.
+  useDeviceHeartbeat();
 
   const toggleGroup = useCallback((heading: string) => {
     setCollapsed(prev => {

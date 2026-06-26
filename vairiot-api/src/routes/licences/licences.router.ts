@@ -12,6 +12,8 @@ import {
   reactivateLicence,
   addDeviceSlot,
   registerDevice,
+  activateDevice,
+  heartbeatDevice,
   listDevices,
   listLicences,
   deactivateDevice,
@@ -44,6 +46,22 @@ licencesRouter.post('/devices', asyncHandler(async (req: Request, res: Response)
   );
   res.status(201).json(result);
 }));
+
+// Liveness check-in — any authenticated tenant user (the device itself).
+licencesRouter.post('/devices/heartbeat', asyncHandler(async (req: Request, res: Response) => {
+  const { fingerprint } = req.body;
+  if (!fingerprint) { res.status(400).json({ error: 'fingerprint is required' }); return; }
+  const result = await heartbeatDevice(req.user!.tenantId, fingerprint, req.user!.sub);
+  res.json(result);
+}));
+
+licencesRouter.patch('/devices/:deviceId/activate',
+  requirePermission(Permission.CompanyManage),
+  asyncHandler(async (req: Request, res: Response) => {
+    await activateDevice(req.params.deviceId, req.user!.tenantId, req.user!.sub);
+    res.json({ message: 'Device activated' });
+  }),
+);
 
 licencesRouter.patch('/devices/:deviceId/deactivate',
   requirePermission(Permission.CompanyManage),
@@ -152,6 +170,20 @@ licencesRouter.get(
     if (!licence) { res.status(404).json({ error: 'Licence not found' }); return; }
     const devices = await listDevices(licence.tenantId);
     res.json(devices);
+  }),
+);
+
+licencesRouter.patch(
+  '/:id/devices/:deviceId/activate',
+  authorityOnly,
+  asyncHandler(async (req: Request, res: Response) => {
+    const licence = await prisma.licence.findUnique({
+      where: { id: req.params.id },
+      select: { tenantId: true },
+    });
+    if (!licence) { res.status(404).json({ error: 'Licence not found' }); return; }
+    await activateDevice(req.params.deviceId, licence.tenantId, req.user!.sub);
+    res.json({ message: 'Device activated' });
   }),
 );
 
