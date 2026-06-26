@@ -102,7 +102,13 @@ fun CameraBarcodeScannerScreen(
     var scanning by remember { mutableStateOf(true) }
 
     DisposableEffect(Unit) {
-        onDispose { analysisExecutor.shutdown() }
+        onDispose {
+            // Release the camera when leaving the scanner, otherwise CameraX keeps
+            // it bound to the activity lifecycle and the system camera (asset
+            // photos) can't acquire it afterwards.
+            runCatching { cameraProviderFuture.get().unbindAll() }
+            analysisExecutor.shutdown()
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
