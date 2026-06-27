@@ -160,10 +160,16 @@ function LabelPreview({
   const innerH = heightPx - padding * 2;
   const gap = Math.max(2, Math.round(innerW * 0.015));
 
-  // 2D layout: QR square on the left, text on the right.
-  // QR fills label height but is capped to leave ≥55% width for text.
-  const maxBcWidth = Math.round(innerW * 0.45);
-  const bcSize2D = Math.round(Math.min(innerH, maxBcWidth));
+  // 2D layout: QR square on left, text on right.
+  // QR is as large as possible (square, up to innerH) but shrinks
+  // to guarantee a minimum readable font size for the text lines.
+  const longestTitle = lines.filter(l => l.kind === 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
+  const longestOther = lines.filter(l => l.kind !== 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
+  const minFont = 5;
+  const minTextW = Math.max(longestTitle * 0.62 * minFont, longestOther * 0.58 * (minFont * 0.82));
+  const bcIdeal = Math.min(innerH, innerW - minTextW - gap);
+  const bcMin = Math.round(innerH * 0.3);
+  const bcSize2D = Math.round(Math.max(bcMin, Math.min(innerH, bcIdeal)));
   const textAreaW2D = innerW - bcSize2D - gap;
 
   // 1D layout: text on top, barcode on bottom.
@@ -174,9 +180,6 @@ function LabelPreview({
   const textAreaW = wide2D ? textAreaW2D : innerW;
 
   // Auto-fit font so each line fits on one visual row.
-  // Montserrat avg char width ≈ 0.58 × fontSize (bold ≈ 0.62).
-  const longestTitle = lines.filter(l => l.kind === 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
-  const longestOther = lines.filter(l => l.kind !== 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
   const maxFontByTitleW = longestTitle > 0 ? textAreaW / (longestTitle * 0.62) : 99;
   const maxFontByOtherW = longestOther > 0 ? textAreaW / (longestOther * 0.58) : 99;
   const maxFontByW = Math.min(maxFontByTitleW, maxFontByOtherW / 0.82);
