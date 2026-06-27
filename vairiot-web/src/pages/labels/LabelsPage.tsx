@@ -162,10 +162,10 @@ function LabelPreview({
 
   // Barcode shrinks as more fields are selected so text has room
   const barcodeShareOf = wide2D
-    ? Math.max(0.2, 0.45 - lineCount * 0.035)
+    ? Math.max(0.18, 0.45 - lineCount * 0.04)
     : 1;
   const bcSize2D = Math.min(innerH, Math.round(innerW * barcodeShareOf));
-  const gap2D = Math.max(2, Math.round(innerW * 0.02));
+  const gap2D = Math.max(2, Math.round(innerW * 0.015));
   const textAreaW2D = innerW - bcSize2D - gap2D;
 
   const bc1DH = Math.min(Math.round(innerH * 0.35), 50);
@@ -173,15 +173,21 @@ function LabelPreview({
   const textAreaH = wide2D ? innerH : textAreaH1D;
   const textAreaW = wide2D ? textAreaW2D : innerW;
 
-  // Auto-fit font to fill the text area without clipping
+  // Auto-fit font: each line must fit on one visual row (no wrapping).
+  // Montserrat avg char width ≈ 0.58 * fontSize (bold ≈ 0.62).
+  const longestTitle = lines.filter(l => l.kind === 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
+  const longestOther = lines.filter(l => l.kind !== 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
+  const maxFontByTitleW = longestTitle > 0 ? Math.floor(textAreaW / (longestTitle * 0.62)) : 99;
+  const maxFontByOtherW = longestOther > 0 ? Math.floor(textAreaW / (longestOther * 0.58)) : 99;
+  const maxFontByW = Math.min(maxFontByTitleW, maxFontByOtherW / 0.82);
+
   const titleWeight = 1;
   const otherWeight = 0.82;
   const totalWeight = lines.reduce((s, l) => s + (l.kind === 'title' ? titleWeight : otherWeight), 0);
   const maxFontByH = totalWeight > 0 ? Math.floor(textAreaH / (totalWeight * 1.15)) : 12;
-  const maxFontByW = Math.floor(textAreaW / 3.2);
-  const fontSize = Math.max(4, Math.min(maxFontByH, maxFontByW, 14));
+  const fontSize = Math.max(3, Math.min(maxFontByH, maxFontByW, 14));
   const titleFont = fontSize;
-  const otherFont = Math.max(4, Math.round(fontSize * otherWeight));
+  const otherFont = Math.max(3, Math.round(fontSize * otherWeight));
 
   const colorFor = (kind: LineKind): string => {
     switch (kind) {
@@ -198,8 +204,7 @@ function LabelPreview({
     fontWeight: kind === 'title' ? 700 : 400,
     fontFamily: 'Montserrat, sans-serif',
     color: colorFor(kind),
-    overflow: 'hidden',
-    wordBreak: 'break-all',
+    whiteSpace: 'nowrap',
   });
 
   const TextLines = (
