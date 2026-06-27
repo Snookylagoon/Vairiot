@@ -25,6 +25,24 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+function LinkedField({ label, value, navigate }: { label: string; value?: string | null; navigate: (path: string) => void }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+      {value ? (
+        <button
+          onClick={() => navigate(`/assets?search=${encodeURIComponent(value)}`)}
+          className="mt-0.5 text-sm text-v-violet hover:text-v-pink transition-colors underline decoration-dotted underline-offset-2 text-left"
+        >
+          {value}
+        </button>
+      ) : (
+        <p className="mt-0.5 text-sm text-v-charcoal">—</p>
+      )}
+    </div>
+  );
+}
+
 function fmtDate(d?: string | null) {
   return d ? new Date(d).toLocaleDateString('en-GB') : undefined;
 }
@@ -141,11 +159,11 @@ export function AssetDetailPage() {
           </CardHeader>
           <CardBody className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Serial Number"  value={asset.serialNumber} />
+              <LinkedField label="Serial Number" value={asset.serialNumber} navigate={navigate} />
               <Field label="Model Number"   value={asset.modelNumber} />
               <Field label="Manufacturer"   value={asset.manufacturer} />
-              <Field label="Barcode"        value={asset.barcode} />
-              <Field label="RFID Tag"       value={asset.rfidTag} />
+              <LinkedField label="Barcode"  value={asset.barcode} navigate={navigate} />
+              <LinkedField label="RFID Tag" value={asset.rfidTag} navigate={navigate} />
             </div>
             {asset.labelImage && (
               <div>

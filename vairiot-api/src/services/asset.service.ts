@@ -364,8 +364,20 @@ export async function listAssetsForExport(tenantId: string, params: Omit<AssetLi
 }
 
 export async function getAssetByTag(tenantId: string, tag: string) {
+  let lookups = [tag];
+  try {
+    const parsed = JSON.parse(tag);
+    if (parsed.id) lookups.push(parsed.id);
+    if (parsed.n) lookups.push(parsed.n);
+  } catch {}
+
   const asset = await prisma.asset.findFirst({
-    where: { tenantId, deletedAt: null, OR: [{ rfidTag: tag }, { barcode: tag }] },
+    where: {
+      tenantId, deletedAt: null,
+      OR: lookups.flatMap(v => [
+        { rfidTag: v }, { barcode: v }, { assetNumber: v }, { serialNumber: v }, { id: v },
+      ]),
+    },
     include: assetInclude,
   });
   if (!asset) throw new NotFoundError('No asset found for this tag');
