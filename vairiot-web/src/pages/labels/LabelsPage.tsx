@@ -185,7 +185,8 @@ function renderLabelToDataUrl(
     const img = new Image();
     img.onload = () => {
       if (wide2D) {
-        ctx.drawImage(img, padding, padding, bcSize, bcSize);
+        const bcY = padding + Math.max(0, (innerH - bcSize) / 2);
+        ctx.drawImage(img, padding, bcY, bcSize, bcSize);
       }
       const textX = wide2D ? padding + bcSize + gap : padding;
       let y = padding;
