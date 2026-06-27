@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Tag, MapPin, Calendar, DollarSign, TrendingDown, Trash2, Archive, FileText } from 'lucide-react';
+import { ArrowLeft, Tag, MapPin, Calendar, DollarSign, TrendingDown, Trash2, Archive, FileText, Printer } from 'lucide-react';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -149,7 +149,23 @@ export function AssetDetailPage() {
             </div>
             {asset.labelImage && (
               <div>
-                <p className="text-xs font-medium text-gray-500 mb-1">Printed Label</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-medium text-gray-500">Printed Label</p>
+                  <button
+                    onClick={() => {
+                      const win = window.open('', '_blank');
+                      if (!win) return;
+                      win.document.write(`<html><head><title>Print Label – ${asset.assetNumber}</title>
+                        <style>@media print { body { margin: 0; } } body { display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }</style>
+                        </head><body><img src="${asset.labelImage}" style="max-width:100%;" /></body></html>`);
+                      win.document.close();
+                      setTimeout(() => win.print(), 400);
+                    }}
+                    className="flex items-center gap-1 text-xs text-v-violet hover:text-v-pink transition-colors"
+                  >
+                    <Printer size={13} /> Print
+                  </button>
+                </div>
                 <img
                   src={asset.labelImage}
                   alt="Asset label"
