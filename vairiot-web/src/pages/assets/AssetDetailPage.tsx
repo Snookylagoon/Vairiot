@@ -139,12 +139,25 @@ export function AssetDetailPage() {
             <Tag size={16} className="text-v-violet" />
             <span className="font-semibold text-v-charcoal text-sm">Identification</span>
           </CardHeader>
-          <CardBody className="grid grid-cols-2 gap-4">
-            <Field label="Serial Number"  value={asset.serialNumber} />
-            <Field label="Model Number"   value={asset.modelNumber} />
-            <Field label="Manufacturer"   value={asset.manufacturer} />
-            <Field label="Barcode"        value={asset.barcode} />
-            <Field label="RFID Tag"       value={asset.rfidTag} />
+          <CardBody className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Serial Number"  value={asset.serialNumber} />
+              <Field label="Model Number"   value={asset.modelNumber} />
+              <Field label="Manufacturer"   value={asset.manufacturer} />
+              <Field label="Barcode"        value={asset.barcode} />
+              <Field label="RFID Tag"       value={asset.rfidTag} />
+            </div>
+            {asset.labelImage && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Printed Label</p>
+                <img
+                  src={asset.labelImage}
+                  alt="Asset label"
+                  className="border border-gray-200 rounded"
+                  style={{ maxWidth: 220, height: 'auto' }}
+                />
+              </div>
+            )}
           </CardBody>
         </Card>
 

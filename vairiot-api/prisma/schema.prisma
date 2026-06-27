@@ -267,6 +267,7 @@ model Asset {
   manufacturer String?
   barcode      String?
   rfidTag      String?
+  labelImage   String?   @db.Text
 
   // ── Financial: Procurement ──
   purchaseDate       DateTime?

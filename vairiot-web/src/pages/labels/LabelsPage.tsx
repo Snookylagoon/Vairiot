@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef, useMemo, type CSSProperties } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, type CSSProperties } from 'react';
 import { QrCode, Printer, Search, Check, Settings2 } from 'lucide-react';
 import bwipjs from 'bwip-js/browser';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAssets } from '@/hooks/useAssets';
 import { useCompany, type Company } from '@/hooks/useOnboarding';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
 import type { Asset } from '@/types';
 
 /* ---------- Barcode standards ---------- */
@@ -119,6 +121,95 @@ function barcodePayload(asset: Asset, type: BarcodeType): string {
   if (type === 'itf14') return raw.replace(/\D/g, '').padStart(13, '0').slice(0, 13);
   if (type === 'code39') return raw.toUpperCase().replace(/[^A-Z0-9\-. $/+%]/g, '');
   return raw;
+}
+
+/* ---------- Render label to canvas data URL ---------- */
+
+function renderLabelToDataUrl(
+  asset: Asset, barcodeDataUrl: string, barcodeType: BarcodeType,
+  fields: ContentFields, company: Company | null | undefined,
+  widthPx: number, heightPx: number,
+): Promise<string> {
+  const scale = 3;
+  const w = Math.round(widthPx * scale);
+  const h = Math.round(heightPx * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+
+  const companyAddress = formatCompanyAddress(company);
+  const wide2D = is2D(barcodeType);
+  const padding = Math.max(3, Math.round(Math.min(widthPx, heightPx) * 0.04)) * scale;
+  const gap = Math.max(2, Math.round(widthPx * 0.015)) * scale;
+  const innerW = w - padding * 2;
+  const innerH = h - padding * 2;
+
+  type LineKind = 'title' | 'number' | 'muted' | 'brand';
+  const lines: { text: string; kind: LineKind }[] = [];
+  if (fields.name) lines.push({ text: asset.name, kind: 'title' });
+  if (fields.assetNumber) lines.push({ text: asset.assetNumber, kind: 'number' });
+  if (fields.serialNumber && asset.serialNumber) lines.push({ text: `SN: ${asset.serialNumber}`, kind: 'muted' });
+  if (fields.barcode && asset.barcode) lines.push({ text: `BC: ${asset.barcode}`, kind: 'muted' });
+  if (fields.site && asset.site) lines.push({ text: asset.site.name, kind: 'muted' });
+  if (fields.category && asset.category) lines.push({ text: asset.category.name, kind: 'muted' });
+  if (fields.companyName && company?.legalName) lines.push({ text: company.tradingName || company.legalName, kind: 'brand' });
+  if (fields.companyAddress && companyAddress) lines.push({ text: companyAddress, kind: 'muted' });
+  if (fields.companyEmail && company?.primaryContactEmail) lines.push({ text: company.primaryContactEmail, kind: 'muted' });
+
+  const longestTitle = lines.filter(l => l.kind === 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
+  const longestOther = lines.filter(l => l.kind !== 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
+  const minFont = 5 * scale;
+  const minTextW = Math.max(longestTitle * 0.62 * minFont, longestOther * 0.58 * (minFont * 0.82));
+  const bcIdeal = Math.min(innerH, innerW - minTextW - gap);
+  const bcMin = Math.round(innerH * 0.3);
+  const bcSize = Math.round(Math.max(bcMin, Math.min(innerH, bcIdeal)));
+  const textAreaW = wide2D ? innerW - bcSize - gap : innerW;
+  const textAreaH = innerH;
+
+  const maxFontByTitleW = longestTitle > 0 ? textAreaW / (longestTitle * 0.62) : 99;
+  const maxFontByOtherW = longestOther > 0 ? textAreaW / (longestOther * 0.58) : 99;
+  const maxFontByW = Math.min(maxFontByTitleW, maxFontByOtherW / 0.82);
+  const totalWeight = lines.reduce((s, l) => s + (l.kind === 'title' ? 1 : 0.82), 0);
+  const maxFontByH = totalWeight > 0 ? textAreaH / (totalWeight * 1.15) : 12 * scale;
+  const fontSize = Math.max(3 * scale, Math.min(maxFontByH, maxFontByW, 14 * scale));
+  const otherFont = Math.max(3 * scale, Math.round(fontSize * 0.82));
+
+  const colorFor = (kind: LineKind) => {
+    switch (kind) { case 'title': return '#2B3132'; case 'number': return '#615AA0'; case 'brand': return '#2B3132'; case 'muted': return '#6b7280'; }
+  };
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      if (wide2D) {
+        ctx.drawImage(img, padding, padding, bcSize, bcSize);
+      }
+      const textX = wide2D ? padding + bcSize + gap : padding;
+      let y = padding;
+      const totalTextH = lines.reduce((s, l) => s + (l.kind === 'title' ? fontSize : otherFont) * 1.15, 0);
+      y += Math.max(0, (textAreaH - totalTextH) / 2);
+
+      for (const l of lines) {
+        const fs = l.kind === 'title' ? fontSize : otherFont;
+        ctx.font = `${l.kind === 'title' ? '700' : '400'} ${fs}px Montserrat, sans-serif`;
+        ctx.fillStyle = colorFor(l.kind);
+        y += fs;
+        ctx.fillText(l.text, textX, y, textAreaW);
+        y += fs * 0.15;
+      }
+
+      if (!wide2D) {
+        const bc1DH = Math.min(Math.round(innerH * 0.35), 50 * scale);
+        ctx.drawImage(img, padding, h - padding - bc1DH, innerW, bc1DH);
+      }
+
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = barcodeDataUrl;
+  });
 }
 
 /* ---------- Label preview component ---------- */
@@ -356,9 +447,27 @@ export function LabelsPage() {
     else setSelected(new Set(assets.map(a => a.id)));
   };
 
-  const handlePrint = () => {
+  const saveLabelsToAssets = useCallback(async () => {
+    const saves: Promise<void>[] = [];
+    for (const a of selectedAssets) {
+      const url = barcodeUrls[`${a.id}::${barcodeType}`];
+      if (!url) continue;
+      saves.push(
+        renderLabelToDataUrl(a, url, barcodeType, fields, company, widthPx, heightPx)
+          .then(dataUrl => api.patch(`/api/v1/assets/${a.id}`, { labelImage: dataUrl }))
+          .then(() => {})
+      );
+    }
+    await Promise.all(saves);
+  }, [selectedAssets, barcodeUrls, barcodeType, fields, company, widthPx, heightPx]);
+
+  const handlePrint = async () => {
     const printContent = printRef.current;
     if (!printContent) return;
+
+    await saveLabelsToAssets();
+    toast.success(`Labels saved to ${selectedAssets.length} asset(s)`);
+
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.write(`

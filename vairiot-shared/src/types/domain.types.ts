@@ -31,6 +31,7 @@ export interface Asset {
   manufacturer?: string;
   barcode?:     string;
   rfidTag?:     string;
+  labelImage?:  string;
   category?:    { id: string; name: string };
   site?:        { id: string; name: string };
   location?:    { id: string; name: string };

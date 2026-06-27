@@ -5,7 +5,7 @@ import { NotFoundError, ConflictError } from '../lib/errors';
 export interface AssetCreateInput {
   name: string; description?: string; categoryId?: string; siteId?: string;
   locationId?: string; serialNumber?: string; modelNumber?: string;
-  manufacturer?: string; barcode?: string; rfidTag?: string;
+  manufacturer?: string; barcode?: string; rfidTag?: string; labelImage?: string;
   purchaseDate?: string; purchaseCost?: number; supplier?: string;
   warrantyExpiry?: string; notes?: string; condition?: string; status?: string;
   customFields?: Record<string, unknown>;
@@ -260,7 +260,7 @@ export async function createAsset(tenantId: string, actorId: string, input: Asse
 
 const STRING_FIELDS = [
   'name', 'description', 'serialNumber', 'modelNumber', 'manufacturer',
-  'barcode', 'rfidTag', 'supplier', 'notes', 'condition', 'status',
+  'barcode', 'rfidTag', 'labelImage', 'supplier', 'notes', 'condition', 'status',
   'purchaseOrderNumber', 'invoiceNumber', 'depreciationMethod',
 ] as const;
 
