@@ -5,13 +5,20 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.ImageCompressor
+import com.vairiot.app.data.AssetRepository
+import com.vairiot.app.data.TagLookup
 import com.vairiot.app.data.api.MaintenanceCreateRequest
 import com.vairiot.app.data.api.MaintenanceEventResponse
 import com.vairiot.app.data.api.SiteRefResponse
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.scanner.ScanResult
+import com.vairiot.app.scanner.ScanType
+import com.vairiot.app.scanner.ScannerService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -45,6 +52,11 @@ data class MaintenanceListUiState(
     val assetSearchQuery:   String = "",
     val assetSearchResults: List<AssetSearchResult> = emptyList(),
     val isSearchingAssets:  Boolean = false,
+
+    // Scanner state for report form
+    val isScanning:     Boolean = false,
+    val scanError:      String? = null,
+    val showCamera:     Boolean = false,
 )
 
 data class AssetSearchResult(
@@ -56,6 +68,8 @@ data class AssetSearchResult(
 @HiltViewModel
 class MaintenanceListViewModel @Inject constructor(
     private val api: VairiotApiService,
+    private val scanner: ScannerService,
+    private val repo: AssetRepository,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -63,8 +77,18 @@ class MaintenanceListViewModel @Inject constructor(
     val state: StateFlow<MaintenanceListUiState> = _state
 
     val canWrite: Boolean get() = _state.value.permissions.contains("asset:write")
+    val supportsRfid: Boolean get() = scanner.supportsRfid
+    val supportsBarcode: Boolean get() = scanner.supportsBarcode
+    val supportsCameraScan: Boolean get() = scanner.supportsCameraScan
 
-    init { load() }
+    private var scanTimeoutJob: Job? = null
+
+    init {
+        load()
+        viewModelScope.launch {
+            scanner.scanResults.collect { result -> onScanResult(result) }
+        }
+    }
 
     fun load(statusFilter: String? = null) {
         viewModelScope.launch {
@@ -133,6 +157,67 @@ class MaintenanceListViewModel @Inject constructor(
         )
     }
 
+    // ─── Scanner ──────────────────────────────────────────────────────────
+
+    fun triggerScan(type: ScanType = ScanType.RFID_UHF) {
+        if (!_state.value.showReportForm) return
+        _state.value = _state.value.copy(isScanning = true, scanError = null)
+        scanner.startScan(type)
+        scanTimeoutJob?.cancel()
+        scanTimeoutJob = viewModelScope.launch {
+            delay(SCAN_TIMEOUT_MS)
+            if (_state.value.isScanning) {
+                scanner.stopScan()
+                _state.value = _state.value.copy(
+                    isScanning = false,
+                    scanError = "No scan detected. Try again or type the asset name.",
+                )
+            }
+        }
+    }
+
+    fun triggerBarcodeScan() = triggerScan(ScanType.BARCODE)
+
+    fun openCameraFallback() {
+        _state.value = _state.value.copy(showCamera = true)
+    }
+
+    fun closeCameraFallback() {
+        _state.value = _state.value.copy(showCamera = false)
+    }
+
+    fun onCameraBarcodeScanned(value: String) {
+        _state.value = _state.value.copy(showCamera = false)
+        scanner.injectResult(ScanResult(value, ScanType.BARCODE))
+    }
+
+    private fun onScanResult(result: ScanResult) {
+        if (!_state.value.showReportForm) return
+        scanTimeoutJob?.cancel()
+        scanner.stopScan()
+        _state.value = _state.value.copy(isScanning = false, scanError = null)
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isSearchingAssets = true)
+            when (val lookup = repo.lookupByTag(result.value)) {
+                is TagLookup.Found -> {
+                    val a = lookup.asset
+                    _state.value = _state.value.copy(
+                        reportAssetId = a.id,
+                        assetSearchQuery = "${a.assetNumber} — ${a.name}",
+                        assetSearchResults = emptyList(),
+                        isSearchingAssets = false,
+                    )
+                }
+                is TagLookup.NotFound -> {
+                    _state.value = _state.value.copy(
+                        isSearchingAssets = false,
+                        scanError = "No asset found for tag ${result.value}",
+                    )
+                }
+            }
+        }
+    }
+
     fun submitReport() {
         val s = _state.value
         if (s.reportAssetId.isBlank()) {
@@ -178,6 +263,8 @@ class MaintenanceListViewModel @Inject constructor(
         }
         return fmt.format(d)
     }
+
+    private companion object { const val SCAN_TIMEOUT_MS = 8_000L }
 
     private suspend fun uploadPhoto(uri: Uri, maintenanceEventId: String, assetRef: String) {
         val result = withContext(Dispatchers.IO) {

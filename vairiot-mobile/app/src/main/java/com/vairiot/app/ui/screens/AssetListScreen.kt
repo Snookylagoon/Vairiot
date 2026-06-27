@@ -9,10 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.AssetResponse
+import com.vairiot.app.scanner.CameraBarcodeScannerScreen
 import com.vairiot.app.ui.theme.*
 
 
@@ -33,6 +31,14 @@ fun AssetListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val sideRail = LocalUseSideRail.current
+
+    if (state.showCamera) {
+        CameraBarcodeScannerScreen(
+            onBarcodeScanned = { viewModel.onCameraBarcodeScanned(it) },
+            onDismiss = { viewModel.closeCameraFallback() },
+        )
+        return
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
@@ -76,14 +82,58 @@ fun AssetListScreen(
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
 
+            var showScanMenu by remember { mutableStateOf(false) }
             OutlinedTextField(
                 value = state.search,
                 onValueChange = viewModel::onSearchChange,
                 label = { Text("Search assets") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    Box {
+                        IconButton(onClick = { showScanMenu = true },
+                            enabled = !state.isScanning) {
+                            if (state.isScanning) {
+                                CircularProgressIndicator(color = VairiotViolet,
+                                    modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Default.QrCodeScanner,
+                                    contentDescription = "Scan barcode / RFID",
+                                    tint = VairiotViolet)
+                            }
+                        }
+                        DropdownMenu(
+                            expanded = showScanMenu,
+                            onDismissRequest = { showScanMenu = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("RFID") },
+                                leadingIcon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                onClick = { showScanMenu = false; viewModel.triggerScan() },
+                                enabled = viewModel.supportsRfid,
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Barcode") },
+                                leadingIcon = { Icon(Icons.Default.QrCode2, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                onClick = { showScanMenu = false; viewModel.triggerBarcodeScan() },
+                                enabled = viewModel.supportsBarcode,
+                            )
+                            if (viewModel.supportsCameraScan) {
+                                DropdownMenuItem(
+                                    text = { Text("Camera") },
+                                    leadingIcon = { Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                    onClick = { showScanMenu = false; viewModel.openCameraFallback() },
+                                )
+                            }
+                        }
+                    }
+                },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            state.scanError?.let {
+                Text(it, color = ErrorRed, style = MaterialTheme.typography.bodySmall)
+            }
 
             SortRow(
                 current = state.sortField,

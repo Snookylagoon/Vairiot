@@ -33,6 +33,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.MaintenanceEventResponse
+import com.vairiot.app.scanner.CameraBarcodeScannerScreen
 import com.vairiot.app.ui.theme.*
 import java.io.File
 
@@ -159,6 +160,13 @@ fun MaintenanceListScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Report maintenance")
             }
+        }
+
+        if (state.showCamera) {
+            CameraBarcodeScannerScreen(
+                onBarcodeScanned = { viewModel.onCameraBarcodeScanned(it) },
+                onDismiss = { viewModel.closeCameraFallback() },
+            )
         }
 
         if (state.showReportForm) {
@@ -325,12 +333,52 @@ private fun ReportMaintenanceDialog(
         title = { Text("Report Maintenance", fontWeight = FontWeight.SemiBold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Asset search
+                // Asset search with scan icon
+                var showScanMenu by remember { mutableStateOf(false) }
                 OutlinedTextField(
                     value = state.assetSearchQuery,
                     onValueChange = { viewModel.searchAssets(it) },
                     label = { Text("Search asset") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        Box {
+                            IconButton(onClick = { showScanMenu = true },
+                                enabled = !state.isScanning) {
+                                if (state.isScanning) {
+                                    CircularProgressIndicator(color = VairiotViolet,
+                                        modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                } else {
+                                    Icon(Icons.Default.QrCodeScanner,
+                                        contentDescription = "Scan barcode / RFID",
+                                        tint = VairiotViolet)
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = showScanMenu,
+                                onDismissRequest = { showScanMenu = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("RFID") },
+                                    leadingIcon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                    onClick = { showScanMenu = false; viewModel.triggerScan() },
+                                    enabled = viewModel.supportsRfid,
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Barcode") },
+                                    leadingIcon = { Icon(Icons.Default.QrCode2, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                    onClick = { showScanMenu = false; viewModel.triggerBarcodeScan() },
+                                    enabled = viewModel.supportsBarcode,
+                                )
+                                if (viewModel.supportsCameraScan) {
+                                    DropdownMenuItem(
+                                        text = { Text("Camera") },
+                                        leadingIcon = { Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                        onClick = { showScanMenu = false; viewModel.openCameraFallback() },
+                                    )
+                                }
+                            }
+                        }
+                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -354,6 +402,9 @@ private fun ReportMaintenanceDialog(
                             }
                         }
                     }
+                }
+                state.scanError?.let {
+                    Text(it, color = ErrorRed, style = MaterialTheme.typography.bodySmall)
                 }
 
                 // Type chips

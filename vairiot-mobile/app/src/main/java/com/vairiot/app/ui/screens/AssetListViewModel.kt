@@ -3,7 +3,11 @@ package com.vairiot.app.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.AssetRepository
+import com.vairiot.app.data.TagLookup
 import com.vairiot.app.data.api.AssetResponse
+import com.vairiot.app.scanner.ScanResult
+import com.vairiot.app.scanner.ScanType
+import com.vairiot.app.scanner.ScannerService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -37,16 +41,24 @@ data class AssetListUiState(
     val total:     Int = 0,
     val offline:   Boolean = false,
     val error:     String? = null,
+    val isScanning: Boolean = false,
+    val scanError:  String? = null,
+    val showCamera: Boolean = false,
 )
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class AssetListViewModel @Inject constructor(
     private val repo: AssetRepository,
+    private val scanner: ScannerService,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AssetListUiState())
     val state: StateFlow<AssetListUiState> = _state
+
+    val supportsRfid: Boolean get() = scanner.supportsRfid
+    val supportsBarcode: Boolean get() = scanner.supportsBarcode
+    val supportsCameraScan: Boolean get() = scanner.supportsCameraScan
 
     private val searchQuery = MutableStateFlow("")
     private val statusFilter = MutableStateFlow("")
@@ -54,6 +66,7 @@ class AssetListViewModel @Inject constructor(
     private val sortFieldFlow = MutableStateFlow(SortField.NAME)
     private val sortDirFlow = MutableStateFlow(SortDir.ASC)
     private var searchJob: Job? = null
+    private var scanTimeoutJob: Job? = null
 
     private val localAssets: StateFlow<List<AssetResponse>> = searchQuery
         .flatMapLatest { repo.observeAssets(it) }
@@ -74,6 +87,61 @@ class AssetListViewModel @Inject constructor(
             }
         }
         refresh()
+        viewModelScope.launch {
+            scanner.scanResults.collect { result -> onScanResult(result) }
+        }
+    }
+
+    // ─── Scanner ──────────────────────────────────────────────────────────
+
+    fun triggerScan(type: ScanType = ScanType.RFID_UHF) {
+        _state.value = _state.value.copy(isScanning = true, scanError = null)
+        scanner.startScan(type)
+        scanTimeoutJob?.cancel()
+        scanTimeoutJob = viewModelScope.launch {
+            delay(SCAN_TIMEOUT_MS)
+            if (_state.value.isScanning) {
+                scanner.stopScan()
+                _state.value = _state.value.copy(
+                    isScanning = false,
+                    scanError = "No scan detected. Try again or type the asset name.",
+                )
+            }
+        }
+    }
+
+    fun triggerBarcodeScan() = triggerScan(ScanType.BARCODE)
+
+    fun openCameraFallback() {
+        _state.value = _state.value.copy(showCamera = true)
+    }
+
+    fun closeCameraFallback() {
+        _state.value = _state.value.copy(showCamera = false)
+    }
+
+    fun onCameraBarcodeScanned(value: String) {
+        _state.value = _state.value.copy(showCamera = false)
+        scanner.injectResult(ScanResult(value, ScanType.BARCODE))
+    }
+
+    private fun onScanResult(result: ScanResult) {
+        scanTimeoutJob?.cancel()
+        scanner.stopScan()
+        _state.value = _state.value.copy(isScanning = false, scanError = null)
+        viewModelScope.launch {
+            when (val lookup = repo.lookupByTag(result.value)) {
+                is TagLookup.Found -> {
+                    val assetNumber = lookup.asset.assetNumber
+                    onSearchChange(assetNumber)
+                }
+                is TagLookup.NotFound -> {
+                    _state.value = _state.value.copy(
+                        scanError = "No asset found for tag ${result.value}",
+                    )
+                }
+            }
+        }
     }
 
     fun onSearchChange(query: String) {
@@ -134,6 +202,8 @@ class AssetListViewModel @Inject constructor(
             }
         }
     }
+
+    private companion object { const val SCAN_TIMEOUT_MS = 8_000L }
 
     private fun sortList(list: List<AssetResponse>, field: SortField, dir: SortDir): List<AssetResponse> {
         val comparator: Comparator<AssetResponse> = when (field) {
