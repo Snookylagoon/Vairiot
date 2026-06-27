@@ -164,7 +164,7 @@ function LabelPreview({
   const barcodeShareOf = wide2D
     ? Math.max(0.18, 0.45 - lineCount * 0.04)
     : 1;
-  const bcSize2D = Math.min(innerH, Math.round(innerW * barcodeShareOf));
+  const bcSize2D = Math.round(Math.min(innerH, innerW * barcodeShareOf));
   const gap2D = Math.max(2, Math.round(innerW * 0.015));
   const textAreaW2D = innerW - bcSize2D - gap2D;
 
@@ -232,11 +232,11 @@ function LabelPreview({
   return (
     <div style={wrapperStyle}>
       {wide2D ? (
-        <div style={{ display: 'flex', gap: gap2D, height: '100%' }}>
+        <div style={{ display: 'flex', gap: gap2D, height: '100%', alignItems: 'center' }}>
           <img
             src={barcodeDataUrl}
             alt="barcode"
-            style={{ width: bcSize2D, height: bcSize2D, flexShrink: 0, objectFit: 'contain' }}
+            style={{ width: bcSize2D, height: bcSize2D, maxHeight: '100%', flexShrink: 0, objectFit: 'contain' }}
           />
           <div style={{
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
