@@ -281,4 +281,6 @@ data class AssetUpdateRequest(
     val barcode:      String?  = null,
     val rfidTag:      String?  = null,
     val notes:        String?  = null,
+    val siteId:       String?  = null,
+    val locationId:   String?  = null,
 )

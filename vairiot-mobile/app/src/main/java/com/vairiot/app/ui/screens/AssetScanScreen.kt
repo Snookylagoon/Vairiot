@@ -19,6 +19,7 @@ import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.scanner.CameraBarcodeScannerScreen
 import com.vairiot.app.scanner.ScannerHealth
+import com.vairiot.app.ui.components.ClearableTextField
 import com.vairiot.app.ui.theme.*
 
 @Composable
@@ -83,10 +84,10 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
             // Manual lookup
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
+                ClearableTextField(
                     value = manualQuery, onValueChange = { manualQuery = it },
                     label = { Text("Barcode or RFID tag") },
-                    modifier = Modifier.weight(1f), singleLine = true,
+                    modifier = Modifier.weight(1f),
                 )
                 Button(onClick = { viewModel.lookupManual(manualQuery) },
                     enabled = manualQuery.isNotBlank(),
@@ -378,12 +379,10 @@ fun NotFoundCard(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("$primaryLabel: $value", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                    OutlinedTextField(
+                    ClearableTextField(
                         value = assetName,
                         onValueChange = { assetName = it },
                         label = { Text("Asset Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     HorizontalDivider()
@@ -407,13 +406,11 @@ fun NotFoundCard(
                             }
                         }
                     } else {
-                        OutlinedTextField(
+                        ClearableTextField(
                             value = manualSecondary,
                             onValueChange = { manualSecondary = it },
                             label = { Text(secondaryLabel) },
                             placeholder = { Text("Scan or type $secondaryLabel") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
                         )
                         OutlinedButton(
                             onClick = onScanSecondary,

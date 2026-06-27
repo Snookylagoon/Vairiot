@@ -31,6 +31,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.vairiot.app.data.api.AuditReportResponse
 import com.vairiot.app.data.api.AuditScanEventResponse
 import com.vairiot.app.data.api.MissingAssetResponse
+import com.vairiot.app.ui.components.ClearableTextField
 import com.vairiot.app.ui.theme.*
 
 private val SCAN_RESULT_OPTIONS = listOf("found", "unknown", "recorded")
@@ -208,7 +209,7 @@ fun AuditRunScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
+                        ClearableTextField(
                             value = manual, onValueChange = { manual = it },
                             label = { Text("Tag value") },
                             singleLine = true,
@@ -301,13 +302,12 @@ private fun RecentScansSection(scans: List<AuditScanEventResponse>, isBlind: Boo
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
+        ClearableTextField(
             value = search,
             onValueChange = { search = it },
             label = { Text("Search scans") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
         )
         ChipRow(
             label = "Result",
@@ -421,13 +421,12 @@ private fun MissingAssetsSection(missing: List<MissingAssetResponse>) {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
+        ClearableTextField(
             value = search,
             onValueChange = { search = it },
             label = { Text("Search missing") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
         )
         SortChipRow(
             options = MissingSortField.entries.map { it.name to it.label },

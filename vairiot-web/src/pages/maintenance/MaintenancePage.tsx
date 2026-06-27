@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -175,11 +176,7 @@ export function MaintenancePage() {
               <Input label="Scheduled Date" type="date" {...register('scheduledDate')} />
               <Input label="Completed Date" type="date" {...register('completedDate')} />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-v-charcoal mb-1">Description</label>
-              <textarea rows={2} className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink resize-none"
-                {...register('description')} />
-            </div>
+            <Textarea label="Description" rows={2} {...register('description')} />
             <div className="flex gap-3 justify-end">
               <Button type="button" variant="secondary" onClick={() => { setShowForm(false); reset(); }}>Cancel</Button>
               <Button type="submit" loading={createEvent.isPending}>Create Event</Button>

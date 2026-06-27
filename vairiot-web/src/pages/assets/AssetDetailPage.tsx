@@ -7,6 +7,7 @@ import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { AssetPhotos } from '@/components/assets/AssetPhotos';
 import { AssetDocuments } from '@/components/assets/AssetDocuments';
 import { AssetTimeline } from '@/components/assets/AssetTimeline';
@@ -89,18 +90,10 @@ function DisposalDialog({ open, assetId, onClose, currencySymbol }: { open: bool
             <Input label={`Disposal Value (${currencySymbol})`} type="number" step="0.01" placeholder="0.00" {...register('disposalValue')} />
             <Input label="Approved By" placeholder="Name or employee ID" {...register('approvedBy')} />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-v-charcoal mb-1">Reason</label>
-            <textarea rows={2} placeholder="Reason for disposal"
-              className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink resize-none"
-              {...register('disposalReason')} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-v-charcoal mb-1">Notes</label>
-            <textarea rows={2} placeholder="Additional notes"
-              className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink resize-none"
-              {...register('notes')} />
-          </div>
+          <Textarea label="Reason" rows={2} placeholder="Reason for disposal"
+            {...register('disposalReason')} />
+          <Textarea label="Notes" rows={2} placeholder="Additional notes"
+            {...register('notes')} />
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
             <Button type="submit" variant="danger" loading={disposeAsset.isPending}>Confirm Disposal</Button>

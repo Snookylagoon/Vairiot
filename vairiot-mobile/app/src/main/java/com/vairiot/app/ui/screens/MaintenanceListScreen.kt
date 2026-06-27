@@ -34,6 +34,7 @@ import coil.compose.AsyncImage
 import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.MaintenanceEventResponse
 import com.vairiot.app.scanner.CameraBarcodeScannerScreen
+import com.vairiot.app.ui.components.ClearableTextField
 import com.vairiot.app.ui.theme.*
 import java.io.File
 
@@ -420,14 +421,14 @@ private fun ReportMaintenanceDialog(
                     }
                 }
 
-                OutlinedTextField(
+                ClearableTextField(
                     value = state.reportNotes,
                     onValueChange = { viewModel.setReportNotes(it) },
                     label = { Text("What needs doing?") },
                     placeholder = { Text("Describe the fault…") },
+                    singleLine = false,
                     minLines = 3,
                     maxLines = 6,
-                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 // Photo

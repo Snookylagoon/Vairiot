@@ -24,6 +24,7 @@ export const assetSchema = z.object({
   description:    z.string().optional(),
   categoryId:     z.string().optional(),
   siteId:         z.string().optional(),
+  locationId:     z.string().optional(),
   condition:      z.string().optional(),
   serialNumber:   z.string().optional(),
   modelNumber:    z.string().optional(),

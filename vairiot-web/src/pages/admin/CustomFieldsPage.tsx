@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Settings2, Plus, Trash2, GripVertical } from 'lucide-react';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { useCustomFields, useCreateCustomField, useDeleteCustomField } from '@/hooks/useCustomFields';
 
@@ -87,12 +88,9 @@ export function CustomFieldsPage() {
               </div>
             </div>
             {fieldType === 'select' && (
-              <div>
-                <label className="block text-sm font-medium text-v-charcoal mb-1">Options (one per line)</label>
-                <textarea value={optionsText} onChange={e => setOptionsText(e.target.value)}
-                  rows={4} placeholder={"Option A\nOption B\nOption C"}
-                  className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-v-pink resize-none" />
-              </div>
+              <Textarea label="Options (one per line)" value={optionsText}
+                onChange={e => setOptionsText(e.target.value)}
+                rows={4} placeholder={"Option A\nOption B\nOption C"} />
             )}
             <div className="flex gap-2 justify-end">
               <Button variant="secondary" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>

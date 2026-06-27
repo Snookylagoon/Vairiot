@@ -6,6 +6,7 @@ import { ArrowLeft, Wrench, Trash2, ImagePlus, Save, Camera, X } from 'lucide-re
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useMaintenanceEvent, useUpdateMaintenanceEvent, useDeleteMaintenanceEvent } from '@/hooks/useMaintenance';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -164,18 +165,10 @@ export function MaintenanceDetailPage() {
             <Input label="Completed Date" type="date" disabled={!canWrite} {...register('completedDate')} />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-v-charcoal mb-1">Description</label>
-            <textarea rows={2} disabled={!canWrite}
-              className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink resize-none disabled:bg-gray-50"
-              {...register('description')} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-v-charcoal mb-1">Notes</label>
-            <textarea rows={4} disabled={!canWrite}
-              className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink resize-none disabled:bg-gray-50"
-              {...register('notes')} />
-          </div>
+          <Textarea label="Description" rows={2} disabled={!canWrite}
+            className="disabled:bg-gray-50" {...register('description')} />
+          <Textarea label="Notes" rows={4} disabled={!canWrite}
+            className="disabled:bg-gray-50" {...register('notes')} />
 
           {canWrite && (
             <div className="flex justify-end gap-2">

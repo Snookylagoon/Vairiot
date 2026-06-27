@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.vairiot.app.ui.components.ClearableTextField
 import com.vairiot.app.ui.theme.*
 
 private val STATUSES   = listOf("active", "in_maintenance", "retired", "lost")
@@ -67,17 +68,14 @@ fun AssetEditScreen(
             .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-            OutlinedTextField(value = state.name,
+            ClearableTextField(value = state.name,
                 onValueChange = { viewModel.update("name", it) },
-                label = { Text("Name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth())
+                label = { Text("Name") })
 
-            OutlinedTextField(value = state.description,
+            ClearableTextField(value = state.description,
                 onValueChange = { viewModel.update("description", it) },
                 label = { Text("Description") },
-                minLines = 2, maxLines = 4,
-                modifier = Modifier.fillMaxWidth())
+                singleLine = false, minLines = 2, maxLines = 4)
 
             DropdownField(label = "Status", value = state.status,
                 options = STATUSES,
@@ -87,22 +85,30 @@ fun AssetEditScreen(
                 options = CONDITIONS,
                 onChange = { viewModel.update("condition", it) })
 
-            OutlinedTextField(value = state.serialNumber,
+            RefDropdownField(label = "Site",
+                value = state.siteId,
+                options = state.sites.map { it.id to it.name },
+                onChange = { viewModel.update("siteId", it) })
+
+            RefDropdownField(label = "Location",
+                value = state.locationId,
+                options = state.locations.map { it.id to it.name },
+                enabled = state.siteId.isNotBlank(),
+                onChange = { viewModel.update("locationId", it) })
+
+            ClearableTextField(value = state.serialNumber,
                 onValueChange = { viewModel.update("serialNumber", it) },
-                label = { Text("Serial number") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth())
+                label = { Text("Serial number") })
 
             Text("Barcode", style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
             Row(modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = state.barcode,
+                ClearableTextField(value = state.barcode,
                     onValueChange = { viewModel.update("barcode", it) },
                     label = { Text("Barcode") },
                     placeholder = { Text("Scan or type barcode") },
-                    singleLine = true,
                     modifier = Modifier.weight(1f))
                 if (state.scanningBarcode) {
                     OutlinedButton(onClick = { viewModel.cancelBarcodeScan() }) {
@@ -126,11 +132,10 @@ fun AssetEditScreen(
             Row(modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = state.rfidTag,
+                ClearableTextField(value = state.rfidTag,
                     onValueChange = { viewModel.update("rfidTag", it) },
                     label = { Text("RFID tag") },
                     placeholder = { Text("Scan or type RFID tag") },
-                    singleLine = true,
                     modifier = Modifier.weight(1f))
                 if (state.scanningRfid) {
                     OutlinedButton(onClick = { viewModel.cancelRfidScan() }) {
@@ -198,6 +203,46 @@ private fun DropdownField(label: String, value: String, options: List<String>, o
                 DropdownMenuItem(
                     text = { Text(opt) },
                     onClick = { onChange(opt); expanded = false },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RefDropdownField(
+    label: String,
+    value: String,
+    options: List<Pair<String, String>>,
+    enabled: Boolean = true,
+    onChange: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val displayText = options.firstOrNull { it.first == value }?.second ?: ""
+    ExposedDropdownMenuBox(
+        expanded = expanded && enabled,
+        onExpandedChange = { if (enabled) expanded = it },
+    ) {
+        OutlinedTextField(
+            value = displayText,
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            label = { Text(label) },
+            placeholder = { Text(if (enabled) "Select $label" else "Select a site first") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded && enabled) },
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("— None —") },
+                onClick = { onChange(""); expanded = false },
+            )
+            options.forEach { (id, name) ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    onClick = { onChange(id); expanded = false },
                 )
             }
         }

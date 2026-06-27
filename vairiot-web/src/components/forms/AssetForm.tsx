@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
 import { useCategories, useCreateCategory } from '@/hooks/useCategories';
 import { useSites, useCreateSite } from '@/hooks/useSites';
+import { useLocations, useCreateLocation } from '@/hooks/useLocations';
 import { assetSchema, type AssetFormData } from '@/lib/schemas';
 
 export type { AssetFormData } from '@/lib/schemas';
@@ -42,13 +44,18 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
   const createCategory = useCreateCategory();
   const createSite     = useCreateSite();
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<AssetFormData>({
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AssetFormData>({
     resolver: zodResolver(assetSchema),
     defaultValues,
   });
 
+  const selectedSiteId = watch('siteId');
+  const { data: locations = [] } = useLocations(selectedSiteId);
+  const createLocation = useCreateLocation(selectedSiteId);
+
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showAddSite, setShowAddSite]         = useState(false);
+  const [showAddLocation, setShowAddLocation] = useState(false);
 
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (e.target.value === '__add__') {
@@ -61,6 +68,15 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
     if (e.target.value === '__add__') {
       e.target.value = defaultValues?.siteId ?? '';
       setShowAddSite(true);
+    } else {
+      setValue('locationId', '');
+    }
+  };
+
+  const handleLocationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (e.target.value === '__add__') {
+      e.target.value = defaultValues?.locationId ?? '';
+      setShowAddLocation(true);
     }
   };
 
@@ -77,9 +93,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
                 {...register('name')} />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-v-charcoal mb-1">Description</label>
-              <textarea rows={2} placeholder="Optional description"
-                className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink resize-none"
+              <Textarea label="Description" rows={2} placeholder="Optional description"
                 {...register('description')} />
             </div>
             <div>
@@ -98,6 +112,16 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
                 <option value="">— Select site —</option>
                 {sites.map((s: { id: string; name: string }) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 <option value="__add__">+ Add Site</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-v-charcoal mb-1">Location</label>
+              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink bg-white"
+                disabled={!selectedSiteId}
+                {...register('locationId', { onChange: handleLocationChange })}>
+                <option value="">{selectedSiteId ? '— Select location —' : '— Select a site first —'}</option>
+                {locations.map((l: { id: string; name: string }) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                {selectedSiteId && <option value="__add__">+ Add Location</option>}
               </select>
             </div>
             <div>
@@ -175,8 +199,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
         {/* Notes */}
         <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
           <h3 className="font-semibold text-v-charcoal text-sm uppercase tracking-wider">Notes</h3>
-          <textarea rows={3} placeholder="Any additional notes about this asset"
-            className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink resize-none"
+          <Textarea rows={3} placeholder="Any additional notes about this asset"
             {...register('notes')} />
         </div>
 
@@ -207,6 +230,19 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
               onSuccess: (created: { id: string }) => {
                 setValue('siteId', created.id);
                 setShowAddSite(false);
+              },
+            });
+          }} />
+      )}
+
+      {showAddLocation && (
+        <InlineCreateDialog title="Add Location" label="Location Name"
+          onCancel={() => setShowAddLocation(false)}
+          onSave={name => {
+            createLocation.mutate({ name }, {
+              onSuccess: (created: { id: string }) => {
+                setValue('locationId', created.id);
+                setShowAddLocation(false);
               },
             });
           }} />

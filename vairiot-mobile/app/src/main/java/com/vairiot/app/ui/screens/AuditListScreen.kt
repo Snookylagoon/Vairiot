@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.AuditCampaignResponse
+import com.vairiot.app.ui.components.ClearableTextField
 import com.vairiot.app.ui.theme.*
 
 private val CAMPAIGN_STATUS_OPTIONS = listOf("draft", "in_progress", "completed")
@@ -89,13 +90,12 @@ fun AuditListScreen(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedTextField(
+            ClearableTextField(
                 value = search,
                 onValueChange = { search = it },
                 label = { Text("Search campaigns") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
             )
 
             FilterChipRow(
@@ -331,11 +331,10 @@ private fun CreateAuditDialog(
         title = { Text("New audit", fontWeight = FontWeight.SemiBold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
+                ClearableTextField(
                     value = name, onValueChange = { name = it },
                     label = { Text("Campaign name") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 if (blindAuditEnabled) {

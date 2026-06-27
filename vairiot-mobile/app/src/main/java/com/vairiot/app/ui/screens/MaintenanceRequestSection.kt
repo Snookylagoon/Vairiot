@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.vairiot.app.ui.components.ClearableTextField
 import com.vairiot.app.ui.theme.*
 import java.io.File
 
@@ -112,14 +113,14 @@ fun MaintenanceRequestSection(
                 onSelect = viewModel::setType,
             )
 
-            OutlinedTextField(
+            ClearableTextField(
                 value = state.notes,
                 onValueChange = viewModel::setNotes,
                 label = { Text("What needs doing?") },
                 placeholder = { Text("Describe the fault, symptoms or work required…") },
+                singleLine = false,
                 minLines = 3,
                 maxLines = 6,
-                modifier = Modifier.fillMaxWidth(),
             )
 
             ScheduledDatePickerRow(

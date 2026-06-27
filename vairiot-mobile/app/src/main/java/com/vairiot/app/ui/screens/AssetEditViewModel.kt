@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.AssetUpdateRequest
+import com.vairiot.app.data.api.LocationRefResponse
+import com.vairiot.app.data.api.SiteRefResponse
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.scanner.ScanType
 import com.vairiot.app.scanner.ScannerService
@@ -29,6 +31,11 @@ data class AssetEditUiState(
     val serialNumber: String = "",
     val barcode:      String = "",
     val rfidTag:      String = "",
+
+    val sites:        List<SiteRefResponse> = emptyList(),
+    val locations:    List<LocationRefResponse> = emptyList(),
+    val siteId:       String = "",
+    val locationId:   String = "",
 )
 
 @HiltViewModel
@@ -88,6 +95,11 @@ class AssetEditViewModel @Inject constructor(
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
                 val a = api.getAsset(assetId)
+                val sites = try { api.listSites() } catch (_: Exception) { emptyList() }
+                val sId = a.site?.id ?: ""
+                val locs = if (sId.isNotBlank()) {
+                    try { api.listSiteLocations(sId) } catch (_: Exception) { emptyList() }
+                } else emptyList()
                 _state.value = _state.value.copy(
                     isLoading = false,
                     name         = a.name,
@@ -97,6 +109,10 @@ class AssetEditViewModel @Inject constructor(
                     serialNumber = a.serialNumber ?: "",
                     barcode      = a.barcode ?: "",
                     rfidTag      = a.rfidTag ?: "",
+                    sites        = sites,
+                    locations    = locs,
+                    siteId       = sId,
+                    locationId   = a.location?.id ?: "",
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isLoading = false, error = e.message)
@@ -113,7 +129,21 @@ class AssetEditViewModel @Inject constructor(
             "serialNumber" -> _state.value.copy(serialNumber = value)
             "barcode"      -> _state.value.copy(barcode = value)
             "rfidTag"      -> _state.value.copy(rfidTag = value)
+            "siteId"       -> {
+                _state.value.copy(siteId = value, locationId = "", locations = emptyList())
+                    .also { if (value.isNotBlank()) loadLocations(value) }
+            }
+            "locationId"   -> _state.value.copy(locationId = value)
             else           -> _state.value
+        }
+    }
+
+    private fun loadLocations(siteId: String) {
+        viewModelScope.launch {
+            try {
+                val locs = api.listSiteLocations(siteId)
+                _state.value = _state.value.copy(locations = locs)
+            } catch (_: Exception) { /* leave empty */ }
         }
     }
 
@@ -130,6 +160,8 @@ class AssetEditViewModel @Inject constructor(
                     serialNumber = s.serialNumber.takeIf { it.isNotBlank() },
                     barcode      = s.barcode.takeIf { it.isNotBlank() },
                     rfidTag      = s.rfidTag.takeIf { it.isNotBlank() },
+                    siteId       = s.siteId.takeIf { it.isNotBlank() },
+                    locationId   = s.locationId.takeIf { it.isNotBlank() },
                 ))
                 _state.value = _state.value.copy(isSaving = false, savedAsset = updated)
             } catch (e: Exception) {

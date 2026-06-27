@@ -1,6 +1,6 @@
 import clsx from 'clsx';
-import { InputHTMLAttributes, forwardRef, useState } from 'react';
-import { Eye, EyeOff, Check } from 'lucide-react';
+import { InputHTMLAttributes, forwardRef, useCallback, useRef, useState } from 'react';
+import { Eye, EyeOff, Check, X } from 'lucide-react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?:   string;
@@ -10,18 +10,46 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, success, className, type, ...props }, ref) => {
+  ({ label, error, hint, success, className, type, onChange, ...props }, ref) => {
     const isPassword = type === 'password';
     const [show, setShow] = useState(false);
+    const [hasValue, setHasValue] = useState(false);
+    const inputRef = useRef<HTMLInputElement | null>(null);
     const showSuccess = !!success && !error;
+
+    const setRefs = useCallback((el: HTMLInputElement | null) => {
+      inputRef.current = el;
+      if (typeof ref === 'function') ref(el);
+      else if (ref) (ref as React.MutableRefObject<HTMLInputElement | null>).current = el;
+      if (el) setHasValue(!!el.value);
+    }, [ref]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setHasValue(!!e.target.value);
+      onChange?.(e);
+    };
+
+    const handleClear = () => {
+      const input = inputRef.current;
+      if (!input) return;
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(input, '');
+      onChange?.({ target: input } as React.ChangeEvent<HTMLInputElement>);
+      setHasValue(false);
+      input.focus();
+    };
+
+    const showClear = hasValue && !isPassword && !props.disabled && !props.readOnly;
+    const trailingIcons = (isPassword ? 1 : 0) + (showClear ? 1 : 0);
 
     return (
       <div className="space-y-1">
         {label && <label className="block text-sm font-medium text-v-charcoal">{label}</label>}
         <div className="relative">
           <input
-            ref={ref}
+            ref={setRefs}
             type={isPassword && show ? 'text' : type}
+            onChange={handleChange}
             className={clsx(
               'block w-full rounded-lg border px-3 py-2 text-sm text-v-charcoal placeholder-gray-400',
               'focus:outline-none focus:ring-2 focus:ring-v-pink focus:border-transparent',
@@ -31,21 +59,25 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 : showSuccess
                 ? 'border-green-500 bg-green-50'
                 : 'border-gray-200 bg-white hover:border-gray-300',
-              isPassword && 'pr-9',
+              trailingIcons > 0 && (trailingIcons > 1 ? 'pr-16' : 'pr-8'),
               className,
             )}
             {...props}
           />
-          {isPassword && (
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={() => setShow(s => !s)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              {show ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          )}
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {showClear && (
+              <button type="button" tabIndex={-1} onClick={handleClear}
+                className="text-gray-300 hover:text-gray-500 transition-colors">
+                <X size={15} />
+              </button>
+            )}
+            {isPassword && (
+              <button type="button" tabIndex={-1} onClick={() => setShow(s => !s)}
+                className="text-gray-400 hover:text-gray-600 transition-colors">
+                {show ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            )}
+          </span>
         </div>
         {error && <p className="text-xs text-red-600">{error}</p>}
         {showSuccess && (

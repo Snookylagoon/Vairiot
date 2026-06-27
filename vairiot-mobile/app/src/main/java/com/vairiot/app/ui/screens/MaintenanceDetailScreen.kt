@@ -36,6 +36,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.vairiot.app.BuildConfig
 import com.vairiot.app.data.api.PhotoResponse
+import com.vairiot.app.ui.components.ClearableTextField
 import com.vairiot.app.ui.theme.*
 import dagger.hilt.android.EntryPointAccessors
 import java.io.File
@@ -309,14 +310,12 @@ fun MaintenanceDetailScreen(
                                 }
                             }
 
-                            OutlinedTextField(
+                            ClearableTextField(
                                 value = state.completionNotes,
                                 onValueChange = { viewModel.setCompletionNotes(it) },
                                 label = { Text("Completion notes") },
                                 placeholder = { Text("Describe the work done…") },
-                                minLines = 3,
-                                maxLines = 6,
-                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = false, minLines = 3, maxLines = 6,
                             )
 
                             state.completeError?.let {
@@ -412,14 +411,12 @@ private fun MaintenancePhotoViewerDialog(
                     modifier = Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(8.dp)),
                 )
                 if (canEdit) {
-                    OutlinedTextField(
+                    ClearableTextField(
                         value = caption,
                         onValueChange = { caption = it.take(500) },
                         label = { Text("Caption") },
-                        singleLine = false,
-                        maxLines = 3,
+                        singleLine = false, maxLines = 3,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp),

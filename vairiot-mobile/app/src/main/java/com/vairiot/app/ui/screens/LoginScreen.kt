@@ -20,6 +20,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.vairiot.app.ui.components.ClearableTextField
 import com.vairiot.app.ui.theme.*
 
 @Composable
@@ -111,15 +112,13 @@ fun LoginScreen(
                         }
                     }
 
-                    OutlinedTextField(value = tenantId, onValueChange = { tenantId = it },
-                        label = { Text("Organisation ID") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    ClearableTextField(value = tenantId, onValueChange = { tenantId = it },
+                        label = { Text("Organisation ID") })
 
-                    OutlinedTextField(value = email, onValueChange = { email = it.trim() },
+                    ClearableTextField(value = email, onValueChange = { email = it.trim() },
                         label = { Text("Email") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email,
-                            autoCorrect = false, capitalization = KeyboardCapitalization.None),
-                        modifier = Modifier.fillMaxWidth(), singleLine = true)
+                            autoCorrect = false, capitalization = KeyboardCapitalization.None))
 
                     OutlinedTextField(value = password, onValueChange = { password = it },
                         label = { Text("Password") },

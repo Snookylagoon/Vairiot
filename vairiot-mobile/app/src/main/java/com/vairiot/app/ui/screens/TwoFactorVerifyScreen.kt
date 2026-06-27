@@ -15,6 +15,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.vairiot.app.ui.components.ClearableTextField
 import com.vairiot.app.ui.theme.MontserratFamily
 import com.vairiot.app.ui.theme.VairiotCharcoal
 import com.vairiot.app.ui.theme.VairiotMauve
@@ -72,13 +73,12 @@ fun TwoFactorVerifyScreen(
                         }
                     }
 
-                    OutlinedTextField(
+                    ClearableTextField(
                         value = code,
                         onValueChange = { v -> if (v.length <= 6 && v.all { it.isDigit() }) code = v },
                         label = { Text("6-digit code") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     Button(

@@ -50,6 +50,7 @@ export function EditAssetPage() {
           description:   asset.description ?? '',
           categoryId:    asset.category?.id ?? '',
           siteId:        asset.site?.id ?? '',
+          locationId:    asset.location?.id ?? '',
           condition:     asset.condition ?? 'good',
           serialNumber:  asset.serialNumber ?? '',
           modelNumber:   asset.modelNumber ?? '',
