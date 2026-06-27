@@ -195,12 +195,25 @@ class MainActivity : ComponentActivity() {
                         AssetDetailScreen(
                             onBack = { rootNav.popBackStack() },
                             onEdit = { rootNav.navigate("asset/$assetId/edit") },
+                            onLabel = { rootNav.navigate("asset/$assetId/label") },
                         )
                     }
                     composable("asset/{assetId}/edit")        {
                         AssetEditScreen(
                             onBack  = { rootNav.popBackStack() },
                             onSaved = { rootNav.popBackStack() },
+                        )
+                    }
+                    composable("asset/{assetId}/label")       {
+                        val assetId = it.arguments?.getString("assetId").orEmpty()
+                        LabelDesignScreen(
+                            onBack = { rootNav.popBackStack() },
+                            onPrinterSetup = { rootNav.navigate("asset/$assetId/printer-setup") },
+                        )
+                    }
+                    composable("asset/{assetId}/printer-setup") {
+                        PrinterSetupScreen(
+                            onBack = { rootNav.popBackStack() },
                         )
                     }
                     composable("audit/{campaignId}/run")      { AuditRunScreen(onBack    = { rootNav.popBackStack() }) }

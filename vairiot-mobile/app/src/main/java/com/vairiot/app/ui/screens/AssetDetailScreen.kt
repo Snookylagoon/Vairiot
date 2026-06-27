@@ -8,6 +8,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +27,7 @@ import com.vairiot.app.ui.theme.*
 fun AssetDetailScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit = {},
+    onLabel: () -> Unit = {},
     viewModel: AssetDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -56,6 +58,9 @@ fun AssetDetailScreen(
                     fontFamily = MontserratFamily, fontWeight = FontWeight.ExtraBold,
                     color = White)
                 Spacer(Modifier.weight(1f))
+                IconButton(onClick = onLabel) {
+                    Icon(Icons.Default.QrCode, contentDescription = "Label", tint = White)
+                }
                 IconButton(onClick = onEdit) {
                     Icon(Icons.Default.Edit, contentDescription = "Edit", tint = White)
                 }
