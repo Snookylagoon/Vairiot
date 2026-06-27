@@ -59,6 +59,10 @@ interface VairiotApiService {
     @GET("api/v1/assets/tag/{tag}")
     suspend fun getAssetByTag(@Path("tag") tag: String): AssetResponse
 
+    // ─── Company ───────────────────────────────────────────────────────────
+    @GET("api/v1/onboarding/company")
+    suspend fun getCompany(): CompanyResponse?
+
     // ─── Sites / Locations / Categories (for scope pickers) ────────────────
     @GET("api/v1/sites")
     suspend fun listSites(): List<SiteRefResponse>

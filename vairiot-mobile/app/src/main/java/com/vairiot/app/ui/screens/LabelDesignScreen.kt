@@ -142,6 +142,9 @@ fun LabelDesignScreen(
                     FieldToggle("Barcode value", state.fields.barcode) { viewModel.toggleField { f -> f.copy(barcode = it) } }
                     FieldToggle("Site", state.fields.site) { viewModel.toggleField { f -> f.copy(site = it) } }
                     FieldToggle("Category", state.fields.category) { viewModel.toggleField { f -> f.copy(category = it) } }
+                    FieldToggle("Company name", state.fields.companyName) { viewModel.toggleField { f -> f.copy(companyName = it) } }
+                    FieldToggle("Company address", state.fields.companyAddress) { viewModel.toggleField { f -> f.copy(companyAddress = it) } }
+                    FieldToggle("Company email", state.fields.companyEmail) { viewModel.toggleField { f -> f.copy(companyEmail = it) } }
                 }
             }
 

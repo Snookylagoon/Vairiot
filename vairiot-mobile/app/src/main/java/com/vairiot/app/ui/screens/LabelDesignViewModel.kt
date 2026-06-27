@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.api.AssetResponse
+import com.vairiot.app.data.api.CompanyResponse
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.label.*
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,10 +17,11 @@ import javax.inject.Inject
 data class LabelDesignUiState(
     val isLoading: Boolean = true,
     val asset: AssetResponse? = null,
+    val company: CompanyResponse? = null,
     val error: String? = null,
 
     val barcodeType: BarcodeType = BarcodeType.QR_CODE,
-    val labelSizeIndex: Int = 3, // Avery L7651 default
+    val labelSizeIndex: Int = 3,
     val fields: ContentFields = ContentFields(),
 
     val previewBitmap: Bitmap? = null,
@@ -51,7 +53,8 @@ class LabelDesignViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val asset = api.getAsset(assetId)
-                _state.value = _state.value.copy(isLoading = false, asset = asset)
+                val company = try { api.getCompany() } catch (_: Exception) { null }
+                _state.value = _state.value.copy(isLoading = false, asset = asset, company = company)
                 regeneratePreview()
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isLoading = false, error = e.message)
@@ -80,7 +83,7 @@ class LabelDesignViewModel @Inject constructor(
         val labelSize = AVERY_PRESETS.getOrNull(s.labelSizeIndex) ?: AVERY_PRESETS[3]
         viewModelScope.launch {
             try {
-                val bmp = LabelRenderer.render(asset, s.barcodeType, labelSize, s.fields)
+                val bmp = LabelRenderer.render(asset, s.barcodeType, labelSize, s.fields, s.company)
                 _state.value = _state.value.copy(previewBitmap = bmp)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = "Preview failed: ${e.message}")

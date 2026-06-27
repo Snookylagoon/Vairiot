@@ -257,6 +257,20 @@ data class MaintenanceUpdateRequest(
     val completedDate: String? = null,
 )
 
+// ─── Company ──────────────────────────────────────────────────────────────
+data class CompanyResponse(
+    val id:                  String,
+    val legalName:           String? = null,
+    val tradingName:         String? = null,
+    val addressLine1:        String? = null,
+    val addressLine2:        String? = null,
+    val city:                String? = null,
+    val stateProvince:       String? = null,
+    val postalCode:          String? = null,
+    val country:             String? = null,
+    val primaryContactEmail: String? = null,
+)
+
 // ─── Asset create ─────────────────────────────────────────────────────────
 data class AssetCreateRequest(
     val name:         String,

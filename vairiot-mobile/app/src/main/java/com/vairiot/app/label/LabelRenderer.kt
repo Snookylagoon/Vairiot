@@ -9,6 +9,7 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
 import com.vairiot.app.data.api.AssetResponse
+import com.vairiot.app.data.api.CompanyResponse
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -45,7 +46,17 @@ data class ContentFields(
     val barcode: Boolean = false,
     val site: Boolean = true,
     val category: Boolean = false,
+    val companyName: Boolean = false,
+    val companyAddress: Boolean = false,
+    val companyEmail: Boolean = false,
 )
+
+fun formatCompanyAddress(c: CompanyResponse?): String {
+    if (c == null) return ""
+    return listOfNotNull(c.addressLine1, c.addressLine2, c.city, c.stateProvince, c.postalCode, c.country)
+        .filter { it.isNotBlank() }
+        .joinToString(", ")
+}
 
 object LabelRenderer {
 
@@ -88,6 +99,7 @@ object LabelRenderer {
         barcodeType: BarcodeType,
         labelSize: LabelSize,
         fields: ContentFields,
+        company: CompanyResponse? = null,
     ): Bitmap {
         val widthPx = (labelSize.widthMm * MM_TO_PX).roundToInt()
         val heightPx = (labelSize.heightMm * MM_TO_PX).roundToInt()
@@ -112,6 +124,17 @@ object LabelRenderer {
         if (fields.barcode && !asset.barcode.isNullOrBlank()) lines.add(Line("BC: ${asset.barcode}", "muted"))
         if (fields.site && asset.site != null) lines.add(Line(asset.site.name, "muted"))
         if (fields.category && asset.category != null) lines.add(Line(asset.category.name, "muted"))
+        if (fields.companyName && company != null) {
+            val cName = company.tradingName?.takeIf { it.isNotBlank() } ?: company.legalName
+            if (!cName.isNullOrBlank()) lines.add(Line(cName, "brand"))
+        }
+        if (fields.companyAddress) {
+            val addr = formatCompanyAddress(company)
+            if (addr.isNotBlank()) lines.add(Line(addr, "muted"))
+        }
+        if (fields.companyEmail && !company?.primaryContactEmail.isNullOrBlank()) {
+            lines.add(Line(company!!.primaryContactEmail!!, "muted"))
+        }
 
         val longestTitle = lines.filter { it.kind == "title" }.maxOfOrNull { it.text.length } ?: 0
         val longestOther = lines.filter { it.kind != "title" }.maxOfOrNull { it.text.length } ?: 0
