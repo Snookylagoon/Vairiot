@@ -23,6 +23,9 @@ class MeferiScannerService @Inject constructor(
     // ME65 has a barcode imager but no UHF RFID radio.
     override val supportsRfid:    Boolean = false
     override val supportsBarcode: Boolean = true
+    // ME65's camera isn't exposed to Camera2, so the in-app camera scanner can't
+    // bind — hide it; the hardware barcode imager is used instead.
+    override val supportsCameraScan: Boolean = false
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {

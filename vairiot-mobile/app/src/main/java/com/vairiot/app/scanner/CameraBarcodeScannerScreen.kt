@@ -11,6 +11,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -100,6 +101,8 @@ fun CameraBarcodeScannerScreen(
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
     var scanning by remember { mutableStateOf(true) }
+    var cameraError by remember { mutableStateOf<String?>(null) }
+    val previewView = remember { PreviewView(context) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -111,11 +114,24 @@ fun CameraBarcodeScannerScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { ctx ->
-                val previewView = PreviewView(ctx)
+    // Bind the camera defensively. Some rugged devices (e.g. ME65) expose no
+    // Camera2-visible camera, so CameraX throws "No available camera" — surface a
+    // message instead of letting the uncaught exception crash the app.
+    LaunchedEffect(Unit) {
+        cameraProviderFuture.addListener({
+            try {
                 val cameraProvider = cameraProviderFuture.get()
+                val selector = when {
+                    runCatching { cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) }
+                        .getOrDefault(false) -> CameraSelector.DEFAULT_BACK_CAMERA
+                    runCatching { cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA) }
+                        .getOrDefault(false) -> CameraSelector.DEFAULT_FRONT_CAMERA
+                    else -> null
+                }
+                if (selector == null) {
+                    cameraError = "This device has no in-app camera. Use the hardware scanner or enter the code manually."
+                    return@addListener
+                }
                 val preview = Preview.Builder().build().also {
                     it.surfaceProvider = previewView.surfaceProvider
                 }
@@ -131,14 +147,16 @@ fun CameraBarcodeScannerScreen(
                         })
                     }
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(
-                    lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview,
-                    imageAnalysis
-                )
-                previewView
-            },
+                cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, imageAnalysis)
+            } catch (e: Exception) {
+                cameraError = "Camera unavailable: ${e.message ?: e.javaClass.simpleName}"
+            }
+        }, ContextCompat.getMainExecutor(context))
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { previewView },
             modifier = Modifier.fillMaxSize()
         )
 
@@ -190,6 +208,22 @@ fun CameraBarcodeScannerScreen(
                 tint = Color.White,
                 modifier = Modifier.size(32.dp)
             )
+        }
+
+        cameraError?.let { message ->
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.White).padding(24.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(message, color = VairiotCharcoal, fontSize = 16.sp)
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+                    ) { Text("Close", color = Color.White) }
+                }
+            }
         }
     }
 }

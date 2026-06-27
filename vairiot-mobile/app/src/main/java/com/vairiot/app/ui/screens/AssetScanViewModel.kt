@@ -76,6 +76,7 @@ class AssetScanViewModel @Inject constructor(
 
     val supportsRfid:    Boolean get() = scanner.supportsRfid
     val supportsBarcode: Boolean get() = scanner.supportsBarcode
+    val supportsCameraScan: Boolean get() = scanner.supportsCameraScan
 
     fun triggerScan(type: ScanType = ScanType.RFID_UHF) {
         _state.value = ScanUiState.Scanning(type)

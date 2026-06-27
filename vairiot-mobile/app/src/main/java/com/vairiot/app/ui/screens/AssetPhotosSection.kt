@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.ImeAction
 import com.vairiot.app.data.api.PhotoResponse
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -83,6 +84,21 @@ fun AssetPhotosSection(
         else localError = "Camera permission denied."
     }
 
+    // Some rugged handhelds (e.g. ME65) expose no usable camera — the OS reports
+    // zero camera devices and the stock camera app crashes. Detect that and offer
+    // the gallery instead of launching a camera that black-screens.
+    val hasCamera = remember {
+        runCatching {
+            val cm = context.getSystemService(android.content.Context.CAMERA_SERVICE)
+                as android.hardware.camera2.CameraManager
+            cm.cameraIdList.isNotEmpty()
+        }.getOrDefault(false)
+    }
+
+    val pickFromGallery = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent(),
+    ) { uri -> if (uri != null) viewModel.uploadFromUri(uri) }
+
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Photos (${state.photos.size})",
@@ -90,21 +106,38 @@ fun AssetPhotosSection(
                 fontWeight = FontWeight.SemiBold, color = VairiotCharcoal)
 
             if (state.photos.size < 2) {
+                if (hasCamera) {
+                    OutlinedButton(
+                        onClick = {
+                            val hasPerm = ContextCompat.checkSelfPermission(
+                                context, Manifest.permission.CAMERA,
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (hasPerm) launchCamera()
+                            else requestCameraPermission.launch(Manifest.permission.CAMERA)
+                        },
+                        enabled = !state.isUploading,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Default.AddAPhoto, contentDescription = null,
+                            modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Take Photo")
+                    }
+                }
                 OutlinedButton(
-                    onClick = {
-                        val hasPerm = ContextCompat.checkSelfPermission(
-                            context, Manifest.permission.CAMERA,
-                        ) == PackageManager.PERMISSION_GRANTED
-                        if (hasPerm) launchCamera()
-                        else requestCameraPermission.launch(Manifest.permission.CAMERA)
-                    },
+                    onClick = { pickFromGallery.launch("image/*") },
                     enabled = !state.isUploading,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Icon(Icons.Default.AddAPhoto, contentDescription = null,
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = null,
                         modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Take Photo")
+                    Text(if (hasCamera) "Choose from Gallery" else "Add Photo from Gallery")
+                }
+                if (!hasCamera) {
+                    Text("No camera detected on this device — add a photo from the gallery instead.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
             }
 

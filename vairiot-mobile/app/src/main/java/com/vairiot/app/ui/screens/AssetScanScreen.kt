@@ -72,6 +72,7 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
             // Scanner health warning banner
             if (health == ScannerHealth.UNAVAILABLE) {
                 ScannerUnavailableBanner(
+                    showCamera = viewModel.supportsCameraScan,
                     onRetry = { viewModel.retryRecovery() },
                     onUseCamera = { viewModel.openCameraFallback() },
                 )
@@ -124,16 +125,19 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
                 }
             }
 
-            // Camera fallback button
-            OutlinedButton(
-                onClick = { viewModel.openCameraFallback() },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Icon(Icons.Default.PhotoCamera, contentDescription = null,
-                    modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Scan with Camera", fontFamily = MontserratFamily)
+            // Camera fallback button — only on devices whose camera works with
+            // CameraX (hidden on Meferi ME65, which has no Camera2 camera).
+            if (viewModel.supportsCameraScan) {
+                OutlinedButton(
+                    onClick = { viewModel.openCameraFallback() },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = null,
+                        modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Scan with Camera", fontFamily = MontserratFamily)
+                }
             }
 
             // Result area
@@ -181,7 +185,7 @@ fun ScannerHealthIndicator(health: ScannerHealth, onRetry: () -> Unit) {
 }
 
 @Composable
-fun ScannerUnavailableBanner(onRetry: () -> Unit, onUseCamera: () -> Unit) {
+fun ScannerUnavailableBanner(showCamera: Boolean, onRetry: () -> Unit, onUseCamera: () -> Unit) {
     Surface(
         color = ErrorRed.copy(alpha = 0.1f),
         shape = RoundedCornerShape(12.dp),
@@ -195,19 +199,25 @@ fun ScannerUnavailableBanner(onRetry: () -> Unit, onUseCamera: () -> Unit) {
                 Text("Hardware scanner is offline",
                     style = MaterialTheme.typography.labelLarge, color = ErrorRed)
             }
-            Text("The scanner service is not responding. Use the camera to scan barcodes, type codes manually, or try restarting the scanner.",
+            Text(
+                if (showCamera)
+                    "The scanner service is not responding. Use the camera to scan barcodes, type codes manually, or try restarting the scanner."
+                else
+                    "The scanner service is not responding. Type codes manually, or try restarting the scanner.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onUseCamera,
-                    colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
-                    modifier = Modifier.height(36.dp),
-                ) {
-                    Icon(Icons.Default.PhotoCamera, contentDescription = null,
-                        modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Use Camera", style = MaterialTheme.typography.labelMedium)
+                if (showCamera) {
+                    Button(
+                        onClick = onUseCamera,
+                        colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+                        modifier = Modifier.height(36.dp),
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null,
+                            modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Use Camera", style = MaterialTheme.typography.labelMedium)
+                    }
                 }
                 OutlinedButton(onClick = onRetry, modifier = Modifier.height(36.dp)) {
                     Icon(Icons.Default.Refresh, contentDescription = null,
