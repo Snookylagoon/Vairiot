@@ -142,7 +142,7 @@ function LabelPreview({
 }) {
   const companyAddress = formatCompanyAddress(company);
   const wide2D = is2D(barcodeType);
-  const padding = Math.max(4, Math.round(Math.min(widthPx, heightPx) * 0.05));
+  const padding = Math.max(3, Math.round(Math.min(widthPx, heightPx) * 0.04));
 
   type LineKind = 'title' | 'number' | 'muted' | 'brand';
   const lines: { text: string; kind: LineKind }[] = [];
@@ -150,33 +150,39 @@ function LabelPreview({
   if (fields.assetNumber) lines.push({ text: asset.assetNumber, kind: 'number' });
   if (fields.serialNumber && asset.serialNumber) lines.push({ text: `SN: ${asset.serialNumber}`, kind: 'muted' });
   if (fields.barcode && asset.barcode) lines.push({ text: `BC: ${asset.barcode}`, kind: 'muted' });
-  // In 1D mode the barcode itself isn't side-by-side, so to keep parity drop site/category from the
-  // 1D layout? — no, the user wants all selected fields visible. Render every line in both layouts.
   if (fields.site && asset.site) lines.push({ text: asset.site.name, kind: 'muted' });
   if (fields.category && asset.category) lines.push({ text: asset.category.name, kind: 'muted' });
   if (fields.companyName && company?.legalName) lines.push({ text: company.tradingName || company.legalName, kind: 'brand' });
   if (fields.companyAddress && companyAddress) lines.push({ text: companyAddress, kind: 'muted' });
   if (fields.companyEmail && company?.primaryContactEmail) lines.push({ text: company.primaryContactEmail, kind: 'muted' });
 
-  // Geometry: barcode takes the left/bottom, text fills the rest.
-  const barcodeBox = wide2D
-    ? Math.min(heightPx - padding * 2, widthPx * 0.45)
-    : { w: widthPx - padding * 2, h: Math.min(heightPx * 0.45, 60) };
-  const textAreaHeight = wide2D
-    ? heightPx - padding * 2
-    : heightPx - padding * 2 - (barcodeBox as { w: number; h: number }).h - 2;
+  const innerW = widthPx - padding * 2;
+  const innerH = heightPx - padding * 2;
+  const lineCount = lines.length;
 
-  // Auto-fit font: title at F, all others at F*0.85, lineHeight 1.15.
-  // textAreaHeight ≈ F*1.15 + (n-1)*F*0.85*1.15  ⇒  F = textAreaHeight / (1.15 * (1 + 0.85*(n-1)))
-  const titleCount = lines.filter(l => l.kind === 'title').length || 0;
-  const otherCount = lines.length - titleCount;
-  const denom = 1.15 * (titleCount + otherCount * 0.85);
-  const idealTitle = Math.max(7, Math.round(heightPx * 0.09));
-  const fitTitle = denom > 0 ? Math.floor(textAreaHeight / denom) : idealTitle;
-  const titleFont = Math.max(5, Math.min(idealTitle, fitTitle));
-  const otherFont = Math.max(5, Math.round(titleFont * 0.85));
-  // Inline styles so the same DOM renders identically in the print window
-  // (which has no Tailwind classes loaded).
+  // Barcode shrinks as more fields are selected so text has room
+  const barcodeShareOf = wide2D
+    ? Math.max(0.2, 0.45 - lineCount * 0.035)
+    : 1;
+  const bcSize2D = Math.min(innerH, Math.round(innerW * barcodeShareOf));
+  const gap2D = Math.max(2, Math.round(innerW * 0.02));
+  const textAreaW2D = innerW - bcSize2D - gap2D;
+
+  const bc1DH = Math.min(Math.round(innerH * 0.35), 50);
+  const textAreaH1D = innerH - bc1DH - 2;
+  const textAreaH = wide2D ? innerH : textAreaH1D;
+  const textAreaW = wide2D ? textAreaW2D : innerW;
+
+  // Auto-fit font to fill the text area without clipping
+  const titleWeight = 1;
+  const otherWeight = 0.82;
+  const totalWeight = lines.reduce((s, l) => s + (l.kind === 'title' ? titleWeight : otherWeight), 0);
+  const maxFontByH = totalWeight > 0 ? Math.floor(textAreaH / (totalWeight * 1.15)) : 12;
+  const maxFontByW = Math.floor(textAreaW / 3.2);
+  const fontSize = Math.max(4, Math.min(maxFontByH, maxFontByW, 14));
+  const titleFont = fontSize;
+  const otherFont = Math.max(4, Math.round(fontSize * otherWeight));
+
   const colorFor = (kind: LineKind): string => {
     switch (kind) {
       case 'title':  return '#2B3132';
@@ -192,9 +198,8 @@ function LabelPreview({
     fontWeight: kind === 'title' ? 700 : 400,
     fontFamily: 'Montserrat, sans-serif',
     color: colorFor(kind),
-    whiteSpace: 'nowrap',
     overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    wordBreak: 'break-all',
   });
 
   const TextLines = (
@@ -222,11 +227,11 @@ function LabelPreview({
   return (
     <div style={wrapperStyle}>
       {wide2D ? (
-        <div style={{ display: 'flex', gap: 8, height: '100%' }}>
+        <div style={{ display: 'flex', gap: gap2D, height: '100%' }}>
           <img
             src={barcodeDataUrl}
             alt="barcode"
-            style={{ width: barcodeBox as number, height: barcodeBox as number, flexShrink: 0 }}
+            style={{ width: bcSize2D, height: bcSize2D, flexShrink: 0, objectFit: 'contain' }}
           />
           <div style={{
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
@@ -244,9 +249,10 @@ function LabelPreview({
             src={barcodeDataUrl}
             alt="barcode"
             style={{
-              width: (barcodeBox as { w: number; h: number }).w,
-              height: (barcodeBox as { w: number; h: number }).h,
+              width: innerW,
+              height: bc1DH,
               alignSelf: 'center',
+              objectFit: 'contain',
             }}
           />
         </div>
