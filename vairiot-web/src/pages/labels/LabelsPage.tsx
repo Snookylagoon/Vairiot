@@ -158,33 +158,33 @@ function LabelPreview({
 
   const innerW = widthPx - padding * 2;
   const innerH = heightPx - padding * 2;
-  const lineCount = lines.length;
+  const gap = Math.max(2, Math.round(innerW * 0.015));
 
-  // Barcode shrinks as more fields are selected so text has room
-  const barcodeShareOf = wide2D
-    ? Math.max(0.18, 0.45 - lineCount * 0.04)
-    : 1;
-  const bcSize2D = Math.round(Math.min(innerH, innerW * barcodeShareOf));
-  const gap2D = Math.max(2, Math.round(innerW * 0.015));
-  const textAreaW2D = innerW - bcSize2D - gap2D;
+  // 2D layout: QR square on the left, text on the right.
+  // QR fills label height but is capped to leave ≥55% width for text.
+  const maxBcWidth = Math.round(innerW * 0.45);
+  const bcSize2D = Math.round(Math.min(innerH, maxBcWidth));
+  const textAreaW2D = innerW - bcSize2D - gap;
 
+  // 1D layout: text on top, barcode on bottom.
   const bc1DH = Math.min(Math.round(innerH * 0.35), 50);
   const textAreaH1D = innerH - bc1DH - 2;
+
   const textAreaH = wide2D ? innerH : textAreaH1D;
   const textAreaW = wide2D ? textAreaW2D : innerW;
 
-  // Auto-fit font: each line must fit on one visual row (no wrapping).
-  // Montserrat avg char width ≈ 0.58 * fontSize (bold ≈ 0.62).
+  // Auto-fit font so each line fits on one visual row.
+  // Montserrat avg char width ≈ 0.58 × fontSize (bold ≈ 0.62).
   const longestTitle = lines.filter(l => l.kind === 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
   const longestOther = lines.filter(l => l.kind !== 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
-  const maxFontByTitleW = longestTitle > 0 ? Math.floor(textAreaW / (longestTitle * 0.62)) : 99;
-  const maxFontByOtherW = longestOther > 0 ? Math.floor(textAreaW / (longestOther * 0.58)) : 99;
+  const maxFontByTitleW = longestTitle > 0 ? textAreaW / (longestTitle * 0.62) : 99;
+  const maxFontByOtherW = longestOther > 0 ? textAreaW / (longestOther * 0.58) : 99;
   const maxFontByW = Math.min(maxFontByTitleW, maxFontByOtherW / 0.82);
 
   const titleWeight = 1;
   const otherWeight = 0.82;
   const totalWeight = lines.reduce((s, l) => s + (l.kind === 'title' ? titleWeight : otherWeight), 0);
-  const maxFontByH = totalWeight > 0 ? Math.floor(textAreaH / (totalWeight * 1.15)) : 12;
+  const maxFontByH = totalWeight > 0 ? textAreaH / (totalWeight * 1.15) : 12;
   const fontSize = Math.max(3, Math.min(maxFontByH, maxFontByW, 14));
   const titleFont = fontSize;
   const otherFont = Math.max(3, Math.round(fontSize * otherWeight));
@@ -232,11 +232,11 @@ function LabelPreview({
   return (
     <div style={wrapperStyle}>
       {wide2D ? (
-        <div style={{ display: 'flex', gap: gap2D, height: '100%', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap, height: '100%', alignItems: 'center' }}>
           <img
             src={barcodeDataUrl}
             alt="barcode"
-            style={{ width: bcSize2D, height: bcSize2D, maxHeight: '100%', flexShrink: 0, objectFit: 'contain' }}
+            style={{ width: bcSize2D, height: bcSize2D, flexShrink: 0 }}
           />
           <div style={{
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
