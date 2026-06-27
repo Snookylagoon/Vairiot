@@ -73,7 +73,7 @@ export function AdminShell() {
       {open && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setOpen(false)} />}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 flex items-center justify-between px-4 bg-white border-b border-gray-200 lg:px-6">
+        <header className="sticky top-0 z-30 h-16 flex items-center justify-between px-4 bg-white border-b border-gray-200 lg:px-6">
           <button onClick={() => setOpen(true)} className="lg:hidden p-2 rounded-md text-gray-500 hover:bg-gray-100">
             <Menu size={20} />
           </button>
