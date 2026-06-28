@@ -54,9 +54,10 @@ struct LoginView: View {
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.85))
             }
-            .padding(.vertical, 40)
+            .padding(.top, 60)
+            .padding(.bottom, 40)
         }
-        .frame(height: 200)
+        .frame(minHeight: 260)
     }
 
     // MARK: - Form

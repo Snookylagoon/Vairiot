@@ -22,6 +22,8 @@
 	<string>1</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Vairiot uses Bluetooth to connect to label printers.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Vairiot needs the camera to scan barcodes and QR codes on assets.</string>
 	<key>UILaunchScreen</key>

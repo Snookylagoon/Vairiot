@@ -28,7 +28,9 @@ struct MaintenanceListView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 NavigationLink {
-                    Text("Create Maintenance Event")
+                    MaintenanceCreateFromListView(apiClient: viewModel.apiClient) {
+                        Task { await viewModel.loadEvents(reset: true) }
+                    }
                 } label: {
                     Image(systemName: "plus")
                 }

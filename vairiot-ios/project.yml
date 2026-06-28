@@ -23,6 +23,7 @@ targets:
       - VairiotMobile
     settings:
       base:
+        DEVELOPMENT_TEAM: J7GGB8W37T
         PRODUCT_BUNDLE_IDENTIFIER: com.vairiot.mobile
         INFOPLIST_FILE: VairiotMobile/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -34,6 +35,7 @@ targets:
       path: VairiotMobile/Resources/Info.plist
       properties:
         NSCameraUsageDescription: "Vairiot needs the camera to scan barcodes and QR codes on assets."
+        NSBluetoothAlwaysUsageDescription: "Vairiot uses Bluetooth to connect to label printers."
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

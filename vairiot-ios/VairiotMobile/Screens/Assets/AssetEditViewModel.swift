@@ -117,6 +117,44 @@ final class AssetEditViewModel {
         }
     }
 
+    // MARK: - Create Reference Data
+
+    func createSite(name: String) async {
+        do {
+            let site: SiteRefResponse = try await apiClient.request(.createSite(["name": name]))
+            sites.append(site)
+            selectedSiteId = site.id
+            selectedLocationId = nil
+            locations = []
+        } catch {
+            errorMessage = "Failed to create site"
+        }
+    }
+
+    func createLocation(name: String) async {
+        guard let siteId = selectedSiteId else {
+            errorMessage = "Select a site first"
+            return
+        }
+        do {
+            let loc: LocationRefResponse = try await apiClient.request(.createSiteLocation(siteId: siteId, ["name": name]))
+            locations.append(loc)
+            selectedLocationId = loc.id
+        } catch {
+            errorMessage = "Failed to create location"
+        }
+    }
+
+    func createCategory(name: String) async {
+        do {
+            let cat: CategoryRefResponse = try await apiClient.request(.createCategory(["name": name]))
+            categories.append(cat)
+            selectedCategoryId = cat.id
+        } catch {
+            errorMessage = "Failed to create category"
+        }
+    }
+
     // MARK: - Save
 
     func save() async {

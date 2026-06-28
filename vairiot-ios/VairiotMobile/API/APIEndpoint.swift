@@ -137,6 +137,18 @@ extension APIEndpoint {
     static var listCategories: APIEndpoint {
         APIEndpoint(method: .get, path: "api/v1/categories")
     }
+
+    static func createSite(_ body: [String: String]) -> APIEndpoint {
+        APIEndpoint(method: .post, path: "api/v1/sites", body: body)
+    }
+
+    static func createSiteLocation(siteId: String, _ body: [String: String]) -> APIEndpoint {
+        APIEndpoint(method: .post, path: "api/v1/sites/\(siteId)/locations", body: body)
+    }
+
+    static func createCategory(_ body: [String: String]) -> APIEndpoint {
+        APIEndpoint(method: .post, path: "api/v1/categories", body: body)
+    }
 }
 
 // MARK: - Company

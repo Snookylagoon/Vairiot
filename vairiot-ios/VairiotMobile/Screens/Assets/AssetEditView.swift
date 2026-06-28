@@ -5,6 +5,11 @@ struct AssetEditView: View {
     @Environment(\.dismiss) private var dismiss
     var onSaved: (() -> Void)?
 
+    @State private var showAddSite = false
+    @State private var showAddLocation = false
+    @State private var showAddCategory = false
+    @State private var newItemName = ""
+
     init(
         apiClient: APIClient,
         existingAsset: AssetResponse? = nil,
@@ -62,6 +67,46 @@ struct AssetEditView: View {
                 dismiss()
             }
         }
+        .alert("New Category", isPresented: $showAddCategory) {
+            TextField("Category name", text: $newItemName)
+            Button("Add") {
+                let name = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !name.isEmpty else { return }
+                Task { await viewModel.createCategory(name: name) }
+                newItemName = ""
+            }
+            Button("Cancel", role: .cancel) { newItemName = "" }
+        } message: {
+            Text("Enter a name for the new category.")
+        }
+        .alert("New Site", isPresented: $showAddSite) {
+            TextField("Site name", text: $newItemName)
+            Button("Add") {
+                let name = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !name.isEmpty else { return }
+                Task { await viewModel.createSite(name: name) }
+                newItemName = ""
+            }
+            Button("Cancel", role: .cancel) { newItemName = "" }
+        } message: {
+            Text("Enter a name for the new site.")
+        }
+        .alert("New Location", isPresented: $showAddLocation) {
+            TextField("Location name", text: $newItemName)
+            Button("Add") {
+                let name = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !name.isEmpty else { return }
+                Task { await viewModel.createLocation(name: name) }
+                newItemName = ""
+            }
+            Button("Cancel", role: .cancel) { newItemName = "" }
+        } message: {
+            if let site = viewModel.sites.first(where: { $0.id == viewModel.selectedSiteId }) {
+                Text("Enter a name for the new location at \(site.name).")
+            } else {
+                Text("Enter a name for the new location.")
+            }
+        }
     }
 
     // MARK: - Basic Info
@@ -112,18 +157,30 @@ struct AssetEditView: View {
                     Text(status.displayName).tag(status)
                 }
             }
+            .pickerStyle(.navigationLink)
 
             Picker("Condition", selection: $viewModel.selectedCondition) {
                 ForEach(AssetCondition.allCases) { condition in
                     Text(condition.displayName).tag(condition)
                 }
             }
+            .pickerStyle(.navigationLink)
 
             Picker("Category", selection: $viewModel.selectedCategoryId) {
                 Text("None").tag(nil as String?)
                 ForEach(viewModel.categories) { category in
                     Text(category.name).tag(category.id as String?)
                 }
+            }
+            .pickerStyle(.navigationLink)
+
+            Button {
+                newItemName = ""
+                showAddCategory = true
+            } label: {
+                Label("Add New Category", systemImage: "plus.circle")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.vairiotViolet)
             }
         }
     }
@@ -138,8 +195,18 @@ struct AssetEditView: View {
                     Text(site.name).tag(site.id as String?)
                 }
             }
+            .pickerStyle(.navigationLink)
             .onChange(of: viewModel.selectedSiteId) { _, _ in
                 viewModel.onSiteChanged()
+            }
+
+            Button {
+                newItemName = ""
+                showAddSite = true
+            } label: {
+                Label("Add New Site", systemImage: "plus.circle")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.vairiotViolet)
             }
 
             if viewModel.isLoadingLocations {
@@ -155,8 +222,19 @@ struct AssetEditView: View {
                         Text(location.name).tag(location.id as String?)
                     }
                 }
+                .pickerStyle(.navigationLink)
                 .disabled(viewModel.selectedSiteId == nil)
             }
+
+            Button {
+                newItemName = ""
+                showAddLocation = true
+            } label: {
+                Label("Add New Location", systemImage: "plus.circle")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.vairiotViolet)
+            }
+            .disabled(viewModel.selectedSiteId == nil)
         }
     }
 

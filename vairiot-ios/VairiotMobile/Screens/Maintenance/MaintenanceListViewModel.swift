@@ -28,7 +28,7 @@ final class MaintenanceListViewModel {
 
     // MARK: - Dependencies
 
-    private let apiClient: APIClient
+    let apiClient: APIClient
     private let pageSize = 25
     private var searchTask: Task<Void, Never>?
 

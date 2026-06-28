@@ -5,6 +5,8 @@ struct MaintenanceDetailView: View {
 
     @State private var viewModel: MaintenanceDetailViewModel
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var showPhotoSourcePicker = false
+    @State private var showCamera = false
 
     init(eventId: String, apiClient: APIClient = .shared) {
         _viewModel = State(initialValue: MaintenanceDetailViewModel(eventId: eventId, apiClient: apiClient))
@@ -208,13 +210,11 @@ struct MaintenanceDetailView: View {
                 sectionHeader("Photos")
                 Spacer()
 
-                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                Button {
+                    showPhotoSourcePicker = true
+                } label: {
                     Label("Add", systemImage: "plus")
                         .font(.subheadline)
-                }
-                .onChange(of: selectedPhotoItem) { _, item in
-                    guard let item else { return }
-                    Task { await handlePhotoSelection(item) }
                 }
             }
 
@@ -227,6 +227,29 @@ struct MaintenanceDetailView: View {
                 photos: viewModel.photos,
                 onDelete: nil
             )
+        }
+        .confirmationDialog("Add Photo", isPresented: $showPhotoSourcePicker) {
+            Button("Take Photo") {
+                showCamera = true
+            }
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                Text("Choose from Library")
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraImagePicker { image in
+                showCamera = false
+                guard let data = image.jpegData(compressionQuality: 0.85) else { return }
+                let thumb = generateThumbnail(from: data, maxDimension: 200)
+                Task { await viewModel.uploadPhoto(imageData: data, thumbData: thumb) }
+            } onCancel: {
+                showCamera = false
+            }
+        }
+        .onChange(of: selectedPhotoItem) { _, item in
+            guard let item else { return }
+            Task { await handlePhotoSelection(item) }
         }
     }
 

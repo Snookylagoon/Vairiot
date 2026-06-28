@@ -3,6 +3,10 @@ import SwiftUI
 struct AssetDetailView: View {
     @State private var viewModel: AssetDetailViewModel
     @State private var showEditSheet: Bool = false
+    @State private var showScanner: Bool = false
+    @State private var showPhotos: Bool = false
+    @State private var showMaintenance: Bool = false
+    @State private var showLabel: Bool = false
 
     private let apiClient: APIClient
 
@@ -58,6 +62,40 @@ struct AssetDetailView: View {
                         Task { await viewModel.refresh() }
                     }
                 }
+            }
+        }
+        .fullScreenCover(isPresented: $showScanner) {
+            ScannerView(
+                onBarcodeScanned: { code in
+                    showScanner = false
+                    if let asset = viewModel.asset {
+                        Task {
+                            let request = AssetUpdateRequest(barcode: code)
+                            do {
+                                let _: AssetResponse = try await apiClient.request(
+                                    .updateAsset(id: asset.id, request)
+                                )
+                                await viewModel.refresh()
+                            } catch {}
+                        }
+                    }
+                },
+                onDismiss: { showScanner = false }
+            )
+        }
+        .navigationDestination(isPresented: $showPhotos) {
+            if let asset = viewModel.asset {
+                AssetPhotosView(assetId: asset.id, apiClient: apiClient)
+            }
+        }
+        .navigationDestination(isPresented: $showMaintenance) {
+            if let asset = viewModel.asset {
+                AssetMaintenanceView(assetId: asset.id, assetName: asset.name, apiClient: apiClient)
+            }
+        }
+        .navigationDestination(isPresented: $showLabel) {
+            if let asset = viewModel.asset {
+                LabelDesignView(asset: asset, apiClient: apiClient)
             }
         }
     }
@@ -187,17 +225,25 @@ struct AssetDetailView: View {
                     showEditSheet = true
                 }
                 actionButton(icon: "qrcode.viewfinder", title: "Scan", color: .vairiotPink) {
-                    // Scanner integration handled by parent navigation
+                    showScanner = true
                 }
             }
 
             HStack(spacing: 12) {
                 actionButton(icon: "photo.on.rectangle", title: "Photos", color: .blue) {
-                    // Photos integration handled by parent navigation
+                    showPhotos = true
                 }
                 actionButton(icon: "wrench", title: "Maintenance", color: .warningAmber) {
-                    // Maintenance integration handled by parent navigation
+                    showMaintenance = true
                 }
+            }
+
+            HStack(spacing: 12) {
+                actionButton(icon: "tag", title: "Label", color: .successGreen) {
+                    showLabel = true
+                }
+                Spacer()
+                    .frame(maxWidth: .infinity)
             }
 
             Button(role: .destructive) {
