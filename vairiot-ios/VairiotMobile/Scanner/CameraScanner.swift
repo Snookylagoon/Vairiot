@@ -110,12 +110,12 @@ final class CameraScanner: NSObject, ObservableObject, AVCaptureMetadataOutputOb
         guard !captureSession.isRunning else { return }
 
         captureSession.beginConfiguration()
-        defer { captureSession.commitConfiguration() }
 
         // Video input
         guard let videoDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
                 ?? AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front)
                 ?? AVCaptureDevice.default(for: .video) else {
+            captureSession.commitConfiguration()
             DispatchQueue.main.async {
                 self.cameraError = "This device has no camera. Use a hardware scanner or enter the code manually."
             }
@@ -127,12 +127,14 @@ final class CameraScanner: NSObject, ObservableObject, AVCaptureMetadataOutputOb
             if captureSession.canAddInput(videoInput) {
                 captureSession.addInput(videoInput)
             } else {
+                captureSession.commitConfiguration()
                 DispatchQueue.main.async {
                     self.cameraError = "Unable to add camera input."
                 }
                 return
             }
         } catch {
+            captureSession.commitConfiguration()
             DispatchQueue.main.async {
                 self.cameraError = "Camera unavailable: \(error.localizedDescription)"
             }
@@ -144,16 +146,17 @@ final class CameraScanner: NSObject, ObservableObject, AVCaptureMetadataOutputOb
         if captureSession.canAddOutput(metadataOutput) {
             captureSession.addOutput(metadataOutput)
             metadataOutput.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
-            // Filter to only the types AVFoundation actually supports on this device.
             let available = metadataOutput.availableMetadataObjectTypes
             metadataOutput.metadataObjectTypes = supportedSymbologies.filter { available.contains($0) }
         } else {
+            captureSession.commitConfiguration()
             DispatchQueue.main.async {
                 self.cameraError = "Unable to configure barcode scanning."
             }
             return
         }
 
+        captureSession.commitConfiguration()
         captureSession.startRunning()
         DispatchQueue.main.async {
             self.isScanning = true
