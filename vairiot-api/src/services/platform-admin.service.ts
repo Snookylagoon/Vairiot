@@ -2,8 +2,12 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
-import { NotFoundError } from '../lib/errors';
+import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
 import { buildOrderBy } from '../lib/sort';
+import { ROLE_PERMISSION_MATRIX } from 'vairiot-shared';
+import { validatePasswordPolicy } from './password-policy.service';
+import { activateLicence } from './licence.service';
+import { sendMail } from './smtp.service';
 
 const TENANT_SORT_KEYS = ['name', 'deploymentMode', 'onboardingComplete', 'createdAt', 'active'] as const;
 const USER_SORT_KEYS   = ['name', 'email', 'active', 'twoFactorEnabled', 'lastLoginAt', 'createdAt', 'tenant.name'] as const;
@@ -415,4 +419,198 @@ export async function softDeleteUser(userId: string, actorId: string) {
       metadata: { originalEmail: user.email, originalName: user.name },
     },
   }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+}
+
+// ─── Admin-driven tenant creation ───────────────────────────────────────────
+
+export interface AdminCreateTenantInput {
+  organisationName: string;
+  adminName: string;
+  adminEmail: string;
+  adminMode: 'invite' | 'password';
+  adminPassword?: string;
+}
+
+export interface AdminCreateTenantResult {
+  tenantId: string;
+  userId: string;
+  adminMode: 'invite' | 'password';
+  temporaryPassword?: string;
+  inviteEmailSent?: boolean;
+  inviteEmailError?: string;
+}
+
+/**
+ * Platform Super Admin action: create a brand-new tenant with a primary
+ * Company Admin user. Mirrors the self-registration flow (system roles,
+ * FREE licence auto-activation, onboarding step seeded) but is initiated
+ * by a platform admin on behalf of the tenant.
+ */
+export async function adminCreateTenant(
+  input: AdminCreateTenantInput,
+  actorId: string,
+): Promise<AdminCreateTenantResult> {
+  if (!input.organisationName?.trim()) throw new ValidationError('Organisation name is required');
+  if (!input.adminName?.trim())        throw new ValidationError('Admin user name is required');
+  if (!input.adminEmail?.trim())       throw new ValidationError('Admin user email is required');
+  if (input.adminMode !== 'invite' && input.adminMode !== 'password') {
+    throw new ValidationError('adminMode must be "invite" or "password"');
+  }
+
+  const tenantName = input.organisationName.trim();
+  const email      = input.adminEmail.toLowerCase().trim();
+
+  const existingTenant = await prisma.tenant.findUnique({ where: { name: tenantName } });
+  if (existingTenant) throw new ConflictError('An organisation with this name already exists');
+
+  let plainPassword: string;
+  if (input.adminMode === 'password') {
+    if (!input.adminPassword) throw new ValidationError('Password is required when adminMode is "password"');
+    validatePasswordPolicy(input.adminPassword);
+    plainPassword = input.adminPassword;
+  } else {
+    // Invite mode — generate a strong temporary password. Sent to user by email;
+    // they must change it on first sign-in. Alphanumeric, 12 chars — matches the
+    // set-password policy so it looks familiar and copies cleanly.
+    plainPassword = generateTempPassword(12);
+  }
+  const passwordHash = await bcrypt.hash(plainPassword, 12);
+
+  const { user, tenant } = await prisma.$transaction(async (tx) => {
+    const t = await tx.tenant.create({
+      data: { name: tenantName, onboardingComplete: false, active: false },
+    });
+
+    const roleDefs = ROLE_PERMISSION_MATRIX.filter((r) => r.isSystem);
+    for (const def of roleDefs) {
+      await tx.role.create({
+        data: { tenantId: t.id, name: def.name, permissions: [...def.permissions], isSystem: true },
+      });
+    }
+    const adminRole = await tx.role.findFirst({ where: { tenantId: t.id, name: 'Company Admin' } });
+    if (!adminRole) throw new Error('Company Admin role not found after creation');
+
+    const u = await tx.user.create({
+      data: {
+        tenantId: t.id,
+        email,
+        name: input.adminName.trim(),
+        passwordHash,
+        active: true,
+        mustChangePassword: true,
+      },
+    });
+    await tx.userRole.create({ data: { userId: u.id, roleId: adminRole.id } });
+
+    return { user: u, tenant: t };
+  });
+
+  // Ensure licence tiers exist (idempotent — mirrors registration.service).
+  await prisma.licenceTier.upsert({
+    where: { name: 'FREE' }, update: {},
+    create: { name: 'FREE', displayName: 'Free', maxAssets: 500, pricePerYear: 0 },
+  }).catch(() => {});
+  await prisma.licenceTier.upsert({
+    where: { name: 'TIER_2' }, update: {},
+    create: { name: 'TIER_2', displayName: 'Professional', maxAssets: 1500, pricePerYear: 50 },
+  }).catch(() => {});
+  await prisma.licenceTier.upsert({
+    where: { name: 'TIER_3' }, update: {},
+    create: { name: 'TIER_3', displayName: 'Enterprise', maxAssets: -1, pricePerYear: 100 },
+  }).catch(() => {});
+
+  // Auto-activate FREE licence and seed onboarding progress for the first two steps
+  // (user + licence — since we've captured the admin's name and picked a starter tier).
+  await activateLicence(tenant.id, 'FREE', actorId);
+  await prisma.onboardingProgress.upsert({
+    where: { tenantId_step: { tenantId: tenant.id, step: 'licence_activation' } },
+    update: { completed: true, completedAt: new Date(), completedBy: actorId, data: { tierName: 'FREE' } as never },
+    create: {
+      tenantId: tenant.id, step: 'licence_activation' as never, completed: true,
+      completedAt: new Date(), completedBy: actorId, data: { tierName: 'FREE' } as never,
+    },
+  });
+  await prisma.onboardingProgress.upsert({
+    where: { tenantId_step: { tenantId: tenant.id, step: 'user_registration' } },
+    update: { completed: true, completedAt: new Date(), completedBy: actorId, data: { name: user.name, email: user.email } as never },
+    create: {
+      tenantId: tenant.id, step: 'user_registration' as never, completed: true,
+      completedAt: new Date(), completedBy: actorId, data: { name: user.name, email: user.email } as never,
+    },
+  });
+
+  prisma.auditEvent.create({
+    data: {
+      tenantId: tenant.id,
+      actorId,
+      entityType: 'tenant',
+      entityId: tenant.id,
+      action: 'admin_tenant_created',
+      metadata: { organisationName: tenantName, adminEmail: email, adminMode: input.adminMode },
+    },
+  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+
+  const result: AdminCreateTenantResult = {
+    tenantId: tenant.id,
+    userId: user.id,
+    adminMode: input.adminMode,
+  };
+
+  if (input.adminMode === 'password') {
+    result.temporaryPassword = plainPassword;
+  } else {
+    // Invite mode: try to email the temp password. Do not fail creation if SMTP is down —
+    // return an error string so the UI can offer the admin the temp password as a fallback.
+    try {
+      await sendMail({
+        to: email,
+        subject: `You've been invited to ${tenantName} on Vairiot`,
+        text:
+          `Hi ${user.name},\n\n` +
+          `A Vairiot platform administrator has created an account for you on the "${tenantName}" workspace.\n\n` +
+          `Sign in with:\n` +
+          `  Email:    ${email}\n` +
+          `  Password: ${plainPassword}\n\n` +
+          `You'll be asked to set your own password on first sign-in.\n\n` +
+          `— The Vairiot team`,
+        html:
+          `<p>Hi ${escapeHtml(user.name)},</p>` +
+          `<p>A Vairiot platform administrator has created an account for you on the <strong>${escapeHtml(tenantName)}</strong> workspace.</p>` +
+          `<p>Sign in with:</p>` +
+          `<ul>` +
+            `<li><strong>Email:</strong> ${escapeHtml(email)}</li>` +
+            `<li><strong>Temporary password:</strong> <code>${escapeHtml(plainPassword)}</code></li>` +
+          `</ul>` +
+          `<p>You'll be asked to set your own password on first sign-in.</p>` +
+          `<p>— The Vairiot team</p>`,
+      });
+      result.inviteEmailSent = true;
+    } catch (e) {
+      const msg = (e as Error).message;
+      logger.warn('admin_tenant_invite_email_failed', { tenantId: tenant.id, error: msg });
+      result.inviteEmailSent = false;
+      result.inviteEmailError = msg;
+      // Fall back to returning the temp password so the admin can relay it manually.
+      result.temporaryPassword = plainPassword;
+    }
+  }
+
+  return result;
+}
+
+function generateTempPassword(length: number): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const bytes = crypto.randomBytes(length);
+  let out = '';
+  for (let i = 0; i < length; i++) out += alphabet[bytes[i] % alphabet.length];
+  return out;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

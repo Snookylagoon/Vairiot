@@ -29,6 +29,32 @@ export function useTenantDetail(id: string) {
   });
 }
 
+export interface CreateTenantInput {
+  organisationName: string;
+  adminName: string;
+  adminEmail: string;
+  adminMode: 'invite' | 'password';
+  adminPassword?: string;
+}
+
+export interface CreateTenantResult {
+  tenantId: string;
+  userId: string;
+  adminMode: 'invite' | 'password';
+  temporaryPassword?: string;
+  inviteEmailSent?: boolean;
+  inviteEmailError?: string;
+}
+
+export function useCreateTenant() {
+  return useMutationWithToast<CreateTenantResult, CreateTenantInput>({
+    mutationFn: (body) => api.post('/api/v1/admin/platform/tenants', body).then(r => r.data),
+    invalidate: ['admin', 'tenants'],
+    success: 'Tenant created',
+    error: 'Failed to create tenant',
+  });
+}
+
 // ─── Cross-Tenant Users ─────────────────────────────────────────────────────
 
 export function useAllUsers(params: Record<string, string> = {}) {

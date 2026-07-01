@@ -14,6 +14,7 @@ import {
   disableUserTwoFactor,
   requirePasswordChange,
   clearForcePasswordChange,
+  adminCreateTenant,
 } from '../../services/platform-admin.service';
 import {
   getUserPermissionsView,
@@ -63,6 +64,15 @@ platformRouter.get('/stats', async (_req: Request, res: Response) => {
 });
 
 // ─── Tenants ────────────────────────────────────────────────────────────────
+
+platformRouter.post('/tenants', async (req: Request, res: Response) => {
+  const { organisationName, adminName, adminEmail, adminMode, adminPassword } = req.body ?? {};
+  const result = await adminCreateTenant(
+    { organisationName, adminName, adminEmail, adminMode, adminPassword },
+    req.user!.sub,
+  );
+  res.status(201).json(result);
+});
 
 platformRouter.get('/tenants', async (req: Request, res: Response) => {
   const tenants = await listTenants({

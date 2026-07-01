@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { useTenants } from '@/hooks/useAdmin';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
 
@@ -62,7 +64,12 @@ export function TenantsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-h1 text-v-charcoal">Tenants</h1>
-        <span className="text-sm text-gray-400">{tenants.length} total</span>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-400">{tenants.length} total</span>
+          <Button size="sm" onClick={() => navigate('/tenants/new')}>
+            <Plus size={14} className="mr-1" /> New Tenant
+          </Button>
+        </div>
       </div>
 
       <DataTable<TenantRow>

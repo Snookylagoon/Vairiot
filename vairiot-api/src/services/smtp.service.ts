@@ -150,6 +150,41 @@ export async function verifySmtp(): Promise<{ ok: boolean; error?: string }> {
   }
 }
 
+export interface SendMailInput {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}
+
+/**
+ * Send an email using the configured SMTP/Resend transport.
+ * Throws if email is not configured — callers should catch and continue if
+ * the mail is non-critical (e.g. an invite email during tenant creation).
+ */
+export async function sendMail(input: SendMailInput): Promise<{ messageId?: string }> {
+  const t = await buildTransport();
+  if (t.provider === 'resend') {
+    const { data, error } = await t.resend!.emails.send({
+      from: t.fromAddress,
+      to: input.to,
+      subject: input.subject,
+      text: input.text,
+      html: input.html ?? input.text,
+    });
+    if (error) throw new Error(error.message);
+    return { messageId: data?.id };
+  }
+  const info = await t.nodemailer!.sendMail({
+    from: t.fromAddress,
+    to: input.to,
+    subject: input.subject,
+    text: input.text,
+    html: input.html ?? input.text,
+  });
+  return { messageId: info.messageId };
+}
+
 export async function sendTestEmail(to: string): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   try {
     const t = await buildTransport();

@@ -15,6 +15,7 @@ const DashboardPage   = lazy(() => import('./pages/dashboard/DashboardPage').the
 const TenantsPage     = lazy(() => import('./pages/tenants/TenantsPage').then(m => ({ default: m.TenantsPage })));
 const TenantDetailPage = lazy(() => import('./pages/tenants/TenantDetailPage').then(m => ({ default: m.TenantDetailPage })));
 const TenantOnboardingPage = lazy(() => import('./pages/tenants/TenantOnboardingPage').then(m => ({ default: m.TenantOnboardingPage })));
+const NewTenantWizardPage = lazy(() => import('./pages/tenants/NewTenantWizardPage').then(m => ({ default: m.NewTenantWizardPage })));
 const LicencesPage    = lazy(() => import('./pages/licences/LicencesPage').then(m => ({ default: m.LicencesPage })));
 const UsersPage       = lazy(() => import('./pages/users/UsersPage').then(m => ({ default: m.UsersPage })));
 const UserDetailPage  = lazy(() => import('./pages/users/UserDetailPage').then(m => ({ default: m.UserDetailPage })));
@@ -56,6 +57,7 @@ export default function App() {
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="tenants" element={<TenantsPage />} />
+                <Route path="tenants/new" element={<NewTenantWizardPage />} />
                 <Route path="tenants/:id" element={<TenantDetailPage />} />
                 <Route path="tenants/:id/onboarding" element={<TenantOnboardingPage />} />
                 <Route path="licences" element={<LicencesPage />} />
