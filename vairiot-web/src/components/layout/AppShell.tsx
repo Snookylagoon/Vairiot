@@ -4,6 +4,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
 import { useCurrencyStore, CURRENCIES } from '@/stores/currency.store';
 import { useDeviceHeartbeat } from '@/hooks/useLicensing';
+import { TenantSwitcher } from './TenantSwitcher';
+import { ImpersonationBanner } from './ImpersonationBanner';
 import clsx from 'clsx';
 
 type NavItem = { to: string; label: string; icon: LucideIcon; require?: readonly string[] };
@@ -220,16 +222,21 @@ export function AppShell() {
           <button onClick={() => setOpen(true)} className="lg:hidden p-2 rounded-md text-gray-500 hover:bg-gray-100">
             <Menu size={20} />
           </button>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Vairiot Enhanced Asset Management</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm text-gray-500 hidden sm:inline">Vairiot Enhanced Asset Management</span>
             {user?.tenantName && (
               <>
-                <span className="text-sm text-gray-300">—</span>
-                <span className="text-sm font-bold text-v-charcoal">{user.tenantName}</span>
+                <span className="text-sm text-gray-300 hidden sm:inline">—</span>
+                <span className="text-sm font-bold text-v-charcoal truncate">{user.tenantName}</span>
               </>
             )}
           </div>
+          <div className="flex items-center gap-3">
+            <TenantSwitcher />
+          </div>
         </header>
+
+        <ImpersonationBanner />
 
         {/* Page content */}
         <main className="flex-1 p-4 lg:p-6 overflow-auto">

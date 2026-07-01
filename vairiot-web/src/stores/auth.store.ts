@@ -21,6 +21,7 @@ interface AuthState {
   login:   (email: string, password: string, tenantId: string) => Promise<void>;
   logout:  () => Promise<void>;
   hydrate: () => Promise<void>;
+  switchTenantContext: (targetTenantId: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -47,6 +48,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem('vairiot_refresh_token');
     set({ user: null, onboardingRequired: false });
     window.location.href = '/login';
+  },
+
+  switchTenantContext: async (targetTenantId: string) => {
+    // Mint a new access token scoped to the target tenant, then replace the
+    // one in localStorage and refetch /me so the app renders as that tenant.
+    const { data } = await api.post('/api/v1/company/switch-context', { tenantId: targetTenantId });
+    localStorage.setItem('vairiot_access_token', data.accessToken);
+    // Refresh the user profile so React re-renders with the new tenant.
+    const me = await api.get('/api/v1/auth/me');
+    syncCurrencyFromUser(me.data);
+    set({ user: me.data });
   },
 
   hydrate: async () => {

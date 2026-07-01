@@ -166,11 +166,25 @@ authRouter.get('/me', authenticate, asyncHandler(async (req: Request, res: Respo
   const flags = (tenant?.featureFlags && typeof tenant.featureFlags === 'object' && !Array.isArray(tenant.featureFlags))
     ? tenant.featureFlags as Record<string, boolean>
     : {};
+
+  // If the caller has switched context into a sub-tenant, also load the parent
+  // name so the UI can render "Return to <Parent>" on the impersonation banner.
+  let originalTenantName: string | null = null;
+  if (req.user!.originalTenantId && req.user!.originalTenantId !== req.user!.tenantId) {
+    const parent = await prisma.tenant.findUnique({
+      where: { id: req.user!.originalTenantId },
+      select: { name: true, company: { select: { legalName: true } } },
+    });
+    originalTenantName = parent?.company?.legalName ?? parent?.name ?? req.user!.originalTenantId;
+  }
+
   res.json({
     userId: req.user!.sub,
     email: req.user!.email,
     tenantId: req.user!.tenantId,
     tenantName: tenant?.company?.legalName ?? tenant?.name ?? req.user!.tenantId,
+    originalTenantId: req.user!.originalTenantId ?? null,
+    originalTenantName,
     currency: tenant?.company?.currency ?? 'USD',
     roles: req.user!.roles,
     permissions: req.user!.permissions,

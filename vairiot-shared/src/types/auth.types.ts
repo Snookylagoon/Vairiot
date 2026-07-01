@@ -9,6 +9,10 @@ export interface UserProfile {
   email: string;
   tenantId: string;
   tenantName: string;
+  /** Set only when the caller has switched into a sub-tenant view. */
+  originalTenantId?: string | null;
+  /** Display name of the parent tenant, when impersonating. */
+  originalTenantName?: string | null;
   currency?: string;
   roles: string[];
   permissions: string[];

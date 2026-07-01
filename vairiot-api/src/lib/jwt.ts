@@ -10,7 +10,7 @@ const SETUP_SECRET   = process.env.JWT_SETUP_SECRET   ?? BASE_SECRET;
 const EXPIRY  = process.env.JWT_EXPIRY  ?? '8h';
 const REFRESH = process.env.JWT_REFRESH_EXPIRY ?? '30d';
 
-export interface TokenPayload { sub: string; tenantId: string; email: string; roles: string[]; permissions: string[]; jti?: string; exp?: number; }
+export interface TokenPayload { sub: string; tenantId: string; email: string; roles: string[]; permissions: string[]; originalTenantId?: string; jti?: string; exp?: number; }
 export interface RefreshPayload { sub: string; tenantId: string; type: 'refresh'; jti?: string; exp?: number; }
 export interface SetupTokenPayload { sub: string; tenantId: string; email: string; scope: '2fa_setup'; jti?: string; exp?: number; }
 export interface ChallengeTokenPayload { sub: string; tenantId: string; scope: 'password_change' | '2fa_challenge'; jti?: string; exp?: number; }
