@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTenants } from '@/hooks/useAdmin';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -26,8 +27,28 @@ export function TenantsPage() {
 
   const { data: tenants = [], isLoading } = useTenants(params);
 
+  const copyId = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(id);
+    toast.success('Tenant ID copied');
+  };
+
   const columns: DataTableColumn<TenantRow>[] = [
     { key: 'name', label: 'Name', render: t => <span className="font-medium text-v-charcoal">{t.name}</span> },
+    {
+      key: 'id', label: 'ID', sortable: false,
+      render: t => (
+        <button
+          type="button"
+          onClick={e => copyId(e, t.id)}
+          title="Click to copy — this is what a user enters in the Organisation field when signing in"
+          className="group inline-flex items-center gap-1.5 font-mono text-xs text-gray-600 hover:text-v-violet"
+        >
+          <span className="truncate max-w-[12ch]">{t.id}</span>
+          <Copy size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+        </button>
+      ),
+    },
     { key: 'deploymentMode', label: 'Mode', render: t => <Badge variant="default">{t.deploymentMode}</Badge> },
     {
       key: 'onboardingComplete', label: 'Onboarding',
