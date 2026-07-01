@@ -1,5 +1,6 @@
 package com.vairiot.app.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -82,8 +83,11 @@ fun ScanSessionScreen(
                 is ScanSessionUiState.Loading -> LoadingBody()
                 is ScanSessionUiState.Error   -> ErrorBody(s.message)
                 else -> if (snapshot != null) {
-                    SummaryCards(snapshot)
-                    SessionTabs(currentTab, onTab = { currentTab = it }, snapshot)
+                    SummaryCards(
+                        snapshot = snapshot,
+                        current  = currentTab,
+                        onTab    = { currentTab = it },
+                    )
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         when (currentTab) {
                             SessionTab.KNOWN   -> KnownList(
@@ -243,23 +247,41 @@ private fun SessionTopBar(
 }
 
 @Composable
-private fun SummaryCards(snapshot: SessionSnapshot) {
+private fun SummaryCards(
+    snapshot: SessionSnapshot,
+    current:  SessionTab,
+    onTab:    (SessionTab) -> Unit,
+) {
     Row(modifier = Modifier.fillMaxWidth()
         .padding(horizontal = 12.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        SummaryCard("Known",   snapshot.knownCount,   SuccessGreen,   Modifier.weight(1f))
-        SummaryCard("New",     snapshot.newCount,     VairiotViolet,  Modifier.weight(1f))
-        SummaryCard("Missing", snapshot.missingCount, ErrorRed,       Modifier.weight(1f))
-        SummaryCard("Ignored", snapshot.ignoredCount, VairiotCharcoal.copy(alpha = 0.55f), Modifier.weight(1f))
+        SummaryCard(SessionTab.KNOWN,   snapshot.knownCount,   SuccessGreen,
+            current, onTab, Modifier.weight(1f))
+        SummaryCard(SessionTab.NEW,     snapshot.newCount,     VairiotViolet,
+            current, onTab, Modifier.weight(1f))
+        SummaryCard(SessionTab.MISSING, snapshot.missingCount, ErrorRed,
+            current, onTab, Modifier.weight(1f))
+        SummaryCard(SessionTab.IGNORED, snapshot.ignoredCount, VairiotCharcoal.copy(alpha = 0.55f),
+            current, onTab, Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun SummaryCard(label: String, count: Int, accent: Color, modifier: Modifier = Modifier) {
+private fun SummaryCard(
+    tab: SessionTab,
+    count: Int,
+    accent: Color,
+    current: SessionTab,
+    onTab: (SessionTab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val selected = current == tab
     Surface(
+        onClick = { onTab(tab) },
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        color = accent.copy(alpha = 0.10f),
+        color = if (selected) accent.copy(alpha = 0.24f) else accent.copy(alpha = 0.10f),
+        border = if (selected) BorderStroke(2.dp, accent) else null,
     ) {
         Column(
             modifier = Modifier.padding(vertical = 12.dp, horizontal = 10.dp),
@@ -269,38 +291,11 @@ private fun SummaryCard(label: String, count: Int, accent: Color, modifier: Modi
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.ExtraBold,
                 color = accent)
-            Text(label,
+            Text(tab.label,
                 style = MaterialTheme.typography.labelSmall,
                 color = accent,
-                fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-@Composable
-private fun SessionTabs(
-    current: SessionTab,
-    onTab: (SessionTab) -> Unit,
-    snapshot: SessionSnapshot,
-) {
-    val counts = mapOf(
-        SessionTab.KNOWN   to snapshot.knownCount,
-        SessionTab.NEW     to snapshot.newCount,
-        SessionTab.MISSING to snapshot.missingCount,
-        SessionTab.IGNORED to snapshot.ignoredCount,
-    )
-    TabRow(selectedTabIndex = current.ordinal, containerColor = VairiotWash) {
-        SessionTab.entries.forEach { tab ->
-            Tab(
-                selected = current == tab,
-                onClick  = { onTab(tab) },
-                text = {
-                    Text("${tab.label} (${counts[tab] ?: 0})",
-                        style = MaterialTheme.typography.labelSmall,
-                        maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
-                        fontWeight = if (current == tab) FontWeight.Bold else FontWeight.Normal)
-                },
-            )
+                maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
+                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold)
         }
     }
 }
