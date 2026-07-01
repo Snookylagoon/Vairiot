@@ -18,7 +18,10 @@ import io
 from datetime import date, datetime
 from typing import Any
 
+import urllib.request
+
 from openpyxl import Workbook
+from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import (
     Alignment, Border, Font, NamedStyle, PatternFill, Side,
 )
@@ -46,6 +49,28 @@ _THIN_BORDER_SIDE = Side(style="thin", color="D9D9D9")
 _THIN_BORDER = Border(
     bottom=_THIN_BORDER_SIDE,
 )
+
+
+def _fetch_logo_image(url: str | None) -> io.BytesIO | None:
+    """
+    Fetch the tenant's logo image and return it as an in-memory buffer for
+    openpyxl. Returns None on any failure — logos are decorative and must
+    never break report generation.
+
+    The Node API runs in the same Docker network as the reports service,
+    so URLs like ``http://vairiot_api:3001/api/v1/public/tenants/:id/logo``
+    resolve without hitting the public internet.
+    """
+    if not url:
+        return None
+    try:
+        with urllib.request.urlopen(url, timeout=3) as resp:  # noqa: S310
+            data = resp.read()
+        if not data:
+            return None
+        return io.BytesIO(data)
+    except Exception:  # noqa: BLE001
+        return None
 
 
 # ── Fonts ─────────────────────────────────────────────────────────────────────
@@ -155,6 +180,24 @@ def generate_xlsx(report_def: ReportDef, req: ReportRequest) -> io.BytesIO:
     brand_cell.font = _FONT_HEADER_BRAND
     brand_cell.fill = _VIOLET_FILL
     brand_cell.alignment = Alignment(horizontal="left", vertical="center")
+
+    # If the tenant has uploaded a logo, embed it left-aligned on the header
+    # band. Logo failures MUST NOT break report generation — swallow every
+    # error so a broken logo never poisons an entire export.
+    tenant_logo = _fetch_logo_image(req.company.logo_url) if req.company.logo_url else None
+    if tenant_logo is not None:
+        brand_cell.value = None  # image takes the space; keep VAIRIOT off the plate
+        try:
+            img = XLImage(tenant_logo)
+            # ~28pt header row is ~37px tall. Cap logo height, keep aspect.
+            max_h = 36
+            if img.height and img.height > max_h:
+                ratio = max_h / img.height
+                img.height = max_h
+                img.width = int((img.width or max_h) * ratio)
+            ws.add_image(img, f"A{current_row}")
+        except Exception:  # noqa: BLE001 — logo is decorative, never fatal
+            brand_cell.value = "VAIRIOT"
 
     # Report title on right side
     title_start = max(2, num_cols // 2 + 1)

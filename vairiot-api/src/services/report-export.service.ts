@@ -17,6 +17,11 @@ interface ExportOpts {
 async function getCompanyInfo(tenantId: string) {
   const company = await prisma.company.findUnique({ where: { tenantId } });
   if (!company) return {};
+  // Reports service reaches the logo via the public endpoint — no auth required.
+  // Report service resolves this against its own network to the api container.
+  const logoUrl = company.logoStorageKey
+    ? `${process.env.API_INTERNAL_URL || 'http://vairiot_api:3001'}/api/v1/public/tenants/${tenantId}/logo`
+    : null;
   return {
     legal_name: company.legalName ?? '',
     trading_name: company.tradingName ?? '',
@@ -30,6 +35,7 @@ async function getCompanyInfo(tenantId: string) {
     primary_contact_name: company.primaryContactName ?? '',
     primary_contact_email: company.primaryContactEmail ?? '',
     primary_contact_phone: company.primaryContactPhone ?? '',
+    logo_url: logoUrl,
   };
 }
 

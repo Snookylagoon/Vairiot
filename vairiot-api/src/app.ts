@@ -27,6 +27,7 @@ import { licencesRouter }    from './routes/licences/licences.router';
 import { onboardingRouter } from './routes/onboarding/onboarding.router';
 import { twoFactorRouter } from './routes/two-factor/two-factor.router';
 import { platformRouter } from './routes/admin/platform.router';
+import { subTenantsRouter } from './routes/sub-tenants/sub-tenants.router';
 import { mobileRouter } from './routes/mobile/mobile.router';
 import { mobileReleasesRouter } from './routes/admin/mobile-releases.router';
 import { globalLimiter } from './middleware/rate-limit';
@@ -106,6 +107,7 @@ export function createApp(): Application {
   gated.use('/webhooks',     webhooksRouter);
   gated.use('/custom-fields', customFieldsRouter);
   gated.use('/licences',     licencesRouter);
+  gated.use('/company/sub-tenants', subTenantsRouter);
   gated.use('/admin/platform', platformRouter);
   gated.use('/admin/mobile-releases', mobileReleasesRouter);
 

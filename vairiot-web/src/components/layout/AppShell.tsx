@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown, Building2, type LucideIcon } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
 import { useCurrencyStore, CURRENCIES } from '@/stores/currency.store';
@@ -47,6 +47,7 @@ const nav: readonly NavEntry[] = [
     heading: 'Administration',
     items: [
       { to: '/admin/users',         label: 'Users',         icon: Users,    require: ['user:read', 'user:write'] },
+      { to: '/admin/sub-tenants',   label: 'Sub Tenants',   icon: Building2, require: ['company:manage'] },
       { to: '/admin/api-keys',      label: 'API Keys',      icon: KeyRound, require: ['apikey:read', 'apikey:write'] },
       { to: '/admin/webhooks',      label: 'Webhooks',      icon: Webhook,  require: ['apikey:write'] },
       { to: '/admin/custom-fields', label: 'Custom Fields', icon: Settings2 },
