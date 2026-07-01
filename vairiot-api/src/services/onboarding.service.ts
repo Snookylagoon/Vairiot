@@ -225,9 +225,12 @@ export async function completeOnboarding(
     throw new AppError(400, 'Licence activation step is not complete', 'STEP_INCOMPLETE');
   }
 
+  // Finalising also activates the tenant. Admin-created tenants start inactive
+  // (adminCreateTenant sets active: false) so nobody signs into a workspace
+  // that hasn't finished its own setup yet.
   await prisma.tenant.update({
     where: { id: tenantId },
-    data: { onboardingComplete: true },
+    data: { onboardingComplete: true, active: true },
   });
 
   await auditOnboarding(tenantId, actorId, 'onboarding_completed');
