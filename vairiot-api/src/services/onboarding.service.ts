@@ -42,6 +42,22 @@ export async function getOnboardingProgress(tenantId: string): Promise<Onboardin
   const nextStep = REQUIRED_STEPS.find((s) => !steps[s]) ?? null;
   const complete = REQUIRED_STEPS.every((s) => steps[s]);
 
+  // Self-heal: if every required step is ticked but the tenant record hasn't
+  // been finalised yet, flip it here. Prevents the "Onboarding Complete"
+  // wizard card from ever contradicting the tenant record.
+  if (complete) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { onboardingComplete: true, active: true },
+    });
+    if (tenant && (!tenant.onboardingComplete || !tenant.active)) {
+      await prisma.tenant.update({
+        where: { id: tenantId },
+        data: { onboardingComplete: true, active: true },
+      });
+    }
+  }
+
   return { complete, steps, nextStep };
 }
 
