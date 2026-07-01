@@ -38,7 +38,7 @@ const EMPTY: FormState = {
   legalName: '', tradingName: '', registrationNumber: '',
   addressLine1: '', addressLine2: '', city: '', stateProvince: '', postalCode: '', country: '',
   primaryContactName: '', primaryContactEmail: '', primaryContactPhone: '',
-  currency: 'USD',
+  currency: 'AED',
 };
 
 export function NewSubTenantPage() {
@@ -203,9 +203,8 @@ export function NewSubTenantPage() {
             </div>
             <Input label="Address Line 1"        value={form.addressLine1}       onChange={set('addressLine1')}       placeholder="123 Main St" />
             <Input label="Address Line 2"        value={form.addressLine2}       onChange={set('addressLine2')}       placeholder="Suite 4B" />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="City"                value={form.city}               onChange={set('city')}               placeholder="Wellington" />
-              <Input label="State / Province"    value={form.stateProvince}      onChange={set('stateProvince')}      placeholder="Wellington" />
               <Input label="Postal Code"         value={form.postalCode}         onChange={set('postalCode')}         placeholder="6011" />
             </div>
             <CountrySelect label="Country" value={form.country} onChange={setCountry} placeholder="Select country" />
