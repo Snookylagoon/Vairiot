@@ -66,9 +66,9 @@ platformRouter.get('/stats', async (_req: Request, res: Response) => {
 // ─── Tenants ────────────────────────────────────────────────────────────────
 
 platformRouter.post('/tenants', async (req: Request, res: Response) => {
-  const { organisationName, adminName, adminEmail, adminMode, adminPassword } = req.body ?? {};
+  const { organisationName, loginId, adminName, adminEmail, adminMode, adminPassword } = req.body ?? {};
   const result = await adminCreateTenant(
-    { organisationName, adminName, adminEmail, adminMode, adminPassword },
+    { organisationName, loginId, adminName, adminEmail, adminMode, adminPassword },
     req.user!.sub,
   );
   res.status(201).json(result);

@@ -31,6 +31,7 @@ export function useTenantDetail(id: string) {
 
 export interface CreateTenantInput {
   organisationName: string;
+  loginId?: string;
   adminName: string;
   adminEmail: string;
   adminMode: 'invite' | 'password';

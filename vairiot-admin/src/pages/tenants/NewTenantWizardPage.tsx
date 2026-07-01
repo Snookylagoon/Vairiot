@@ -22,19 +22,54 @@ const STEPS = [
 const PASSWORD_HINT =
   'Exactly 12 characters — letters (A–Z, a–z) and numbers (0–9) only. No spaces or symbols.';
 
+/**
+ * Turn an organisation name into a suggested Login ID.
+ * "Vairiot Demo Co." → "vairiot-demo-co"
+ */
+function slugify(source: string): string {
+  return source
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32);
+}
+
 export function NewTenantWizardPage() {
   const navigate = useNavigate();
   const create = useCreateTenant();
 
   const [form, setForm] = useState({
     organisationName: '',
+    loginId: '',
     adminName: '',
     adminEmail: '',
     adminMode: 'invite' as 'invite' | 'password',
     adminPassword: '',
   });
+  // Tracks whether the user has manually typed into Login ID. Until they do,
+  // it auto-follows the organisation name (slugified). Once they edit it, we
+  // stop auto-updating so we don't clobber their choice.
+  const [loginIdTouched, setLoginIdTouched] = useState(false);
+
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const setOrganisationName = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    setForm(f => ({
+      ...f,
+      organisationName: v,
+      loginId: loginIdTouched ? f.loginId : slugify(v),
+    }));
+  };
+
+  const setLoginId = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLoginIdTouched(true);
+    // Force lowercase + safe chars while typing so it always matches server rules.
+    const cleaned = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    setForm(f => ({ ...f, loginId: cleaned }));
+  };
 
   const [result, setResult] = useState<CreateTenantResult | null>(null);
 
@@ -44,8 +79,19 @@ export function NewTenantWizardPage() {
     return null;
   };
 
+  const validateLoginId = (id: string): string | null => {
+    if (id.length < 3 || id.length > 32) return 'Login ID must be 3–32 characters';
+    if (!/^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/.test(id)) {
+      return 'Login ID must be lowercase letters, numbers, and hyphens (starting and ending with a letter or number)';
+    }
+    return null;
+  };
+
   const submit = async () => {
     if (!form.organisationName.trim()) { toast.error('Organisation name is required'); return; }
+    if (!form.loginId.trim())          { toast.error('Login ID is required');           return; }
+    const idErr = validateLoginId(form.loginId.trim());
+    if (idErr)                          { toast.error(idErr); return; }
     if (!form.adminName.trim())        { toast.error('Admin user name is required');   return; }
     if (!form.adminEmail.trim())       { toast.error('Admin email is required');       return; }
     if (form.adminMode === 'password') {
@@ -54,6 +100,7 @@ export function NewTenantWizardPage() {
     }
     const res = await create.mutateAsync({
       organisationName: form.organisationName.trim(),
+      loginId:          form.loginId.trim(),
       adminName:        form.adminName.trim(),
       adminEmail:       form.adminEmail.trim(),
       adminMode:        form.adminMode,
@@ -97,8 +144,16 @@ export function NewTenantWizardPage() {
               <Input
                 label="Organisation Name"
                 value={form.organisationName}
-                onChange={set('organisationName')}
+                onChange={setOrganisationName}
                 placeholder="Acme Ltd"
+              />
+
+              <Input
+                label="Login ID"
+                value={form.loginId}
+                onChange={setLoginId}
+                placeholder="acme-ltd"
+                hint="What a user types into the Organisation field on the sign-in page. Lowercase letters, numbers, and hyphens only. Defaults to a short version of the organisation name — edit if you prefer something else."
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

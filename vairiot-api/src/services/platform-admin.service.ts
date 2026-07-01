@@ -425,10 +425,22 @@ export async function softDeleteUser(userId: string, actorId: string) {
 
 export interface AdminCreateTenantInput {
   organisationName: string;
+  loginId?: string;
   adminName: string;
   adminEmail: string;
   adminMode: 'invite' | 'password';
   adminPassword?: string;
+}
+
+const LOGIN_ID_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/;
+
+export function slugifyLoginId(source: string): string {
+  return source
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32);
 }
 
 export interface AdminCreateTenantResult {
@@ -460,6 +472,19 @@ export async function adminCreateTenant(
   const tenantName = input.organisationName.trim();
   const email      = input.adminEmail.toLowerCase().trim();
 
+  // Resolve the tenant Login ID. If the admin didn't type one, derive it from
+  // the organisation name. Then validate + check uniqueness.
+  const rawLoginId = (input.loginId?.trim() || slugifyLoginId(tenantName)).toLowerCase();
+  if (!rawLoginId) throw new ValidationError('Login ID could not be derived from the organisation name — please enter one');
+  if (rawLoginId.length < 3 || rawLoginId.length > 32) {
+    throw new ValidationError('Login ID must be between 3 and 32 characters');
+  }
+  if (!LOGIN_ID_RE.test(rawLoginId)) {
+    throw new ValidationError('Login ID must contain only lowercase letters, numbers, and hyphens (must start and end with a letter or number)');
+  }
+  const existingById = await prisma.tenant.findUnique({ where: { id: rawLoginId }, select: { id: true } });
+  if (existingById) throw new ConflictError('That Login ID is already in use — pick another');
+
   const existingTenant = await prisma.tenant.findUnique({ where: { name: tenantName } });
   if (existingTenant) throw new ConflictError('An organisation with this name already exists');
 
@@ -478,7 +503,7 @@ export async function adminCreateTenant(
 
   const { user, tenant } = await prisma.$transaction(async (tx) => {
     const t = await tx.tenant.create({
-      data: { name: tenantName, onboardingComplete: false, active: false },
+      data: { id: rawLoginId, name: tenantName, onboardingComplete: false, active: false },
     });
 
     const roleDefs = ROLE_PERMISSION_MATRIX.filter((r) => r.isSystem);

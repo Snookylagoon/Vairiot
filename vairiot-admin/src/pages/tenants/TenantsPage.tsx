@@ -30,13 +30,13 @@ export function TenantsPage() {
   const copyId = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     await navigator.clipboard.writeText(id);
-    toast.success('Tenant ID copied');
+    toast.success('Login ID copied');
   };
 
   const columns: DataTableColumn<TenantRow>[] = [
     { key: 'name', label: 'Name', render: t => <span className="font-medium text-v-charcoal">{t.name}</span> },
     {
-      key: 'id', label: 'ID', sortable: false,
+      key: 'id', label: 'Login ID', sortable: false,
       render: t => (
         <button
           type="button"
