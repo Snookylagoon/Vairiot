@@ -2,8 +2,10 @@ package com.vairiot.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,7 +25,10 @@ import com.vairiot.app.ui.components.ClearableTextField
 import com.vairiot.app.ui.theme.*
 
 @Composable
-fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
+fun AssetScanScreen(
+    onStartSession: () -> Unit = {},
+    viewModel: AssetScanViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsState()
     val health by viewModel.scannerHealth.collectAsState()
     val showCamera by viewModel.showCameraFallback.collectAsState()
@@ -67,8 +72,12 @@ fun AssetScanScreen(viewModel: AssetScanViewModel = hiltViewModel()) {
             }
         }
 
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp),
+        Column(modifier = Modifier.fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+            DiscoverSessionCard(onStart = onStartSession)
 
             // Scanner health warning banner
             if (health == ScannerHealth.UNAVAILABLE) {
@@ -454,5 +463,39 @@ fun DetailRow(label: String, value: String) {
         Text(label, style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
         Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun DiscoverSessionCard(onStart: () -> Unit) {
+    Surface(
+        onClick = onStart,
+        modifier = Modifier.fillMaxWidth(),
+        color = VairiotWash,
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Row(modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(44.dp).clip(CircleShape)
+                    .background(Brush.horizontalGradient(listOf(VairiotPink, VairiotViolet))),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.Explore, contentDescription = null,
+                    tint = White, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Discover assets",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = VairiotCharcoal)
+                Text("Sweep RFID to classify Known / New / Missing tags",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = VairiotCharcoal.copy(alpha = 0.7f))
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null,
+                tint = VairiotCharcoal.copy(alpha = 0.5f))
+        }
     }
 }

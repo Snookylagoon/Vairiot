@@ -217,6 +217,35 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("audit/{campaignId}/run")      { AuditRunScreen(onBack    = { rootNav.popBackStack() }) }
+                    composable("scan-session/setup")          {
+                        ScanSessionSetupScreen(
+                            onBack  = { rootNav.popBackStack() },
+                            onStart = { sessionId ->
+                                rootNav.navigate("scan-session/$sessionId") {
+                                    popUpTo("scan-session/setup") { inclusive = true }
+                                }
+                            },
+                        )
+                    }
+                    composable("scan-session/{sessionId}")    {
+                        val sessionId = it.arguments?.getString("sessionId").orEmpty()
+                        ScanSessionScreen(
+                            onBack     = { rootNav.popBackStack() },
+                            onComplete = { finishedId ->
+                                rootNav.navigate("scan-session/$finishedId/complete") {
+                                    popUpTo("scan-session/$sessionId") { inclusive = true }
+                                }
+                            },
+                            onAssetClick = { assetId -> rootNav.navigate("asset/$assetId") },
+                        )
+                    }
+                    composable("scan-session/{sessionId}/complete") {
+                        ScanSessionCompleteScreen(
+                            onDone = {
+                                rootNav.navigate("home") { popUpTo("home") { inclusive = false } }
+                            },
+                        )
+                    }
                     composable("maintenance/{eventId}")       { MaintenanceDetailScreen(onBack = { rootNav.popBackStack() }) }
                 }
                 } // MandatoryUpdateGate
@@ -282,7 +311,11 @@ private fun HomeScaffold(rootNav: androidx.navigation.NavHostController) {
 
     val tabContent: @Composable (Modifier) -> Unit = { modifier ->
         NavHost(navController = tabNav, startDestination = "scan", modifier = modifier) {
-            composable("scan")   { AssetScanScreen() }
+            composable("scan")   {
+                AssetScanScreen(
+                    onStartSession = { rootNav.navigate("scan-session/setup") },
+                )
+            }
             composable("assets") {
                 AssetListScreen(onAssetClick = { id -> rootNav.navigate("asset/$id") })
             }

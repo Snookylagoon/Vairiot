@@ -257,6 +257,30 @@ data class MaintenanceUpdateRequest(
     val completedDate: String? = null,
 )
 
+// ─── Scan sessions ────────────────────────────────────────────────────────
+data class ScanSessionTagDto(
+    val epc:            String,
+    val status:         String,
+    val readCount:      Int,
+    val firstSeenMs:    Long,
+    val lastSeenMs:     Long,
+    val assetId:        String? = null,
+)
+
+data class ScanSessionUploadRequest(
+    val sessionId:      String,
+    val siteId:         String? = null,
+    val categoryId:     String? = null,
+    val createdAtMs:    Long,
+    val completedAtMs:  Long,
+    val tags:           List<ScanSessionTagDto>,
+)
+
+data class ScanSessionUploadResponse(
+    val id:         String,
+    val uploadedAt: String,
+)
+
 // ─── Company ──────────────────────────────────────────────────────────────
 data class CompanyResponse(
     val id:                  String,
