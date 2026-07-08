@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -30,6 +31,7 @@ export function MobileReleasesPage() {
   const [releaseNotes, setReleaseNotes] = useState('');
   const [mandatory, setMandatory] = useState(false);
   const [setCurrent, setSetCurrent] = useState(true);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const resetForm = () => {
     setApk(null); setVersionCode(''); setVersionName('');
@@ -57,75 +59,6 @@ export function MobileReleasesPage() {
           Devices poll <code>/api/v1/mobile/version</code> every 6h — only the 3 most recent releases are kept
         </span>
       </div>
-
-      <Card>
-        <div className="p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-v-charcoal">Upload new release</h2>
-
-          <div>
-            <label className="text-xs font-medium text-gray-600">APK file</label>
-            <input
-              type="file"
-              accept=".apk,application/vnd.android.package-archive"
-              onChange={(e) => setApk(e.target.files?.[0] ?? null)}
-              className="block mt-1 w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-v-violet file:text-white hover:file:bg-v-violet/90"
-            />
-            {apk && (
-              <p className="mt-1 text-xs text-gray-500">
-                {apk.name} — {formatBytes(apk.size)}
-              </p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Version code (integer, must be > previous)"
-              type="number" min={1}
-              value={versionCode}
-              onChange={(e) => setVersionCode(e.target.value)}
-              placeholder="2"
-            />
-            <Input
-              label="Version name (display string)"
-              value={versionName}
-              onChange={(e) => setVersionName(e.target.value)}
-              placeholder="1.1.0"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-gray-600">Release notes (optional)</label>
-            <textarea
-              value={releaseNotes}
-              onChange={(e) => setReleaseNotes(e.target.value)}
-              rows={3}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-v-violet focus:outline-none focus:ring-1 focus:ring-v-violet"
-              placeholder="Bug fixes and improvements"
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-4 text-sm text-v-charcoal">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={setCurrent} onChange={(e) => setSetCurrent(e.target.checked)} />
-              Set as current (devices will start picking this up immediately)
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={mandatory} onChange={(e) => setMandatory(e.target.checked)} />
-              Mandatory (block app usage until installed)
-            </label>
-          </div>
-
-          <div className="pt-2">
-            <Button
-              onClick={handleUpload}
-              loading={upload.isPending}
-              disabled={!apk || !versionCode || !versionName.trim()}
-            >
-              Upload release
-            </Button>
-          </div>
-        </div>
-      </Card>
 
       <Card>
         <div className="p-6 space-y-4">
@@ -195,6 +128,86 @@ export function MobileReleasesPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <div className="p-6">
+          <button
+            type="button"
+            onClick={() => setUploadOpen((o) => !o)}
+            className="flex items-center gap-2 w-full text-left"
+          >
+            {uploadOpen ? <ChevronDown size={18} className="text-gray-400" /> : <ChevronRight size={18} className="text-gray-400" />}
+            <h2 className="text-lg font-semibold text-v-charcoal">Upload new release</h2>
+          </button>
+
+          {uploadOpen && (
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-gray-600">APK file</label>
+                <input
+                  type="file"
+                  accept=".apk,application/vnd.android.package-archive"
+                  onChange={(e) => setApk(e.target.files?.[0] ?? null)}
+                  className="block mt-1 w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-v-violet file:text-white hover:file:bg-v-violet/90"
+                />
+                {apk && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {apk.name} — {formatBytes(apk.size)}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Version code (integer, must be > previous)"
+                  type="number" min={1}
+                  value={versionCode}
+                  onChange={(e) => setVersionCode(e.target.value)}
+                  placeholder="2"
+                />
+                <Input
+                  label="Version name (display string)"
+                  value={versionName}
+                  onChange={(e) => setVersionName(e.target.value)}
+                  placeholder="1.1.0"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-600">Release notes (optional)</label>
+                <textarea
+                  value={releaseNotes}
+                  onChange={(e) => setReleaseNotes(e.target.value)}
+                  rows={3}
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-v-violet focus:outline-none focus:ring-1 focus:ring-v-violet"
+                  placeholder="Bug fixes and improvements"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-4 text-sm text-v-charcoal">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={setCurrent} onChange={(e) => setSetCurrent(e.target.checked)} />
+                  Set as current (devices will start picking this up immediately)
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={mandatory} onChange={(e) => setMandatory(e.target.checked)} />
+                  Mandatory (block app usage until installed)
+                </label>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  onClick={handleUpload}
+                  loading={upload.isPending}
+                  disabled={!apk || !versionCode || !versionName.trim()}
+                >
+                  Upload release
+                </Button>
+              </div>
             </div>
           )}
         </div>
