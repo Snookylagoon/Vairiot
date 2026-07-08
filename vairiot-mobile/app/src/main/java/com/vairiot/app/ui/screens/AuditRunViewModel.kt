@@ -67,22 +67,37 @@ class AuditRunViewModel @Inject constructor(
 
     private fun loadCampaign() {
         viewModelScope.launch {
-            try {
-                val campaign = api.getAuditReport(campaignId) as? AuditCampaignResponse
-                    ?: return@launch
-                val isBlind = campaign.mode == "blind"
-                _state.value = _state.value.copy(campaign = campaign, isBlind = isBlind)
+            val campaign = ensureStarted() ?: return@launch
+            val isBlind = campaign.mode == "blind"
+            _state.value = _state.value.copy(campaign = campaign, isBlind = isBlind)
 
-                if (isBlind && campaign.siteId != null) {
+            if (isBlind && campaign.siteId != null) {
+                try {
                     val locations = api.listSiteLocations(campaign.siteId)
                     val zones = api.listAuditZones(campaignId)
                     _state.value = _state.value.copy(
                         locations = locations.map { it.id to it.name },
                         zoneSubmissions = zones,
                     )
+                } catch (_: Exception) {
+                    // Zones/locations will be retried on next scan attempt
                 }
+            }
+        }
+    }
+
+    // Campaigns are created in 'draft' status; the server only accepts scans and
+    // completion once a campaign is 'in_progress'. If it's already in progress
+    // (e.g. resuming a partially-scanned audit), starting it conflicts, so fall
+    // back to fetching its current state instead.
+    private suspend fun ensureStarted(): AuditCampaignResponse? {
+        return try {
+            api.startAudit(campaignId)
+        } catch (_: Exception) {
+            try {
+                api.listAudits().firstOrNull { it.id == campaignId }
             } catch (_: Exception) {
-                // Campaign details will be loaded from the list screen context
+                null
             }
         }
     }

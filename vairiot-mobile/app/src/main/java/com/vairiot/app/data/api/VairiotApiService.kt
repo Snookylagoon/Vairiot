@@ -101,9 +101,6 @@ interface VairiotApiService {
     @POST("api/v1/audits/{id}/complete")
     suspend fun completeAudit(@Path("id") id: String): AuditReportResponse
 
-    @GET("api/v1/audits/{id}/report")
-    suspend fun getAuditReport(@Path("id") id: String): AuditReportResponse
-
     // ─── Scan sessions ─────────────────────────────────────────────────────
     // NOTE: backend implementation is a follow-up; failures here are treated
     // as offline-queueable by ScanSessionRepository.uploadSession().
