@@ -120,15 +120,14 @@ class UpdateChecker @Inject constructor(
         val result = installViaSession(apk)
 
         if (result == PackageInstaller.STATUS_FAILURE_CONFLICT) {
-            Log.w(TAG, "signing conflict detected — uninstalling old package and retrying")
-            val uninstalled = uninstallPackage()
-            if (uninstalled) {
-                val retryResult = installViaSession(apk)
-                retryResult == PackageInstaller.STATUS_SUCCESS
-            } else {
-                Log.e(TAG, "uninstall failed — cannot resolve signing conflict")
-                false
-            }
+            // Do NOT try to self-uninstall and retry here: uninstalling this app kills
+            // its own running process (and wipes the cache dir holding the downloaded
+            // APK) before a retry install could ever run, leaving the device with
+            // nothing installed at all. A signing-key mismatch (e.g. a leftover
+            // debug-signed install) can only be resolved by a manual reinstall of a
+            // release-signed build — fail safely and leave the current app in place.
+            Log.e(TAG, "signing conflict — device needs a manual reinstall of a release-signed build")
+            false
         } else {
             result == PackageInstaller.STATUS_SUCCESS
         }
@@ -198,60 +197,6 @@ class UpdateChecker @Inject constructor(
                     try { context.unregisterReceiver(receiver) } catch (_: Exception) {}
                     try { installer.abandonSession(sessionId) } catch (_: Exception) {}
                 }
-            }
-        }
-    }
-
-    private suspend fun uninstallPackage(): Boolean = withContext(Dispatchers.IO) {
-        suspendCancellableCoroutine { cont ->
-            val receiver = object : BroadcastReceiver() {
-                override fun onReceive(ctx: Context, intent: Intent) {
-                    val status = intent.getIntExtra(
-                        PackageInstaller.EXTRA_STATUS,
-                        PackageInstaller.STATUS_FAILURE
-                    )
-                    val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
-                    Log.i(TAG, "uninstall status=$status msg=$msg")
-
-                    if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-                        val confirmIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
-                        } else {
-                            @Suppress("DEPRECATION")
-                            intent.getParcelableExtra(Intent.EXTRA_INTENT)
-                        }
-                        confirmIntent?.let {
-                            it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(it)
-                        }
-                        return
-                    }
-                    context.unregisterReceiver(this)
-                    if (cont.isActive) cont.resume(status == PackageInstaller.STATUS_SUCCESS)
-                }
-            }
-
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            } else {
-                PendingIntent.FLAG_UPDATE_CURRENT
-            }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(receiver, IntentFilter(ACTION_INSTALL_STATUS), Context.RECEIVER_EXPORTED)
-            } else {
-                context.registerReceiver(receiver, IntentFilter(ACTION_INSTALL_STATUS))
-            }
-
-            val pendingIntent = PendingIntent.getBroadcast(
-                context, 0, Intent(ACTION_INSTALL_STATUS), flags
-            )
-            context.packageManager.packageInstaller.uninstall(
-                context.packageName, pendingIntent.intentSender
-            )
-
-            cont.invokeOnCancellation {
-                try { context.unregisterReceiver(receiver) } catch (_: Exception) {}
             }
         }
     }
