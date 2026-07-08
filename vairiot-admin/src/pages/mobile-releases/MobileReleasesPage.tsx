@@ -8,6 +8,7 @@ import {
   useUploadMobileRelease,
   usePatchMobileRelease,
   useDeleteMobileRelease,
+  downloadMobileRelease,
 } from '@/hooks/useMobileReleases';
 
 function formatBytes(n: number) {
@@ -52,7 +53,7 @@ export function MobileReleasesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-h1 text-v-charcoal">Mobile Releases</h1>
         <span className="text-sm text-gray-500">
-          Devices poll <code>/api/v1/mobile/version</code> every 6h
+          Devices poll <code>/api/v1/mobile/version</code> every 6h — only the 3 most recent releases are kept
         </span>
       </div>
 
@@ -164,6 +165,10 @@ export function MobileReleasesPage() {
                       </td>
                       <td className="py-3 pr-3 text-right">
                         <div className="inline-flex gap-2">
+                          <Button size="sm" variant="ghost"
+                            onClick={() => downloadMobileRelease(r)}>
+                            Download
+                          </Button>
                           {!r.isCurrent && (
                             <Button size="sm" variant="ghost"
                               onClick={() => patch.mutate({ id: r.id, isCurrent: true })}>

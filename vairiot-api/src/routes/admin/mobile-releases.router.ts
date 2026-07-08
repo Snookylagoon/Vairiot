@@ -5,6 +5,7 @@ import { requireRole } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { prisma } from '../../lib/prisma';
 import { minioClient, MOBILE_RELEASES_BUCKET } from '../../lib/minio';
+import { pruneOldMobileReleases } from '../../lib/mobileReleaseRetention';
 
 export const mobileReleasesRouter = Router();
 
@@ -91,9 +92,24 @@ mobileReleasesRouter.post('/', apkUpload.single('apk'),
       });
     });
 
+    await pruneOldMobileReleases();
+
     res.status(201).json(release);
   }),
 );
+
+mobileReleasesRouter.get('/:id/download', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const release = await prisma.mobileRelease.findUnique({ where: { id: req.params.id } });
+  if (!release) { res.status(404).json({ error: 'Release not found' }); return; }
+  const stream = await minioClient.getObject(MOBILE_RELEASES_BUCKET, release.storageKey);
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.setHeader('Content-Disposition', `attachment; filename="vairiot-${release.versionName}.apk"`);
+  res.setHeader('Content-Length', String(release.sizeBytes));
+  res.setHeader('X-Vairiot-SHA256', release.sha256);
+  res.setHeader('X-Vairiot-VersionCode', String(release.versionCode));
+  res.setHeader('X-Vairiot-VersionName', release.versionName);
+  stream.pipe(res);
+}));
 
 mobileReleasesRouter.patch('/:id', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { isCurrent, mandatory, releaseNotes } = req.body ?? {};

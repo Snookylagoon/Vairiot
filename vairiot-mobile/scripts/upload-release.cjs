@@ -5,6 +5,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { minioClient, MOBILE_RELEASES_BUCKET } = require('/app/vairiot-api/dist/lib/minio.js');
 const { prisma } = require('/app/vairiot-api/dist/lib/prisma.js');
+const { pruneOldMobileReleases } = require('/app/vairiot-api/dist/lib/mobileReleaseRetention.js');
 
 (async () => {
   const [apkPath, versionCodeRaw, versionName, releaseNotes, mandatoryRaw] = process.argv.slice(2);
@@ -37,6 +38,8 @@ const { prisma } = require('/app/vairiot-api/dist/lib/prisma.js');
       },
     });
   });
+
+  await pruneOldMobileReleases();
 
   console.log(JSON.stringify({ ok: true, id: release.id, versionCode, versionName, mandatory, sha256, sizeBytes: buffer.length, storageKey }, null, 2));
   await prisma.$disconnect();

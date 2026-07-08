@@ -69,6 +69,19 @@ export function usePatchMobileRelease() {
   });
 }
 
+export function downloadMobileRelease(release: MobileRelease) {
+  return api.get(`/api/v1/admin/mobile-releases/${release.id}/download`, {
+    responseType: 'blob',
+  }).then(r => {
+    const url = URL.createObjectURL(r.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vairiot-${release.versionName}.apk`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
 export function useDeleteMobileRelease() {
   return useMutationWithToast<{ message: string }, string>({
     mutationFn: (id) => api.delete(`/api/v1/admin/mobile-releases/${id}`).then(r => r.data),
