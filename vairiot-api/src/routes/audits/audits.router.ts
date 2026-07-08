@@ -95,29 +95,31 @@ auditsRouter.get('/:id/zones',
 
 auditsRouter.post('/:id/complete', requireAnyPermission('audit:write'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const summary = await completeCampaign(req.user!.tenantId, req.params.id);
-    void (async () => {
-      try {
-        const rows = await getCampaignReportRows(req.user!.tenantId, req.params.id);
-        await enqueueAuditComplete({
-          tenantId:       req.user!.tenantId,
-          campaignId:     rows.campaign.id,
-          campaignName:   rows.campaign.name,
-          recipientEmail: req.user!.email,
-          summary: {
-            totalExpected: summary.totalExpected,
-            totalScanned:  summary.totalScanned,
-            found:         summary.found,
-            missingCount:  summary.missing.length,
-            unknownCount:  summary.unknownTags.length,
-          },
-          csv:         buildReportCsv(rows),
-          completedAt: new Date().toISOString(),
-        });
-      } catch (e) {
-        logger.error(`Failed to enqueue audit-complete notification: ${(e as Error).message}`);
-      }
-    })();
+    const { justCompleted, ...summary } = await completeCampaign(req.user!.tenantId, req.params.id);
+    if (justCompleted) {
+      void (async () => {
+        try {
+          const rows = await getCampaignReportRows(req.user!.tenantId, req.params.id);
+          await enqueueAuditComplete({
+            tenantId:       req.user!.tenantId,
+            campaignId:     rows.campaign.id,
+            campaignName:   rows.campaign.name,
+            recipientEmail: req.user!.email,
+            summary: {
+              totalExpected: summary.totalExpected,
+              totalScanned:  summary.totalScanned,
+              found:         summary.found,
+              missingCount:  summary.missing.length,
+              unknownCount:  summary.unknownTags.length,
+            },
+            csv:         buildReportCsv(rows),
+            completedAt: new Date().toISOString(),
+          });
+        } catch (e) {
+          logger.error(`Failed to enqueue audit-complete notification: ${(e as Error).message}`);
+        }
+      })();
+    }
     res.json(summary);
   }),
 );

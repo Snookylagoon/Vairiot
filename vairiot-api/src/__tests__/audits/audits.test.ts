@@ -70,6 +70,11 @@ describe('Audit Campaigns', () => {
     expect(r.body).toHaveProperty('totalScanned');
     expect(r.body.totalScanned).toBe(2);
   });
+  it('re-completing an already-completed campaign is idempotent, not a 409', async () => {
+    const r = await request(app).post(`/api/v1/audits/${campaignId}/complete`).set('Authorization', `Bearer ${token}`);
+    expect(r.status).toBe(200);
+    expect(r.body.totalScanned).toBe(2);
+  });
 });
 
 describe('Check-in / Check-out', () => {

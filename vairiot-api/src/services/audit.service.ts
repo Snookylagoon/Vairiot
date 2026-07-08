@@ -333,9 +333,16 @@ export async function getReconciliation(tenantId: string, campaignId: string) {
 export async function completeCampaign(tenantId: string, id: string) {
   const c = await prisma.auditCampaign.findFirst({ where: { id, tenantId } });
   if (!c) throw new NotFoundError('Campaign not found');
-  if (c.status !== 'in_progress') throw new ConflictError('Campaign is not in progress', 'CAMPAIGN_NOT_ACTIVE');
+  if (c.status !== 'in_progress' && c.status !== 'completed') {
+    throw new ConflictError('Campaign is not in progress', 'CAMPAIGN_NOT_ACTIVE');
+  }
 
-  if (c.mode === CampaignMode.Blind) {
+  // Completing is idempotent: re-completing an already-completed campaign just
+  // returns the same report instead of erroring, so retries (flaky network,
+  // duplicate taps) don't surface a confusing conflict.
+  const wasInProgress = c.status === 'in_progress';
+
+  if (wasInProgress && c.mode === CampaignMode.Blind) {
     const submissions = await prisma.auditZoneSubmission.findMany({ where: { campaignId: id } });
     if (submissions.length === 0) {
       throw new ValidationError('At least one zone must be submitted before completing a blind campaign');
@@ -349,16 +356,19 @@ export async function completeCampaign(tenantId: string, id: string) {
     .map(a => ({ id: a.id, assetNumber: a.assetNumber, name: a.name }));
   const unknown = scans.filter(s => s.result === 'unknown');
 
-  await prisma.auditCampaign.update({
-    where: { id },
-    data: { status: 'completed', completedAt: new Date() },
-  });
+  if (wasInProgress) {
+    await prisma.auditCampaign.update({
+      where: { id },
+      data: { status: 'completed', completedAt: new Date() },
+    });
 
-  if (c.mode === CampaignMode.Blind) {
-    await runReconciliation(id);
+    if (c.mode === CampaignMode.Blind) {
+      await runReconciliation(id);
+    }
   }
 
   return {
+    justCompleted: wasInProgress,
     campaignId: id,
     totalScanned: scans.length,
     totalExpected: expected.length,
