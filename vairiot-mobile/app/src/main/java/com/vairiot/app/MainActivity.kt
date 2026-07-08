@@ -323,12 +323,8 @@ private fun HomeScaffold(rootNav: androidx.navigation.NavHostController) {
                 MaintenanceListScreen(onEventClick = { id -> rootNav.navigate("maintenance/$id") })
             }
             composable("audits") {
-                AuditListScreen(onCampaignClick = { id, status ->
-                    if (status == "in_progress" || status == "draft") {
-                        rootNav.navigate("audit/$id/run")
-                    } else {
-                        rootNav.navigate("audit/$id/run")
-                    }
+                AuditListScreen(onCampaignClick = { id, _ ->
+                    rootNav.navigate("audit/$id/run")
                 })
             }
             composable("profile") {
