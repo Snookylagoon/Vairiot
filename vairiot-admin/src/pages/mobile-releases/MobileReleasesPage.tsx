@@ -8,7 +8,7 @@ import {
   useUploadMobileRelease,
   usePatchMobileRelease,
   useDeleteMobileRelease,
-  downloadMobileRelease,
+  useDownloadMobileRelease,
 } from '@/hooks/useMobileReleases';
 
 function formatBytes(n: number) {
@@ -22,6 +22,7 @@ export function MobileReleasesPage() {
   const upload = useUploadMobileRelease();
   const patch = usePatchMobileRelease();
   const del = useDeleteMobileRelease();
+  const download = useDownloadMobileRelease();
 
   const [apk, setApk] = useState<File | null>(null);
   const [versionCode, setVersionCode] = useState('');
@@ -166,7 +167,8 @@ export function MobileReleasesPage() {
                       <td className="py-3 pr-3 text-right">
                         <div className="inline-flex gap-2">
                           <Button size="sm" variant="ghost"
-                            onClick={() => downloadMobileRelease(r)}>
+                            loading={download.isPending && download.variables?.id === r.id}
+                            onClick={() => download.mutate(r)}>
                             Download
                           </Button>
                           {!r.isCurrent && (

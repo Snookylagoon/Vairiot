@@ -1,4 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useMutationWithToast } from './useMutationWithToast';
 
@@ -69,16 +71,26 @@ export function usePatchMobileRelease() {
   });
 }
 
-export function downloadMobileRelease(release: MobileRelease) {
-  return api.get(`/api/v1/admin/mobile-releases/${release.id}/download`, {
-    responseType: 'blob',
-  }).then(r => {
-    const url = URL.createObjectURL(r.data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `vairiot-${release.versionName}.apk`;
-    a.click();
-    URL.revokeObjectURL(url);
+// A large APK has to be fully buffered client-side before the browser's save
+// dialog appears, which can take a while with no visible progress — track
+// isPending per-mutation (keyed by `variables.id` in the caller) so the
+// button can show a spinner instead of looking like the click did nothing.
+export function useDownloadMobileRelease() {
+  return useMutation<void, AxiosError<{ error?: string }>, MobileRelease>({
+    mutationFn: async (release) => {
+      const res = await api.get(`/api/v1/admin/mobile-releases/${release.id}/download`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `vairiot-${release.versionName}.apk`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.error ?? 'Failed to download release');
+    },
   });
 }
 
