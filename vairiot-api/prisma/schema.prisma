@@ -56,6 +56,7 @@ model Tenant {
   sites              Site[]
   assets             Asset[]
   auditCampaigns     AuditCampaign[]
+  scanSessions       ScanSession[]
   checkouts          Checkout[]
   apiKeys            ApiKey[]
   licences           Licence[]
@@ -518,6 +519,45 @@ model AuditAdjustment {
 
   @@index([campaignId])
   @@map("audit_adjustments")
+}
+
+// ─── RFID Scan Sessions (mobile discover-assets sweeps) ──────────────────────
+// Uploaded once, best-effort, when the operator completes a session on the
+// mobile app. id is the mobile-generated session UUID (not a cuid) so re-POSTs
+// after a network retry upsert instead of erroring or duplicating.
+model ScanSession {
+  id           String   @id
+  tenantId     String
+  siteId       String?
+  categoryId   String?
+  createdBy    String
+  startedAt    DateTime
+  completedAt  DateTime
+  uploadedAt   DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id])
+  tags   ScanSessionTag[]
+
+  @@index([tenantId, completedAt])
+  @@map("scan_sessions")
+}
+
+model ScanSessionTag {
+  id          String   @id @default(cuid())
+  sessionId   String
+  epc         String
+  status      String
+  readCount   Int
+  firstSeenAt DateTime
+  lastSeenAt  DateTime
+  assetId     String?
+
+  session ScanSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, epc])
+  @@index([sessionId])
+  @@map("scan_session_tags")
 }
 
 // ─── Check-in / Check-out ─────────────────────────────────────────────────────

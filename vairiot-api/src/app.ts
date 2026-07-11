@@ -31,6 +31,7 @@ import { subTenantsRouter } from './routes/sub-tenants/sub-tenants.router';
 import { tenantContextRouter } from './routes/sub-tenants/tenant-context.router';
 import { mobileRouter } from './routes/mobile/mobile.router';
 import { mobileReleasesRouter } from './routes/admin/mobile-releases.router';
+import { scanSessionsRouter } from './routes/scan-sessions/scan-sessions.router';
 import { globalLimiter } from './middleware/rate-limit';
 import { errorHandler } from './middleware/error-handler';
 import { requestId } from './middleware/request-id';
@@ -94,6 +95,7 @@ export function createApp(): Application {
   gated.use('/sites',        sitesRouter);
   gated.use('/audits',       auditsRouter);
   gated.use('/checkouts',    checkoutsRouter);
+  gated.use('/scan-sessions', scanSessionsRouter);
   gated.use('/',             photosRouter);       // /assets/:id/photos, /photos/:id/download, /photos/:id
   gated.use('/users',        usersRouter);
   gated.use('/api-keys',     apiKeysRouter);
