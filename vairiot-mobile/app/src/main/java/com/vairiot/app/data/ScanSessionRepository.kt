@@ -289,8 +289,9 @@ class ScanSessionRepository @Inject constructor(
 
     /**
      * Best-effort upload of the session payload. Silently no-ops on network
-     * failure — the session remains on device and can be retried later. The
-     * backend endpoint is a follow-up; a 404 here is expected and harmless.
+     * failure (e.g. no connectivity) — the session remains on device and can
+     * be retried later. The endpoint upserts on sessionId, so a retry after a
+     * timeout is safe.
      */
     suspend fun uploadSession(sessionId: String, nowMs: Long = System.currentTimeMillis()) {
         val session = sessionDao.getById(sessionId) ?: return

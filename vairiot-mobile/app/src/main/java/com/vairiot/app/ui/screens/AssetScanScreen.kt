@@ -22,6 +22,7 @@ import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.scanner.CameraBarcodeScannerScreen
 import com.vairiot.app.scanner.ScannerHealth
 import com.vairiot.app.ui.components.ClearableTextField
+import com.vairiot.app.ui.components.PressableButton
 import com.vairiot.app.ui.theme.*
 
 @Composable
@@ -77,8 +78,6 @@ fun AssetScanScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
-            DiscoverSessionCard(onStart = onStartSession)
-
             // Scanner health warning banner
             if (health == ScannerHealth.UNAVAILABLE) {
                 ScannerUnavailableBanner(
@@ -107,12 +106,11 @@ fun AssetScanScreen(
 
             // Scan trigger buttons
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { viewModel.triggerScan() },
+                PressableButton(
+                    onClick = onStartSession,
                     enabled = viewModel.supportsRfid,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = VairiotPink),
+                    baseColor = VairiotPink,
+                    modifier = Modifier.weight(1f),
                 ) {
                     Icon(Icons.Default.QrCodeScanner, contentDescription = null,
                         modifier = Modifier.size(22.dp))
@@ -120,12 +118,11 @@ fun AssetScanScreen(
                     Text(if (viewModel.supportsRfid) "RFID" else "RFID (n/a)",
                         fontFamily = MontserratFamily, fontWeight = FontWeight.Bold)
                 }
-                Button(
+                PressableButton(
                     onClick = { viewModel.triggerBarcodeScan() },
                     enabled = viewModel.supportsBarcode,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+                    baseColor = VairiotViolet,
+                    modifier = Modifier.weight(1f),
                 ) {
                     Icon(Icons.Default.QrCode2, contentDescription = null,
                         modifier = Modifier.size(22.dp))
@@ -466,36 +463,3 @@ fun DetailRow(label: String, value: String) {
     }
 }
 
-@Composable
-private fun DiscoverSessionCard(onStart: () -> Unit) {
-    Surface(
-        onClick = onStart,
-        modifier = Modifier.fillMaxWidth(),
-        color = VairiotWash,
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        Row(modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier.size(44.dp).clip(CircleShape)
-                    .background(Brush.horizontalGradient(listOf(VairiotPink, VairiotViolet))),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Default.Explore, contentDescription = null,
-                    tint = White, modifier = Modifier.size(22.dp))
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Discover assets",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = VairiotCharcoal)
-                Text("Sweep RFID to classify Known / New / Missing tags",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = VairiotCharcoal.copy(alpha = 0.7f))
-            }
-            Icon(Icons.Default.ChevronRight, contentDescription = null,
-                tint = VairiotCharcoal.copy(alpha = 0.5f))
-        }
-    }
-}

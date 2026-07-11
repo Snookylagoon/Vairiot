@@ -17,8 +17,18 @@ interface ScannerService {
     // bind a camera and the hardware scanner is used instead.
     val supportsCameraScan: Boolean
         get() = true
+    // Whether the RFID reader's TX power can be read/adjusted from the app.
+    val supportsPowerControl: Boolean
+        get() = false
+    // Valid TX power range in dBm, or null if unsupported.
+    val powerRangeDbm: IntRange?
+        get() = null
     fun startScan(type: ScanType = ScanType.RFID_UHF)
     fun stopScan()
+
+    // Current RFID reader TX power in dBm, or null if unknown/unsupported.
+    suspend fun getPowerDbm(): Int? = null
+    suspend fun setPowerDbm(dbm: Int) {}
 
     // Inject a result from an external source (e.g. camera fallback scanner)
     fun injectResult(result: ScanResult) {}

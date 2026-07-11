@@ -102,8 +102,8 @@ interface VairiotApiService {
     suspend fun completeAudit(@Path("id") id: String): AuditReportResponse
 
     // ─── Scan sessions ─────────────────────────────────────────────────────
-    // NOTE: backend implementation is a follow-up; failures here are treated
-    // as offline-queueable by ScanSessionRepository.uploadSession().
+    // Idempotent on sessionId (retries upsert). Failures still treated as
+    // offline-queueable by ScanSessionRepository.uploadSession().
     @POST("api/v1/scan-sessions")
     suspend fun uploadScanSession(
         @Body request: ScanSessionUploadRequest,

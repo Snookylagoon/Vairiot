@@ -1,14 +1,21 @@
 package com.vairiot.app.ui.screens
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DoNotDisturbOn
 import androidx.compose.material.icons.filled.FiberNew
@@ -22,8 +29,10 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +43,7 @@ import com.vairiot.app.domain.model.SessionSnapshot
 import com.vairiot.app.domain.model.SessionTag
 import com.vairiot.app.scanner.ScannerHealth
 import com.vairiot.app.ui.components.ClearableTextField
+import com.vairiot.app.ui.components.PressableButton
 import com.vairiot.app.ui.theme.*
 import java.time.Instant
 import java.time.ZoneId
@@ -56,10 +66,17 @@ fun ScanSessionScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val health by viewModel.scannerHealth.collectAsState()
+    val isScanning by viewModel.isScanning.collectAsState()
+    val liveTagsSeen by viewModel.liveTagsSeen.collectAsState()
+    val powerDbm by viewModel.powerDbm.collectAsState()
     val registerTarget by viewModel.registerTarget.collectAsState()
     val assignTarget by viewModel.assignTarget.collectAsState()
     val assignableAssets by viewModel.assignableAssets.collectAsState()
     var currentTab by rememberSaveable { mutableStateOf(SessionTab.KNOWN) }
+
+    LaunchedEffect(health) {
+        if (health == ScannerHealth.READY) viewModel.refreshPower()
+    }
 
     val snapshot: SessionSnapshot? = when (val s = state) {
         is ScanSessionUiState.Active     -> s.snapshot
@@ -79,6 +96,15 @@ fun ScanSessionScreen(
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            val powerRange = viewModel.powerRangeDbm
+            if (viewModel.supportsPowerControl && powerRange != null) {
+                PowerControlRow(
+                    dbm = powerDbm,
+                    range = powerRange,
+                    onChange = { viewModel.setPower(it) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
             when (val s = state) {
                 is ScanSessionUiState.Loading -> LoadingBody()
                 is ScanSessionUiState.Error   -> ErrorBody(s.message)
@@ -88,6 +114,15 @@ fun ScanSessionScreen(
                         current  = currentTab,
                         onTab    = { currentTab = it },
                     )
+                    if (isScanning) {
+                        ScanningIndicator(
+                            tagsSeen = liveTagsSeen,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         when (currentTab) {
                             SessionTab.KNOWN   -> KnownList(
@@ -491,6 +526,102 @@ private fun EmptyRow(msg: String, icon: ImageVector, tint: Color) {
 }
 
 @Composable
+private fun ScanningIndicator(tagsSeen: Int, modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "rfidSweep")
+    val pulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(1400, easing = LinearEasing)),
+        label = "rfidSweepPulse",
+    )
+
+    Surface(
+        color = VairiotPink.copy(alpha = 0.08f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier,
+    ) {
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                listOf(pulse, (pulse + 0.5f) % 1f).forEach { phase ->
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .graphicsLayer {
+                                val s = 0.3f + phase * 0.7f
+                                scaleX = s
+                                scaleY = s
+                                alpha = (1f - phase).coerceIn(0f, 1f)
+                            }
+                            .clip(CircleShape)
+                            .background(VairiotPink),
+                    )
+                }
+                Box(
+                    modifier = Modifier.size(18.dp).clip(CircleShape).background(VairiotPink),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Default.QrCodeScanner, contentDescription = null,
+                        tint = White, modifier = Modifier.size(12.dp))
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Searching for tags…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = VairiotCharcoal)
+                Text(
+                    if (tagsSeen == 0) "No tags detected yet"
+                    else "$tagsSeen tag${if (tagsSeen == 1) "" else "s"} detected",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (tagsSeen == 0) VairiotCharcoal.copy(alpha = 0.6f) else VairiotPink,
+                    fontWeight = if (tagsSeen == 0) FontWeight.Normal else FontWeight.SemiBold,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PowerControlRow(
+    dbm: Int?,
+    range: IntRange,
+    onChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = VairiotViolet.copy(alpha = 0.06f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier,
+    ) {
+        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Bolt, contentDescription = null,
+                tint = VairiotViolet, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Power", style = MaterialTheme.typography.labelSmall,
+                color = VairiotCharcoal.copy(alpha = 0.7f))
+            Slider(
+                value = (dbm ?: range.last).toFloat(),
+                onValueChange = { onChange(it.toInt()) },
+                valueRange = range.first.toFloat()..range.last.toFloat(),
+                steps = (range.last - range.first - 1).coerceAtLeast(0),
+                enabled = dbm != null,
+                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                colors = SliderDefaults.colors(thumbColor = VairiotViolet, activeTrackColor = VairiotViolet),
+            )
+            Text(
+                if (dbm != null) "$dbm dBm" else "…",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = VairiotCharcoal,
+                modifier = Modifier.widthIn(min = 40.dp),
+            )
+        }
+    }
+}
+
+@Composable
 private fun LoadingBody() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         CircularProgressIndicator()
@@ -522,11 +653,11 @@ private fun SessionBottomBar(
             .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Button(
+            PressableButton(
                 onClick = onScan,
-                modifier = Modifier.weight(1f).height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = VairiotPink),
+                modifier = Modifier.weight(1f),
+                baseColor = VairiotPink,
+                height = 52.dp,
                 enabled = !isCompleting,
             ) {
                 Icon(Icons.Default.QrCodeScanner, contentDescription = null,
@@ -534,19 +665,19 @@ private fun SessionBottomBar(
                 Spacer(Modifier.width(6.dp))
                 Text("Scan", fontFamily = MontserratFamily, fontWeight = FontWeight.Bold)
             }
-            OutlinedButton(
+            PressableButton(
                 onClick = onStop,
-                modifier = Modifier.height(52.dp),
+                height = 52.dp,
                 enabled = !isCompleting,
             ) {
                 Icon(Icons.Default.StopCircle, contentDescription = "Stop",
                     modifier = Modifier.size(20.dp))
             }
-            Button(
+            PressableButton(
                 onClick = onComplete,
-                modifier = Modifier.weight(1f).height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+                modifier = Modifier.weight(1f),
+                baseColor = SuccessGreen,
+                height = 52.dp,
                 enabled = !isCompleting,
             ) {
                 if (isCompleting) {

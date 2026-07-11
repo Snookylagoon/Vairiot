@@ -34,6 +34,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -45,6 +46,9 @@ class NordicIdScannerService @Inject constructor(
 
     private val _scanResults = MutableSharedFlow<ScanResult>(extraBufferCapacity = 64)
     override val scanResults: SharedFlow<ScanResult> = _scanResults
+
+    override val supportsPowerControl: Boolean = true
+    override val powerRangeDbm: IntRange = MIN_POWER_DBM..MAX_POWER_DBM
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val nurApi = NurApi()
@@ -211,6 +215,23 @@ class NordicIdScannerService @Inject constructor(
         }
     }
 
+    // NUR's setup TX level is an inverted index: NurApi.MAX_TXLEVEL (0) = 27 dBm
+    // (strongest) through NurApi.MIN_TXLEVEL (19) = 8 dBm (weakest). We expose
+    // plain dBm to the app; MAX_POWER_DBM/MIN_POWER_DBM below are the endpoints.
+    override suspend fun getPowerDbm(): Int? = withContext(Dispatchers.IO) {
+        if (!nurApi.isConnected) return@withContext null
+        runCatching { MAX_POWER_DBM - nurApi.getSetupTxLevel() }
+            .onFailure { Log.w(TAG, "getSetupTxLevel failed: ${it.message}") }
+            .getOrNull()
+    }
+
+    override suspend fun setPowerDbm(dbm: Int) = withContext(Dispatchers.IO) {
+        if (!nurApi.isConnected) return@withContext
+        val clampedDbm = dbm.coerceIn(MIN_POWER_DBM, MAX_POWER_DBM)
+        runCatching { nurApi.setSetupTxLevel(MAX_POWER_DBM - clampedDbm) }
+            .onFailure { Log.w(TAG, "setSetupTxLevel failed: ${it.message}") }
+    }
+
     private fun drainTags() {
         try {
             val storage = nurApi.storage ?: return
@@ -258,6 +279,10 @@ class NordicIdScannerService @Inject constructor(
         private const val INT_READER_SPEC = "type=INT;addr=integrated_reader"
         private const val INT_READER_ADDR = "integrated_reader"
         private const val BARCODE_TIMEOUT_MS = 5000
+
+        // NUR integrated reader's TX power range (see NurApi.TXLEVEL_27 / TXLEVEL_8).
+        const val MAX_POWER_DBM = 27
+        const val MIN_POWER_DBM = 8
 
         private val BARCODE_ACTIONS = listOf(
             "nlscan.action.SCANNER_RESULT",

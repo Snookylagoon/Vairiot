@@ -43,6 +43,28 @@ class ScanSessionViewModel @Inject constructor(
 
     val scannerHealth: StateFlow<ScannerHealth> = healthMonitor.health
 
+    private val _isScanning = MutableStateFlow(false)
+    /** True while the reader is actively sweeping for RFID tags, for the "searching" animation. */
+    val isScanning: StateFlow<Boolean> = _isScanning
+
+    private val _liveTagsSeen = MutableStateFlow(0)
+    /**
+     * Count of distinct EPCs read since the current sweep started — updates the
+     * instant a read arrives, ahead of [ScanSessionRepository]'s read-confidence
+     * gating (which holds a tag as PENDING, invisible in the Known/New/Missing
+     * tabs, until it has 3 reads or has stayed visible 500ms). Gives the operator
+     * live "something is happening" feedback during the search itself.
+     */
+    val liveTagsSeen: StateFlow<Int> = _liveTagsSeen
+    private val epcsSeenThisSweep = mutableSetOf<String>()
+
+    val supportsPowerControl: Boolean = scanner.supportsPowerControl
+    val powerRangeDbm: IntRange? = scanner.powerRangeDbm
+
+    private val _powerDbm = MutableStateFlow<Int?>(null)
+    /** Current reader TX power in dBm, or null if unknown/unsupported. */
+    val powerDbm: StateFlow<Int?> = _powerDbm
+
     private val _registerTarget = MutableStateFlow<String?>(null)
     /** EPC currently open in the "Register new asset" dialog. */
     val registerTarget: StateFlow<String?> = _registerTarget
@@ -64,6 +86,9 @@ class ScanSessionViewModel @Inject constructor(
                 scanner.scanResults.collect { result ->
                     if (result.type != ScanType.RFID_UHF) return@collect
                     healthMonitor.markScanReceived()
+                    if (epcsSeenThisSweep.add(result.value)) {
+                        _liveTagsSeen.value = epcsSeenThisSweep.size
+                    }
                     runCatching { repo.recordRead(sessionId, result.value) }
                 }
             }
@@ -80,9 +105,35 @@ class ScanSessionViewModel @Inject constructor(
         }
     }
 
-    fun triggerScan() = scanner.startScan(ScanType.RFID_UHF)
-    fun stopScan() = scanner.stopScan()
+    fun triggerScan() {
+        epcsSeenThisSweep.clear()
+        _liveTagsSeen.value = 0
+        _isScanning.value = true
+        scanner.startScan(ScanType.RFID_UHF)
+    }
+
+    fun stopScan() {
+        _isScanning.value = false
+        scanner.stopScan()
+    }
+
     fun retryScannerRecovery() = healthMonitor.attemptRecovery()
+
+    /** Re-reads the reader's current TX power — call once the reader reports connected. */
+    fun refreshPower() {
+        if (!supportsPowerControl) return
+        viewModelScope.launch {
+            _powerDbm.value = scanner.getPowerDbm()
+        }
+    }
+
+    fun setPower(dbm: Int) {
+        if (!supportsPowerControl) return
+        viewModelScope.launch {
+            runCatching { scanner.setPowerDbm(dbm) }
+                .onSuccess { _powerDbm.value = dbm }
+        }
+    }
 
     fun ignoreTag(epc: String) {
         viewModelScope.launch {
@@ -128,6 +179,7 @@ class ScanSessionViewModel @Inject constructor(
             else                             -> null
         }
         if (snapshot != null) _state.value = ScanSessionUiState.Completing(snapshot)
+        _isScanning.value = false
         scanner.stopScan()
         viewModelScope.launch {
             try {
