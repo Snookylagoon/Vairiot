@@ -56,6 +56,15 @@ export function useCreateTenant() {
   });
 }
 
+export function useDeleteTenant() {
+  return useMutationWithToast<{ deletedTenantId: string; deletedSubTenants: string[] }, string>({
+    mutationFn: (tenantId) => api.delete(`/api/v1/admin/platform/tenants/${tenantId}`).then(r => r.data),
+    invalidate: [['admin', 'tenants'], ['admin', 'users'], ['admin', 'stats']],
+    success: 'Tenant permanently deleted',
+    error: 'Failed to delete tenant',
+  });
+}
+
 // ─── Cross-Tenant Users ─────────────────────────────────────────────────────
 
 export function useAllUsers(params: Record<string, string> = {}) {

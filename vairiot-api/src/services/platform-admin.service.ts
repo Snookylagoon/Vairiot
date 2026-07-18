@@ -1,7 +1,9 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
+import { minioClient, PHOTO_BUCKET, DOCUMENT_BUCKET } from '../lib/minio';
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
 import { buildOrderBy } from '../lib/sort';
 import { ROLE_PERMISSION_MATRIX } from 'vairiot-shared';
@@ -419,6 +421,153 @@ export async function softDeleteUser(userId: string, actorId: string) {
       metadata: { originalEmail: user.email, originalName: user.name },
     },
   }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+}
+
+// ─── Tenant deletion ────────────────────────────────────────────────────────
+
+/**
+ * Delete every DB row belonging to a tenant, in FK-safe order, then the
+ * tenant itself. Self-referencing tables (categories, locations) are safe to
+ * clear in a single deleteMany because Postgres checks FKs at end of statement.
+ */
+async function purgeTenantData(tx: Prisma.TransactionClient, tenantId: string) {
+  // Audit campaigns and their children
+  await tx.auditAdjustment.deleteMany({ where: { campaign: { tenantId } } });
+  await tx.auditReconciliationItem.deleteMany({ where: { campaign: { tenantId } } });
+  await tx.auditZoneSubmission.deleteMany({ where: { campaign: { tenantId } } });
+  await tx.auditSnapshotAsset.deleteMany({ where: { campaign: { tenantId } } });
+  await tx.auditScanEvent.deleteMany({ where: { tenantId } });
+  await tx.auditCampaignAsset.deleteMany({ where: { campaign: { tenantId } } });
+  await tx.auditCampaign.deleteMany({ where: { tenantId } });
+
+  // RFID scan sessions (tags cascade on session delete)
+  await tx.scanSessionTag.deleteMany({ where: { session: { tenantId } } });
+  await tx.scanSession.deleteMany({ where: { tenantId } });
+
+  // Asset satellites, then assets
+  await tx.photo.deleteMany({ where: { tenantId } });
+  await tx.document.deleteMany({ where: { tenantId } });
+  await tx.maintenanceEvent.deleteMany({ where: { tenantId } });
+  await tx.disposal.deleteMany({ where: { tenantId } });
+  await tx.transfer.deleteMany({ where: { tenantId } });
+  await tx.checkout.deleteMany({ where: { tenantId } });
+  await tx.asset.deleteMany({ where: { tenantId } });
+
+  // Structure
+  await tx.location.deleteMany({ where: { site: { tenantId } } });
+  await tx.site.deleteMany({ where: { tenantId } });
+  await tx.category.deleteMany({ where: { tenantId } });
+
+  // Devices before users (device.userId) and licences (device.licenceId)
+  await tx.device.deleteMany({ where: { tenantId } });
+  await tx.deviceSlot.deleteMany({ where: { licence: { tenantId } } });
+  await tx.licence.deleteMany({ where: { tenantId } });
+
+  // Tenant-scoped config
+  await tx.apiKey.deleteMany({ where: { tenantId } });
+  await tx.webhook.deleteMany({ where: { tenantId } });
+  await tx.reportSchedule.deleteMany({ where: { tenantId } });
+  await tx.customFieldDefinition.deleteMany({ where: { tenantId } });
+  await tx.alertSubscription.deleteMany({ where: { tenantId } });
+  await tx.clientAuthority.deleteMany({ where: { clientCompany: { tenantId } } });
+  await tx.clientCompany.deleteMany({ where: { tenantId } });
+  await tx.onboardingProgress.deleteMany({ where: { tenantId } });
+  await tx.company.deleteMany({ where: { tenantId } });
+
+  // Users and everything hanging off them
+  await tx.userInvitation.deleteMany({ where: { tenantId } });
+  await tx.userTwoFactor.deleteMany({ where: { user: { tenantId } } });
+  await tx.loginAttempt.deleteMany({ where: { user: { tenantId } } });
+  await tx.userPermissionOverride.deleteMany({ where: { user: { tenantId } } });
+  await tx.userRole.deleteMany({ where: { user: { tenantId } } });
+  await tx.role.deleteMany({ where: { tenantId } });
+  await tx.auditEvent.deleteMany({ where: { tenantId } });
+  // A tenant user may appear as actor on another tenant's audit trail
+  // (e.g. platform actions) — detach rather than delete those events.
+  await tx.auditEvent.updateMany({ where: { actor: { tenantId } }, data: { actorId: null } });
+  await tx.user.deleteMany({ where: { tenantId } });
+
+  await tx.tenant.delete({ where: { id: tenantId } });
+}
+
+/** Best-effort removal of all MinIO objects under the tenant's prefix. */
+async function purgeTenantStorage(tenantId: string) {
+  for (const bucket of [PHOTO_BUCKET, DOCUMENT_BUCKET]) {
+    try {
+      const keys: string[] = [];
+      const stream = minioClient.listObjectsV2(bucket, `${tenantId}/`, true);
+      await new Promise<void>((resolve, reject) => {
+        stream.on('data', (obj) => { if (obj.name) keys.push(obj.name); });
+        stream.on('end', resolve);
+        stream.on('error', reject);
+      });
+      if (keys.length > 0) await minioClient.removeObjects(bucket, keys);
+    } catch (e) {
+      logger.warn('tenant_storage_purge_failed', { tenantId, bucket, error: (e as Error).message });
+    }
+  }
+}
+
+/**
+ * Platform Super Admin action: permanently delete a tenant and ALL of its
+ * data — users, assets, licences, audit history, photos and documents.
+ * Only allowed once every licence on the tenant has been revoked (tenants
+ * that never activated a licence, e.g. abandoned sign-ups, also qualify).
+ * Sub-tenants are deleted along with the parent.
+ */
+export async function deleteTenant(tenantId: string, actorId: string) {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    include: {
+      licences: { select: { status: true } },
+      childTenants: { select: { id: true, name: true, licences: { select: { status: true } } } },
+    },
+  });
+  if (!tenant) throw new NotFoundError('Tenant not found');
+
+  const actor = await prisma.user.findUnique({ where: { id: actorId }, select: { tenantId: true } });
+  if (actor?.tenantId === tenantId) {
+    throw new ValidationError('You cannot delete the tenant your own account belongs to.');
+  }
+
+  const blocking = [tenant, ...tenant.childTenants]
+    .flatMap(t => t.licences)
+    .filter(l => l.status !== 'revoked');
+  if (blocking.length > 0) {
+    throw new ValidationError('Tenant licence must be revoked before the tenant can be deleted.');
+  }
+
+  const familyIds = [...tenant.childTenants.map(c => c.id), tenantId];
+
+  await prisma.$transaction(
+    async (tx) => {
+      // Children first — they reference the parent via parentTenantId.
+      for (const id of familyIds) await purgeTenantData(tx, id);
+    },
+    { timeout: 120_000 },
+  );
+
+  // DB rows are gone; object storage cleanup is best-effort.
+  for (const id of familyIds) await purgeTenantStorage(id);
+
+  if (actor?.tenantId) {
+    prisma.auditEvent.create({
+      data: {
+        tenantId: actor.tenantId,
+        actorId,
+        entityType: 'tenant',
+        entityId: tenantId,
+        action: 'admin_tenant_deleted',
+        metadata: {
+          name: tenant.name,
+          subTenantsDeleted: tenant.childTenants.map(c => c.name),
+        },
+      },
+    }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+  }
+
+  logger.info('tenant_deleted', { tenantId, name: tenant.name, subTenants: tenant.childTenants.length, actorId });
+  return { deletedTenantId: tenantId, deletedSubTenants: tenant.childTenants.map(c => c.name) };
 }
 
 // ─── Admin-driven tenant creation ───────────────────────────────────────────

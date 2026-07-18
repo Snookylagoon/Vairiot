@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useTenantDetail, useCreateSubTenant, useUploadTenantLogo, useDeleteTenantLogo, useUpdateTenantCompany } from '@/hooks/useAdmin';
+import { useTenantDetail, useCreateSubTenant, useUploadTenantLogo, useDeleteTenantLogo, useUpdateTenantCompany, useDeleteTenant } from '@/hooks/useAdmin';
 import { useRenewLicence, useSuspendLicence, useRevokeLicence, useReactivateLicence, useLicenceDevices, useActivateDevice, useDeactivateDevice, useDeleteDevice } from '@/hooks/useLicences';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -36,6 +36,9 @@ export function TenantDetailPage() {
   const reactivate = useReactivateLicence();
 
   const [confirm, setConfirm] = useState<{ action: string; licenceId: string } | null>(null);
+  const deleteTenant = useDeleteTenant();
+  const [showDeleteTenant, setShowDeleteTenant] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [showAddClient, setShowAddClient] = useState(false);
   const [clientForm, setClientForm] = useState({ clientName: '', contactEmail: '', signatoryName: '', signatoryEmail: '', address: '', city: '', country: '', telephone: '' });
   const addClient = useCreateSubTenant(id!);
@@ -96,6 +99,18 @@ export function TenantDetailPage() {
   if (!tenant) return <div className="text-center py-12 text-gray-400">Tenant not found</div>;
 
   const licence = tenant.licences?.[0];
+  // Deletable once every licence is revoked (never-licensed tenants qualify too)
+  const canDelete = (tenant.licences ?? []).every((l: any) => l.status === 'revoked');
+
+  const submitDeleteTenant = async () => {
+    if (deleteConfirmName.trim() !== tenant.name) {
+      toast.error('Type the tenant name exactly to confirm deletion');
+      return;
+    }
+    await deleteTenant.mutateAsync(tenant.id);
+    setShowDeleteTenant(false);
+    navigate('/tenants');
+  };
 
   const handleAction = async () => {
     if (!confirm) return;
@@ -320,6 +335,25 @@ export function TenantDetailPage() {
         />
       )}
 
+      {canDelete && (
+        <Card>
+          <CardHeader><h2 className="text-h3 text-red-600">Danger Zone</h2></CardHeader>
+          <CardBody className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-sm font-medium text-v-charcoal">Delete this tenant</p>
+              <p className="text-xs text-gray-500">
+                Permanently removes the tenant, its users, assets, licences, photos and documents
+                {tenant.childTenants?.length > 0 && <> — including {tenant.childTenants.length} sub-tenant{tenant.childTenants.length > 1 ? 's' : ''}</>}.
+                This cannot be undone.
+              </p>
+            </div>
+            <Button size="sm" variant="danger" onClick={() => { setDeleteConfirmName(''); setShowDeleteTenant(true); }}>
+              <Trash2 size={14} className="mr-1" /> Delete Tenant
+            </Button>
+          </CardBody>
+        </Card>
+      )}
+
       <ConfirmDialog
         open={showAddClient}
         title="Add Sub Client"
@@ -347,6 +381,24 @@ export function TenantDetailPage() {
             </div>
           </div>
         </div>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={showDeleteTenant}
+        title="Delete Tenant"
+        description={`This permanently deletes "${tenant.name}" and ALL of its data — users, assets, licences, audit history, photos and documents${tenant.childTenants?.length > 0 ? `, plus ${tenant.childTenants.length} sub-tenant${tenant.childTenants.length > 1 ? 's' : ''}` : ''}. This cannot be undone.`}
+        confirmLabel="Delete Tenant"
+        variant="danger"
+        loading={deleteTenant.isPending}
+        onConfirm={submitDeleteTenant}
+        onCancel={() => setShowDeleteTenant(false)}
+      >
+        <Input
+          label={`Type "${tenant.name}" to confirm`}
+          value={deleteConfirmName}
+          onChange={(e) => setDeleteConfirmName(e.target.value)}
+          placeholder={tenant.name}
+        />
       </ConfirmDialog>
 
       <ConfirmDialog

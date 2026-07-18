@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
+import { asyncHandler } from '../../middleware/error-handler';
 import { Readable } from 'stream';
 import { requireRole } from '../../middleware/authorise';
 import {
@@ -15,6 +16,7 @@ import {
   requirePasswordChange,
   clearForcePasswordChange,
   adminCreateTenant,
+  deleteTenant,
 } from '../../services/platform-admin.service';
 import {
   getUserPermissionsView,
@@ -89,6 +91,12 @@ platformRouter.get('/tenants/:id', async (req: Request, res: Response) => {
   const tenant = await getTenantDetail(req.params.id);
   res.json(tenant);
 });
+
+// Permanently delete a revoked tenant (and its sub-tenants) with all data.
+platformRouter.delete('/tenants/:id', asyncHandler(async (req: Request, res: Response) => {
+  const result = await deleteTenant(req.params.id, req.user!.sub);
+  res.json({ message: 'Tenant deleted', ...result });
+}));
 
 // ─── Users (cross-tenant) ───────────────────────────────────────────────────
 
