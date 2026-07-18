@@ -27,6 +27,7 @@
 		3637BB5A387230AC0C4B1D7D /* AssetListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6505CC8373374B0B7550AE5 /* AssetListViewModel.swift */; };
 		3B0C3C1F9864DCE4079F5D25 /* AuditListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ADC5A064094FE48CD1B0E9E /* AuditListView.swift */; };
 		3E3E8CECB20DA70EAD381C43 /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F96AF3876B337589D85795E /* ProfileViewModel.swift */; };
+		435BDE1432F9915D72B3BD25 /* CachedReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB6A529423121523C9797E84 /* CachedReference.swift */; };
 		559257F63404244D7792151F /* CameraScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84E2052B883B4FF4EDF10330 /* CameraScanner.swift */; };
 		575828A324812F6DC5E3939C /* Maintenance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91CD092F85112B7E033DA23 /* Maintenance.swift */; };
 		59E359E788DA0658E87EC7E5 /* ClearableTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A733E9B69077EFBDFE50FC8 /* ClearableTextField.swift */; };
@@ -126,6 +127,7 @@
 		F76FED740D4C036BCD307628 /* Company.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Company.swift; sourceTree = "<group>"; };
 		F962886475BD72CB3255DADC /* AuditRunViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditRunViewModel.swift; sourceTree = "<group>"; };
 		F9E9CF0A05001D7E3EE7465A /* LoadingButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingButton.swift; sourceTree = "<group>"; };
+		FB6A529423121523C9797E84 /* CachedReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedReference.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -284,6 +286,7 @@
 			children = (
 				4E228F84B58F49D491E3196A /* AssetRepository.swift */,
 				1F07A0EB0022187A41DC11EC /* CachedAsset.swift */,
+				FB6A529423121523C9797E84 /* CachedReference.swift */,
 				2F4AAAD2216A74C974530A2F /* QueuedAssetCreate.swift */,
 				EE7FE78124B0EF2F946EDA64 /* QueuedScan.swift */,
 				24793E93910BA8FA7E2D00D5 /* SyncManager.swift */,
@@ -436,6 +439,7 @@
 				6C3D6FD6355585221100F66F /* AuditRunViewModel.swift in Sources */,
 				A3D2CFBD1E5EEB2182F6EFAD /* Auth.swift in Sources */,
 				2FA1B42F41CB1F742C2EF0A1 /* CachedAsset.swift in Sources */,
+				435BDE1432F9915D72B3BD25 /* CachedReference.swift in Sources */,
 				02D722C17444AE1039052D8A /* CameraImagePicker.swift in Sources */,
 				08FA5E4E02E5DFB59553858B /* CameraPreview.swift in Sources */,
 				559257F63404244D7792151F /* CameraScanner.swift in Sources */,

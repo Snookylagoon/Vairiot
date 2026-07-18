@@ -14,7 +14,7 @@ final class VairiotStore {
     var context: ModelContext { container.mainContext }
 
     private init() {
-        let schema = Schema([CachedAsset.self, QueuedScan.self, QueuedAssetCreate.self])
+        let schema = Schema([CachedAsset.self, QueuedScan.self, QueuedAssetCreate.self, CachedReference.self])
         let configuration = ModelConfiguration(
             "VairiotStore",
             schema: schema,

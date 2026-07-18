@@ -90,12 +90,24 @@ final class AssetEditViewModel {
             let (cats, sts) = try await (categoriesTask, sitesTask)
             categories = cats
             sites = sts
+            ReferenceCache.store(kind: "category", items: cats.map { ($0.id, $0.name) })
+            ReferenceCache.store(kind: "site", items: sts.map { ($0.id, $0.name) })
 
             if let siteId = selectedSiteId {
                 await loadLocations(forSiteId: siteId)
             }
         } catch {
-            errorMessage = "Failed to load form data"
+            // Offline: serve the cached reference lists so the pickers work.
+            categories = ReferenceCache.load(kind: "category")
+                .map { CategoryRefResponse(id: $0.id, name: $0.name) }
+            sites = ReferenceCache.load(kind: "site")
+                .map { SiteRefResponse(id: $0.id, name: $0.name) }
+            if categories.isEmpty && sites.isEmpty {
+                errorMessage = "Failed to load form data"
+            }
+            if let siteId = selectedSiteId {
+                await loadLocations(forSiteId: siteId)
+            }
         }
 
         isLoading = false
@@ -104,9 +116,12 @@ final class AssetEditViewModel {
     func loadLocations(forSiteId siteId: String) async {
         isLoadingLocations = true
         do {
-            locations = try await apiClient.request(.listSiteLocations(siteId: siteId))
+            let locs: [LocationRefResponse] = try await apiClient.request(.listSiteLocations(siteId: siteId))
+            locations = locs
+            ReferenceCache.store(kind: "location", items: locs.map { ($0.id, $0.name) }, parentId: siteId)
         } catch {
-            locations = []
+            locations = ReferenceCache.load(kind: "location", parentId: siteId)
+                .map { LocationRefResponse(id: $0.id, name: $0.name) }
         }
         isLoadingLocations = false
     }
