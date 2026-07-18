@@ -140,6 +140,15 @@ fun ForcedPasswordChangeScreen(
                         ),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff
+                                                  else Icons.Default.Visibility,
+                                    contentDescription = if (passwordVisible) "Hide" else "Show",
+                                )
+                            }
+                        },
                     )
 
                     Button(

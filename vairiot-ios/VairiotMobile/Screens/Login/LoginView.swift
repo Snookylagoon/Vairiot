@@ -78,8 +78,7 @@ struct LoginView: View {
                 }
 
                 fieldGroup(label: "Password") {
-                    SecureField("Password", text: $viewModel.password)
-                        .textContentType(.password)
+                    RevealableSecureField(placeholder: "Password", text: $viewModel.password)
                 }
 
                 fieldGroup(label: "Tenant ID") {

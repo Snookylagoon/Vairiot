@@ -148,8 +148,7 @@ struct PasswordChangeView: View {
                 .fontWeight(.medium)
                 .foregroundStyle(Color.vairiotCharcoal)
 
-            SecureField(label, text: text)
-                .textContentType(.password)
+            RevealableSecureField(placeholder: label, text: text)
                 .padding(12)
                 .background(Color.vairiotWash)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
