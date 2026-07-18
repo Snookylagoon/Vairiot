@@ -8,23 +8,16 @@ struct VairiotApp: App {
     private let tokenManager: TokenManager
     private let apiClient: APIClient
 
-    init() {
-        // SwiftData container for offline caching
-        let schema = Schema([CachedAsset.self, QueuedScan.self])
-        let configuration = ModelConfiguration(
-            "VairiotStore",
-            schema: schema,
-            isStoredInMemoryOnly: false
-        )
-        do {
-            modelContainer = try ModelContainer(for: schema, configurations: [configuration])
-        } catch {
-            fatalError("Failed to create SwiftData container: \(error)")
-        }
+    @Environment(\.scenePhase) private var scenePhase
 
-        // Shared singletons
-        tokenManager = .shared
-        apiClient = .shared
+    init() {
+        // App.init runs on the main thread but isn't formally MainActor.
+        (modelContainer, tokenManager, apiClient) = MainActor.assumeIsolated {
+            // SwiftData container for offline caching (owned by VairiotStore
+            // so view models and SyncManager can reach the context directly)
+            SyncManager.shared.start()
+            return (VairiotStore.shared.container, TokenManager.shared, APIClient.shared)
+        }
     }
 
     var body: some Scene {
@@ -33,6 +26,11 @@ struct VairiotApp: App {
                 .tint(.vairiotPink)
         }
         .modelContainer(modelContainer)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await SyncManager.shared.syncNow() }
+            }
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 @MainActor
 @Observable
@@ -9,6 +10,7 @@ final class AuditRunViewModel {
     enum ScanResult: Equatable {
         case found(assetName: String)
         case unknown(tagValue: String)
+        case queued(tagValue: String)
     }
 
     // MARK: - State
@@ -88,12 +90,26 @@ final class AuditRunViewModel {
 
             successMessage = "Scan recorded"
         } catch let error as APIError {
-            errorMessage = error.localizedDescription
+            if case .networkError = error {
+                // Offline: queue the scan for background sync so it isn't lost.
+                queueOfflineScan(tagValue: tagValue)
+                scanCount += 1
+                lastScanResult = .queued(tagValue: tagValue)
+                successMessage = "Offline — scan queued"
+            } else {
+                errorMessage = error.localizedDescription
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
 
         isRecording = false
+    }
+
+    private func queueOfflineScan(tagValue: String) {
+        let context = VairiotStore.shared.context
+        context.insert(QueuedScan(campaignId: audit.id, tagValue: tagValue))
+        try? context.save()
     }
 
     // MARK: - Submit Zone

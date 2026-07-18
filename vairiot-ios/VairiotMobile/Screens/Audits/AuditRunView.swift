@@ -177,6 +177,19 @@ struct AuditRunView: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
+
+                case .queued(let tagValue):
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.title2)
+                        .foregroundStyle(Color.warningAmber)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Queued Offline")
+                            .font(.caption)
+                            .foregroundStyle(Color.warningAmber)
+                        Text(tagValue)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
                 }
 
                 Spacer()

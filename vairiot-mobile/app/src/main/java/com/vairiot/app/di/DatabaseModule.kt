@@ -3,6 +3,7 @@ package com.vairiot.app.di
 import android.content.Context
 import androidx.room.Room
 import com.vairiot.app.data.local.CachedAssetDao
+import com.vairiot.app.data.local.QueuedAssetDao
 import com.vairiot.app.data.local.QueuedScanDao
 import com.vairiot.app.data.local.ScanSessionDao
 import com.vairiot.app.data.local.SessionTagDao
@@ -27,6 +28,9 @@ object DatabaseModule {
 
     @Provides
     fun provideQueuedScanDao(db: VairiotDatabase): QueuedScanDao = db.queuedScanDao()
+
+    @Provides
+    fun provideQueuedAssetDao(db: VairiotDatabase): QueuedAssetDao = db.queuedAssetDao()
 
     @Provides
     fun provideCachedAssetDao(db: VairiotDatabase): CachedAssetDao = db.cachedAssetDao()

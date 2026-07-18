@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct ContentView: View {
@@ -173,17 +174,13 @@ struct ScannerTabView: View {
         isLoading = true
         notFoundTag = nil
         errorMessage = nil
-        do {
-            let asset: AssetResponse = try await apiClient.request(.getAssetByTag(tag: tag))
+        // Network-first with offline cache fallback.
+        let repository = AssetRepository(apiClient: apiClient, modelContext: VairiotStore.shared.context)
+        switch await repository.lookupByTag(tag: tag) {
+        case .found(let asset, _):
             lookupResult = asset
-        } catch let apiError as APIError {
-            if case .notFound = apiError {
-                notFoundTag = tag
-            } else {
-                errorMessage = apiError.userMessage
-            }
-        } catch {
-            errorMessage = error.localizedDescription
+        case .notFound:
+            notFoundTag = tag
         }
         isLoading = false
     }

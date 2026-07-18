@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import SwiftData
 
 @MainActor
 @Observable
@@ -54,18 +55,22 @@ final class AssetListViewModel {
     var sortOrder: SortOrder = .asc
     var errorMessage: String?
     var hasMorePages: Bool = true
+    var isOffline: Bool = false
 
     private var currentPage: Int = 1
     private let pageSize: Int = 20
     private var totalCount: Int = 0
     private var searchTask: Task<Void, Never>?
+    private var cacheSyncTask: Task<Void, Never>?
 
     private let apiClient: APIClient
+    private let repository: AssetRepository
 
     // MARK: - Init
 
     init(apiClient: APIClient) {
         self.apiClient = apiClient
+        self.repository = AssetRepository(apiClient: apiClient, modelContext: VairiotStore.shared.context)
     }
 
     // MARK: - Load
@@ -137,10 +142,35 @@ final class AssetListViewModel {
             currentPage = response.page
             totalCount = response.total
             hasMorePages = response.page < response.totalPages
+            isOffline = false
+
+            // After a successful unfiltered first page, refresh the full
+            // offline cache in the background so the register is browsable
+            // without connectivity later.
+            if replace, page == 1, searchQuery.isEmpty,
+               selectedStatus == nil, selectedCondition == nil,
+               cacheSyncTask == nil {
+                cacheSyncTask = Task { [repository] in
+                    await repository.refresh()
+                }
+            }
         } catch let error as APIError {
-            errorMessage = error.userMessage
+            if case .networkError = error {
+                fallbackToCache()
+            } else {
+                errorMessage = error.userMessage
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Offline: serve the cached register (filtered client-side by the search
+    /// text). Status/condition filters and pagination don't apply to cache.
+    private func fallbackToCache() {
+        isOffline = true
+        errorMessage = nil
+        assets = repository.observeAssets(query: searchQuery)
+        hasMorePages = false
     }
 }

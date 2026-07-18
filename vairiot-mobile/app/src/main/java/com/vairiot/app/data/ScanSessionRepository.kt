@@ -11,6 +11,8 @@ import com.vairiot.app.data.api.SiteRefResponse
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.data.local.CachedAsset
 import com.vairiot.app.data.local.CachedAssetDao
+import com.vairiot.app.data.local.QueuedAsset
+import com.vairiot.app.data.local.QueuedAssetDao
 import com.vairiot.app.data.local.ScanSessionDao
 import com.vairiot.app.data.local.ScanSessionEntity
 import com.vairiot.app.data.local.SessionTagDao
@@ -20,6 +22,7 @@ import com.vairiot.app.domain.model.SessionSnapshot
 import com.vairiot.app.domain.model.SessionTag
 import com.vairiot.app.domain.model.SessionTagStatus
 import com.vairiot.app.scanner.RfidSessionClassifier
+import com.vairiot.app.sync.AssetSyncScheduler
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -47,6 +50,8 @@ class ScanSessionRepository @Inject constructor(
     private val cachedAssetDao: CachedAssetDao,
     private val assetRepo:      AssetRepository,
     private val api:            VairiotApiService,
+    private val queuedAssetDao: QueuedAssetDao,
+    private val assetSyncScheduler: AssetSyncScheduler,
 ) {
 
     private val classifier = RfidSessionClassifier()
@@ -207,16 +212,23 @@ class ScanSessionRepository @Inject constructor(
 
     /**
      * Registers a brand-new asset for the given EPC via the assets API, then
-     * promotes the session row to KNOWN. Throws on API failure so the caller
-     * can surface an error — offline registration is not supported (the caller
-     * should retry once connectivity returns).
+     * promotes the session row to KNOWN. When offline the create is queued for
+     * [com.vairiot.app.sync.AssetSyncWorker] and `null` is returned — the
+     * session row stays NEW and reconciles on a later sweep once the asset
+     * exists server-side. Throws on non-network API failure.
      */
     suspend fun registerNewAsset(
         sessionId: String,
         epc: String,
         name: String,
-    ): AssetResponse {
-        val asset = api.createAsset(AssetCreateRequest(name = name, rfidTag = epc))
+    ): AssetResponse? {
+        val asset = try {
+            api.createAsset(AssetCreateRequest(name = name, rfidTag = epc))
+        } catch (e: java.io.IOException) {
+            queuedAssetDao.insert(QueuedAsset(name = name, rfidTag = epc))
+            assetSyncScheduler.triggerNow()
+            return null
+        }
         cachedAssetDao.upsertAll(listOf(asset.toCached()))
         expectedByEpc[sessionId]?.put(epc, asset.toCached())
         tagDao.updateStatus(

@@ -7,6 +7,9 @@ import com.vairiot.app.data.TagLookup
 import com.vairiot.app.data.api.AssetCreateRequest
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.data.local.QueuedAsset
+import com.vairiot.app.data.local.QueuedAssetDao
+import com.vairiot.app.sync.AssetSyncScheduler
 import com.vairiot.app.scanner.ScanResult
 import com.vairiot.app.scanner.ScanType
 import com.vairiot.app.scanner.ScannerHealth
@@ -32,6 +35,7 @@ sealed class ScanUiState {
     ) : ScanUiState()
     object Registering                         : ScanUiState()
     data class Registered(val asset: AssetResponse) : ScanUiState()
+    data class RegisteredOffline(val name: String)  : ScanUiState()
     data class Error(val message: String)      : ScanUiState()
 }
 
@@ -41,6 +45,8 @@ class AssetScanViewModel @Inject constructor(
     private val repo: AssetRepository,
     private val scanner: ScannerService,
     private val healthMonitor: ScannerHealthMonitor,
+    private val queuedAssetDao: QueuedAssetDao,
+    private val assetSyncScheduler: AssetSyncScheduler,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
@@ -169,6 +175,12 @@ class AssetScanViewModel @Inject constructor(
                     AssetCreateRequest(name = name, rfidTag = rfidTag, barcode = barcode),
                 )
                 _state.value = ScanUiState.Registered(asset)
+            } catch (e: java.io.IOException) {
+                // Offline: queue the create and let AssetSyncWorker send it
+                // once connectivity returns.
+                queuedAssetDao.insert(QueuedAsset(name = name, rfidTag = rfidTag, barcode = barcode))
+                assetSyncScheduler.triggerNow()
+                _state.value = ScanUiState.RegisteredOffline(name)
             } catch (e: Exception) {
                 _state.value = ScanUiState.Error("Registration failed: ${e.message}")
             }

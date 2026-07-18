@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 @MainActor
 @Observable
@@ -8,6 +9,7 @@ final class AssetDetailViewModel {
 
     var asset: AssetResponse?
     var isLoading: Bool = false
+    var isFromCache: Bool = false
     var errorMessage: String?
     var showDeleteConfirmation: Bool = false
     var isDeleting: Bool = false
@@ -31,8 +33,13 @@ final class AssetDetailViewModel {
 
         do {
             asset = try await apiClient.request(.getAsset(id: assetId))
+            isFromCache = false
         } catch let error as APIError {
-            errorMessage = error.userMessage
+            if case .networkError = error, loadFromCache() {
+                // served cached copy
+            } else {
+                errorMessage = error.userMessage
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -44,11 +51,27 @@ final class AssetDetailViewModel {
         errorMessage = nil
         do {
             asset = try await apiClient.request(.getAsset(id: assetId))
+            isFromCache = false
         } catch let error as APIError {
-            errorMessage = error.userMessage
+            if case .networkError = error, loadFromCache() {
+                // served cached copy
+            } else {
+                errorMessage = error.userMessage
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Offline fallback: serve the cached copy of this asset if we have one.
+    private func loadFromCache() -> Bool {
+        let id = assetId
+        let predicate = #Predicate<CachedAsset> { $0.id == id }
+        guard let cached = try? VairiotStore.shared.context
+            .fetch(FetchDescriptor<CachedAsset>(predicate: predicate)).first else { return false }
+        asset = cached.toAssetResponse()
+        isFromCache = true
+        return true
     }
 
     // MARK: - Delete

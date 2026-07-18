@@ -14,6 +14,9 @@ struct AssetListView: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             VStack(spacing: 0) {
+                if viewModel.isOffline {
+                    offlineBanner
+                }
                 searchBar
                 filterBar
                 assetList
@@ -36,6 +39,23 @@ struct AssetListView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Offline Banner
+
+    private var offlineBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.slash")
+                .font(.caption)
+            Text("Offline — showing cached data")
+                .font(.caption)
+                .fontWeight(.medium)
+            Spacer()
+        }
+        .foregroundStyle(Color.warningAmber)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color.warningAmber.opacity(0.12))
     }
 
     // MARK: - Search

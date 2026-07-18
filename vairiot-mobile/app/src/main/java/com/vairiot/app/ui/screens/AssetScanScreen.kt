@@ -166,6 +166,7 @@ fun AssetScanScreen(
                 )
                 is ScanUiState.Registering -> LoadingCard()
                 is ScanUiState.Registered  -> AssetResultCard(s.asset, onReset = { viewModel.reset() }, isNew = true)
+                is ScanUiState.RegisteredOffline -> OfflineRegisteredCard(s.name, onReset = { viewModel.reset() })
                 is ScanUiState.Error      -> ErrorCard(s.message, onReset = { viewModel.reset() })
             }
         }
@@ -441,6 +442,20 @@ fun NotFoundCard(
                 TextButton(onClick = { showDialog = false }) { Text("Cancel") }
             },
         )
+    }
+}
+
+@Composable
+fun OfflineRegisteredCard(name: String, onReset: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Saved Offline", style = MaterialTheme.typography.titleMedium, color = WarningAmber)
+            Text(
+                "\"$name\" is queued on this device and will be registered automatically when connectivity returns.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = onReset) { Text("Done") }
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 @MainActor
 @Observable
@@ -34,6 +35,7 @@ final class AssetEditViewModel {
     var isLoadingLocations: Bool = false
     var errorMessage: String?
     var isSaved: Bool = false
+    var savedOffline: Bool = false
 
     let mode: Mode
     private let apiClient: APIClient
@@ -175,12 +177,53 @@ final class AssetEditViewModel {
             }
             isSaved = true
         } catch let error as APIError {
-            errorMessage = error.userMessage
+            if case .networkError = error, case .create = mode {
+                // Offline: queue the create for background sync and show a
+                // provisional entry in the cached asset list.
+                queueOfflineCreate()
+                savedOffline = true
+                isSaved = true
+            } else {
+                errorMessage = error.userMessage
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
 
         isSaving = false
+    }
+
+    private func queueOfflineCreate() {
+        let queued = QueuedAssetCreate(
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            assetDescription: description.isEmpty ? nil : description,
+            serialNumber: serialNumber.isEmpty ? nil : serialNumber,
+            barcode: barcode.isEmpty ? nil : barcode,
+            rfidTag: rfidTag.isEmpty ? nil : rfidTag,
+            status: selectedStatus.rawValue,
+            condition: selectedCondition.rawValue,
+            categoryId: selectedCategoryId,
+            siteId: selectedSiteId,
+            locationId: selectedLocationId
+        )
+
+        let context = VairiotStore.shared.context
+        context.insert(queued)
+        context.insert(CachedAsset(
+            id: queued.provisionalCacheId,
+            assetNumber: "PENDING",
+            name: queued.name,
+            assetDescription: queued.assetDescription,
+            status: queued.status,
+            condition: queued.condition,
+            serialNumber: queued.serialNumber,
+            barcode: queued.barcode,
+            rfidTag: queued.rfidTag,
+            categoryName: categories.first(where: { $0.id == queued.categoryId })?.name,
+            siteName: sites.first(where: { $0.id == queued.siteId })?.name,
+            locationName: locations.first(where: { $0.id == queued.locationId })?.name
+        ))
+        try? context.save()
     }
 
     private func createAsset() async throws {

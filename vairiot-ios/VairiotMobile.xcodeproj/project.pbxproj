@@ -18,6 +18,8 @@
 		167B2B1EF0E476C2B8C058A1 /* VairiotColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F1C3769FC878ABFAABBA61 /* VairiotColors.swift */; };
 		1B144EEA0178F36E73342149 /* LoadingButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E9CF0A05001D7E3EE7465A /* LoadingButton.swift */; };
 		1FBD8C99CDC41EC2603CE474 /* MaintenanceCreateFromListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8A8DEB36AE1A36E61EE5CC /* MaintenanceCreateFromListView.swift */; };
+		2AD828CFA09FDC52C088FCD4 /* QueuedAssetCreate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4AAAD2216A74C974530A2F /* QueuedAssetCreate.swift */; };
+		2F84912C82E6E9FD74D37941 /* VairiotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C7C714464C6F9D2C93223C /* VairiotStore.swift */; };
 		2FA1B42F41CB1F742C2EF0A1 /* CachedAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F07A0EB0022187A41DC11EC /* CachedAsset.swift */; };
 		30F0AEB9EA25746A4571C990 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 03BBB78D8CB8ACE205200FC2 /* Assets.xcassets */; };
 		30F7ADD0F009EABFAFBC5437 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DB184F63BF601F3DDB6212 /* LoginView.swift */; };
@@ -56,6 +58,7 @@
 		C8FD559173E25F93F4E6FA45 /* AssetMaintenanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DB9576A912AD03CE88FF0B3 /* AssetMaintenanceView.swift */; };
 		CA894B5BE49E57A9B520A6B5 /* MaintenanceDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CCF4761D003F4FCB8ABF697 /* MaintenanceDetailViewModel.swift */; };
 		D27DE1E39FF9C0866986B59F /* VairiotTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5469A308F178DB50E585A3EC /* VairiotTheme.swift */; };
+		D690C5E807E6816EFE2E10EE /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24793E93910BA8FA7E2D00D5 /* SyncManager.swift */; };
 		E53B147237BF912DB5CCA701 /* MaintenanceListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1096CFCFFA4CBC33CA26914 /* MaintenanceListViewModel.swift */; };
 		EBF347C95F7091F3FCC674FD /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5011667A6548A3A4E31E8C8 /* StatusBadge.swift */; };
 		F28E22AA975E19C0DCFFED47 /* AssetEditViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8697D8D86307B86F6AAB47F /* AssetEditViewModel.swift */; };
@@ -68,12 +71,15 @@
 		058B105CD7DE7499517FA026 /* AssetDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDetailViewModel.swift; sourceTree = "<group>"; };
 		083689B39CDD8F823B2A26A0 /* Auth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Auth.swift; sourceTree = "<group>"; };
 		13A1D16A4211E50E965760F6 /* APIEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIEndpoint.swift; sourceTree = "<group>"; };
+		18C7C714464C6F9D2C93223C /* VairiotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VairiotStore.swift; sourceTree = "<group>"; };
 		1A733E9B69077EFBDFE50FC8 /* ClearableTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClearableTextField.swift; sourceTree = "<group>"; };
 		1F07A0EB0022187A41DC11EC /* CachedAsset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsset.swift; sourceTree = "<group>"; };
 		2155CF526A73D45001372BF3 /* MaintenanceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaintenanceListView.swift; sourceTree = "<group>"; };
+		24793E93910BA8FA7E2D00D5 /* SyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncManager.swift; sourceTree = "<group>"; };
 		271F78BD9E3311CA48292275 /* VairiotLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VairiotLogo.swift; sourceTree = "<group>"; };
 		2D3EB9B3A05D0499C0C081B7 /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
 		2E75CD85D2C829C9E36B7357 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		2F4AAAD2216A74C974530A2F /* QueuedAssetCreate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueuedAssetCreate.swift; sourceTree = "<group>"; };
 		34D85CCA0E82FAD162337885 /* TwoFactorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwoFactorView.swift; sourceTree = "<group>"; };
 		406E4AB1043BB20D52F0E9CE /* VairiotApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VairiotApp.swift; sourceTree = "<group>"; };
 		48EBC05DBD474D8D09C25049 /* MaintenanceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaintenanceDetailView.swift; sourceTree = "<group>"; };
@@ -278,7 +284,10 @@
 			children = (
 				4E228F84B58F49D491E3196A /* AssetRepository.swift */,
 				1F07A0EB0022187A41DC11EC /* CachedAsset.swift */,
+				2F4AAAD2216A74C974530A2F /* QueuedAssetCreate.swift */,
 				EE7FE78124B0EF2F946EDA64 /* QueuedScan.swift */,
+				24793E93910BA8FA7E2D00D5 /* SyncManager.swift */,
+				18C7C714464C6F9D2C93223C /* VairiotStore.swift */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -450,16 +459,19 @@
 				0035C572E1924415E7104620 /* PhotoGalleryView.swift in Sources */,
 				BB9284B805C6715775310870 /* ProfileView.swift in Sources */,
 				3E3E8CECB20DA70EAD381C43 /* ProfileViewModel.swift in Sources */,
+				2AD828CFA09FDC52C088FCD4 /* QueuedAssetCreate.swift in Sources */,
 				68F61F0616DEC750EA99460C /* QueuedScan.swift in Sources */,
 				6CEE46F7AB843F954F5FFB4E /* RevealableSecureField.swift in Sources */,
 				91387E21107F07C798BB6D4A /* ScannerView.swift in Sources */,
 				EBF347C95F7091F3FCC674FD /* StatusBadge.swift in Sources */,
+				D690C5E807E6816EFE2E10EE /* SyncManager.swift in Sources */,
 				820DC77024946F1FC8C7143C /* TokenManager.swift in Sources */,
 				8031BB94A75F4305CB844FE4 /* TwoFactorSetupView.swift in Sources */,
 				9D95030B90100862BA3AA40F /* TwoFactorView.swift in Sources */,
 				BD6C014B040822E10E824990 /* VairiotApp.swift in Sources */,
 				167B2B1EF0E476C2B8C058A1 /* VairiotColors.swift in Sources */,
 				89028AC8B6AC3BB0343B4BDC /* VairiotLogo.swift in Sources */,
+				2F84912C82E6E9FD74D37941 /* VairiotStore.swift in Sources */,
 				D27DE1E39FF9C0866986B59F /* VairiotTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
