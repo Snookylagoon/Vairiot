@@ -31,6 +31,8 @@ import { subTenantsRouter } from './routes/sub-tenants/sub-tenants.router';
 import { tenantContextRouter } from './routes/sub-tenants/tenant-context.router';
 import { mobileRouter } from './routes/mobile/mobile.router';
 import { mobileReleasesRouter } from './routes/admin/mobile-releases.router';
+import { iosRouter } from './routes/ios/ios.router';
+import { iosReleasesRouter } from './routes/admin/ios-releases.router';
 import { scanSessionsRouter } from './routes/scan-sessions/scan-sessions.router';
 import { globalLimiter } from './middleware/rate-limit';
 import { errorHandler } from './middleware/error-handler';
@@ -61,6 +63,9 @@ export function createApp(): Application {
 
   // ── Public mobile auto-update endpoints (no auth — needed before login) ──
   app.use('/api/v1/mobile',        mobileRouter);
+
+  // ── Public iOS Ad Hoc install endpoints (no auth — Safari on the device) ──
+  app.use('/api/v1/ios',           iosRouter);
 
   // ── Public tenant logo (img tag can't send Authorization header) ──
   app.get('/api/v1/public/tenants/:id/logo', async (req, res) => {
@@ -114,6 +119,7 @@ export function createApp(): Application {
   gated.use('/company',              tenantContextRouter);
   gated.use('/admin/platform', platformRouter);
   gated.use('/admin/mobile-releases', mobileReleasesRouter);
+  gated.use('/admin/ios-releases', iosReleasesRouter);
 
   app.use('/api/v1', gated);
   app.use((_req: Request, res: Response) => { res.status(404).json({ error: 'Not found' }); });

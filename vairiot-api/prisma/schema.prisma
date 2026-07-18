@@ -982,6 +982,38 @@ model MobileRelease {
   @@map("mobile_releases")
 }
 
+// ─── iOS Releases (Ad Hoc over-the-air distribution) ─────────────────────────
+model IosRelease {
+  id               String   @id @default(cuid())
+  versionCode      Int      @unique // CFBundleVersion (build number)
+  versionName      String   // CFBundleShortVersionString
+  storageKey       String
+  sizeBytes        Int
+  sha256           String
+  releaseNotes     String?
+  isCurrent        Boolean  @default(false)
+  uploadedByUserId String?
+  uploadedAt       DateTime @default(now())
+
+  @@index([isCurrent])
+  @@index([versionCode])
+  @@map("ios_releases")
+}
+
+// ─── iOS Devices (UDIDs captured by the enrollment helper) ───────────────────
+model IosDevice {
+  id         String   @id @default(cuid())
+  udid       String   @unique
+  product    String? // e.g. iPhone18,2
+  osVersion  String?
+  serial     String?
+  name       String? // label set by the admin ("Don's iPhone")
+  registered Boolean  @default(false) // true once added to the Apple Developer portal
+  createdAt  DateTime @default(now())
+
+  @@map("ios_devices")
+}
+
 // ─── Platform SMTP Config (singleton row, id = "singleton") ──────────────────
 model SmtpConfig {
   id               String    @id @default("singleton")
