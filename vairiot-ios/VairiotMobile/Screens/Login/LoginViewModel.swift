@@ -68,7 +68,11 @@ final class LoginViewModel {
             handleLoginResponse(response, tenantId: trimmedTenant)
         } catch let error as APIError {
             loginState = .idle
-            errorMessage = error.userMessage
+            if case .networkError = error {
+                errorMessage = "No internet connection. Signing in needs to be done online once — after that, Vairiot keeps working offline."
+            } else {
+                errorMessage = error.userMessage
+            }
         } catch {
             loginState = .idle
             errorMessage = error.localizedDescription

@@ -159,7 +159,16 @@ final class APIClient: Sendable {
             do {
                 try await refreshTokens()
                 return try await performRequest(endpoint, attemptRefresh: false)
+            } catch let urlError as URLError {
+                // Connection dropped mid-refresh — keep the session so offline
+                // mode still works; the refresh retries on the next request.
+                logDebug("Token refresh failed offline: \(urlError)")
+                throw APIError.networkError(urlError)
+            } catch APIError.networkError(let underlying) {
+                logDebug("Token refresh failed offline: \(underlying)")
+                throw APIError.networkError(underlying)
             } catch {
+                // The server actually rejected the refresh token — sign out.
                 logDebug("Token refresh failed: \(error)")
                 tokenManager.clear()
                 throw APIError.unauthorized
