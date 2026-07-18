@@ -91,6 +91,7 @@ struct ScannerTabView: View {
 
     let apiClient: APIClient
     @State private var showScanner = false
+    @State private var showRegisterSheet = false
     @State private var lookupResult: AssetResponse?
     @State private var notFoundTag: String?
     @State private var isLoading = false
@@ -141,6 +142,17 @@ struct ScannerTabView: View {
                         .font(.caption)
                         .monospaced()
                         .foregroundStyle(.secondary)
+
+                    Button {
+                        showRegisterSheet = true
+                    } label: {
+                        Label("Register as New Asset", systemImage: "plus.circle")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.vairiotViolet)
+                    .padding(.top, 4)
                 }
                 .padding()
             }
@@ -167,6 +179,13 @@ struct ScannerTabView: View {
         }
         .navigationDestination(item: $lookupResult) { asset in
             AssetDetailView(assetId: asset.id, apiClient: apiClient)
+        }
+        .sheet(isPresented: $showRegisterSheet) {
+            NavigationStack {
+                AssetEditView(apiClient: apiClient, prefillBarcode: notFoundTag) {
+                    notFoundTag = nil
+                }
+            }
         }
     }
 

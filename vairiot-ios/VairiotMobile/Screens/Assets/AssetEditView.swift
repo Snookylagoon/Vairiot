@@ -13,11 +13,13 @@ struct AssetEditView: View {
     init(
         apiClient: APIClient,
         existingAsset: AssetResponse? = nil,
+        prefillBarcode: String? = nil,
         onSaved: (() -> Void)? = nil
     ) {
         _viewModel = State(initialValue: AssetEditViewModel(
             apiClient: apiClient,
-            existingAsset: existingAsset
+            existingAsset: existingAsset,
+            prefillBarcode: prefillBarcode
         ))
         self.onSaved = onSaved
     }

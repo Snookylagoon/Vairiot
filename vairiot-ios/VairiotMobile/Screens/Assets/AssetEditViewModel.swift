@@ -57,7 +57,7 @@ final class AssetEditViewModel {
 
     // MARK: - Init
 
-    init(apiClient: APIClient, existingAsset: AssetResponse? = nil) {
+    init(apiClient: APIClient, existingAsset: AssetResponse? = nil, prefillBarcode: String? = nil) {
         self.apiClient = apiClient
 
         if let asset = existingAsset {
@@ -74,6 +74,7 @@ final class AssetEditViewModel {
             selectedLocationId = asset.location?.id
         } else {
             mode = .create
+            barcode = prefillBarcode ?? ""
         }
     }
 
