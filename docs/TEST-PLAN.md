@@ -467,4 +467,73 @@ how long you stayed offline.
 
 ---
 
+# Batch 5 tests — CI hardening
+
+These checks happen on GitHub, not the server. Open
+`https://github.com/Snookylagoon/Vairiot/actions` in your browser.
+
+## 5.1 — The pipeline goes green
+
+**What:** every push now runs lint + type-checks for all five TS workspaces,
+the API test suite, a Docker image build for all five services, and the
+Android build — all on Node 22 (same as production; the mismatch is gone).
+
+**Steps:**
+1. Open the **Actions** tab and click the newest "Vairiot CI" run on this
+   branch.
+2. Look at the job list.
+
+**Pass:** you see green ticks on **Lint & Type-check**, **API Tests**,
+**Docker api / worker / web / admin / reports**, and **Android Build & Lint**.
+
+**Fail:** any job is red. Click it, copy the last ~30 lines of the failing
+step, and send them to me.
+
+---
+
+## 5.2 — Broken code is actually blocked
+
+**What:** prove the gate isn't decorative.
+
+**Steps:** make a deliberately bad change on a throwaway branch:
+```
+git checkout -b ci-smoke-test
+echo "const unused_variable = 1;" >> vairiot-api/src/app.ts
+git commit -am "ci smoke test" && git push -u origin ci-smoke-test
+```
+Open a pull request for it on GitHub and watch the checks.
+
+**Pass:** the **Lint & Type-check** job fails (unused variable), and the PR
+shows a red ✗. Delete the branch afterwards (close the PR,
+`git push origin --delete ci-smoke-test`).
+
+---
+
+## 5.3 — Images are published for pull-based deploys
+
+**What:** on every push to `main`, CI now publishes ready-built Docker images
+to GitHub's registry (GHCR). This is the foundation for faster deploys with
+instant rollback — the server will eventually `docker compose pull` instead of
+building from source (that switch is a later, separate step; nothing about
+today's deploys changes yet).
+
+**Steps** (only after this branch is merged to `main`): on the repo page,
+right-hand side, click **Packages**.
+
+**Pass:** you see `vairiot-api`, `vairiot-worker`, `vairiot-web`,
+`vairiot-admin`, `vairiot-reports` packages, each with a `latest` tag and one
+tagged with the commit hash.
+
+---
+
+## 5.4 — Dependency update PRs appear
+
+**What:** Dependabot now watches npm, Python, Gradle, Docker, and the CI
+actions themselves, and opens small update PRs weekly (Mondays).
+
+**Pass:** within a week of merging you see a few PRs authored by
+`dependabot[bot]`. Nothing to do now — just merge them when CI is green.
+
+---
+
 *(Later batch test procedures are added below as each part lands.)*
