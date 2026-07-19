@@ -1,12 +1,34 @@
 import { generateSecret, generateURI, verifySync, TOTP } from 'otplib';
 import { randomBytes } from 'crypto';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
+import { encryptSecret, decryptSecret } from '../lib/crypto';
 import { ValidationError, NotFoundError, AppError } from '../lib/errors';
 import { ROLES_REQUIRING_2FA, type RoleName } from 'vairiot-shared';
 
 const BACKUP_CODE_COUNT = 8;
 const ISSUER = 'Vairiot';
+
+// The TOTP secret is stored encrypted (prefix `v1:`). Rows written before this
+// change hold plaintext — read them as-is so existing 2FA users keep working
+// until their next re-enrolment.
+function readSecret(stored: string): string {
+  return stored.startsWith('v1:') ? decryptSecret(stored) : stored;
+}
+
+// Backup codes are stored as bcrypt hashes (`$2...`). Legacy plaintext codes are
+// compared directly. Returns the index of the matching code, or -1.
+async function findBackupCodeIndex(input: string, codes: string[]): Promise<number> {
+  for (let i = 0; i < codes.length; i++) {
+    const stored = codes[i];
+    const matches = stored.startsWith('$2')
+      ? await bcrypt.compare(input, stored)
+      : stored === input;
+    if (matches) return i;
+  }
+  return -1;
+}
 
 // ─── Setup: generate secret + QR data ────────────────────────────────────────
 
@@ -26,10 +48,15 @@ export async function generateTwoFactorSetup(userId: string, email: string): Pro
   const otpauthUrl = generateURI({ issuer: ISSUER, label: email, secret });
   const backupCodes = generateBackupCodes();
 
+  // Store the secret encrypted and the backup codes hashed. The plaintext values
+  // are returned to the caller ONCE here so the user can save them.
+  const encryptedSecret = encryptSecret(secret);
+  const hashedBackupCodes = await Promise.all(backupCodes.map((c) => bcrypt.hash(c, 10)));
+
   await prisma.userTwoFactor.upsert({
     where: { userId },
-    update: { secret, backupCodes, verifiedAt: null },
-    create: { userId, secret, backupCodes },
+    update: { secret: encryptedSecret, backupCodes: hashedBackupCodes, verifiedAt: null },
+    create: { userId, secret: encryptedSecret, backupCodes: hashedBackupCodes },
   });
 
   return { secret, otpauthUrl, backupCodes };
@@ -41,7 +68,7 @@ export async function verifyAndEnableTwoFactor(userId: string, token: string): P
   const record = await prisma.userTwoFactor.findUnique({ where: { userId } });
   if (!record) throw new NotFoundError('Two-factor setup not found — call setup first');
 
-  const isValid = verifySync({ token, secret: record.secret });
+  const isValid = verifySync({ token, secret: readSecret(record.secret) });
   if (!isValid) throw new ValidationError('Invalid verification code');
 
   await prisma.userTwoFactor.update({
@@ -68,12 +95,12 @@ export async function validateTwoFactorToken(userId: string, token: string): Pro
   }
 
   // Check TOTP first
-  if (verifySync({ token, secret: record.secret })) {
+  if (verifySync({ token, secret: readSecret(record.secret) })) {
     return true;
   }
 
-  // Check backup codes
-  const codeIndex = record.backupCodes.indexOf(token);
+  // Check backup codes (stored hashed; legacy plaintext still supported)
+  const codeIndex = await findBackupCodeIndex(token, record.backupCodes);
   if (codeIndex >= 0) {
     // Consume the backup code
     const remaining = [...record.backupCodes];

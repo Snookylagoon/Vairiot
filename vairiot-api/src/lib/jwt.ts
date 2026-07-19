@@ -4,9 +4,22 @@ if (!process.env.JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET environment variable is required');
 }
 const BASE_SECRET    = process.env.JWT_SECRET;
-const ACCESS_SECRET  = process.env.JWT_ACCESS_SECRET  ?? BASE_SECRET;
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET ?? BASE_SECRET;
-const SETUP_SECRET   = process.env.JWT_SETUP_SECRET   ?? BASE_SECRET;
+// Use `||` (not `??`) so an empty string passed by the deployment env (e.g.
+// `${JWT_ACCESS_SECRET:-}` in compose) falls back to the base secret instead of
+// signing tokens with an empty key.
+const ACCESS_SECRET  = process.env.JWT_ACCESS_SECRET  || BASE_SECRET;
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || BASE_SECRET;
+const SETUP_SECRET   = process.env.JWT_SETUP_SECRET   || BASE_SECRET;
+
+if (BASE_SECRET.length < 32) {
+  // eslint-disable-next-line no-console
+  console.warn('[security] JWT_SECRET is shorter than 32 characters — generate a longer random value (e.g. `openssl rand -hex 32`).');
+}
+if (process.env.NODE_ENV === 'production' &&
+    (ACCESS_SECRET === REFRESH_SECRET || REFRESH_SECRET === SETUP_SECRET)) {
+  // eslint-disable-next-line no-console
+  console.warn('[security] JWT_ACCESS_SECRET / JWT_REFRESH_SECRET / JWT_SETUP_SECRET are not all distinct — set separate high-entropy secrets per token class.');
+}
 const EXPIRY  = process.env.JWT_EXPIRY  ?? '8h';
 const REFRESH = process.env.JWT_REFRESH_EXPIRY ?? '30d';
 

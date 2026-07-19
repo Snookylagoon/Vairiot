@@ -26,3 +26,4 @@ if (fs.existsSync(envPath)) {
 // (pure unit tests that never touch the database).
 process.env.NODE_ENV ??= 'test';
 process.env.JWT_SECRET ??= 'test-jwt-secret';
+process.env.APP_ENCRYPTION_KEY ??= 'test-encryption-key-32-chars-min!';

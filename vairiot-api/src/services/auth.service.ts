@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { signAccessToken, signRefreshToken, signSetupToken, signChallengeToken, verifyChallengeToken, verifyRefreshToken } from '../lib/jwt';
 import { logger } from '../lib/logger';
+import { blacklistToken, isTokenBlacklisted } from '../lib/redis';
 import { UnauthorizedError, ValidationError, NotFoundError } from '../lib/errors';
 import { checkAccountLock, recordLoginAttempt } from './login-protection.service';
 import { touchDeviceOnLogin } from './licence.service';
@@ -135,6 +136,19 @@ export async function loginWithTwoFactor(
 
 export async function refreshTokens(token: string): Promise<AuthTokens> {
   const p = verifyRefreshToken(token);
+
+  // Rotation with reuse detection: the presented refresh token is single-use.
+  // If it has already been rotated (its jti is blacklisted), someone is replaying
+  // a stolen token — reject. Otherwise, blacklist it now so it can't be used again.
+  if (p.jti) {
+    if (await isTokenBlacklisted(p.jti)) {
+      logger.warn('Refresh token reuse detected', { sub: p.sub, jti: p.jti });
+      throw new UnauthorizedError('Refresh token already used — please sign in again', 'TOKEN_REUSED');
+    }
+    const ttl = p.exp ? p.exp - Math.floor(Date.now() / 1000) : 0;
+    if (ttl > 0) await blacklistToken(p.jti, ttl);
+  }
+
   const user = await prisma.user.findUnique({ where: { id: p.sub }, include: { roles: { include: { role: true } } } });
   if (!user || !user.active) throw new UnauthorizedError('Invalid or expired refresh token');
   const roles       = user.roles.map((ur) => ur.role.name);

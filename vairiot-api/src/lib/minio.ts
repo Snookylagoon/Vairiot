@@ -9,8 +9,10 @@ export const minioClient = new Client({
   endPoint:  process.env.MINIO_ENDPOINT  ?? 'localhost',
   port:      Number(process.env.MINIO_PORT ?? 9000),
   useSSL:    (process.env.MINIO_USE_SSL ?? 'false') === 'true',
-  accessKey: process.env.MINIO_ROOT_USER     ?? process.env.MINIO_ACCESS_KEY ?? 'vairiot-minio',
-  secretKey: process.env.MINIO_ROOT_PASSWORD ?? process.env.MINIO_SECRET_KEY ?? 'changeme-minio',
+  // Prefer a scoped service account (MINIO_ACCESS_KEY/SECRET_KEY) when provided,
+  // falling back to root only if it isn't. `||` so empty env strings fall through.
+  accessKey: process.env.MINIO_ACCESS_KEY || process.env.MINIO_ROOT_USER     || 'vairiot-minio',
+  secretKey: process.env.MINIO_SECRET_KEY || process.env.MINIO_ROOT_PASSWORD || 'changeme-minio',
 });
 
 export async function ensurePhotosBucket(): Promise<void> {
