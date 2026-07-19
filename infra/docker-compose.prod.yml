@@ -209,7 +209,8 @@ services:
       - web
       - admin
     volumes:
-      - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      # Defaults to prod. Staging sets NGINX_CONF=./nginx/staging.conf in its .env.
+      - ${NGINX_CONF:-./nginx/prod.conf}:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
     ports:
