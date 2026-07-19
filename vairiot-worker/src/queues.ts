@@ -6,7 +6,14 @@ export const QUEUE_NAMES = {
   alertDigest: 'alert-digest',
   userInvite: 'user-invite',
   notificationScheduler: 'notification-scheduler',
+  webhookDeliver: 'webhook-deliver',
+  storageMetering: 'storage-metering',
 } as const;
+
+export interface WebhookDeliverJob {
+  /** WebhookDelivery row id — hook config and payload are loaded from it. */
+  deliveryId: string;
+}
 
 // Repeatable tick that fans out alert-digest jobs. Registered by the worker on
 // startup; `frequency` selects which subscriptions the tick covers.

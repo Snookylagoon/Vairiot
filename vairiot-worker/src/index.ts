@@ -8,8 +8,10 @@ import { initMonitoring, captureException } from './monitoring';
 import { handleAlertDigest } from './processors/alert-digest';
 import { handleAuditComplete } from './processors/audit-complete';
 import { handleSchedulerTick, setDigestQueue } from './processors/notification-scheduler';
+import { handleStorageMetering } from './processors/storage-metering';
 import { handleUserInvite } from './processors/user-invite';
-import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, UserInviteJob, SchedulerTickJob } from './queues';
+import { handleWebhookDeliver } from './processors/webhook-deliver';
+import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, UserInviteJob, SchedulerTickJob, WebhookDeliverJob } from './queues';
 
 initMonitoring();
 
@@ -74,14 +76,38 @@ userInviteWorker.on('completed', (job) => {
   logger.info(`user-invite job ${job.id} completed`);
 });
 
+const webhookDeliverWorker = new Worker<WebhookDeliverJob>(
+  QUEUE_NAMES.webhookDeliver,
+  handleWebhookDeliver,
+  { connection, concurrency: 8 },
+);
+
+webhookDeliverWorker.on('failed', (job, err) => {
+  logger.error(`webhook-deliver job ${job?.id ?? '?'} failed: ${err.message}`);
+  reportIfExhausted(QUEUE_NAMES.webhookDeliver, job, err);
+});
+
+const storageMeteringWorker = new Worker(
+  QUEUE_NAMES.storageMetering,
+  handleStorageMetering,
+  { connection, concurrency: 1 },
+);
+
+storageMeteringWorker.on('failed', (job, err) => {
+  logger.error(`storage-metering job ${job?.id ?? '?'} failed: ${err.message}`);
+  reportIfExhausted(QUEUE_NAMES.storageMetering, job, err);
+});
+
 // ── Notification scheduler ───────────────────────────────────────────────────
 // Repeatable ticks that fan out alert digests (with maintenance-due items).
 // Cron patterns are configurable; defaults: daily 07:00, weekly Monday 07:00.
 
 const DAILY_CRON  = process.env.ALERT_DIGEST_DAILY_CRON  || '0 7 * * *';
 const WEEKLY_CRON = process.env.ALERT_DIGEST_WEEKLY_CRON || '0 7 * * 1';
+const METERING_CRON = process.env.STORAGE_METERING_CRON  || '0 2 * * *';
 
 const schedulerQueue = new Queue<SchedulerTickJob>(QUEUE_NAMES.notificationScheduler, { connection });
+const meteringQueue  = new Queue(QUEUE_NAMES.storageMetering, { connection });
 const digestQueue    = new Queue<AlertDigestJob>(QUEUE_NAMES.alertDigest, { connection });
 setDigestQueue(digestQueue);
 
@@ -107,7 +133,13 @@ async function registerSchedules(): Promise<void> {
     { repeat: { pattern: DAILY_CRON },  removeOnComplete: 20, removeOnFail: 50, attempts: 2 });
   await schedulerQueue.add('tick', { frequency: 'weekly' },
     { repeat: { pattern: WEEKLY_CRON }, removeOnComplete: 20, removeOnFail: 50, attempts: 2 });
-  logger.info(`notification-scheduler registered: daily "${DAILY_CRON}", weekly "${WEEKLY_CRON}"`);
+  const meteringRepeats = await meteringQueue.getRepeatableJobs();
+  for (const r of meteringRepeats) {
+    await meteringQueue.removeRepeatableByKey(r.key);
+  }
+  await meteringQueue.add('snapshot', {},
+    { repeat: { pattern: METERING_CRON }, removeOnComplete: 10, removeOnFail: 20, attempts: 2 });
+  logger.info(`notification-scheduler registered: daily "${DAILY_CRON}", weekly "${WEEKLY_CRON}"; storage-metering "${METERING_CRON}"`);
 }
 registerSchedules().catch((err) => {
   logger.error(`Failed to register notification schedules: ${(err as Error).message}`);
@@ -138,7 +170,10 @@ async function shutdown(signal: string): Promise<void> {
   await alertDigestWorker.close();
   await userInviteWorker.close();
   await schedulerWorker.close();
+  await webhookDeliverWorker.close();
+  await storageMeteringWorker.close();
   await schedulerQueue.close();
+  await meteringQueue.close();
   await digestQueue.close();
   process.exit(0);
 }

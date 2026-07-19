@@ -671,8 +671,51 @@ model Webhook {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  deliveries WebhookDelivery[]
+
   @@index([tenantId, active])
   @@map("webhooks")
+}
+
+// Delivery log for outbound webhooks — one row per hook per event, updated by
+// the worker as BullMQ retries run. Answers "did my integration get called?".
+model WebhookDelivery {
+  id           String    @id @default(cuid())
+  tenantId     String
+  webhookId    String
+  event        String
+  url          String
+  status       String    @default("pending") // pending | delivered | failed
+  attempts     Int       @default(0)
+  responseCode Int?
+  lastError    String?
+  payload      Json
+  createdAt    DateTime  @default(now())
+  deliveredAt  DateTime?
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([webhookId, createdAt])
+  @@map("webhook_deliveries")
+}
+
+// Nightly per-tenant usage snapshot (storage metering / future billing input).
+model TenantUsage {
+  id            String   @id @default(cuid())
+  tenantId      String
+  date          DateTime // midnight-UTC day bucket
+  photoBytes    BigInt   @default(0)
+  documentBytes BigInt   @default(0)
+  photoCount    Int      @default(0)
+  documentCount Int      @default(0)
+  assetCount    Int      @default(0)
+  userCount     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@unique([tenantId, date])
+  @@index([tenantId, date])
+  @@map("tenant_usage")
 }
 
 // ─── Report Schedules ─────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import { body, validationResult } from 'express-validator';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import {
-  listWebhooks, createWebhook, deleteWebhook, toggleWebhook, getValidEvents,
+  listWebhooks, createWebhook, deleteWebhook, toggleWebhook, getValidEvents, listDeliveries,
 } from '../../services/webhook.service';
 
 export const webhooksRouter = Router();
@@ -19,6 +19,14 @@ webhooksRouter.get('/',
 webhooksRouter.get('/events', (_req: Request, res: Response): void => {
   res.json(getValidEvents());
 });
+
+webhooksRouter.get('/deliveries',
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const webhookId = typeof req.query.webhookId === 'string' ? req.query.webhookId : undefined;
+    const limit = Number(req.query.limit) || 50;
+    res.json(await listDeliveries(req.user!.tenantId, webhookId, limit));
+  }),
+);
 
 webhooksRouter.post('/',
   [

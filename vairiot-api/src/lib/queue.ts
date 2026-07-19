@@ -5,7 +5,13 @@ import { logger } from './logger';
 export const QUEUE_NAMES = {
   auditComplete: 'audit-complete',
   userInvite: 'user-invite',
+  webhookDeliver: 'webhook-deliver',
 } as const;
+
+export interface WebhookDeliverJob {
+  /** WebhookDelivery row id — the worker loads hook + payload from it. */
+  deliveryId: string;
+}
 
 export interface AuditCompleteJob {
   tenantId:       string;
@@ -90,5 +96,28 @@ export async function enqueueUserInvite(payload: UserInviteJob): Promise<void> {
     await q.add('send', payload, JOB_OPTS);
   } catch (e) {
     logger.error(`Failed to enqueue user-invite: ${(e as Error).message}`);
+  }
+}
+
+let cachedWebhookQueue: Queue<WebhookDeliverJob> | null = null;
+
+export function getWebhookDeliverQueue(): Queue<WebhookDeliverJob> | null {
+  if (isWorkerDisabled()) return null;
+  if (!cachedWebhookQueue) {
+    cachedWebhookQueue = new Queue<WebhookDeliverJob>(QUEUE_NAMES.webhookDeliver, { connection: connection() });
+  }
+  return cachedWebhookQueue;
+}
+
+/** Returns false when the job could not be enqueued (caller may fall back to direct dispatch). */
+export async function enqueueWebhookDeliver(payload: WebhookDeliverJob): Promise<boolean> {
+  const q = getWebhookDeliverQueue();
+  if (!q) return false;
+  try {
+    await q.add('deliver', payload, JOB_OPTS);
+    return true;
+  } catch (e) {
+    logger.error(`Failed to enqueue webhook-deliver: ${(e as Error).message}`);
+    return false;
   }
 }

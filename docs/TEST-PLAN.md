@@ -536,4 +536,86 @@ actions themselves, and opens small update PRs weekly (Mondays).
 
 ---
 
+# Batch 6 tests — SaaS growth (code-side)
+
+## 6.1 — Rate limits survive an API restart
+
+**What:** request limits were kept in the API's memory, so a restart (or a
+second API container) reset them. They now live in Redis.
+
+**Steps** (Mac Terminal):
+```
+for i in 1 2 3 4 5 6 7; do curl -s -o /dev/null -w "%{http_code} " https://test.vairiot.com/api/v1/auth/login -H 'Content-Type: application/json' -d '{"email":"x@x.com","password":"wrongwrong","tenantId":"none"}'; done; echo
+```
+Then immediately (server Terminal):
+```
+docker restart vairiot_api && sleep 8
+```
+Then re-run the curl loop.
+
+**Pass:** the first loop ends in `429` (limited after 5 tries). After the
+restart the very first requests are **still 429** — the restart did not reset
+the counter. (Wait a minute and it clears.)
+
+**Fail:** after the restart you get `401`s again straight away. Tell me.
+
+---
+
+## 6.2 — Webhooks are delivered reliably and logged
+
+**What:** webhook calls used to be fire-and-forget — if your endpoint was down
+for 10 seconds, the event was lost forever, invisibly. Now every delivery is
+queued, retried 3 times, signed, and logged.
+
+**Steps:**
+1. Get a free test endpoint: open `https://webhook.site` in a browser and copy
+   your unique URL.
+2. In the app (Settings → Integrations/Webhooks), create a webhook pointing at
+   that URL, subscribed to e.g. asset-created events.
+3. Create an asset.
+4. Check `webhook.site` — the POST should appear, with an
+   `X-Vairiot-Signature` header.
+5. Check the delivery log (Mac Terminal, with a token — or just ask me):
+   ```
+   curl -s https://test.vairiot.com/api/v1/webhooks/deliveries -H "Authorization: Bearer $TOKEN" | python3 -m json.tool | head -30
+   ```
+
+**Pass:** the event arrived at webhook.site, and the deliveries list shows the
+row with `"status": "delivered"`, an attempt count, and a response code 200.
+
+**Retry proof (optional):** point a second webhook at an unreachable URL
+(e.g. `https://10.255.255.1/hook`), trigger an event, wait ~1 minute, and check
+the deliveries list: that row should show `"status": "failed"` with
+`"attempts": 3` — it tried three times and recorded the failure instead of
+losing it silently.
+
+---
+
+## 6.3 — Storage metering snapshots
+
+**What:** the platform now records how much storage each organisation uses,
+nightly at 02:00 (input for future tier caps / billing).
+
+**Steps** (server Terminal — after the first 02:00 has passed, or speed it up
+with `STORAGE_METERING_CRON="*/5 * * * *"` in `.env` + redeploy, then revert):
+```
+docker logs vairiot_worker 2>&1 | grep storage-metering
+docker exec vairiot_postgres psql -U vairiot -d vairiot -c "SELECT \"tenantId\", date, \"photoBytes\", \"documentBytes\", \"assetCount\", \"userCount\" FROM tenant_usage ORDER BY date DESC LIMIT 5;"
+```
+
+**Pass:** the worker log shows *"storage-metering … snapshot written for N
+tenant(s)"* and the table has one row per tenant per day with sensible counts.
+
+---
+
+## Not in this branch (needs accounts/decisions from you)
+
+- **Stripe billing** — needs a Stripe account + keys before any code makes sense.
+- **Managed Postgres / S3 migration (hosting Option A)** — a provider choice
+  and an evening of migration, per `docs/AUDIT-2026-07-19.md` §7.
+- **Prisma tenant-guard extension / cross-tenant fuzz test** — designed
+  separately; touching every query path deserves its own reviewed change.
+
+---
+
 *(Later batch test procedures are added below as each part lands.)*
