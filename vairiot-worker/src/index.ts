@@ -1,10 +1,11 @@
 import { writeFileSync } from 'node:fs';
-import { Worker, ConnectionOptions, Job } from 'bullmq';
+import { Worker, Queue, ConnectionOptions, Job } from 'bullmq';
 import { logger } from './logger';
-import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, UserInviteJob } from './queues';
+import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, UserInviteJob, SchedulerTickJob } from './queues';
 import { handleAuditComplete } from './processors/audit-complete';
 import { handleAlertDigest } from './processors/alert-digest';
 import { handleUserInvite } from './processors/user-invite';
+import { handleSchedulerTick, setDigestQueue } from './processors/notification-scheduler';
 import { verifyMailer } from './mailer';
 import { initMonitoring, captureException } from './monitoring';
 
@@ -71,6 +72,46 @@ userInviteWorker.on('completed', (job) => {
   logger.info(`user-invite job ${job.id} completed`);
 });
 
+// ── Notification scheduler ───────────────────────────────────────────────────
+// Repeatable ticks that fan out alert digests (with maintenance-due items).
+// Cron patterns are configurable; defaults: daily 07:00, weekly Monday 07:00.
+
+const DAILY_CRON  = process.env.ALERT_DIGEST_DAILY_CRON  || '0 7 * * *';
+const WEEKLY_CRON = process.env.ALERT_DIGEST_WEEKLY_CRON || '0 7 * * 1';
+
+const schedulerQueue = new Queue<SchedulerTickJob>(QUEUE_NAMES.notificationScheduler, { connection });
+const digestQueue    = new Queue<AlertDigestJob>(QUEUE_NAMES.alertDigest, { connection });
+setDigestQueue(digestQueue);
+
+const schedulerWorker = new Worker<SchedulerTickJob>(
+  QUEUE_NAMES.notificationScheduler,
+  handleSchedulerTick,
+  { connection, concurrency: 1 },
+);
+
+schedulerWorker.on('failed', (job, err) => {
+  logger.error(`notification-scheduler job ${job?.id ?? '?'} failed: ${err.message}`);
+  reportIfExhausted(QUEUE_NAMES.notificationScheduler, job, err);
+});
+
+async function registerSchedules(): Promise<void> {
+  // Drop stale repeatable entries (e.g. a changed cron pattern) before re-adding
+  // so exactly one daily and one weekly schedule exist.
+  const existing = await schedulerQueue.getRepeatableJobs();
+  for (const r of existing) {
+    await schedulerQueue.removeRepeatableByKey(r.key);
+  }
+  await schedulerQueue.add('tick', { frequency: 'daily' },
+    { repeat: { pattern: DAILY_CRON },  removeOnComplete: 20, removeOnFail: 50, attempts: 2 });
+  await schedulerQueue.add('tick', { frequency: 'weekly' },
+    { repeat: { pattern: WEEKLY_CRON }, removeOnComplete: 20, removeOnFail: 50, attempts: 2 });
+  logger.info(`notification-scheduler registered: daily "${DAILY_CRON}", weekly "${WEEKLY_CRON}"`);
+}
+registerSchedules().catch((err) => {
+  logger.error(`Failed to register notification schedules: ${(err as Error).message}`);
+  captureException(err as Error, { queue: QUEUE_NAMES.notificationScheduler });
+});
+
 // Liveness heartbeat — the container HEALTHCHECK checks the freshness of this
 // file, so a wedged event loop is detected even when the process is still up.
 const HEARTBEAT_PATH = process.env.WORKER_HEARTBEAT_PATH ?? '/tmp/worker-heartbeat';
@@ -94,6 +135,9 @@ async function shutdown(signal: string): Promise<void> {
   await auditCompleteWorker.close();
   await alertDigestWorker.close();
   await userInviteWorker.close();
+  await schedulerWorker.close();
+  await schedulerQueue.close();
+  await digestQueue.close();
   process.exit(0);
 }
 process.on('SIGINT',  () => shutdown('SIGINT'));

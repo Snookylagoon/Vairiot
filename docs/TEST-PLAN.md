@@ -211,4 +211,173 @@ clears. Tell me how many you scanned vs how many appeared.
 
 ---
 
-*(Batch 2 test procedures are added below as each part lands.)*
+# Batch 2 tests — security mediums (M1–M6)
+
+## 2.1 — New password rules
+
+**What:** passwords used to have to be *exactly* 12 letters/numbers (bizarre and
+weak). Now: at least 12 characters, anything allowed, and either a mix of
+character types or a long passphrase.
+
+**Steps** (Browser — `https://test.vairiot.com`, logged in as an admin):
+1. Go to user management and start creating a new user.
+2. Try password `alllowercase` (12 lower-case letters) → should be **rejected**
+   with a message about mixing character types.
+3. Try `administrator` → **rejected** ("too common").
+4. Try `StrongPass1!` → **accepted** (symbols are now allowed).
+5. Try the passphrase `correct horse battery staple` → **accepted**.
+
+**Pass:** rejections and acceptances exactly as above.
+
+**Fail:** a weak one is accepted or a strong one rejected. Tell me which password
+and what message you saw.
+
+---
+
+## 2.2 — 2FA secrets are no longer stored readable
+
+**What:** two-factor secrets and backup codes used to sit readable in the
+database; now they're encrypted/hashed.
+
+**Steps:**
+1. In the Browser, log in as any user, go to security settings, and **enable
+   two-factor** (scan the QR with an authenticator app, save the backup codes,
+   confirm with a code).
+2. Server Terminal:
+   ```
+   docker exec vairiot_postgres psql -U vairiot -d vairiot -c "SELECT secret, \"backupCodes\"[1] FROM user_two_factor LIMIT 3;"
+   ```
+
+**Pass:** every `secret` starts with `v1:` followed by gibberish, and the backup
+code starts with `$2` (a hash) — you can't read either.
+
+**Fail:** you can read a plain secret (letters/numbers that match what the QR
+setup showed) or a plain 8-character backup code. Send me a screenshot with the
+values blurred.
+
+Also confirm logging in with 2FA still works, and that **one backup code** works
+once (and is rejected if used a second time).
+
+---
+
+## 2.3 — A stolen "keep me logged in" token can't be reused
+
+**What:** refresh tokens are now single-use. Using the same one twice means theft
+— the second use is rejected.
+
+**Steps** (Mac Terminal; replace the email/password with a staging login):
+```
+TOKEN=$(curl -s https://test.vairiot.com/api/v1/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"YourPassword1!","tenantId":"YOUR_TENANT"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["refreshToken"])')
+curl -s -o /dev/null -w "first use: %{http_code}\n"  https://test.vairiot.com/api/v1/auth/refresh -H 'Content-Type: application/json' -d "{\"refreshToken\":\"$TOKEN\"}"
+curl -s -o /dev/null -w "second use: %{http_code}\n" https://test.vairiot.com/api/v1/auth/refresh -H 'Content-Type: application/json' -d "{\"refreshToken\":\"$TOKEN\"}"
+```
+
+**Pass:** `first use: 200`, `second use: 401`.
+
+**Fail:** second use also prints `200`. Tell me both numbers.
+
+---
+
+## 2.4 — Secret-strength warnings
+
+**What:** the server now complains at startup if its cryptographic secrets are
+weak, short, or shared.
+
+**Steps** (server Terminal):
+```
+docker logs vairiot_api 2>&1 | grep "\[security\]"
+```
+
+**Pass:** ideally **nothing** prints (secrets are strong and distinct). If lines
+print, they tell you exactly what to fix in `/opt/Vairiot/.env` — e.g. generate
+values with `openssl rand -hex 32` and set `JWT_ACCESS_SECRET`,
+`JWT_REFRESH_SECRET`, `JWT_SETUP_SECRET` to three *different* values, then
+redeploy and re-run this check until nothing prints.
+
+---
+
+## 2.5 — API uses a limited storage account (not the master key)
+
+**What:** the API can now run with a MinIO account limited to the app's buckets
+instead of the all-powerful root credentials.
+
+**Steps** (server Terminal — one-time setup):
+```
+docker exec vairiot_minio mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+docker exec vairiot_minio mc admin user svcacct add local "$MINIO_ROOT_USER" --access-key vairiot-app --secret-key "$(openssl rand -hex 24)"
+```
+Then add to `/opt/Vairiot/.env`: `MINIO_ACCESS_KEY=vairiot-app` and
+`MINIO_SECRET_KEY=<the secret you generated>`, and redeploy.
+
+**Pass:** after redeploy, uploading and viewing an asset photo in the app still
+works.
+
+**Fail:** photo upload errors after the change. Send me
+`docker logs vairiot_api --tail 50`.
+
+*(If you skip this setup, nothing breaks — the API just keeps using root
+credentials like before. The fix makes the scoped account possible.)*
+
+---
+
+# Batch 3 tests — notification scheduler
+
+## 3.1 — Scheduler is registered
+
+**What:** alert digest emails users could subscribe to were never actually sent —
+nothing ever triggered them. Now the worker schedules them (daily 07:00, weekly
+Monday 07:00, server time).
+
+**Steps** (server Terminal):
+```
+docker logs vairiot_worker 2>&1 | grep "notification-scheduler"
+```
+
+**Pass:** a line like *"notification-scheduler registered: daily "0 7 * * *",
+weekly "0 7 * * 1""*.
+
+**Fail:** no such line, or an error mentioning notification-scheduler. Send it
+to me.
+
+---
+
+## 3.2 — A digest email actually arrives
+
+**What:** end-to-end proof: subscribe → something is wrong with an asset →
+email arrives (with maintenance-due items listed).
+
+**Steps:**
+1. Browser: log in, go to **Alerts / notification settings**, subscribe to
+   **Overdue maintenance** with frequency **daily**. (Make sure your user's email
+   is real, and SMTP is configured on staging — test 1.5.)
+2. Create the problem: on any asset, schedule a **maintenance** event with a date
+   in the past (yesterday). It's now "overdue".
+3. Don't wait for 07:00 — speed the schedule up. In `/opt/Vairiot/.env` add:
+   ```
+   ALERT_DIGEST_DAILY_CRON=*/2 * * * *
+   ```
+   then redeploy (`bash infra/deploy.sh`) and wait ~3 minutes.
+4. Server Terminal:
+   ```
+   docker logs vairiot_worker --tail 30
+   ```
+5. Check the subscriber's email inbox.
+
+**Pass:** the worker log shows *"notification-scheduler(daily): 1 digest(s)
+enqueued"* then *"alert-digest job ... sent"*, and the email arrives listing
+**Overdue maintenance: 1** and the asset under "Maintenance due in the next
+7 days" marked **(OVERDUE)**.
+
+Also check: wait another 2 minutes — **no second email** arrives (each digest is
+sent at most once per day even if the schedule fires again).
+
+**Cleanup:** remove the `ALERT_DIGEST_DAILY_CRON` line from `.env` and redeploy,
+so staging goes back to the normal 07:00 schedule.
+
+**Fail:** no "enqueued" line, an error in the worker log, or no email. Send me
+the last 30 lines of the worker log.
+
+---
+
+*(Later batch test procedures are added below as each part lands.)*
