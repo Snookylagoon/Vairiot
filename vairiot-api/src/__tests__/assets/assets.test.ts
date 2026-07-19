@@ -28,7 +28,7 @@ beforeAll(async () => {
   await prisma.licence.upsert({
     where: { id: `test-licence-${TID}` },
     update: { status: 'active' },
-    create: { id: `test-licence-${TID}`, tenantId: TID, tierId: tier.id, status: 'active', activatedAt: new Date(), paymentConfirmed: true },
+    create: { id: `test-licence-${TID}`, tenantId: TID, tierId: tier.id, licenceNumber: `VAI-TEST-${TID}`, status: 'active', activatedAt: new Date(), paymentConfirmed: true },
   });
 
   const login = await request(app).post('/api/v1/auth/login').send({ email: EMAIL, password: PASS, tenantId: TID });
