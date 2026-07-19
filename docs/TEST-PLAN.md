@@ -380,4 +380,91 @@ the last 30 lines of the worker log.
 
 ---
 
+# Batch 4 tests — offline sync integrity (mobile)
+
+These need a phone with the updated app build. Everything is about one promise:
+**work done offline is never silently lost.**
+
+## 4.1 — Offline scans survive a phone reboot
+
+**What:** before, restarting the app forced a re-login and queued offline scans
+got stuck (the sync kept failing while logged out) and were eventually deleted.
+Now the session survives restarts and queued work drains.
+
+**Steps (Android or iPhone):**
+1. Log in. Put the phone in **Airplane mode**.
+2. In an in-progress audit, scan (or type) 3 asset tags. They queue offline.
+3. **Restart the phone** (full power off/on) with Airplane mode still on.
+4. Open the app — you should still be **logged in** (no login screen).
+5. Turn Airplane mode **off**, open the app, wait ~30 seconds.
+6. Check the campaign results in the admin panel.
+
+**Pass:** all 3 scans arrive; app never asked you to log in again.
+
+**Fail:** the app asked for login after restart, or scans are missing. Tell me
+which step and which phone (Android/iPhone).
+
+---
+
+## 4.2 — Replayed scans can't be double-counted
+
+**What:** if the app crashes at exactly the wrong moment, it used to be able to
+send the same scan twice. Scans now carry a unique ID and the server ignores
+repeats.
+
+**Steps** (server Terminal — after doing 4.1):
+```
+docker exec vairiot_postgres psql -U vairiot -d vairiot -c "SELECT COUNT(*), COUNT(DISTINCT \"clientRequestId\") FROM audit_scan_events WHERE \"clientRequestId\" IS NOT NULL;"
+```
+
+**Pass:** the two numbers are **equal** (every scan has a unique ID, no repeats),
+and new scan rows also show a `capturedAt` when you check them — the time you
+actually scanned, not the time the phone got signal back:
+```
+docker exec vairiot_postgres psql -U vairiot -d vairiot -c "SELECT \"tagValue\", \"scannedAt\", \"capturedAt\" FROM audit_scan_events ORDER BY \"scannedAt\" DESC LIMIT 5;"
+```
+For scans taken in Airplane mode, `capturedAt` should be **earlier** than
+`scannedAt`.
+
+---
+
+## 4.3 — Failed items are parked, not deleted
+
+**What:** items that genuinely can't sync (e.g. the server rejects them) used to
+be silently deleted after 5 tries. Now they're kept and shown to you.
+
+**Steps** (either phone):
+1. Put the phone in Airplane mode and create an asset offline — but give it
+   something the server will reject. Easiest: ask me to briefly enable a
+   rejection on staging, **or** simulate it: scan into a **blind audit zone**,
+   have someone else **submit that zone** from the admin panel, then reconnect.
+   The server now refuses those scans ("zone locked").
+2. Reconnect and let it sync. Wait a couple of minutes (it retries 5 times).
+3. Open **Profile** in the app.
+
+**Pass:** a **"Failed sync items"** card appears showing the count, with
+**Retry all** and **Discard** buttons. Discard asks for confirmation before
+deleting. The items were NOT silently thrown away.
+
+**Fail:** the queued item just vanishes and Profile shows nothing. Tell me what
+you queued and what happened.
+
+---
+
+## 4.4 — Losing signal doesn't burn retry attempts
+
+**What:** being offline for a long time used to count against the 5 retries
+(long enough offline = data deleted). Now network failures don't count at all.
+
+**Steps** (Android):
+1. Airplane mode on, queue 2–3 scans.
+2. Leave Airplane mode **on for a few hours** (or overnight), using the app
+   occasionally so sync attempts happen.
+3. Reconnect.
+
+**Pass:** everything syncs — nothing was dropped or parked as failed no matter
+how long you stayed offline.
+
+---
+
 *(Later batch test procedures are added below as each part lands.)*

@@ -73,6 +73,8 @@ auditsRouter.post('/:id/scans', requireAnyPermission('audit:write'),
     body('tagValue').notEmpty(),
     body('locationId').optional({ nullable: true }).isString(),
     body('condition').optional({ nullable: true }).isIn(['good', 'fair', 'poor', 'damaged']),
+    body('clientRequestId').optional({ nullable: true }).isString().isLength({ max: 64 }),
+    body('capturedAt').optional({ nullable: true }).isISO8601(),
   ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);

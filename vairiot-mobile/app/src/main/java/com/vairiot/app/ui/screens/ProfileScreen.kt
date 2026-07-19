@@ -90,6 +90,14 @@ fun ProfileScreen(
                 Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
             }
 
+            if (state.failedSyncCount > 0) {
+                FailedSyncCard(
+                    count     = state.failedSyncCount,
+                    onRetry   = viewModel::retryFailedSync,
+                    onDiscard = viewModel::discardFailedSync,
+                )
+            }
+
             Spacer(Modifier.weight(1f))
 
             AppVersionCard(
@@ -118,6 +126,56 @@ fun ProfileScreen(
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
             viewModel.dismissUpdateMessage()
         }
+    }
+}
+
+/**
+ * Offline scans/assets that exhausted their sync attempts. They are never
+ * silently deleted — the user decides to retry (after fixing the cause) or
+ * discard them.
+ */
+@Composable
+private fun FailedSyncCard(
+    count: Int,
+    onRetry: () -> Unit,
+    onDiscard: () -> Unit,
+) {
+    var confirmDiscard by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Failed sync items", fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onErrorContainer)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "$count item${if (count == 1) "" else "s"} could not be uploaded after several tries.",
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onRetry) { Text("Retry all") }
+                OutlinedButton(onClick = { confirmDiscard = true }) { Text("Discard") }
+            }
+        }
+    }
+
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("Discard failed items?") },
+            text = { Text("These $count offline item${if (count == 1) "" else "s"} will be permanently deleted and will never reach the server.") },
+            confirmButton = {
+                TextButton(onClick = { confirmDiscard = false; onDiscard() }) { Text("Discard") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDiscard = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 

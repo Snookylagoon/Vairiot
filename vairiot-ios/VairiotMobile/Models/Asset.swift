@@ -107,6 +107,8 @@ struct AssetCreateRequest: Codable {
     var categoryId: String?
     var siteId: String?
     var locationId: String?
+    /// Idempotency key so offline replays can't create duplicate assets.
+    var clientRequestId: String?
 }
 
 struct AssetUpdateRequest: Codable {

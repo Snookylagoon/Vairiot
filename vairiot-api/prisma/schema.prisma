@@ -297,6 +297,9 @@ model Asset {
   warrantyExpiry DateTime?
   notes        String?
   customFields Json?
+  // Client-generated idempotency key so offline queue replays can't create
+  // duplicates (crash between API success and queue-delete on the device).
+  clientRequestId String?
   deletedAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -313,6 +316,7 @@ model Asset {
   transfers         Transfer[]
 
   @@unique([tenantId, assetNumber])
+  @@unique([tenantId, clientRequestId])
   @@index([tenantId, status])
   @@index([tenantId, categoryId])
   @@index([tenantId, siteId])
@@ -427,6 +431,12 @@ model AuditScanEvent {
   condition  String?
   result     String   @default("found")
   scannedAt  DateTime @default(now())
+  // When the device actually captured the scan (offline scans replay later);
+  // server-clamped. Null for scans recorded before this field existed.
+  capturedAt DateTime?
+  // Client-generated idempotency key — replaying the same queued scan twice
+  // (crash between API success and queue-delete) must not double-count.
+  clientRequestId String? @unique
 
   campaign            AuditCampaign            @relation(fields: [campaignId], references: [id])
   reconciliationItems AuditReconciliationItem[]

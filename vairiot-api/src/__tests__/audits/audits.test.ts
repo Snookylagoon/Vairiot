@@ -64,16 +64,25 @@ describe('Audit Campaigns', () => {
     expect(r.status).toBe(201);
     expect(r.body.result).toBe('unknown');
   });
+  it('replaying a scan with the same clientRequestId does not double-count', async () => {
+    const payload = { tagValue: 'RFID-TEST-001', clientRequestId: 'test-scan-req-001', capturedAt: new Date().toISOString() };
+    const first = await request(app).post(`/api/v1/audits/${campaignId}/scans`).set('Authorization', `Bearer ${token}`).send(payload);
+    expect(first.status).toBe(201);
+    const replay = await request(app).post(`/api/v1/audits/${campaignId}/scans`).set('Authorization', `Bearer ${token}`).send(payload);
+    expect(replay.status).toBe(201);
+    expect(replay.body.id).toBe(first.body.id);
+    expect(replay.body.duplicate).toBe(true);
+  });
   it('completes campaign and returns report', async () => {
     const r = await request(app).post(`/api/v1/audits/${campaignId}/complete`).set('Authorization', `Bearer ${token}`);
     expect(r.status).toBe(200);
     expect(r.body).toHaveProperty('totalScanned');
-    expect(r.body.totalScanned).toBe(2);
+    expect(r.body.totalScanned).toBe(3); // 2 distinct scans + 1 idempotency-test scan (replay not double-counted)
   });
   it('re-completing an already-completed campaign is idempotent, not a 409', async () => {
     const r = await request(app).post(`/api/v1/audits/${campaignId}/complete`).set('Authorization', `Bearer ${token}`);
     expect(r.status).toBe(200);
-    expect(r.body.totalScanned).toBe(2);
+    expect(r.body.totalScanned).toBe(3);
   });
 });
 

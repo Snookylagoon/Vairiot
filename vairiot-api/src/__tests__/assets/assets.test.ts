@@ -87,6 +87,17 @@ describe('Assets', () => {
     assetId = r.body.id;
   });
 
+  it('replaying a create with the same clientRequestId returns the existing asset', async () => {
+    const payload = { name: 'Offline Queued Scanner', clientRequestId: 'test-client-req-001' };
+    const first = await request(app).post('/api/v1/assets').set('Authorization', `Bearer ${token}`).send(payload);
+    expect(first.status).toBe(201);
+    const replay = await request(app).post('/api/v1/assets').set('Authorization', `Bearer ${token}`).send(payload);
+    expect(replay.status).toBe(201);
+    expect(replay.body.id).toBe(first.body.id);
+    expect(replay.body.assetNumber).toBe(first.body.assetNumber);
+    extraAssetIds.push(first.body.id);
+  });
+
   it('creates additional assets for filter/sort tests', async () => {
     const assets = [
       { name: 'Apple MacBook Pro', condition: 'good', status: 'active', barcode: 'BC-002' },

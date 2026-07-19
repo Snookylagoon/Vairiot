@@ -52,9 +52,19 @@ object NetworkModule {
                     .url("${BuildConfig.API_BASE_URL}api/v1/auth/refresh")
                     .post(body)
                     .build()
-                val refreshResponse = OkHttpClient().newCall(refreshRequest).execute()
+                // Offline or server unreachable: keep the session — the request
+                // fails but queued offline work must survive until we're back.
+                val refreshResponse = try {
+                    OkHttpClient().newCall(refreshRequest).execute()
+                } catch (e: java.io.IOException) {
+                    return null
+                }
                 if (!refreshResponse.isSuccessful) {
-                    runBlocking { tokenStore.clear() }
+                    // Only a genuine rejection (expired/revoked/reused token)
+                    // ends the session. A 5xx is a server problem, not ours.
+                    if (refreshResponse.code == 401 || refreshResponse.code == 403) {
+                        runBlocking { tokenStore.clear() }
+                    }
                     return null
                 }
                 val tokens = Gson().fromJson(refreshResponse.body?.string(), RefreshResponse::class.java)

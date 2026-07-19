@@ -158,6 +158,10 @@ data class RecordScanRequest(
     val deviceId:   String? = null,
     val locationId: String? = null,
     val condition:  String? = null,
+    /** Idempotency key so offline replays can't double-count. */
+    val clientRequestId: String? = null,
+    /** ISO-8601 device capture time for offline scans replayed later. */
+    val capturedAt: String? = null,
 )
 
 data class ZoneSubmissionResponse(
@@ -307,6 +311,8 @@ data class AssetCreateRequest(
     val categoryId:   String?  = null,
     val siteId:       String?  = null,
     val locationId:   String?  = null,
+    /** Idempotency key so offline replays can't create duplicate assets. */
+    val clientRequestId: String? = null,
 )
 
 // ─── Asset update ──────────────────────────────────────────────────────────

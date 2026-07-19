@@ -25,6 +25,8 @@ final class QueuedAssetCreate {
     var createdAt: Date
     var attempts: Int
     var lastError: String?
+    /// Exhausted its attempts — kept for the user to retry or discard, never silently deleted.
+    var dead: Bool = false
 
     init(
         localId: UUID = UUID(),
@@ -72,7 +74,8 @@ final class QueuedAssetCreate {
             status: status,
             categoryId: categoryId,
             siteId: siteId,
-            locationId: locationId
+            locationId: locationId,
+            clientRequestId: localId.uuidString
         )
     }
 }

@@ -17,6 +17,8 @@ final class QueuedScan {
     var createdAt: Date
     var attempts: Int
     var lastError: String?
+    /// Exhausted its attempts — kept for the user to retry or discard, never silently deleted.
+    var dead: Bool = false
 
     init(
         id: UUID = UUID(),

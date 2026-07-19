@@ -4,6 +4,8 @@ struct ProfileView: View {
 
     @State private var viewModel: ProfileViewModel
     @State private var showSignOutConfirmation = false
+    @State private var failedSyncCount = 0
+    @State private var showDiscardConfirmation = false
 
     init(apiClient: APIClient = .shared, tokenManager: TokenManager = .shared) {
         _viewModel = State(initialValue: ProfileViewModel(apiClient: apiClient, tokenManager: tokenManager))
@@ -38,6 +40,7 @@ struct ProfileView: View {
         }
         .task {
             await viewModel.loadAll()
+            failedSyncCount = SyncManager.shared.failedCount
         }
     }
 
@@ -47,10 +50,42 @@ struct ProfileView: View {
         List {
             userInfoSection
             licenceSection
+            if failedSyncCount > 0 { failedSyncSection }
             appInfoSection
             signOutSection
         }
         .listStyle(.insetGrouped)
+    }
+
+    // MARK: - Failed offline sync items
+
+    private var failedSyncSection: some View {
+        Section("Failed sync items") {
+            Text("\(failedSyncCount) offline item\(failedSyncCount == 1 ? "" : "s") could not be uploaded after several tries.")
+                .font(.subheadline)
+            Button("Retry all") {
+                Task {
+                    await SyncManager.shared.retryAllFailed()
+                    failedSyncCount = SyncManager.shared.failedCount
+                }
+            }
+            Button("Discard", role: .destructive) {
+                showDiscardConfirmation = true
+            }
+            .confirmationDialog(
+                "Discard failed items?",
+                isPresented: $showDiscardConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Discard \(failedSyncCount) item\(failedSyncCount == 1 ? "" : "s")", role: .destructive) {
+                    SyncManager.shared.discardAllFailed()
+                    failedSyncCount = SyncManager.shared.failedCount
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("These offline items will be permanently deleted and will never reach the server.")
+            }
+        }
     }
 
     // MARK: - User Info

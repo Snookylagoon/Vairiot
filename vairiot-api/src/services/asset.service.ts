@@ -16,6 +16,8 @@ export interface AssetCreateInput {
   otherCapitalizedCosts?: number; residualValue?: number;
   // Depreciation
   depreciationMethod?: string; usefulLifeMonths?: number; depreciationStartDate?: string;
+  /** Client-generated idempotency key — offline queue replays return the existing asset. */
+  clientRequestId?: string;
 }
 
 function toDecimal(v: number | undefined | null): Prisma.Decimal | undefined {
@@ -222,6 +224,39 @@ export async function getAsset(tenantId: string, id: string) {
 }
 
 export async function createAsset(tenantId: string, actorId: string, input: AssetCreateInput) {
+  // Idempotent replay: a queued offline create that already succeeded (crash
+  // between API response and queue-delete on the device) returns the original.
+  if (input.clientRequestId) {
+    const existing = await prisma.asset.findUnique({
+      where: { tenantId_clientRequestId: { tenantId, clientRequestId: input.clientRequestId } },
+      include: assetInclude,
+    });
+    if (existing) return enrichAssetWithDepreciation(existing);
+  }
+
+  // nextAssetNumber is read-then-increment; two concurrent creates can pick the
+  // same number. Retry with a fresh number on that unique violation.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await createAssetOnce(tenantId, actorId, input);
+    } catch (e: unknown) {
+      const err = e as { code?: string; meta?: { target?: string[] } };
+      if (err.code !== 'P2002') throw e;
+      const target = err.meta?.target ?? [];
+      if (input.clientRequestId && target.includes('clientRequestId')) {
+        const existing = await prisma.asset.findUnique({
+          where: { tenantId_clientRequestId: { tenantId, clientRequestId: input.clientRequestId } },
+          include: assetInclude,
+        });
+        if (existing) return enrichAssetWithDepreciation(existing);
+      }
+      if (target.includes('assetNumber') && attempt < 3) continue;
+      throw e;
+    }
+  }
+}
+
+async function createAssetOnce(tenantId: string, actorId: string, input: AssetCreateInput) {
   const assetNumber = await nextAssetNumber(tenantId);
   const asset = await prisma.asset.create({
     data: {
@@ -251,6 +286,7 @@ export async function createAsset(tenantId: string, actorId: string, input: Asse
       categoryId: input.categoryId,
       siteId:     input.siteId,
       locationId: input.locationId,
+      clientRequestId: input.clientRequestId,
     },
     include: assetInclude,
   });

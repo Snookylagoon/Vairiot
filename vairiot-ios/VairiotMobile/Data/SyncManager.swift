@@ -5,9 +5,10 @@ import SwiftData
 /// Watches connectivity and drains the offline queues (`QueuedAssetCreate`,
 /// then `QueuedScan`) whenever the network comes back or the app foregrounds.
 ///
-/// Mirrors the Android `ScanSyncWorker`: FIFO drain, delete on success, drop
-/// poison records after `maxAttempts` server rejections, stop early when the
-/// device is still offline.
+/// Mirrors the Android `ScanSyncWorker`: FIFO drain, delete on success, stop
+/// early when the device is still offline or the session is rejected. Records
+/// that exhaust `maxAttempts` are parked (`dead = true`) for the user to retry
+/// or discard — never silently deleted.
 @MainActor
 final class SyncManager {
 
@@ -41,9 +42,51 @@ final class SyncManager {
 
     /// Number of records still waiting to sync (for UI badges).
     var pendingCount: Int {
-        let creates = (try? context.fetchCount(FetchDescriptor<QueuedAssetCreate>())) ?? 0
-        let scans = (try? context.fetchCount(FetchDescriptor<QueuedScan>())) ?? 0
+        let creates = (try? context.fetchCount(
+            FetchDescriptor<QueuedAssetCreate>(predicate: #Predicate { !$0.dead }))) ?? 0
+        let scans = (try? context.fetchCount(
+            FetchDescriptor<QueuedScan>(predicate: #Predicate { !$0.dead }))) ?? 0
         return creates + scans
+    }
+
+    /// Records that exhausted their sync attempts and await a user decision.
+    var failedCount: Int {
+        let creates = (try? context.fetchCount(
+            FetchDescriptor<QueuedAssetCreate>(predicate: #Predicate { $0.dead }))) ?? 0
+        let scans = (try? context.fetchCount(
+            FetchDescriptor<QueuedScan>(predicate: #Predicate { $0.dead }))) ?? 0
+        return creates + scans
+    }
+
+    /// Re-queue all failed records and try to sync immediately.
+    func retryAllFailed() async {
+        if let creates = try? context.fetch(FetchDescriptor<QueuedAssetCreate>(predicate: #Predicate { $0.dead })) {
+            for c in creates { c.dead = false; c.attempts = 0; c.lastError = nil }
+        }
+        if let scans = try? context.fetch(FetchDescriptor<QueuedScan>(predicate: #Predicate { $0.dead })) {
+            for s in scans { s.dead = false; s.attempts = 0; s.lastError = nil }
+        }
+        try? context.save()
+        await syncNow()
+    }
+
+    /// Permanently discard all failed records (user-confirmed in the UI).
+    func discardAllFailed() {
+        if let creates = try? context.fetch(FetchDescriptor<QueuedAssetCreate>(predicate: #Predicate { $0.dead })) {
+            for c in creates {
+                // Also remove the provisional cache row so the asset stops appearing.
+                let pendingId = c.provisionalCacheId
+                if let provisional = try? context.fetch(
+                    FetchDescriptor<CachedAsset>(predicate: #Predicate { $0.id == pendingId })).first {
+                    context.delete(provisional)
+                }
+                context.delete(c)
+            }
+        }
+        if let scans = try? context.fetch(FetchDescriptor<QueuedScan>(predicate: #Predicate { $0.dead })) {
+            for s in scans { context.delete(s) }
+        }
+        try? context.save()
     }
 
     func syncNow() async {
@@ -57,7 +100,8 @@ final class SyncManager {
     // MARK: - Asset creates
 
     private func drainAssetCreates() async {
-        let descriptor = FetchDescriptor<QueuedAssetCreate>(sortBy: [SortDescriptor(\.createdAt)])
+        var descriptor = FetchDescriptor<QueuedAssetCreate>(sortBy: [SortDescriptor(\.createdAt)])
+        descriptor.predicate = #Predicate { !$0.dead }
         guard let queued = try? context.fetch(descriptor), !queued.isEmpty else { return }
 
         for item in queued {
@@ -75,6 +119,8 @@ final class SyncManager {
                 try? context.save()
             } catch {
                 if case APIError.networkError = error { return } // still offline — stop draining
+                if case APIError.unauthorized = error { return } // session rejected — stop, don't burn attempts
+                if case APIError.forbidden = error { return }
                 recordFailure(of: item, error: error)
             }
         }
@@ -83,7 +129,8 @@ final class SyncManager {
     // MARK: - Audit scans
 
     private func drainScans() async {
-        let descriptor = FetchDescriptor<QueuedScan>(sortBy: [SortDescriptor(\.createdAt)])
+        var descriptor = FetchDescriptor<QueuedScan>(sortBy: [SortDescriptor(\.createdAt)])
+        descriptor.predicate = #Predicate { !$0.dead }
         guard let queued = try? context.fetch(descriptor), !queued.isEmpty else { return }
 
         for scan in queued {
@@ -91,6 +138,8 @@ final class SyncManager {
             request.deviceId = scan.deviceId
             request.locationId = scan.locationId
             request.condition = scan.condition
+            request.clientRequestId = scan.id.uuidString
+            request.capturedAt = ISO8601DateFormatter().string(from: scan.createdAt)
             do {
                 let _: AuditScanEventResponse = try await apiClient.request(
                     .recordAuditScan(campaignId: scan.campaignId, request)
@@ -99,6 +148,8 @@ final class SyncManager {
                 try? context.save()
             } catch {
                 if case APIError.networkError = error { return }
+                if case APIError.unauthorized = error { return }
+                if case APIError.forbidden = error { return }
                 recordFailure(of: scan, error: error)
             }
         }
@@ -109,14 +160,14 @@ final class SyncManager {
     private func recordFailure(of item: QueuedAssetCreate, error: Error) {
         item.attempts += 1
         item.lastError = (error as? APIError)?.userMessage ?? error.localizedDescription
-        if item.attempts >= Self.maxAttempts { context.delete(item) }
+        if item.attempts >= Self.maxAttempts { item.dead = true }
         try? context.save()
     }
 
     private func recordFailure(of scan: QueuedScan, error: Error) {
         scan.attempts += 1
         scan.lastError = (error as? APIError)?.userMessage ?? error.localizedDescription
-        if scan.attempts >= Self.maxAttempts { context.delete(scan) }
+        if scan.attempts >= Self.maxAttempts { scan.dead = true }
         try? context.save()
     }
 }

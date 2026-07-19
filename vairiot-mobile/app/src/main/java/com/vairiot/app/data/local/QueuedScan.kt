@@ -2,6 +2,13 @@ package com.vairiot.app.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.util.UUID
+
+object QueueState {
+    const val PENDING = "pending"
+    /** Exhausted its attempts — kept for the user to retry or discard, never silently deleted. */
+    const val DEAD = "dead"
+}
 
 @Entity(tableName = "queued_scans")
 data class QueuedScan(
@@ -14,4 +21,6 @@ data class QueuedScan(
     val createdAtMs: Long = System.currentTimeMillis(),
     val attempts: Int = 0,
     val lastError: String? = null,
+    val state: String = QueueState.PENDING,
+    val clientRequestId: String = UUID.randomUUID().toString(),
 )
