@@ -33,7 +33,12 @@ class ScanSyncWorker @AssistedInject constructor(
                 try {
                     api.recordAuditScan(
                         scan.campaignId,
-                        RecordScanRequest(tagValue = scan.tagValue, deviceId = scan.deviceId),
+                        RecordScanRequest(
+                            tagValue = scan.tagValue,
+                            deviceId = scan.deviceId,
+                            locationId = scan.locationId,
+                            condition = scan.condition,
+                        ),
                     )
                     dao.deleteById(scan.id)
                     synced++

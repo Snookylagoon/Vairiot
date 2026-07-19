@@ -154,14 +154,24 @@ class AuditRunViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.value = _state.value.copy(isSubmitting = true, error = null)
+            // Persist the SAME fields the online request sends, so an offline replay
+            // isn't rejected for a missing locationId (blind campaigns require it) or
+            // silently stripped of its condition assessment.
+            val scanLocationId = if (currentState.isBlind) currentState.selectedLocationId else null
+            val scanCondition  = currentState.condition.ifBlank { null }
             val queueId = queuedScanDao.insert(
-                QueuedScan(campaignId = campaignId, tagValue = trimmed),
+                QueuedScan(
+                    campaignId = campaignId,
+                    tagValue = trimmed,
+                    locationId = scanLocationId,
+                    condition = scanCondition,
+                ),
             )
             try {
                 val request = RecordScanRequest(
                     tagValue = trimmed,
-                    locationId = if (currentState.isBlind) currentState.selectedLocationId else null,
-                    condition = currentState.condition.ifBlank { null },
+                    locationId = scanLocationId,
+                    condition = scanCondition,
                 )
                 val ev = api.recordAuditScan(campaignId, request)
                 queuedScanDao.deleteById(queueId)

@@ -3,10 +3,12 @@ import { logger } from './lib/logger';
 import { prisma } from './lib/prisma';
 import { ensurePhotosBucket, ensureDocumentsBucket, ensureMobileReleasesBucket } from './lib/minio';
 import { getRedis } from './lib/redis';
+import { initMonitoring } from './lib/monitoring';
 
 const PORT = Number(process.env.API_PORT) || 3001;
 
 async function main() {
+  initMonitoring();
   await prisma.$connect();
   logger.info('Database connected');
   try { await getRedis().connect(); logger.info('Redis connected'); } catch (e) {

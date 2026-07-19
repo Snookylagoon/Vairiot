@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
+    "@sentry/node": "^10.66.0",
     "@types/multer": "^2.1.0",
     "axios": "^1.18.0",
     "bcryptjs": "^2.4.3",
@@ -33,7 +34,7 @@
     "minio": "^8.0.7",
     "morgan": "^1.10.0",
     "multer": "^2.2.0",
-    "nodemailer": "^6.9.14",
+    "nodemailer": "^9.0.3",
     "otplib": "^13.4.1",
     "qrcode": "^1.5.4",
     "resend": "^6.14.0",
