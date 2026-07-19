@@ -1,10 +1,11 @@
-import { useState } from 'react';
 import { KeyRound, Copy, Trash2, Plus } from 'lucide-react';
-import { useApiKeys, useCreateApiKey, useRevokeApiKey } from '@/hooks/useAdmin';
+import { useState } from 'react';
+
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Input } from '@/components/ui/Input';
+import { useApiKeys, useCreateApiKey, useRevokeApiKey } from '@/hooks/useAdmin';
 
 const AVAILABLE_SCOPES: Array<{ value: string; label: string; group: string }> = [
   { group: 'Assets',     value: 'asset:read',    label: 'Read assets' },

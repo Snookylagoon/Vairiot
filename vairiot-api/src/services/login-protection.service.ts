@@ -1,6 +1,6 @@
-import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
 import { UnauthorizedError } from '../lib/errors';
+import { logger } from '../lib/logger';
+import { prisma } from '../lib/prisma';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATIONS_MINUTES = [1, 5, 15, 30, 60]; // progressive

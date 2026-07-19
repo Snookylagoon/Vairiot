@@ -1,11 +1,15 @@
-import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
-import { ConflictError, ValidationError } from '../lib/errors';
-import { hashPassword } from './auth.service';
-import { validatePasswordPolicy } from './password-policy.service';
 import { ROLE_PERMISSION_MATRIX } from 'vairiot-shared';
+
+import { ConflictError, ValidationError } from '../lib/errors';
 import { signAccessToken, signRefreshToken } from '../lib/jwt';
+import { logger } from '../lib/logger';
+import { prisma } from '../lib/prisma';
+
+import { hashPassword } from './auth.service';
 import { activateLicence } from './licence.service';
+import { validatePasswordPolicy } from './password-policy.service';
+
+
 
 export interface RegistrationInput {
   organisationName: string;

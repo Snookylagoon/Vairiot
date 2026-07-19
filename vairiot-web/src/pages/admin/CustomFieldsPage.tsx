@@ -1,9 +1,10 @@
-import { useState } from 'react';
 import { Settings2, Plus, Trash2, GripVertical } from 'lucide-react';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Textarea } from '@/components/ui/Textarea';
+import { useState } from 'react';
+
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { Textarea } from '@/components/ui/Textarea';
 import { useCustomFields, useCreateCustomField, useDeleteCustomField } from '@/hooks/useCustomFields';
 
 const FIELD_TYPES = [

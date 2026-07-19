@@ -1,8 +1,9 @@
+import { PrismaClient } from '@prisma/client';
 import nodemailer, { Transporter } from 'nodemailer';
 import { Resend } from 'resend';
-import { PrismaClient } from '@prisma/client';
-import { logger } from './logger';
+
 import { decryptSecret } from './crypto';
+import { logger } from './logger';
 
 const prisma = new PrismaClient();
 
@@ -110,7 +111,7 @@ function createResendTransport(resend: Resend, defaultFrom: string): Transporter
         const msg = mail.message.createReadStream();
         const chunks: Buffer[] = [];
         for await (const chunk of msg) chunks.push(chunk as Buffer);
-        const raw = Buffer.concat(chunks).toString();
+        Buffer.concat(chunks); // drain the stream
 
         const envelope = mail.message.getEnvelope();
         const { data, error } = await resend.emails.send({

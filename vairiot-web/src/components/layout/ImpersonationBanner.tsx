@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Eye, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
+
 import { useAuthStore } from '@/stores/auth.store';
 
 /**

@@ -1,4 +1,5 @@
 import { Job } from 'bullmq';
+
 import { logger } from '../logger';
 import { getMailer, getFromAddress } from '../mailer';
 import { AuditCompleteJob } from '../queues';

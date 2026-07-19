@@ -1,8 +1,21 @@
+import { Readable } from 'stream';
+
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { asyncHandler } from '../../middleware/error-handler';
-import { Readable } from 'stream';
+
+import { AppError } from '../../lib/errors';
+import { minioClient, PHOTO_BUCKET } from '../../lib/minio';
+import { prisma } from '../../lib/prisma';
 import { requireRole } from '../../middleware/authorise';
+import { asyncHandler } from '../../middleware/error-handler';
+import {
+  getOnboardingProgress,
+  completeUserRegistration,
+  registerCompany,
+  registerClient,
+  activateOnboardingLicence,
+  completeOnboarding,
+} from '../../services/onboarding.service';
 import {
   getDashboardStats,
   listTenants,
@@ -19,26 +32,15 @@ import {
   deleteTenant,
 } from '../../services/platform-admin.service';
 import {
-  getUserPermissionsView,
-  setUserPermissionOverrides,
-} from '../../services/user-permissions.service';
-import {
-  getOnboardingProgress,
-  completeUserRegistration,
-  registerCompany,
-  registerClient,
-  activateOnboardingLicence,
-  completeOnboarding,
-} from '../../services/onboarding.service';
-import {
   getSmtpConfig,
   upsertSmtpConfig,
   verifySmtp,
   sendTestEmail,
 } from '../../services/smtp.service';
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../lib/errors';
-import { minioClient, PHOTO_BUCKET } from '../../lib/minio';
+import {
+  getUserPermissionsView,
+  setUserPermissionOverrides,
+} from '../../services/user-permissions.service';
 
 export const platformRouter = Router();
 

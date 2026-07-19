@@ -1,4 +1,5 @@
 import { Client } from 'minio';
+
 import { logger } from './logger';
 
 const PHOTO_BUCKET = process.env.MINIO_PHOTOS_BUCKET ?? 'vairiot-photos';

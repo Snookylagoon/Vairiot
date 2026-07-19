@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, ChevronDown, Check } from 'lucide-react';
 import clsx from 'clsx';
+import { Building2, ChevronDown, Check } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
+
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
 

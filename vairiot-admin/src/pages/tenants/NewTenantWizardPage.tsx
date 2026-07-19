@@ -1,11 +1,13 @@
+import { ArrowLeft, Copy } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy } from 'lucide-react';
-import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { toast } from 'sonner';
+
 import { Button } from '@/components/ui/Button';
+import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { useCreateTenant, type CreateTenantResult } from '@/hooks/useAdmin';
-import { toast } from 'sonner';
+
 
 // Visual stepper — Step 1 lives on this page; Steps 2–5 are the existing
 // TenantOnboardingPage flow (Company → Client → Licence), which we navigate

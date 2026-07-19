@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma';
-import { Prisma } from '@prisma/client';
+
 import { createAsset, type AssetCreateInput } from './asset.service';
 
 export interface ImportRow {

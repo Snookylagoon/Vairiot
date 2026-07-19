@@ -1,13 +1,14 @@
+import { ArrowLeft, Check, X, RotateCcw, ShieldOff, RefreshCw, KeyRound, Copy } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, RotateCcw, ShieldOff, RefreshCw, KeyRound, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Permission } from 'vairiot-shared';
-import { useAllUsers, useUserPermissions, useSetUserPermissions, useDisableUserTwoFactor, useForcePasswordChange, useResetPassword } from '@/hooks/useAdmin';
-import { useAuthStore } from '@/stores/auth.store';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { useAllUsers, useUserPermissions, useSetUserPermissions, useDisableUserTwoFactor, useForcePasswordChange, useResetPassword } from '@/hooks/useAdmin';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface UserRow {
   id: string;

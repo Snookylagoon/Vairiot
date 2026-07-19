@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 
-import { asyncHandler } from '../../middleware/error-handler';
 import { prisma } from '../../lib/prisma';
+import { asyncHandler } from '../../middleware/error-handler';
 
 export const exceptionsRouter = Router();
 

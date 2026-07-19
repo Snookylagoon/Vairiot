@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { api } from '@/lib/api';
+
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { api } from '@/lib/api';
 
 const PASSWORD_LENGTH = 12;
 const ALPHANUMERIC = /^[A-Za-z0-9]+$/;

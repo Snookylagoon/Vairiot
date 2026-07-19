@@ -13,11 +13,12 @@
  * currently-effective tenantId is a child (has a parentTenantId).
  */
 import { Router, Request, Response } from 'express';
-import { requireAnyPermission } from '../../middleware/authorise';
-import { asyncHandler } from '../../middleware/error-handler';
-import { prisma } from '../../lib/prisma';
+
 import { AppError, ValidationError } from '../../lib/errors';
 import { signAccessToken } from '../../lib/jwt';
+import { prisma } from '../../lib/prisma';
+import { requireAnyPermission } from '../../middleware/authorise';
+import { asyncHandler } from '../../middleware/error-handler';
 
 export const tenantContextRouter = Router();
 

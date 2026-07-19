@@ -1,7 +1,8 @@
-import { create } from 'zustand';
-import { api, TOKEN_KEY, REFRESH_KEY } from '@/lib/api';
 import type { UserProfile } from 'vairiot-shared';
 import { PLATFORM_ROLES } from 'vairiot-shared';
+import { create } from 'zustand';
+
+import { api, TOKEN_KEY, REFRESH_KEY } from '@/lib/api';
 
 interface AuthState {
   user:    UserProfile | null;

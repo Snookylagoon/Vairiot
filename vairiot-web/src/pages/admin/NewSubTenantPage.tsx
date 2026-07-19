@@ -1,17 +1,18 @@
+import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { CountrySelect } from '@/components/ui/CountrySelect';
-import { api } from '@/lib/api';
+import { Input } from '@/components/ui/Input';
 import {
   useCreateSubTenant,
   slugifyLoginId,
   type CreateSubTenantInput,
 } from '@/hooks/useSubTenants';
+import { api } from '@/lib/api';
 
 const LOGIN_ID_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/;
 

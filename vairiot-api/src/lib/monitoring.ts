@@ -1,6 +1,7 @@
 // Optional Sentry error tracking. No-op unless SENTRY_DSN is set, so local/dev
 // and self-hosted deployments that don't configure it are unaffected.
 import * as Sentry from '@sentry/node';
+
 import { logger } from './logger';
 
 let enabled = false;

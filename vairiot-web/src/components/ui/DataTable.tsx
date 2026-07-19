@@ -1,7 +1,8 @@
-import { ReactNode } from 'react';
 import { ArrowUp, ArrowDown, ArrowUpDown, Search } from 'lucide-react';
-import { Card } from './Card';
+import { ReactNode } from 'react';
+
 import { Button } from './Button';
+import { Card } from './Card';
 
 export interface DataTableColumn<T> {
   /** Sort key sent to server. Also used as React key for the column. */

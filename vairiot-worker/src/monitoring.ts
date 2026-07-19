@@ -1,5 +1,6 @@
 // Optional Sentry error tracking for the worker. No-op unless SENTRY_DSN is set.
 import * as Sentry from '@sentry/node';
+
 import { logger } from './logger';
 
 let enabled = false;

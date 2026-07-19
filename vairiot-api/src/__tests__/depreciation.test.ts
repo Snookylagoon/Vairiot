@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+
 import { computeDepreciation } from '../services/asset.service';
 
 function makeAsset(overrides: Partial<Parameters<typeof computeDepreciation>[0]> = {}) {

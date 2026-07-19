@@ -1,6 +1,7 @@
-import { prisma } from '../lib/prisma';
 import { ALL_PERMISSIONS } from 'vairiot-shared';
+
 import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
 
 interface UserWithRoles {
   roles: { role: { permissions: string[] } }[];

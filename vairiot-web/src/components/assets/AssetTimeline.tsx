@@ -2,6 +2,7 @@ import {
   ArrowLeftRight, Wrench, LogIn, LogOut, FileText, Camera,
   Trash2, Archive, PlusCircle, Pencil,
 } from 'lucide-react';
+
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { useTimeline } from '@/hooks/useTimeline';
 import type { TimelineEntry } from '@/types';

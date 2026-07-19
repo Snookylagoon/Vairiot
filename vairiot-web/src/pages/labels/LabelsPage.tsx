@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef, useMemo, useCallback, type CSSProperties } from 'react';
-import { QrCode, Printer, Search, Check, Settings2 } from 'lucide-react';
 import bwipjs from 'bwip-js/browser';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { QrCode, Printer, Search, Check, Settings2 } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo, useCallback, type CSSProperties } from 'react';
+import { toast } from 'sonner';
+
 import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { useAssets } from '@/hooks/useAssets';
 import { useCompany, type Company } from '@/hooks/useOnboarding';
 import { api } from '@/lib/api';
-import { toast } from 'sonner';
 import type { Asset } from '@/types';
 
 /* ---------- Barcode standards ---------- */

@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
+
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
 import {
   useTwoFactorStatus,
   useSetupTwoFactor,
@@ -10,8 +13,7 @@ import {
   useDisableTwoFactor,
   type TwoFactorSetup,
 } from '@/hooks/useTwoFactor';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { toast } from 'sonner';
+
 
 export function TwoFactorPage() {
   const { data: status, isLoading } = useTwoFactorStatus();

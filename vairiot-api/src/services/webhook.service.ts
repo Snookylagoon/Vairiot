@@ -1,8 +1,10 @@
-import { prisma } from '../lib/prisma';
 import { randomBytes, createHmac } from 'crypto';
-import { logger } from '../lib/logger';
-import { NotFoundError, ValidationError } from '../lib/errors';
+
 import { WEBHOOK_EVENTS } from 'vairiot-shared';
+
+import { NotFoundError, ValidationError } from '../lib/errors';
+import { logger } from '../lib/logger';
+import { prisma } from '../lib/prisma';
 
 export interface WebhookInput {
   name: string;

@@ -1,11 +1,12 @@
+import { Plus, Trash2, Tag, Search } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Tag, Search } from 'lucide-react';
-import { useCategories, useCreateCategory, useDeleteCategory } from '@/hooks/useCategories';
+
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Input } from '@/components/ui/Input';
+import { useCategories, useCreateCategory, useDeleteCategory } from '@/hooks/useCategories';
 import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
 export function CategoriesPage() {

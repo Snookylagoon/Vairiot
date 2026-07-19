@@ -1,11 +1,11 @@
-import { useState } from 'react';
 import { ChevronDown, ChevronRight, Copy } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
+
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { api } from '@/lib/api';
 import {
   useIosReleases,
   useUploadIosRelease,
@@ -16,6 +16,7 @@ import {
   usePatchIosDevice,
   useDeleteIosDevice,
 } from '@/hooks/useIosReleases';
+import { api } from '@/lib/api';
 
 function formatBytes(n: number) {
   if (n < 1024) return `${n} B`;

@@ -1,6 +1,7 @@
-import request from 'supertest';
-import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import request from 'supertest';
+
 import { createApp } from '../../app';
 
 const prisma = new PrismaClient();

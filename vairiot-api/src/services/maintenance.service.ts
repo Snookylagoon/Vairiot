@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
+
 import { NotFoundError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
 import { buildOrderBy } from '../lib/sort';
 
 const MAINTENANCE_SORT_KEYS = [

@@ -1,9 +1,10 @@
-import { useNavigate } from 'react-router-dom';
 import { Plus, Building2 } from 'lucide-react';
-import { useSubTenants, type SubTenantSummary } from '@/hooks/useSubTenants';
+import { useNavigate } from 'react-router-dom';
+
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { useSubTenants, type SubTenantSummary } from '@/hooks/useSubTenants';
 
 export function SubTenantsPage() {
   const navigate = useNavigate();

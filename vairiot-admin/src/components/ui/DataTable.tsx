@@ -1,5 +1,6 @@
-import { Fragment, ReactNode, useMemo, useState } from 'react';
 import { ArrowUp, ArrowDown, ArrowUpDown, ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { Fragment, ReactNode, useMemo, useState } from 'react';
+
 import { Card } from './Card';
 
 export interface DataTableColumn<T> {

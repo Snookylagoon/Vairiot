@@ -1,15 +1,17 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
-import { AppError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors';
-import { generateLicenceNumber } from '../lib/licence-number';
-import { buildOrderBy } from '../lib/sort';
 import {
   DEFAULT_GRACE_PERIOD_DAYS,
   DEFAULT_EXPIRY_WARNING_DAYS,
   DEFAULT_LICENCE_DURATION_MONTHS,
   DEVICE_ONLINE_THRESHOLD_SECONDS,
 } from 'vairiot-shared';
+
+import { AppError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors';
+import { generateLicenceNumber } from '../lib/licence-number';
+import { logger } from '../lib/logger';
+import { prisma } from '../lib/prisma';
+import { buildOrderBy } from '../lib/sort';
+
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

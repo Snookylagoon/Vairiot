@@ -1,8 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { asyncHandler } from '../../middleware/error-handler';
-import { requirePermission, requireRole } from '../../middleware/authorise';
 import { Permission, RoleName } from 'vairiot-shared';
+
 import { prisma } from '../../lib/prisma';
+import { requirePermission, requireRole } from '../../middleware/authorise';
+import { asyncHandler } from '../../middleware/error-handler';
 import {
   getLicenceStatus,
   confirmPaymentAndRenew,

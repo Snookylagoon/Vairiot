@@ -1,8 +1,10 @@
 import { Bell, BellOff, Plus } from 'lucide-react';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { useAlertSubscriptions, useSubscribeAlert, useToggleAlert, useUnsubscribeAlert } from '@/hooks/useAlerts';
 import { ExceptionType } from 'vairiot-shared';
+
+import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { useAlertSubscriptions, useSubscribeAlert, useToggleAlert, useUnsubscribeAlert } from '@/hooks/useAlerts';
+
 
 const EXCEPTION_TYPES = [
   { value: ExceptionType.MissingDocuments,   label: 'Missing Documents',   desc: 'Assets without any attached documents' },

@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
+
 import { logger } from '../lib/logger';
+import { prisma } from '../lib/prisma';
 import { buildOrderBy } from '../lib/sort';
 
 const AUDIT_SORT_KEYS = ['occurredAt', 'action', 'entityType', 'entityId'] as const;

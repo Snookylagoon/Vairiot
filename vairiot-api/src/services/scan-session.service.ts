@@ -1,5 +1,5 @@
-import { prisma } from '../lib/prisma';
 import { ConflictError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
 
 export interface ScanSessionTagInput {
   epc:         string;

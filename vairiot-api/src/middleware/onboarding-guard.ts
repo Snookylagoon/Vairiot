@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { PLATFORM_ROLES, type RoleName } from 'vairiot-shared';
+
 import { prisma } from '../lib/prisma';
 
 // Steps in required order. client_registration is optional (checked separately).

@@ -1,6 +1,7 @@
-import { prisma } from '../lib/prisma';
-import { NotFoundError, ValidationError } from '../lib/errors';
 import { EXCEPTION_TYPES, ALERT_CHANNELS, ALERT_FREQUENCIES } from 'vairiot-shared';
+
+import { NotFoundError, ValidationError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
 
 export interface AlertSubInput {
   exceptionType: string;

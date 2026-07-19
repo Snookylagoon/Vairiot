@@ -1,8 +1,8 @@
-import { Job, Queue } from 'bullmq';
 import { PrismaClient } from '@prisma/client';
+import { Job, Queue } from 'bullmq';
+
 import { logger } from '../logger';
 import {
-  QUEUE_NAMES,
   SchedulerTickJob,
   AlertDigestJob,
   UpcomingMaintenanceItem,

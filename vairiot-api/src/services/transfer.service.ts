@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
+
 import { NotFoundError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
 
 export interface TransferCreateInput {
   assetId: string;

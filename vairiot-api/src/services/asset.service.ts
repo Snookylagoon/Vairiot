@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
+
 import { NotFoundError, ConflictError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
 
 export interface AssetCreateInput {
   name: string; description?: string; categoryId?: string; siteId?: string;
@@ -400,12 +401,12 @@ export async function listAssetsForExport(tenantId: string, params: Omit<AssetLi
 }
 
 export async function getAssetByTag(tenantId: string, tag: string) {
-  let lookups = [tag];
+  const lookups = [tag];
   try {
     const parsed = JSON.parse(tag);
     if (parsed.id) lookups.push(parsed.id);
     if (parsed.n) lookups.push(parsed.n);
-  } catch {}
+  } catch { /* not JSON — treat as a raw tag value */ }
 
   const asset = await prisma.asset.findFirst({
     where: {

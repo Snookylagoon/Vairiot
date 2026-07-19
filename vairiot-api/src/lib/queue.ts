@@ -1,4 +1,5 @@
 import { Queue, ConnectionOptions } from 'bullmq';
+
 import { logger } from './logger';
 
 export const QUEUE_NAMES = {

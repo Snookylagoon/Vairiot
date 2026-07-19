@@ -1,11 +1,12 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, Link } from 'react-router-dom';
+
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { acceptInviteSchema, type AcceptInviteFormData } from '@/lib/schemas';
 import { api } from '@/lib/api';
+import { acceptInviteSchema, type AcceptInviteFormData } from '@/lib/schemas';
 
 export function AcceptInvitePage() {
   const [searchParams] = useSearchParams();

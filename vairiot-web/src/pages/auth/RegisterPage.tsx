@@ -1,12 +1,13 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuthStore } from '@/stores/auth.store';
+
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { registerSchema, type RegisterFormData } from '@/lib/schemas';
 import { api } from '@/lib/api';
+import { registerSchema, type RegisterFormData } from '@/lib/schemas';
+import { useAuthStore } from '@/stores/auth.store';
 
 export function RegisterPage() {
   const { hydrate } = useAuthStore();

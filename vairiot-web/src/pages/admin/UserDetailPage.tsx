@@ -1,12 +1,13 @@
+import { ArrowLeft, Check, X, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, RotateCcw } from 'lucide-react';
 import type { Permission } from 'vairiot-shared';
-import { useUsers, useUserPermissions, useSetUserPermissions } from '@/hooks/useAdmin';
-import { useAuthStore } from '@/stores/auth.store';
-import { Card, CardBody } from '@/components/ui/Card';
+
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Card, CardBody } from '@/components/ui/Card';
+import { useUsers, useUserPermissions, useSetUserPermissions } from '@/hooks/useAdmin';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface ModuleDef {
   key: string;

@@ -1,20 +1,21 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { login, loginWithTwoFactor, refreshTokens, changeOwnPassword, completeForcedPasswordChange } from '../../services/auth.service';
-import { acceptInvite } from '../../services/user.service';
-import { registerNewTenant } from '../../services/registration.service';
+
+import { UnauthorizedError } from '../../lib/errors';
+import { signAccessToken, signRefreshToken, verifyRefreshToken, verifySetupToken } from '../../lib/jwt';
+import { logger } from '../../lib/logger';
+import { prisma } from '../../lib/prisma';
+import { blacklistToken } from '../../lib/redis';
 import { authenticate } from '../../middleware/authenticate';
 import { asyncHandler } from '../../middleware/error-handler';
-import { blacklistToken } from '../../lib/redis';
-import { signAccessToken, signRefreshToken, verifyRefreshToken, verifySetupToken } from '../../lib/jwt';
 import { loginLimiter } from '../../middleware/rate-limit';
+import { login, loginWithTwoFactor, refreshTokens, changeOwnPassword, completeForcedPasswordChange } from '../../services/auth.service';
+import { touchDeviceOnLogin } from '../../services/licence.service';
+import { recordLoginAttempt } from '../../services/login-protection.service';
+import { registerNewTenant } from '../../services/registration.service';
 import { generateTwoFactorSetup, verifyAndEnableTwoFactor } from '../../services/two-factor.service';
 import { effectivePermissionsForUser } from '../../services/user-permissions.service';
-import { prisma } from '../../lib/prisma';
-import { logger } from '../../lib/logger';
-import { recordLoginAttempt } from '../../services/login-protection.service';
-import { touchDeviceOnLogin } from '../../services/licence.service';
-import { UnauthorizedError } from '../../lib/errors';
+import { acceptInvite } from '../../services/user.service';
 
 export const authRouter = Router();
 

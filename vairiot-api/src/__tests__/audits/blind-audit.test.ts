@@ -1,5 +1,6 @@
-import request from 'supertest';
 import bcrypt from 'bcryptjs';
+import request from 'supertest';
+
 import { createApp } from '../../app';
 import { prisma } from '../../lib/prisma';
 
@@ -13,8 +14,8 @@ let approverToken: string;
 let siteId: string;
 let locationAId: string;
 let locationBId: string;
-let asset1Id: string;
-let asset2Id: string;
+let _asset1Id: string;
+let _asset2Id: string;
 let campaignId: string;
 
 beforeAll(async () => {
@@ -85,8 +86,8 @@ beforeAll(async () => {
   const a2 = await prisma.asset.create({
     data: { tenantId: TID, assetNumber: 'BLIND-002', name: 'Blind Monitor', rfidTag: 'RFID-BLIND-002', status: 'active', siteId, locationId: locationAId, condition: 'good' },
   });
-  asset1Id = a1.id;
-  asset2Id = a2.id;
+  _asset1Id = a1.id;
+  _asset2Id = a2.id;
 });
 
 afterAll(async () => {
@@ -308,11 +309,8 @@ describe('Double-blind — second count and comparison', () => {
     expect(r.status).toBe(200);
 
     // Snapshot should have the same assets
-    const { PrismaClient } = require('@prisma/client');
-    const db = new PrismaClient();
-    const snapshots = await db.auditSnapshotAsset.findMany({ where: { campaignId: secondId } });
+    const snapshots = await prisma.auditSnapshotAsset.findMany({ where: { campaignId: secondId } });
     expect(snapshots.length).toBe(2);
-    await db.$disconnect();
   });
 
   it('runs the second count with different findings', async () => {

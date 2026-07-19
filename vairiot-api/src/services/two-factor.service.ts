@@ -1,11 +1,13 @@
-import { generateSecret, generateURI, verifySync, TOTP } from 'otplib';
 import { randomBytes } from 'crypto';
+
 import bcrypt from 'bcryptjs';
-import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
+import { generateSecret, generateURI, verifySync } from 'otplib';
+import { ROLES_REQUIRING_2FA, type RoleName } from 'vairiot-shared';
+
 import { encryptSecret, decryptSecret } from '../lib/crypto';
 import { ValidationError, NotFoundError, AppError } from '../lib/errors';
-import { ROLES_REQUIRING_2FA, type RoleName } from 'vairiot-shared';
+import { logger } from '../lib/logger';
+import { prisma } from '../lib/prisma';
 
 const BACKUP_CODE_COUNT = 8;
 const ISSUER = 'Vairiot';

@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
 import { ScrollText, User as UserIcon, KeyRound, Search, Download, Package } from 'lucide-react';
-import { useAuditEvents, type AuditEvent } from '@/hooks/useAdmin';
-import { Card, CardBody } from '@/components/ui/Card';
+import { useState, useMemo } from 'react';
+
 import { Button } from '@/components/ui/Button';
+import { Card, CardBody } from '@/components/ui/Card';
+import { useAuditEvents, type AuditEvent } from '@/hooks/useAdmin';
 import { api } from '@/lib/api';
 
 const FILTERS: { label: string; value?: string }[] = [

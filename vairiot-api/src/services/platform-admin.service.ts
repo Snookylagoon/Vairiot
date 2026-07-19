@@ -1,14 +1,18 @@
 import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
+
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
+import bcrypt from 'bcryptjs';
+import { ROLE_PERMISSION_MATRIX } from 'vairiot-shared';
+
+import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { minioClient, PHOTO_BUCKET, DOCUMENT_BUCKET } from '../lib/minio';
-import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
 import { buildOrderBy } from '../lib/sort';
-import { ROLE_PERMISSION_MATRIX } from 'vairiot-shared';
-import { validatePasswordPolicy } from './password-policy.service';
+
+
 import { activateLicence } from './licence.service';
+import { validatePasswordPolicy } from './password-policy.service';
 import { sendMail } from './smtp.service';
 
 const TENANT_SORT_KEYS = ['name', 'deploymentMode', 'onboardingComplete', 'createdAt', 'active'] as const;

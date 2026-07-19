@@ -1,7 +1,8 @@
 import { Readable } from 'stream';
-import { prisma } from '../lib/prisma';
-import { minioClient, DOCUMENT_BUCKET } from '../lib/minio';
+
 import { NotFoundError } from '../lib/errors';
+import { minioClient, DOCUMENT_BUCKET } from '../lib/minio';
+import { prisma } from '../lib/prisma';
 
 export async function listDocuments(tenantId: string, assetId: string) {
   return prisma.document.findMany({

@@ -1,8 +1,9 @@
-import request from 'supertest';
-import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
-import { createApp } from '../../app';
+import bcrypt from 'bcryptjs';
+import request from 'supertest';
 import { ROLE_PERMISSION_MATRIX } from 'vairiot-shared';
+
+import { createApp } from '../../app';
 
 const prisma = new PrismaClient();
 const app    = createApp();
@@ -10,7 +11,7 @@ const app    = createApp();
 const TID  = 'test-rbac';
 const PASS = 'TestPassword1!';
 
-let tokens: Record<string, string> = {};
+const tokens: Record<string, string> = {};
 
 beforeAll(async () => {
   const hash = await bcrypt.hash(PASS, 4);

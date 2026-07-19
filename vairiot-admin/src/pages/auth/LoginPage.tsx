@@ -1,13 +1,13 @@
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/stores/auth.store';
+
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { api , TOKEN_KEY, REFRESH_KEY } from '@/lib/api';
 import { loginSchema, type LoginFormData } from '@/lib/schemas';
-import { useState } from 'react';
-import { api } from '@/lib/api';
-import { TOKEN_KEY, REFRESH_KEY } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 export function LoginPage() {
   const { hydrate } = useAuthStore();

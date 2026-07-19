@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+
 import { requireAnyPermission } from '../middleware/authenticate';
 
 function mockReqRes(user?: { permissions: string[] }) {

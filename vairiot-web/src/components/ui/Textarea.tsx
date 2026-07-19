@@ -1,6 +1,6 @@
 import clsx from 'clsx';
-import { TextareaHTMLAttributes, forwardRef, useCallback, useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import { TextareaHTMLAttributes, forwardRef, useCallback, useRef, useState } from 'react';
 
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;

@@ -1,13 +1,15 @@
 import { writeFileSync } from 'node:fs';
+
 import { Worker, Queue, ConnectionOptions, Job } from 'bullmq';
+
 import { logger } from './logger';
-import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, UserInviteJob, SchedulerTickJob } from './queues';
-import { handleAuditComplete } from './processors/audit-complete';
-import { handleAlertDigest } from './processors/alert-digest';
-import { handleUserInvite } from './processors/user-invite';
-import { handleSchedulerTick, setDigestQueue } from './processors/notification-scheduler';
 import { verifyMailer } from './mailer';
 import { initMonitoring, captureException } from './monitoring';
+import { handleAlertDigest } from './processors/alert-digest';
+import { handleAuditComplete } from './processors/audit-complete';
+import { handleSchedulerTick, setDigestQueue } from './processors/notification-scheduler';
+import { handleUserInvite } from './processors/user-invite';
+import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, UserInviteJob, SchedulerTickJob } from './queues';
 
 initMonitoring();
 

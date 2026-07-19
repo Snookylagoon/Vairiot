@@ -1,14 +1,14 @@
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/stores/auth.store';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate , Link } from 'react-router-dom';
+
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { loginSchema, type LoginFormData } from '@/lib/schemas';
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { getDeviceCheckIn } from '@/lib/device';
+import { loginSchema, type LoginFormData } from '@/lib/schemas';
+import { useAuthStore } from '@/stores/auth.store';
 
 export function LoginPage() {
   const { hydrate } = useAuthStore();

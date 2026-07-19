@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { Input } from '@/components/ui/Input';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
-import { useUrlTableState } from '@/hooks/useUrlTableState';
+import { Input } from '@/components/ui/Input';
 import {
   useLicenceStatus,
   useDevices,
@@ -20,10 +22,10 @@ import {
   useReactivateLicence,
   useAddDeviceSlot,
 } from '@/hooks/useLicensing';
+import { useUrlTableState } from '@/hooks/useUrlTableState';
 import { getDeviceFingerprint } from '@/lib/device';
 import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { toast } from 'sonner';
+
 
 export function LicensingPage() {
   const user = useAuthStore(s => s.user);

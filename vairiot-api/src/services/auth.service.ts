@@ -1,15 +1,17 @@
 import bcrypt from 'bcryptjs';
-import { prisma } from '../lib/prisma';
+import { ROLES_REQUIRING_2FA, type RoleName , LoginRequest as LoginInput, AuthTokens } from 'vairiot-shared';
+
+import { UnauthorizedError, ValidationError, NotFoundError } from '../lib/errors';
 import { signAccessToken, signRefreshToken, signSetupToken, signChallengeToken, verifyChallengeToken, verifyRefreshToken } from '../lib/jwt';
 import { logger } from '../lib/logger';
+import { prisma } from '../lib/prisma';
 import { blacklistToken, isTokenBlacklisted } from '../lib/redis';
-import { UnauthorizedError, ValidationError, NotFoundError } from '../lib/errors';
-import { checkAccountLock, recordLoginAttempt } from './login-protection.service';
+
 import { touchDeviceOnLogin } from './licence.service';
-import { effectivePermissionsForUser } from './user-permissions.service';
+import { checkAccountLock, recordLoginAttempt } from './login-protection.service';
 import { validatePasswordPolicy } from './password-policy.service';
-import { ROLES_REQUIRING_2FA, type RoleName } from 'vairiot-shared';
-import type { LoginRequest as LoginInput, AuthTokens } from 'vairiot-shared';
+import { effectivePermissionsForUser } from './user-permissions.service';
+
 export type { LoginInput, AuthTokens };
 
 function rolesRequire2FA(roles: string[]): boolean {
@@ -108,7 +110,7 @@ export async function login(
 export async function loginWithTwoFactor(
   challengeToken: string,
   twoFactorCode: string,
-  ipAddress = '0.0.0.0',
+  _ipAddress = '0.0.0.0',
   device?: DeviceCheckIn,
 ): Promise<LoginResult> {
   let payload;
