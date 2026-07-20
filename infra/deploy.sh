@@ -29,14 +29,28 @@ fi
 
 cd "$REPO_DIR"
 
-echo "→ Pulling latest main…"
+# Optional extra compose file (e.g. staging on a shared host where the box's
+# own nginx fronts the stack). Set in .env:
+#   COMPOSE_EXTRA_FILE=infra/docker-compose.staging-shared.yml
+COMPOSE_ARGS=(-f "$COMPOSE_FILE")
+EXTRA_FILE="$(grep -E '^COMPOSE_EXTRA_FILE=' "$ENV_FILE" | tail -1 | cut -d= -f2- || true)"
+if [ -n "$EXTRA_FILE" ]; then
+  echo "→ Using extra compose file: $EXTRA_FILE"
+  COMPOSE_ARGS+=(-f "$REPO_DIR/$EXTRA_FILE")
+fi
+
+echo "→ Pulling latest…"
 git pull --ff-only
 
 echo "→ Building & starting containers (migrations run via the migrate service)…"
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build
+docker compose --env-file "$ENV_FILE" "${COMPOSE_ARGS[@]}" up -d --build
 
-echo "→ Reloading nginx to pick up any prod.conf changes…"
-docker exec vairiot_nginx nginx -s reload >/dev/null 2>&1 || docker restart vairiot_nginx >/dev/null
+# Reload the bundled nginx if it's part of this deployment (it isn't on shared
+# hosts, where the host nginx fronts the stack instead).
+if docker ps --format '{{.Names}}' | grep -q '^vairiot_nginx$'; then
+  echo "→ Reloading nginx to pick up any conf changes…"
+  docker exec vairiot_nginx nginx -s reload >/dev/null 2>&1 || docker restart vairiot_nginx >/dev/null
+fi
 
 echo "→ Container status:"
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
