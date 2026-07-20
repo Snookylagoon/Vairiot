@@ -66,11 +66,23 @@ export async function generateTwoFactorSetup(userId: string, email: string): Pro
 
 // ─── Verify: confirm TOTP token to activate 2FA ─────────────────────────────
 
+// otplib's verifySync returns a VerifyResult OBJECT ({valid: boolean}) — always
+// truthy, so it must never be used directly as a condition — and it throws
+// (rather than returning {valid: false}) on malformed input such as an
+// 8-character backup code. Both hazards are contained here.
+function totpMatches(token: string, secret: string): boolean {
+  try {
+    return verifySync({ token, secret }).valid;
+  } catch {
+    return false;
+  }
+}
+
 export async function verifyAndEnableTwoFactor(userId: string, token: string): Promise<boolean> {
   const record = await prisma.userTwoFactor.findUnique({ where: { userId } });
   if (!record) throw new NotFoundError('Two-factor setup not found — call setup first');
 
-  const isValid = verifySync({ token, secret: readSecret(record.secret) });
+  const isValid = totpMatches(token, readSecret(record.secret));
   if (!isValid) throw new ValidationError('Invalid verification code');
 
   await prisma.userTwoFactor.update({
@@ -97,7 +109,7 @@ export async function validateTwoFactorToken(userId: string, token: string): Pro
   }
 
   // Check TOTP first
-  if (verifySync({ token, secret: readSecret(record.secret) })) {
+  if (totpMatches(token, readSecret(record.secret))) {
     return true;
   }
 

@@ -234,6 +234,40 @@ describe('Two-factor authentication', () => {
     expect(res.body).toHaveProperty('refreshToken');
   });
 
+  // Regression: a wrong 6-digit TOTP must be rejected. verifySync returns a
+  // {valid} object (always truthy) — treating it as a boolean let ANY code in.
+  it('rejects a wrong 6-digit code at login', async () => {
+    const loginRes = await request(app).post('/api/v1/auth/login')
+      .send({ email: 'tfa@sec.test', password: 'TwoFactorTest1!', tenantId: TID });
+    const res = await request(app).post('/api/v1/auth/login/2fa')
+      .send({ challengeToken: loginRes.body.twoFactorChallengeToken, token: '000000' });
+    expect(res.status).not.toBe(200);
+  });
+
+  // Regression: an 8-char backup code must log in (not crash). verifySync throws
+  // TokenLengthError on non-6-digit input, which used to 500 before backup-code
+  // checking ran.
+  it('accepts a backup code, and rejects it on reuse', async () => {
+    const user = await prisma.user.findFirstOrThrow({ where: { tenantId: TID, email: 'tfa@sec.test' } });
+    await prisma.userTwoFactor.update({
+      where: { userId: user.id },
+      data: { backupCodes: ['BACKUPAA', 'BACKUPBB'] },
+    });
+
+    const login1 = await request(app).post('/api/v1/auth/login')
+      .send({ email: 'tfa@sec.test', password: 'TwoFactorTest1!', tenantId: TID });
+    const use1 = await request(app).post('/api/v1/auth/login/2fa')
+      .send({ challengeToken: login1.body.twoFactorChallengeToken, token: 'BACKUPAA' });
+    expect(use1.status).toBe(200);
+    expect(use1.body).toHaveProperty('accessToken');
+
+    const login2 = await request(app).post('/api/v1/auth/login')
+      .send({ email: 'tfa@sec.test', password: 'TwoFactorTest1!', tenantId: TID });
+    const use2 = await request(app).post('/api/v1/auth/login/2fa')
+      .send({ challengeToken: login2.body.twoFactorChallengeToken, token: 'BACKUPAA' });
+    expect(use2.status).not.toBe(200);
+  });
+
   it('can disable 2FA (non-mandatory role)', async () => {
     const res = await request(app).post('/api/v1/2fa/disable')
       .set('Authorization', `Bearer ${userToken}`);
