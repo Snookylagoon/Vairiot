@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import QRCode from 'qrcode';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate , Link } from 'react-router-dom';
 
@@ -24,6 +25,16 @@ export function LoginPage() {
   const [setup, setSetup] = useState<{ setupToken: string; secret: string; otpauthUrl: string; backupCodes: string[] } | null>(null);
   const [setupVerify, setSetupVerify] = useState('');
   const [setupLoading, setSetupLoading] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  // Render the QR locally — the otpauth URL contains the TOTP secret, so it
+  // must never be sent to an external QR service.
+  useEffect(() => {
+    if (!setup) { setQrDataUrl(null); return; }
+    QRCode.toDataURL(setup.otpauthUrl, { width: 200, margin: 1 })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(null));
+  }, [setup]);
 
   const beginSetup = async (token: string) => {
     setSetupLoading(true);
@@ -190,11 +201,13 @@ export function LoginPage() {
                 )}
 
                 <div className="flex flex-col items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setup.otpauthUrl)}`}
-                    alt="2FA QR Code"
-                    className="w-44 h-44 rounded-lg"
-                  />
+                  {qrDataUrl ? (
+                    <img src={qrDataUrl} alt="2FA QR Code" className="w-44 h-44 rounded-lg" />
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      QR code unavailable — enter the secret key below into your authenticator app instead.
+                    </p>
+                  )}
                   <div className="text-center">
                     <div className="text-xs text-gray-500 uppercase tracking-wide">Secret Key</div>
                     <code className="text-sm font-mono text-v-charcoal select-all break-all">{setup.secret}</code>

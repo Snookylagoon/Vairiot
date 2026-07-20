@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import QRCode from 'qrcode';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/Badge';
@@ -18,8 +19,18 @@ import {
 export function TwoFactorPage() {
   const { data: status, isLoading } = useTwoFactorStatus();
   const [setupData, setSetupData] = useState<TwoFactorSetup | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [verifyToken, setVerifyToken] = useState('');
   const [showDisable, setShowDisable] = useState(false);
+
+  // Render the QR locally — the otpauth URL contains the TOTP secret, so it
+  // must never be sent to an external QR service.
+  useEffect(() => {
+    if (!setupData) { setQrDataUrl(null); return; }
+    QRCode.toDataURL(setupData.otpauthUrl, { width: 200, margin: 1 })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(null));
+  }, [setupData]);
 
   const setupMutation   = useSetupTwoFactor();
   const verifyMutation  = useVerifyTwoFactor();
@@ -99,11 +110,13 @@ export function TwoFactorPage() {
               1. Open your authenticator app and scan the QR code, or enter the secret key manually.
             </p>
             <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 rounded-xl">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setupData.otpauthUrl)}`}
-                alt="2FA QR Code"
-                className="w-48 h-48 rounded-lg"
-              />
+              {qrDataUrl ? (
+                <img src={qrDataUrl} alt="2FA QR Code" className="w-48 h-48 rounded-lg" />
+              ) : (
+                <p className="text-sm text-gray-500">
+                  QR code unavailable — enter the secret key below into your authenticator app instead.
+                </p>
+              )}
               <div className="text-center">
                 <div className="text-xs text-gray-500 uppercase tracking-wide">Secret Key</div>
                 <code className="text-sm font-mono text-v-charcoal select-all">{setupData.secret}</code>
