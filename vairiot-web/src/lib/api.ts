@@ -33,10 +33,14 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+// Pages that work without a session — an expired token must not yank the user
+// off them (e.g. opening an invite link with a stale session in localStorage).
+const PUBLIC_PATHS = ['/login', '/register', '/accept-invite'];
+
 function redirectToLogin(): void {
   localStorage.removeItem('vairiot_access_token');
   localStorage.removeItem('vairiot_refresh_token');
-  if (window.location.pathname !== '/login') window.location.href = '/login';
+  if (!PUBLIC_PATHS.includes(window.location.pathname)) window.location.href = '/login';
 }
 
 // On 401, try refresh once then replay the original request.
