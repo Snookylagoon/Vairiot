@@ -5,13 +5,26 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { api } from '@/lib/api';
 
-const PASSWORD_LENGTH = 12;
-const ALPHANUMERIC = /^[A-Za-z0-9]+$/;
+// Mirrors the server policy in vairiot-api password-policy.service.ts.
+const MIN_LENGTH = 12;
+const MAX_LENGTH = 128;
+const PASSPHRASE_LENGTH = 16;
 const PASSWORD_HINT =
-  `Exactly ${PASSWORD_LENGTH} characters — letters (A–Z, a–z) and numbers (0–9) only. No spaces or special characters.`;
+  `At least ${MIN_LENGTH} characters — anything allowed (letters, numbers, symbols, spaces). ` +
+  `Under ${PASSPHRASE_LENGTH} characters, mix at least three of: lower-case, upper-case, numbers, symbols.`;
+
+function characterClassCount(value: string) {
+  let classes = 0;
+  if (/[a-z]/.test(value)) classes++;
+  if (/[A-Z]/.test(value)) classes++;
+  if (/[0-9]/.test(value)) classes++;
+  if (/[^A-Za-z0-9]/.test(value)) classes++;
+  return classes;
+}
 
 function isValidPassword(value: string) {
-  return value.length === PASSWORD_LENGTH && ALPHANUMERIC.test(value);
+  if (value.length < MIN_LENGTH || value.length > MAX_LENGTH) return false;
+  return value.length >= PASSPHRASE_LENGTH || characterClassCount(value) >= 3;
 }
 
 export function ChangePasswordPage() {
@@ -85,7 +98,7 @@ export function ChangePasswordPage() {
           onChange={(e) => setNext(e.target.value)}
           autoComplete="new-password"
           required
-          maxLength={PASSWORD_LENGTH}
+          maxLength={MAX_LENGTH}
           hint={PASSWORD_HINT}
         />
         <Input
@@ -95,7 +108,7 @@ export function ChangePasswordPage() {
           onChange={(e) => setConfirm(e.target.value)}
           autoComplete="new-password"
           required
-          maxLength={PASSWORD_LENGTH}
+          maxLength={MAX_LENGTH}
           success={matches ? 'Passwords match' : undefined}
         />
 
