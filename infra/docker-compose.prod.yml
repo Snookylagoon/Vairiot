@@ -74,7 +74,9 @@ services:
     container_name: vairiot_migrate
     restart: "no"
     working_dir: /app/vairiot-api
-    command: ["npx", "prisma", "migrate", "deploy"]
+    # The db execute step renames legacy date-only migration entries on
+    # existing databases (no-op elsewhere) — see prisma/fix-legacy-migration-names.sql.
+    command: ["sh", "-c", "npx prisma db execute --file prisma/fix-legacy-migration-names.sql --url \"$$DATABASE_URL\" && npx prisma migrate deploy"]
     depends_on:
       postgres: { condition: service_healthy }
     environment:
