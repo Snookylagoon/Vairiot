@@ -42,16 +42,20 @@ docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:-}" "$PG_CONTAINER" \
     pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner < "$DUMP"
 
 echo "→ Restoring MinIO buckets…"
-docker cp "${WORK}/minio.tgz" "${MINIO_CONTAINER}:/tmp/minio-restore.tgz"
+# The MinIO image ships no tar — unpack on the host and copy the tree in.
+mkdir -p "${WORK}/minio-restore"
+tar -C "${WORK}/minio-restore" -xzf "${WORK}/minio.tgz"
+docker exec "$MINIO_CONTAINER" rm -rf /tmp/minio-restore
+docker cp "${WORK}/minio-restore" "${MINIO_CONTAINER}:/tmp/minio-restore"
 docker exec "$MINIO_CONTAINER" sh -c '
     mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 &&
-    rm -rf /tmp/minio-restore && mkdir -p /tmp/minio-restore &&
-    tar -C /tmp/minio-restore -xzf /tmp/minio-restore.tgz &&
     for b in vairiot-photos vairiot-documents vairiot-mobile-releases; do
         mc mb --ignore-existing "local/$b" >/dev/null 2>&1 || true
-        [ -d "/tmp/minio-restore/$b" ] && mc mirror --overwrite "/tmp/minio-restore/$b" "local/$b"
+        if [ -d "/tmp/minio-restore/$b" ]; then
+            mc mirror --overwrite "/tmp/minio-restore/$b" "local/$b"
+        fi
     done &&
-    rm -rf /tmp/minio-restore /tmp/minio-restore.tgz
+    rm -rf /tmp/minio-restore
 '
 
 echo

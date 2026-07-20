@@ -61,18 +61,19 @@ docker exec -e PGPASSWORD="${POSTGRES_PASSWORD:-}" "$PG_CONTAINER" \
 log "  → $(du -h "${WORK}/postgres-${POSTGRES_DB}.dump" | cut -f1)"
 
 # ----- 2. MinIO buckets (mirror via in-container mc) ------------------------
+# The MinIO image ships no tar, so copy the tree out and archive on the host.
 log "Mirroring MinIO buckets…"
 docker exec "$MINIO_CONTAINER" sh -c '
     mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 &&
-    mkdir -p /tmp/minio-backup &&
+    rm -rf /tmp/minio-backup && mkdir -p /tmp/minio-backup &&
     for b in vairiot-photos vairiot-documents vairiot-mobile-releases; do
         mc mirror --overwrite --remove "local/$b" "/tmp/minio-backup/$b" 2>/dev/null || true
-    done &&
-    tar -C /tmp/minio-backup -czf /tmp/minio-backup.tgz . &&
-    rm -rf /tmp/minio-backup
+    done
 ' || fail "MinIO mirror failed"
-docker cp "${MINIO_CONTAINER}:/tmp/minio-backup.tgz" "${WORK}/minio.tgz" || fail "docker cp minio archive failed"
-docker exec "$MINIO_CONTAINER" rm -f /tmp/minio-backup.tgz || true
+docker cp "${MINIO_CONTAINER}:/tmp/minio-backup" "${WORK}/minio-backup" || fail "docker cp minio data failed"
+docker exec "$MINIO_CONTAINER" rm -rf /tmp/minio-backup || true
+tar -C "${WORK}/minio-backup" -czf "${WORK}/minio.tgz" . || fail "packaging minio archive failed"
+rm -rf "${WORK}/minio-backup"
 log "  → $(du -h "${WORK}/minio.tgz" | cut -f1)"
 
 # ----- 3. Secrets (.env holds JWT_SECRET + APP_ENCRYPTION_KEY) --------------
