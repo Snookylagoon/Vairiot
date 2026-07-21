@@ -335,6 +335,7 @@ export async function updateAsset(tenantId: string, id: string, actorId: string,
     include: assetInclude,
   });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'updated', before: existing as unknown as Prisma.InputJsonValue, after: updated as unknown as Prisma.InputJsonValue } });
+  void dispatchWebhookEvent(tenantId, 'asset.updated', updated).catch(() => {});
   return enrichAssetWithDepreciation(updated);
 }
 
@@ -343,6 +344,7 @@ export async function deleteAsset(tenantId: string, id: string, actorId: string)
   if (!existing) throw new NotFoundError('Asset not found');
   await prisma.asset.update({ where: { id }, data: { deletedAt: new Date() } });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'archived', before: existing as unknown as Prisma.InputJsonValue } });
+  void dispatchWebhookEvent(tenantId, 'asset.archived', existing).catch(() => {});
 }
 
 export interface DisposalInput {
@@ -391,6 +393,7 @@ export async function disposeAsset(tenantId: string, id: string, actorId: string
     },
   });
 
+  void dispatchWebhookEvent(tenantId, 'asset.disposed', { ...updated, disposal }).catch(() => {});
   return enrichAssetWithDepreciation({ ...updated, disposal });
 }
 
