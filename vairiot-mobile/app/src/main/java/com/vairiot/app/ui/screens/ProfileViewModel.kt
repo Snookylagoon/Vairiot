@@ -150,7 +150,12 @@ class ProfileViewModel @Inject constructor(
                 val me: UserProfileResponse = api.getMe()
                 val licence = api.getLicenceStatus()
                 tokenStore.saveLicence(licence.licenceNumber, licence.tierDisplayName, licence.status, licence.activatedAt)
-                _state.value = ProfileUiState(
+                // copy() — NOT a fresh ProfileUiState — so fields owned by other
+                // flows (failedSyncCount from deadCount(), update state) survive.
+                // A fresh object reset failedSyncCount to 0, and since deadCount()
+                // doesn't re-emit an unchanged value, the "Failed sync items" card
+                // vanished the moment the profile finished loading.
+                _state.value = _state.value.copy(
                     isLoading     = false,
                     email         = me.email,
                     tenantId      = me.tenantId,
@@ -161,6 +166,7 @@ class ProfileViewModel @Inject constructor(
                     licenceStatus = licence.status,
                     licenceStart  = licence.activatedAt,
                     offline       = false,
+                    error         = null,
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
