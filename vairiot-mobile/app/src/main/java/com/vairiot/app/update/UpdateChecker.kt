@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageInstaller
 import android.os.Build
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.vairiot.app.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -182,11 +183,14 @@ class UpdateChecker @Inject constructor(
                     PendingIntent.FLAG_UPDATE_CURRENT
                 }
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    context.registerReceiver(receiver, IntentFilter(ACTION_INSTALL_STATUS), Context.RECEIVER_EXPORTED)
-                } else {
-                    context.registerReceiver(receiver, IntentFilter(ACTION_INSTALL_STATUS))
-                }
+                // ContextCompat handles the SDK-33 RECEIVER_* flag requirement on
+                // all API levels and satisfies lint's UnspecifiedRegisterReceiverFlag.
+                // EXPORTED preserves prior behaviour (the PackageInstaller status
+                // broadcast is delivered via our own PendingIntent).
+                ContextCompat.registerReceiver(
+                    context, receiver, IntentFilter(ACTION_INSTALL_STATUS),
+                    ContextCompat.RECEIVER_EXPORTED,
+                )
 
                 val pendingIntent = PendingIntent.getBroadcast(
                     context, sessionId, Intent(ACTION_INSTALL_STATUS), flags

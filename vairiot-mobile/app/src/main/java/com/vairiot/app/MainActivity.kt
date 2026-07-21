@@ -329,7 +329,7 @@ private fun HomeScaffold(rootNav: androidx.navigation.NavHostController) {
             }
             composable("profile") {
                 val scope = rememberCoroutineScope()
-                val activity = androidx.compose.ui.platform.LocalContext.current as? MainActivity
+                val activity = androidx.activity.compose.LocalActivity.current as? MainActivity
                 ProfileScreen(onLogout = {
                     scope.launch {
                         activity?.tokenStore?.clear()
