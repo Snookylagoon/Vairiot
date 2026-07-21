@@ -25,6 +25,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # vairiot-shared is consumed via its compiled dist/ (main + types), which
+      # is gitignored and has no prepare hook, so npm ci does NOT build it.
+      # Build it before anything type-checks/lints the workspaces that import it,
+      # otherwise: "Cannot find module 'vairiot-shared'".
+      - name: Build shared package
+        run: npm run build --workspace vairiot-shared
+
       - name: ESLint (errors fail the build)
         run: npm run lint
 
@@ -90,6 +97,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # Tests import services that import vairiot-shared — build its dist/ first.
+      - name: Build shared package
+        run: npm run build --workspace vairiot-shared
 
       - name: Run Prisma migrations (test DB)
         working-directory: vairiot-api
