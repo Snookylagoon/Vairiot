@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 
 import { NotFoundError, ConflictError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
+import { dispatchWebhookEvent } from './webhook.service';
 
 export interface AssetCreateInput {
   name: string; description?: string; categoryId?: string; siteId?: string;
@@ -239,7 +240,11 @@ export async function createAsset(tenantId: string, actorId: string, input: Asse
   // same number. Retry with a fresh number on that unique violation.
   for (let attempt = 0; ; attempt++) {
     try {
-      return await createAssetOnce(tenantId, actorId, input);
+      const asset = await createAssetOnce(tenantId, actorId, input);
+      // Fire the asset.created webhook (durable dispatch via the delivery queue).
+      // Non-blocking and isolated: a webhook problem must never fail the create.
+      void dispatchWebhookEvent(tenantId, 'asset.created', asset).catch(() => {});
+      return asset;
     } catch (e: unknown) {
       const err = e as { code?: string; meta?: { target?: string[] } };
       if (err.code !== 'P2002') throw e;
