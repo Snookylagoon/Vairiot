@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import nodemailer, { Transporter } from 'nodemailer';
+import nodemailer, { Transporter, SendMailOptions, SentMessageInfo } from 'nodemailer';
 import { Resend } from 'resend';
 
 import { decryptSecret } from './crypto';
@@ -101,6 +101,29 @@ export async function getMailer(): Promise<Transporter> {
 
 export async function getFromAddress(): Promise<string> {
   return (await resolve()).fromAddress;
+}
+
+/**
+ * Send an email through the resolved transport. When no real mail server is
+ * configured (source 'json' — the logging-only fallback) also log the full
+ * rendered message, so its contents — invite links, digest bodies — are
+ * actually visible instead of silently discarded. The startup log promises
+ * "emails will be logged"; this is what makes that true.
+ */
+export async function sendMail(opts: SendMailOptions): Promise<SentMessageInfo> {
+  const spec = await resolve();
+  const transporter = spec.provider === 'resend'
+    ? createResendTransport(spec.resend!, spec.fromAddress)
+    : spec.nodemailer!;
+  const info = await transporter.sendMail(opts);
+  if (spec.source === 'json') {
+    const rendered = (info as { message?: unknown }).message;
+    const body = Buffer.isBuffer(rendered) ? rendered.toString('utf8')
+      : typeof rendered === 'string' ? rendered
+      : JSON.stringify(info);
+    logger.info(`[mail-preview] no SMTP configured — message logged instead of sent:\n${body}`);
+  }
+  return info;
 }
 
 function createResendTransport(resend: Resend, defaultFrom: string): Transporter {

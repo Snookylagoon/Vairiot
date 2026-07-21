@@ -1,7 +1,7 @@
 import { Job } from 'bullmq';
 
 import { logger } from '../logger';
-import { getMailer, getFromAddress } from '../mailer';
+import { sendMail, getFromAddress } from '../mailer';
 import { AlertDigestJob } from '../queues';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -38,9 +38,8 @@ export async function handleAlertDigest(job: Job<AlertDigestJob>): Promise<void>
 
   lines.push('', 'Log in to Vairiot to review these items and take action.', '', '— Vairiot');
 
-  const mailer = await getMailer();
   const fromAddress = await getFromAddress();
-  const info = await mailer.sendMail({
+  const info = await sendMail({
     from: fromAddress,
     to: recipientEmail,
     subject,
