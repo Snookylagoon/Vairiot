@@ -67,7 +67,7 @@ class ForcedPasswordChangeViewModel @Inject constructor(
             } catch (e: HttpException) {
                 Log.w(TAG, "forced pw change HTTP ${e.code()}", e)
                 val msg = when (e.code()) {
-                    400  -> "Password must be exactly 12 alphanumeric characters."
+                    400  -> "Password does not meet the required policy (at least 12 characters; under 16 must mix 3 of lower-case, upper-case, number, symbol)."
                     401  -> "Session expired. Please sign in again."
                     422  -> "New password must be different from the current password."
                     else -> "Password change failed (HTTP ${e.code()})."

@@ -26,6 +26,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.AuditCampaignResponse
 import com.vairiot.app.ui.components.ClearableTextField
@@ -46,6 +49,18 @@ fun AuditListScreen(
     viewModel: AuditListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+
+    // Refresh the list whenever the screen returns to the foreground, so a status
+    // change made elsewhere (e.g. an audit completed on the run screen) shows
+    // without a manual pull-to-refresh.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.load()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     var search by rememberSaveable { mutableStateOf("") }
     var statusFilter by rememberSaveable { mutableStateOf("") }
