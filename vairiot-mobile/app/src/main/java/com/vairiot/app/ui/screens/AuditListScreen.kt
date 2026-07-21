@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -38,6 +39,7 @@ private enum class CampaignSortField(val key: String, val label: String) {
     SCANS("scans", "Scans"),
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuditListScreen(
     onCampaignClick: (campaignId: String, status: String) -> Unit,
@@ -133,14 +135,22 @@ fun AuditListScreen(
             }
         }
 
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        // Pull down to refresh the campaign list (statuses can change server-side,
+        // e.g. an audit completed on another device or on the run screen).
+        PullToRefreshBox(
+            isRefreshing = state.isLoading && state.campaigns.isNotEmpty(),
+            onRefresh = { viewModel.load() },
+            modifier = Modifier.weight(1f).fillMaxWidth(),
         ) {
-            items(visible, key = { it.id }) { c ->
-                AuditRow(campaign = c, onClick = { onCampaignClick(c.id, c.status) })
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(visible, key = { it.id }) { c ->
+                    AuditRow(campaign = c, onClick = { onCampaignClick(c.id, c.status) })
+                }
+                item { Spacer(Modifier.height(80.dp)) } // breathing room above FAB
             }
-            item { Spacer(Modifier.height(80.dp)) } // breathing room above FAB
         }
     }
 
