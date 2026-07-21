@@ -52,10 +52,11 @@ async function buildFromDb(): Promise<TransportSpec | null> {
 }
 
 function buildFromEnv(): TransportSpec | null {
-  const host = process.env.SMTP_HOST;
+  // Compose passes unset vars as "" (not undefined), so trim + falsy-coalesce.
+  const host = process.env.SMTP_HOST?.trim();
   if (!host) return null;
-  const port = Number(process.env.SMTP_PORT ?? 587);
-  const secure = process.env.SMTP_SECURE !== undefined
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const secure = process.env.SMTP_SECURE
     ? process.env.SMTP_SECURE === 'true'
     : port === 465;
   return {

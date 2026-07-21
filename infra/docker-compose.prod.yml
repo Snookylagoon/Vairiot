@@ -191,6 +191,19 @@ services:
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
       LOG_LEVEL:    info
       SENTRY_DSN:   ${SENTRY_DSN:-}
+      APP_URL:      ${APP_URL:-}
+      # SMTP for outbound mail when not configured via the admin panel (DB) — the
+      # mailer falls back to these env vars, then to logging-only. See mailer.ts.
+      SMTP_HOST:    ${SMTP_HOST:-}
+      SMTP_PORT:    ${SMTP_PORT:-}
+      SMTP_SECURE:  ${SMTP_SECURE:-}
+      SMTP_USER:    ${SMTP_USER:-}
+      SMTP_PASS:    ${SMTP_PASS:-}
+      SMTP_FROM:    ${SMTP_FROM:-}
+      # Digest/metering schedules — override to speed up testing (see TEST-PLAN 3.2).
+      ALERT_DIGEST_DAILY_CRON:  ${ALERT_DIGEST_DAILY_CRON:-}
+      ALERT_DIGEST_WEEKLY_CRON: ${ALERT_DIGEST_WEEKLY_CRON:-}
+      STORAGE_METERING_CRON:    ${STORAGE_METERING_CRON:-}
     # Heartbeat file is refreshed by the worker event loop (see src/index.ts).
     # A stale file means the loop is wedged even though the process is up.
     healthcheck:
