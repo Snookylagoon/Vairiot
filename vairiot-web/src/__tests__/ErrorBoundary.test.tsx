@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
+
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 
 function ThrowingChild({ shouldThrow }: { shouldThrow: boolean }) {

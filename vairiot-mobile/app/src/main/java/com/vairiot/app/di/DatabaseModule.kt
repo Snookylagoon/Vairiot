@@ -2,6 +2,8 @@ package com.vairiot.app.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.vairiot.app.data.local.CachedAssetDao
 import com.vairiot.app.data.local.QueuedAssetDao
 import com.vairiot.app.data.local.QueuedScanDao
@@ -19,10 +21,23 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    // v5: dead-letter state + idempotency keys on the offline queues. A real
+    // migration — the destructive fallback would wipe queued offline work.
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            for (table in listOf("queued_scans", "queued_assets")) {
+                db.execSQL("ALTER TABLE $table ADD COLUMN state TEXT NOT NULL DEFAULT 'pending'")
+                db.execSQL("ALTER TABLE $table ADD COLUMN clientRequestId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("UPDATE $table SET clientRequestId = lower(hex(randomblob(16))) WHERE clientRequestId = ''")
+            }
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): VairiotDatabase =
         Room.databaseBuilder(context, VairiotDatabase::class.java, "vairiot.db")
+            .addMigrations(MIGRATION_4_5)
             .fallbackToDestructiveMigration()
             .build()
 

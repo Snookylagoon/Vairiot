@@ -37,7 +37,7 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z # pinned — keep in step with docker-compose.prod.yml
     container_name: vairiot_minio
     restart: unless-stopped
     command: server /data --console-address ":9001"

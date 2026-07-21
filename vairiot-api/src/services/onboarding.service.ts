@@ -1,8 +1,8 @@
-import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
 import { AppError, ValidationError } from '../lib/errors';
+import { logger } from '../lib/logger';
+import { prisma } from '../lib/prisma';
+
 import { activateLicence } from './licence.service';
-import { hashPassword } from './auth.service';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

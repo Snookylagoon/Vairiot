@@ -1,5 +1,7 @@
 import { createHash } from 'crypto';
+
 import { NextFunction, Request, Response } from 'express';
+
 import { verifyAccessToken, type TokenPayload } from '../lib/jwt';
 import { prisma } from '../lib/prisma';
 import { isTokenBlacklisted } from '../lib/redis';

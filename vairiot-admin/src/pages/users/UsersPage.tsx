@@ -1,14 +1,18 @@
+import { KeyRound, Unlock, UserX, UserCheck, Copy, Table2, Trash2, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAllUsers, useResetPassword, useUnlockUser, useSetUserActive, useDeleteUser, useForcePasswordChange } from '@/hooks/useAdmin';
+import { toast } from 'sonner';
+
+import { RoleMatrixDialog } from './RoleMatrixDialog';
+
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import { useAllUsers, useResetPassword, useUnlockUser, useSetUserActive, useDeleteUser, useForcePasswordChange } from '@/hooks/useAdmin';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
-import { KeyRound, Unlock, UserX, UserCheck, Copy, Table2, Trash2, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
-import { RoleMatrixDialog } from './RoleMatrixDialog';
+
+
 
 interface UserRow {
   id: string;

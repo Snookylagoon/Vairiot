@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2, XCircle, Equal, ArrowLeftRight } from 'lucide-react';
-import { api } from '@/lib/api';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+
 import { Badge } from '@/components/ui/Badge';
+import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { api } from '@/lib/api';
 
 interface ComparisonAsset {
   assetId: string;

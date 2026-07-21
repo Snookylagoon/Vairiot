@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import {
-  useLicences, useRenewLicence, useSuspendLicence,
-  useRevokeLicence, useReactivateLicence, useAddDeviceSlot,
-} from '@/hooks/useLicences';
+
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, DataTableColumn } from '@/components/ui/DataTable';
+import {
+  useLicences, useRenewLicence, useSuspendLicence,
+  useRevokeLicence, useReactivateLicence, useAddDeviceSlot,
+} from '@/hooks/useLicences';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
 
 const STATUS_OPTIONS = ['', 'active', 'expiring', 'expired', 'suspended', 'revoked'];

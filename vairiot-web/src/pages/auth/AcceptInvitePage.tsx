@@ -1,11 +1,12 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, Link } from 'react-router-dom';
+
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { acceptInviteSchema, type AcceptInviteFormData } from '@/lib/schemas';
 import { api } from '@/lib/api';
+import { acceptInviteSchema, type AcceptInviteFormData } from '@/lib/schemas';
 
 export function AcceptInvitePage() {
   const [searchParams] = useSearchParams();
@@ -74,7 +75,7 @@ export function AcceptInvitePage() {
                 )}
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  <Input label="Password" type="password" placeholder="8+ characters" error={errors.password?.message} {...register('password')} />
+                  <Input label="Password" type="password" placeholder="12+ characters" error={errors.password?.message} {...register('password')} />
                   <Input label="Confirm password" type="password" placeholder="Repeat password" error={errors.confirmPassword?.message} {...register('confirmPassword')} />
                   <Button type="submit" size="lg" loading={isSubmitting} className="w-full mt-2">Activate Account</Button>
                 </form>

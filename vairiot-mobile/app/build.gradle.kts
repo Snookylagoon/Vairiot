@@ -68,6 +68,20 @@ android {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
+        // Staging: same code, but a distinct applicationId (".staging") so it
+        // installs ALONGSIDE the production app, points at the staging API, and
+        // is labelled "Vairiot Staging" (see src/staging/res/values/strings.xml).
+        // Release-signed so it installs on devices that had a release build.
+        create("staging") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            buildConfigField("String", "API_BASE_URL", "\"https://test.vairiot.com/\"")
+            matchingFallbacks += listOf("release")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

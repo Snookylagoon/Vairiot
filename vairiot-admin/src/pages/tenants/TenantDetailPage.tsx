@@ -1,15 +1,16 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { useTenantDetail, useCreateSubTenant, useUploadTenantLogo, useDeleteTenantLogo, useUpdateTenantCompany, useDeleteTenant } from '@/hooks/useAdmin';
-import { useRenewLicence, useSuspendLicence, useRevokeLicence, useReactivateLicence, useLicenceDevices, useActivateDevice, useDeactivateDevice, useDeleteDevice } from '@/hooks/useLicences';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { Input } from '@/components/ui/Input';
 import { ArrowLeft, Plus, Upload, Trash2, Pencil, Check, X, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
 import { useShellContext } from '@/components/layout/AdminShell';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Input } from '@/components/ui/Input';
+import { useTenantDetail, useCreateSubTenant, useUploadTenantLogo, useDeleteTenantLogo, useUpdateTenantCompany, useDeleteTenant } from '@/hooks/useAdmin';
+import { useRenewLicence, useSuspendLicence, useRevokeLicence, useReactivateLicence, useLicenceDevices, useActivateDevice, useDeactivateDevice, useDeleteDevice } from '@/hooks/useLicences';
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'green';

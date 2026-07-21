@@ -10,10 +10,12 @@
  * records on the parent tenant).
  */
 import { Readable } from 'stream';
-import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
+
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
+import { logger } from '../lib/logger';
 import { minioClient, PHOTO_BUCKET } from '../lib/minio';
+import { prisma } from '../lib/prisma';
+
 import { slugifyLoginId } from './platform-admin.service';
 
 const LOGIN_ID_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/;

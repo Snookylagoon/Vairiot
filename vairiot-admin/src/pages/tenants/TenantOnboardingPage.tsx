@@ -1,10 +1,12 @@
+import { ArrowLeft, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check } from 'lucide-react';
-import { Card, CardBody, CardHeader } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { toast } from 'sonner';
+
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
 import {
   useTenantOnboarding,
   useTenantOnboardingUserStep,
@@ -15,7 +17,7 @@ import {
   type TenantOnboardingView,
 } from '@/hooks/useAdmin';
 import { useTenantDetail } from '@/hooks/useAdmin';
-import { toast } from 'sonner';
+
 
 const STEPS = [
   { key: 'user_registration',    label: 'User',          icon: '1' },

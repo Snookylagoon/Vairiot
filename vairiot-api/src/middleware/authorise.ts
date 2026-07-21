@@ -1,6 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
 import {
-  getPermissionsForRole,
   PLATFORM_ROLES,
   CLIENT_ROLES,
   type RoleName,

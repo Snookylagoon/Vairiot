@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { CountrySelect } from '@/components/ui/CountrySelect';
+import { Input } from '@/components/ui/Input';
 import {
   useOnboardingProgress,
   useCompleteUserStep,
@@ -12,7 +14,6 @@ import {
   useFinaliseOnboarding,
 } from '@/hooks/useOnboarding';
 import { useAuthStore } from '@/stores/auth.store';
-import { toast } from 'sonner';
 
 const STEPS = [
   { key: 'user_registration',    label: 'Your Details',    icon: '1' },
@@ -211,7 +212,7 @@ const UPGRADE_TIERS = [
   },
 ];
 
-function LicenceStep({ progress }: { progress: ReturnType<typeof useOnboardingProgress>['data'] }) {
+function LicenceStep({ progress: _progress }: { progress: ReturnType<typeof useOnboardingProgress>['data'] }) {
   const finaliseMutation = useFinaliseOnboarding();
   const navigate = useNavigate();
   const hydrate = useAuthStore(s => s.hydrate);

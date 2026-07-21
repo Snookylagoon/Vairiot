@@ -1,21 +1,22 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Tag, MapPin, Calendar, DollarSign, TrendingDown, Trash2, Archive, FileText, Printer } from 'lucide-react';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useParams, useNavigate } from 'react-router-dom';
+
+import { AssetDocuments } from '@/components/assets/AssetDocuments';
+import { AssetPhotos } from '@/components/assets/AssetPhotos';
+import { AssetTimeline } from '@/components/assets/AssetTimeline';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
-import { AssetPhotos } from '@/components/assets/AssetPhotos';
-import { AssetDocuments } from '@/components/assets/AssetDocuments';
-import { AssetTimeline } from '@/components/assets/AssetTimeline';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useAsset, useDeleteAsset, useDisposeAsset } from '@/hooks/useAssets';
-import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 import { useCurrency } from '@/hooks/useCurrency';
 import { disposalSchema, type DisposalFormData } from '@/lib/schemas';
+import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (

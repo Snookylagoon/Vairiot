@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
+
+import { metrics } from '../../lib/metrics';
 import { prisma } from '../../lib/prisma';
 import { getRedis } from '../../lib/redis';
-import { metrics } from '../../lib/metrics';
 
 export const healthRouter = Router();
 

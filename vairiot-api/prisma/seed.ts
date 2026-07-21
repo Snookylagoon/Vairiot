@@ -1,7 +1,6 @@
-import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
-import { ROLE_PERMISSION_MATRIX, ALL_ROLE_NAMES } from 'vairiot-shared';
-import { LICENCE_TIER_CONFIG } from 'vairiot-shared';
+import bcrypt from 'bcryptjs';
+import { ROLE_PERMISSION_MATRIX, ALL_ROLE_NAMES , LICENCE_TIER_CONFIG } from 'vairiot-shared';
 
 const prisma = new PrismaClient();
 

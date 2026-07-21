@@ -43,6 +43,10 @@ struct RecordScanRequest: Codable {
     var deviceId: String?
     var locationId: String?
     var condition: String?
+    /// Idempotency key so offline replays can't double-count.
+    var clientRequestId: String?
+    /// ISO-8601 device capture time for offline scans replayed later.
+    var capturedAt: String?
 }
 
 struct AuditScanEventResponse: Codable, Identifiable {

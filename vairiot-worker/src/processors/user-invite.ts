@@ -1,9 +1,11 @@
 import { Job } from 'bullmq';
+
 import { logger } from '../logger';
-import { getMailer, getFromAddress } from '../mailer';
+import { sendMail, getFromAddress } from '../mailer';
 import { UserInviteJob } from '../queues';
 
-const APP_URL = process.env.APP_URL ?? 'http://localhost:3000';
+// `||` not `??`: compose passes an unset APP_URL as "" rather than undefined.
+const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 
 export async function handleUserInvite(job: Job<UserInviteJob>): Promise<void> {
   const { recipientEmail, recipientName, inviteToken, inviterName } = job.data;
@@ -28,9 +30,8 @@ export async function handleUserInvite(job: Job<UserInviteJob>): Promise<void> {
     '— Vairiot',
   ].join('\n');
 
-  const mailer = await getMailer();
   const fromAddress = await getFromAddress();
-  const info = await mailer.sendMail({
+  const info = await sendMail({
     from: fromAddress,
     to: recipientEmail,
     subject,

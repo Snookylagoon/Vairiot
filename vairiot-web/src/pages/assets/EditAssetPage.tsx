@@ -1,7 +1,8 @@
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
+
 import { AssetForm, AssetFormData } from '@/components/forms/AssetForm';
 import { useAsset, useUpdateAsset } from '@/hooks/useAssets';
-import { ArrowLeft } from 'lucide-react';
 
 function fmtDate(d?: string | null) {
   return d ? d.slice(0, 10) : '';

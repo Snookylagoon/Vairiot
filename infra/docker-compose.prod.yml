@@ -1,9 +1,20 @@
+# Memory limits below are sized for a modest single VPS (~8 GB). Tune to your host.
+# Log rotation (json-file max-size/max-file) caps container logs so they can't
+# fill the disk and take Postgres down with them.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
 
   postgres:
     image: postgres:16-alpine
     container_name: vairiot_postgres
     restart: always
+    logging: *default-logging
+    mem_limit: 1g
     environment:
       POSTGRES_USER:     ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -20,6 +31,8 @@ services:
     image: redis:7-alpine
     container_name: vairiot_redis
     restart: always
+    logging: *default-logging
+    mem_limit: 512m
     command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - ./data/redis:/data
@@ -30,9 +43,13 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio:latest
+    # Pinned — was minio/minio:latest (silent breaking upgrades on re-pull).
+    # Verify/bump against https://hub.docker.com/r/minio/minio/tags before deploy.
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: vairiot_minio
     restart: always
+    logging: *default-logging
+    mem_limit: 1g
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER:     ${MINIO_ROOT_USER}
@@ -45,28 +62,57 @@ services:
       timeout: 5s
       retries: 5
 
+  # One-shot: applies pending Prisma migrations, then exits. The api waits for it
+  # to complete successfully, so a deploy that ships schema-dependent code can no
+  # longer start the API against an un-migrated database. Built from the `builder`
+  # stage because the prisma CLI is a devDependency (absent from the runtime image).
+  migrate:
+    build:
+      context: ..
+      dockerfile: vairiot-api/Dockerfile
+      target: builder
+    container_name: vairiot_migrate
+    restart: "no"
+    working_dir: /app/vairiot-api
+    # The db execute step renames legacy date-only migration entries on
+    # existing databases (no-op elsewhere) — see prisma/fix-legacy-migration-names.sql.
+    command: ["sh", "-c", "npx prisma db execute --file prisma/fix-legacy-migration-names.sql --url \"$$DATABASE_URL\" && npx prisma migrate deploy"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+
   api:
     build:
       context: ..
       dockerfile: vairiot-api/Dockerfile
     container_name: vairiot_api
     restart: always
+    logging: *default-logging
+    mem_limit: 1g
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
       reports:  { condition: service_healthy }
+      migrate:  { condition: service_completed_successfully }
     environment:
       NODE_ENV:      production
       DATABASE_URL:  "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
       REDIS_URL:     "redis://:${REDIS_PASSWORD}@redis:6379"
       JWT_SECRET:    ${JWT_SECRET}
+      JWT_ACCESS_SECRET:  ${JWT_ACCESS_SECRET:-}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-}
+      JWT_SETUP_SECRET:   ${JWT_SETUP_SECRET:-}
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
       API_PORT:      3001
       WEB_ORIGIN:    ${WEB_ORIGIN}
       LOG_LEVEL:     info
+      SENTRY_DSN:    ${SENTRY_DSN:-}
       MINIO_ENDPOINT:         minio
       MINIO_PORT:             9000
       MINIO_USE_SSL:          "false"
+      MINIO_ACCESS_KEY:       ${MINIO_ACCESS_KEY:-}
+      MINIO_SECRET_KEY:       ${MINIO_SECRET_KEY:-}
       MINIO_ROOT_USER:        ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD:    ${MINIO_ROOT_PASSWORD}
       MINIO_PHOTOS_BUCKET:    vairiot-photos
@@ -74,6 +120,12 @@ services:
       REPORT_SERVICE_URL:     http://reports:8100
     expose:
       - "3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   reports:
     build:
@@ -81,6 +133,8 @@ services:
       dockerfile: Dockerfile
     container_name: vairiot_reports
     restart: always
+    logging: *default-logging
+    mem_limit: 1g
     expose:
       - "8100"
     healthcheck:
@@ -97,6 +151,8 @@ services:
         VITE_API_URL: ${VITE_API_URL}
     container_name: vairiot_web
     restart: always
+    logging: *default-logging
+    mem_limit: 128m
     depends_on:
       - api
     expose:
@@ -110,6 +166,8 @@ services:
         VITE_API_URL: ${VITE_API_URL}
     container_name: vairiot_admin
     restart: always
+    logging: *default-logging
+    mem_limit: 128m
     depends_on:
       - api
     expose:
@@ -121,6 +179,8 @@ services:
       dockerfile: vairiot-worker/Dockerfile
     container_name: vairiot_worker
     restart: always
+    logging: *default-logging
+    mem_limit: 512m
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
@@ -130,19 +190,49 @@ services:
       REDIS_URL:    "redis://:${REDIS_PASSWORD}@redis:6379"
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
       LOG_LEVEL:    info
+      SENTRY_DSN:   ${SENTRY_DSN:-}
+      APP_URL:      ${APP_URL:-}
+      # SMTP for outbound mail when not configured via the admin panel (DB) — the
+      # mailer falls back to these env vars, then to logging-only. See mailer.ts.
+      SMTP_HOST:    ${SMTP_HOST:-}
+      SMTP_PORT:    ${SMTP_PORT:-}
+      SMTP_SECURE:  ${SMTP_SECURE:-}
+      SMTP_USER:    ${SMTP_USER:-}
+      SMTP_PASS:    ${SMTP_PASS:-}
+      SMTP_FROM:    ${SMTP_FROM:-}
+      # Digest/metering schedules — override to speed up testing (see TEST-PLAN 3.2).
+      ALERT_DIGEST_DAILY_CRON:  ${ALERT_DIGEST_DAILY_CRON:-}
+      ALERT_DIGEST_WEEKLY_CRON: ${ALERT_DIGEST_WEEKLY_CRON:-}
+      STORAGE_METERING_CRON:    ${STORAGE_METERING_CRON:-}
+    # Heartbeat file is refreshed by the worker event loop (see src/index.ts).
+    # A stale file means the loop is wedged even though the process is up.
+    healthcheck:
+      test: ["CMD", "node", "-e", "const fs=require('fs');const t=fs.statSync('/tmp/worker-heartbeat').mtimeMs;process.exit(Date.now()-t<90000?0:1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   nginx:
     image: nginx:alpine
     container_name: vairiot_nginx
     restart: always
+    logging: *default-logging
+    mem_limit: 128m
     depends_on:
       - api
       - web
       - admin
     volumes:
-      - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      # Defaults to prod. Staging sets NGINX_CONF=./nginx/staging.conf in its .env.
+      - ${NGINX_CONF:-./nginx/prod.conf}:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
     ports:
       - "80:80"
       - "443:443"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

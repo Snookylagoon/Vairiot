@@ -1,12 +1,14 @@
 import { createApp } from './app';
 import { logger } from './lib/logger';
-import { prisma } from './lib/prisma';
 import { ensurePhotosBucket, ensureDocumentsBucket, ensureMobileReleasesBucket } from './lib/minio';
+import { initMonitoring } from './lib/monitoring';
+import { prisma } from './lib/prisma';
 import { getRedis } from './lib/redis';
 
 const PORT = Number(process.env.API_PORT) || 3001;
 
 async function main() {
+  initMonitoring();
   await prisma.$connect();
   logger.info('Database connected');
   try { await getRedis().connect(); logger.info('Redis connected'); } catch (e) {

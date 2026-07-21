@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+**/src/generated/
+vairiot-mobile/
+vairiot-ios/
+.claude/
+**/.claude/
+infra/
+scripts/
+*.config.js
+*.config.ts
+jest.config.js

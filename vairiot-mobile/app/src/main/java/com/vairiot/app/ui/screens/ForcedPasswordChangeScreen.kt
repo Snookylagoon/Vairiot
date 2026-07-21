@@ -27,6 +27,27 @@ import com.vairiot.app.ui.theme.VairiotMauve
 import com.vairiot.app.ui.theme.VairiotPink
 import com.vairiot.app.ui.theme.VairiotViolet
 
+// Mirrors the server password policy (vairiot-api password-policy.service):
+// 12–128 chars; under 16 chars must include ≥3 of {lower, upper, digit, symbol};
+// 16+ chars accepted on length alone.
+private const val PASSWORD_MIN_LENGTH = 12
+private const val PASSWORD_MAX_LENGTH = 128
+private const val PASSWORD_PASSPHRASE_LENGTH = 16
+
+private fun passwordClassCount(value: String): Int {
+    var classes = 0
+    if (Regex("[a-z]").containsMatchIn(value)) classes++
+    if (Regex("[A-Z]").containsMatchIn(value)) classes++
+    if (Regex("[0-9]").containsMatchIn(value)) classes++
+    if (Regex("[^A-Za-z0-9]").containsMatchIn(value)) classes++
+    return classes
+}
+
+fun isValidNewPassword(value: String): Boolean {
+    if (value.length < PASSWORD_MIN_LENGTH || value.length > PASSWORD_MAX_LENGTH) return false
+    return value.length >= PASSWORD_PASSPHRASE_LENGTH || passwordClassCount(value) >= 3
+}
+
 @Composable
 fun ForcedPasswordChangeScreen(
     challengeToken:  String,
@@ -43,9 +64,7 @@ fun ForcedPasswordChangeScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    val isValid = newPassword.length == 12
-        && newPassword.all { it.isLetterOrDigit() }
-        && newPassword == confirmPassword
+    val isValid = isValidNewPassword(newPassword) && newPassword == confirmPassword
 
     LaunchedEffect(ui.result) {
         when (val r = ui.result) {
@@ -96,9 +115,9 @@ fun ForcedPasswordChangeScreen(
 
                     OutlinedTextField(
                         value = newPassword,
-                        onValueChange = { if (it.length <= 12) newPassword = it },
+                        onValueChange = { if (it.length <= PASSWORD_MAX_LENGTH) newPassword = it },
                         label = { Text("New password") },
-                        supportingText = { Text("Exactly 12 characters — letters and numbers only") },
+                        supportingText = { Text("At least 12 characters. Under 16 must mix 3 of: lower-case, upper-case, number, symbol.") },
                         visualTransformation = if (passwordVisible) VisualTransformation.None
                                                else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(
@@ -121,13 +140,10 @@ fun ForcedPasswordChangeScreen(
 
                     OutlinedTextField(
                         value = confirmPassword,
-                        onValueChange = { if (it.length <= 12) confirmPassword = it },
+                        onValueChange = { if (it.length <= PASSWORD_MAX_LENGTH) confirmPassword = it },
                         label = { Text("Confirm new password") },
                         supportingText = {
-                            if (newPassword.length == 12
-                                && newPassword.all { c -> c.isLetterOrDigit() }
-                                && newPassword == confirmPassword
-                            ) {
+                            if (isValidNewPassword(newPassword) && newPassword == confirmPassword) {
                                 Text("Passwords match", color = MaterialTheme.colorScheme.primary)
                             }
                         },

@@ -1,7 +1,9 @@
 import { randomBytes, createHash } from 'crypto';
-import { prisma } from '../lib/prisma';
-import { recordAuditEvent } from './audit-event.service';
+
 import { NotFoundError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
+
+import { recordAuditEvent } from './audit-event.service';
 
 const PREFIX = 'vai_';
 

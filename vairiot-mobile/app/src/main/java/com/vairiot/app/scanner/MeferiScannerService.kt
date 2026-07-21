@@ -60,9 +60,14 @@ class MeferiScannerService @Inject constructor(
             ScanType.BARCODE -> START_CAMERA_ACTIONS
             else             -> START_SCAN_ACTIONS
         }
+        // The ME65's soft-trigger action is undocumented (the physical trigger
+        // works via a different path), so broadcast every plausible candidate —
+        // the firmware ignores unrecognised ones. Each attempt is logged so the
+        // effective action can be identified from logcat on a real device.
         actions.forEach { action ->
             runCatching {
                 context.sendBroadcast(Intent(action).setPackage(null))
+                Log.d(TAG, "startScan($type): broadcast $action")
             }.onFailure { Log.w(TAG, "startScan($type): $action failed: ${it.message}") }
         }
     }
@@ -126,8 +131,20 @@ class MeferiScannerService @Inject constructor(
 
         private val UHF_EXTRAS = listOf("UHF_DATA", "EPC", "epc", "tag")
 
+        // Candidate soft-trigger actions — the on-screen "Scan tag" button. Only
+        // one is honoured by any given firmware; we broadcast all so the button
+        // works without a device-specific APK. Confirm the effective one from the
+        // "startScan(...): broadcast ..." logcat lines on the target device.
         private val START_SCAN_ACTIONS = listOf(
-            "com.meferi.action.SCANNER.SHOOT",
+            "com.meferi.action.SCANNER.SHOOT",          // original (unverified)
+            "com.meferi.action.SCANNER.START",
+            "com.meferi.action.SCAN.START",
+            "com.meferi.action.SCANNER.TRIG",
+            "com.meferi.action.SCAN_TRIG",
+            "com.android.action.START_SCAN",
+            "android.intent.action.SCANNER_TRIG",
+            "nlscan.action.START_SCAN",                 // Newland passthrough
+            "scan.rcv.message",
         )
 
         private val START_CAMERA_ACTIONS = listOf(

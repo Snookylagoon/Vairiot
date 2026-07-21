@@ -1,6 +1,7 @@
-import request from 'supertest';
-import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import request from 'supertest';
+
 import { createApp } from '../../app';
 
 const prisma = new PrismaClient();
@@ -34,6 +35,7 @@ afterAll(async () => {
   await prisma.userTwoFactor.deleteMany({ where: { user: { tenantId: TID } } });
   await prisma.auditEvent.deleteMany({ where: { tenantId: TID } });
   await prisma.userRole.deleteMany({ where: { user: { tenantId: TID } } });
+  await prisma.userInvitation.deleteMany({ where: { tenantId: TID } });
   await prisma.user.deleteMany({ where: { tenantId: TID } });
   await prisma.deviceSlot.deleteMany({ where: { licence: { tenantId: TID } } });
   await prisma.licence.deleteMany({ where: { tenantId: TID } });
@@ -68,32 +70,44 @@ describe('Password policy', () => {
       .send({ email: 'admin@sec.test', password: 'AdminPassword1!', tenantId: TID })).body.accessToken;
   });
 
+  // The policy is enforced wherever a password is actually set (change-password,
+  // invite acceptance, registration). POST /users is invite-based and takes no
+  // password, so we exercise the policy through change-password.
+  const changePassword = (currentPassword: string, newPassword: string) =>
+    request(app).post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ currentPassword, newPassword });
+
   it('rejects password shorter than 12 characters', async () => {
-    const res = await request(app).post('/api/v1/users')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'weak@sec.test', name: 'Weak', password: 'Short123' });
+    const res = await changePassword('AdminPassword1!', 'Short123');
     expect(res.status).toBe(400);
   });
 
-  it('rejects password longer than 12 characters', async () => {
-    const res = await request(app).post('/api/v1/users')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'weak2@sec.test', name: 'Weak', password: 'WayTooLong12345' });
+  it('rejects password longer than 128 characters', async () => {
+    const res = await changePassword('AdminPassword1!', 'Aa1!'.repeat(33));
     expect(res.status).toBe(400);
   });
 
-  it('rejects password containing a special character', async () => {
-    const res = await request(app).post('/api/v1/users')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'weak3@sec.test', name: 'Weak', password: 'HasSpecial1!' });
+  it('rejects a common password', async () => {
+    const res = await changePassword('AdminPassword1!', 'administrator');
     expect(res.status).toBe(400);
   });
 
-  it('accepts a 12-character alphanumeric password', async () => {
-    const res = await request(app).post('/api/v1/users')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'strong@sec.test', name: 'Strong', password: 'StrongPass12' });
-    expect(res.status).toBe(201);
+  it('rejects a 12-char password with fewer than 3 character classes', async () => {
+    const res = await changePassword('AdminPassword1!', 'alllowercase');
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts a 12-character mixed password with a symbol', async () => {
+    const res = await changePassword('AdminPassword1!', 'StrongPass1!');
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts a long passphrase without symbol/case requirements', async () => {
+    const res = await changePassword('StrongPass1!', 'correct horse battery staple');
+    expect(res.status).toBe(200);
+    // Restore so any later test using this account still authenticates.
+    await changePassword('correct horse battery staple', 'AdminPassword1!');
   });
 });
 
@@ -220,6 +234,40 @@ describe('Two-factor authentication', () => {
     expect(res.body).toHaveProperty('refreshToken');
   });
 
+  // Regression: a wrong 6-digit TOTP must be rejected. verifySync returns a
+  // {valid} object (always truthy) — treating it as a boolean let ANY code in.
+  it('rejects a wrong 6-digit code at login', async () => {
+    const loginRes = await request(app).post('/api/v1/auth/login')
+      .send({ email: 'tfa@sec.test', password: 'TwoFactorTest1!', tenantId: TID });
+    const res = await request(app).post('/api/v1/auth/login/2fa')
+      .send({ challengeToken: loginRes.body.twoFactorChallengeToken, token: '000000' });
+    expect(res.status).not.toBe(200);
+  });
+
+  // Regression: an 8-char backup code must log in (not crash). verifySync throws
+  // TokenLengthError on non-6-digit input, which used to 500 before backup-code
+  // checking ran.
+  it('accepts a backup code, and rejects it on reuse', async () => {
+    const user = await prisma.user.findFirstOrThrow({ where: { tenantId: TID, email: 'tfa@sec.test' } });
+    await prisma.userTwoFactor.update({
+      where: { userId: user.id },
+      data: { backupCodes: ['BACKUPAA', 'BACKUPBB'] },
+    });
+
+    const login1 = await request(app).post('/api/v1/auth/login')
+      .send({ email: 'tfa@sec.test', password: 'TwoFactorTest1!', tenantId: TID });
+    const use1 = await request(app).post('/api/v1/auth/login/2fa')
+      .send({ challengeToken: login1.body.twoFactorChallengeToken, token: 'BACKUPAA' });
+    expect(use1.status).toBe(200);
+    expect(use1.body).toHaveProperty('accessToken');
+
+    const login2 = await request(app).post('/api/v1/auth/login')
+      .send({ email: 'tfa@sec.test', password: 'TwoFactorTest1!', tenantId: TID });
+    const use2 = await request(app).post('/api/v1/auth/login/2fa')
+      .send({ challengeToken: login2.body.twoFactorChallengeToken, token: 'BACKUPAA' });
+    expect(use2.status).not.toBe(200);
+  });
+
   it('can disable 2FA (non-mandatory role)', async () => {
     const res = await request(app).post('/api/v1/2fa/disable')
       .set('Authorization', `Bearer ${userToken}`);
@@ -265,17 +313,19 @@ describe('2FA mandatory for platform roles', () => {
     platformToken = tfaRes.body.accessToken;
   });
 
-  it('2FA status shows required=true for platform role', async () => {
+  // Since fcb5a27, 2FA is opt-in for every role (ROLES_REQUIRING_2FA is empty);
+  // platform roles are no longer forced.
+  it('2FA status shows required=false for platform role (opt-in policy)', async () => {
     const res = await request(app).get('/api/v1/2fa/status')
       .set('Authorization', `Bearer ${platformToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.required).toBe(true);
+    expect(res.body.required).toBe(false);
+    expect(res.body.enabled).toBe(true);
   });
 
-  it('cannot disable 2FA for mandatory role', async () => {
+  it('platform role can disable 2FA (no mandatory-role block)', async () => {
     const res = await request(app).post('/api/v1/2fa/disable')
       .set('Authorization', `Bearer ${platformToken}`);
-    expect(res.status).toBe(403);
-    expect(res.body.code).toBe('TWO_FA_MANDATORY');
+    expect(res.status).toBe(200);
   });
 });

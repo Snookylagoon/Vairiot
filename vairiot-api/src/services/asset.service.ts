@@ -1,6 +1,9 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
+
 import { NotFoundError, ConflictError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
+
+import { dispatchWebhookEvent } from './webhook.service';
 
 export interface AssetCreateInput {
   name: string; description?: string; categoryId?: string; siteId?: string;
@@ -16,6 +19,8 @@ export interface AssetCreateInput {
   otherCapitalizedCosts?: number; residualValue?: number;
   // Depreciation
   depreciationMethod?: string; usefulLifeMonths?: number; depreciationStartDate?: string;
+  /** Client-generated idempotency key — offline queue replays return the existing asset. */
+  clientRequestId?: string;
 }
 
 function toDecimal(v: number | undefined | null): Prisma.Decimal | undefined {
@@ -222,6 +227,43 @@ export async function getAsset(tenantId: string, id: string) {
 }
 
 export async function createAsset(tenantId: string, actorId: string, input: AssetCreateInput) {
+  // Idempotent replay: a queued offline create that already succeeded (crash
+  // between API response and queue-delete on the device) returns the original.
+  if (input.clientRequestId) {
+    const existing = await prisma.asset.findUnique({
+      where: { tenantId_clientRequestId: { tenantId, clientRequestId: input.clientRequestId } },
+      include: assetInclude,
+    });
+    if (existing) return enrichAssetWithDepreciation(existing);
+  }
+
+  // nextAssetNumber is read-then-increment; two concurrent creates can pick the
+  // same number. Retry with a fresh number on that unique violation.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const asset = await createAssetOnce(tenantId, actorId, input);
+      // Fire the asset.created webhook (durable dispatch via the delivery queue).
+      // Non-blocking and isolated: a webhook problem must never fail the create.
+      void dispatchWebhookEvent(tenantId, 'asset.created', asset).catch(() => {});
+      return asset;
+    } catch (e: unknown) {
+      const err = e as { code?: string; meta?: { target?: string[] } };
+      if (err.code !== 'P2002') throw e;
+      const target = err.meta?.target ?? [];
+      if (input.clientRequestId && target.includes('clientRequestId')) {
+        const existing = await prisma.asset.findUnique({
+          where: { tenantId_clientRequestId: { tenantId, clientRequestId: input.clientRequestId } },
+          include: assetInclude,
+        });
+        if (existing) return enrichAssetWithDepreciation(existing);
+      }
+      if (target.includes('assetNumber') && attempt < 3) continue;
+      throw e;
+    }
+  }
+}
+
+async function createAssetOnce(tenantId: string, actorId: string, input: AssetCreateInput) {
   const assetNumber = await nextAssetNumber(tenantId);
   const asset = await prisma.asset.create({
     data: {
@@ -251,6 +293,7 @@ export async function createAsset(tenantId: string, actorId: string, input: Asse
       categoryId: input.categoryId,
       siteId:     input.siteId,
       locationId: input.locationId,
+      clientRequestId: input.clientRequestId,
     },
     include: assetInclude,
   });
@@ -293,6 +336,7 @@ export async function updateAsset(tenantId: string, id: string, actorId: string,
     include: assetInclude,
   });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'updated', before: existing as unknown as Prisma.InputJsonValue, after: updated as unknown as Prisma.InputJsonValue } });
+  void dispatchWebhookEvent(tenantId, 'asset.updated', updated).catch(() => {});
   return enrichAssetWithDepreciation(updated);
 }
 
@@ -301,6 +345,7 @@ export async function deleteAsset(tenantId: string, id: string, actorId: string)
   if (!existing) throw new NotFoundError('Asset not found');
   await prisma.asset.update({ where: { id }, data: { deletedAt: new Date() } });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'archived', before: existing as unknown as Prisma.InputJsonValue } });
+  void dispatchWebhookEvent(tenantId, 'asset.archived', existing).catch(() => {});
 }
 
 export interface DisposalInput {
@@ -349,6 +394,7 @@ export async function disposeAsset(tenantId: string, id: string, actorId: string
     },
   });
 
+  void dispatchWebhookEvent(tenantId, 'asset.disposed', { ...updated, disposal }).catch(() => {});
   return enrichAssetWithDepreciation({ ...updated, disposal });
 }
 
@@ -364,12 +410,12 @@ export async function listAssetsForExport(tenantId: string, params: Omit<AssetLi
 }
 
 export async function getAssetByTag(tenantId: string, tag: string) {
-  let lookups = [tag];
+  const lookups = [tag];
   try {
     const parsed = JSON.parse(tag);
     if (parsed.id) lookups.push(parsed.id);
     if (parsed.n) lookups.push(parsed.n);
-  } catch {}
+  } catch { /* not JSON — treat as a raw tag value */ }
 
   const asset = await prisma.asset.findFirst({
     where: {

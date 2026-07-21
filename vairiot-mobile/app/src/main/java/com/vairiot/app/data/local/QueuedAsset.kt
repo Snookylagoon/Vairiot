@@ -2,6 +2,7 @@ package com.vairiot.app.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 /**
  * Offline queue for new assets created without connectivity. Mirrors
@@ -24,4 +25,6 @@ data class QueuedAsset(
     val createdAtMs: Long = System.currentTimeMillis(),
     val attempts: Int = 0,
     val lastError: String? = null,
+    val state: String = QueueState.PENDING,
+    val clientRequestId: String = UUID.randomUUID().toString(),
 )

@@ -74,7 +74,7 @@ export const inviteUserSchema = z.object({
 export type InviteUserFormData = z.infer<typeof inviteUserSchema>;
 
 export const acceptInviteSchema = z.object({
-  password:        z.string().min(12, 'Password must be exactly 12 alphanumeric characters'),
+  password:        z.string().min(12, 'Password must be at least 12 characters'),
   confirmPassword: z.string().min(12, 'Confirm your password'),
 }).refine(d => d.password === d.confirmPassword, {
   message: 'Passwords do not match',

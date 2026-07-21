@@ -1,7 +1,10 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
+
 import { NotFoundError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
 import { buildOrderBy } from '../lib/sort';
+
+import { dispatchWebhookEvent } from './webhook.service';
 
 const MAINTENANCE_SORT_KEYS = [
   'createdAt', 'scheduledDate', 'completedDate', 'maintenanceType',
@@ -84,7 +87,7 @@ export async function createMaintenanceEvent(tenantId: string, actorId: string, 
 
   const workOrderNumber = input.workOrderNumber || await nextWorkOrderNumber(tenantId);
 
-  return prisma.maintenanceEvent.create({
+  const event = await prisma.maintenanceEvent.create({
     data: {
       tenantId,
       assetId: input.assetId,
@@ -101,13 +104,18 @@ export async function createMaintenanceEvent(tenantId: string, actorId: string, 
     },
     select: maintenanceSelect,
   });
+  void dispatchWebhookEvent(tenantId, 'maintenance.created', event).catch(() => {});
+  if (event.status === 'completed') {
+    void dispatchWebhookEvent(tenantId, 'maintenance.completed', event).catch(() => {});
+  }
+  return event;
 }
 
 export async function updateMaintenanceEvent(tenantId: string, id: string, input: Partial<MaintenanceCreateInput>) {
   const evt = await prisma.maintenanceEvent.findFirst({ where: { id, tenantId } });
   if (!evt) throw new NotFoundError('Maintenance event not found');
 
-  return prisma.maintenanceEvent.update({
+  const updated = await prisma.maintenanceEvent.update({
     where: { id },
     data: {
       ...(input.maintenanceType !== undefined && { maintenanceType: input.maintenanceType }),
@@ -122,6 +130,12 @@ export async function updateMaintenanceEvent(tenantId: string, id: string, input
     },
     select: maintenanceSelect,
   });
+  // Fire only on the transition into 'completed', not on every edit of an
+  // already-completed event.
+  if (evt.status !== 'completed' && updated.status === 'completed') {
+    void dispatchWebhookEvent(tenantId, 'maintenance.completed', updated).catch(() => {});
+  }
+  return updated;
 }
 
 export async function deleteMaintenanceEvent(tenantId: string, id: string) {

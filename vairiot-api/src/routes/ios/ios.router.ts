@@ -1,7 +1,9 @@
-import express, { Router, Request, Response } from 'express';
 import { Readable } from 'stream';
-import { prisma } from '../../lib/prisma';
+
+import express, { Router, Request, Response } from 'express';
+
 import { minioClient, MOBILE_RELEASES_BUCKET } from '../../lib/minio';
+import { prisma } from '../../lib/prisma';
 import { asyncHandler } from '../../middleware/error-handler';
 
 // Public router — Ad Hoc over-the-air install for iOS. Safari on the device

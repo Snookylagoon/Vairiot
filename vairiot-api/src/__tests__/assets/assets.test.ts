@@ -1,5 +1,6 @@
-import request from 'supertest';
 import bcrypt from 'bcryptjs';
+import request from 'supertest';
+
 import { createApp } from '../../app';
 import { prisma } from '../../lib/prisma';
 
@@ -28,7 +29,7 @@ beforeAll(async () => {
   await prisma.licence.upsert({
     where: { id: `test-licence-${TID}` },
     update: { status: 'active' },
-    create: { id: `test-licence-${TID}`, tenantId: TID, tierId: tier.id, status: 'active', activatedAt: new Date(), paymentConfirmed: true },
+    create: { id: `test-licence-${TID}`, tenantId: TID, tierId: tier.id, licenceNumber: `VAI-TEST-${TID}`, status: 'active', activatedAt: new Date(), paymentConfirmed: true },
   });
 
   const login = await request(app).post('/api/v1/auth/login').send({ email: EMAIL, password: PASS, tenantId: TID });
@@ -85,6 +86,17 @@ describe('Assets', () => {
     expect(r.status).toBe(201);
     expect(r.body.assetNumber).toMatch(/^AST-/);
     assetId = r.body.id;
+  });
+
+  it('replaying a create with the same clientRequestId returns the existing asset', async () => {
+    const payload = { name: 'Offline Queued Scanner', clientRequestId: 'test-client-req-001' };
+    const first = await request(app).post('/api/v1/assets').set('Authorization', `Bearer ${token}`).send(payload);
+    expect(first.status).toBe(201);
+    const replay = await request(app).post('/api/v1/assets').set('Authorization', `Bearer ${token}`).send(payload);
+    expect(replay.status).toBe(201);
+    expect(replay.body.id).toBe(first.body.id);
+    expect(replay.body.assetNumber).toBe(first.body.assetNumber);
+    extraAssetIds.push(first.body.id);
   });
 
   it('creates additional assets for filter/sort tests', async () => {

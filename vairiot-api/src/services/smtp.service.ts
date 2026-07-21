@@ -1,7 +1,8 @@
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
-import { prisma } from '../lib/prisma';
+
 import { encryptSecret, decryptSecret } from '../lib/crypto';
+import { prisma } from '../lib/prisma';
 
 export type SmtpProvider = 'smtp' | 'resend';
 
@@ -126,7 +127,7 @@ export async function verifySmtp(): Promise<{ ok: boolean; error?: string }> {
   try {
     const t = await buildTransport();
     if (t.provider === 'resend') {
-      const { data, error } = await t.resend!.domains.list();
+      const { error } = await t.resend!.domains.list();
       if (error) throw new Error(error.message);
       await prisma.smtpConfig.update({
         where: { id: 'singleton' },

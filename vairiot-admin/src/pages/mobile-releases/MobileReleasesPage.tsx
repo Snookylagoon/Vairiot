@@ -1,9 +1,10 @@
-import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import {
   useMobileReleases,
   useUploadMobileRelease,

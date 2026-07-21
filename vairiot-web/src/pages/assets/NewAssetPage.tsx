@@ -1,7 +1,8 @@
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
 import { AssetForm, AssetFormData } from '@/components/forms/AssetForm';
 import { useCreateAsset } from '@/hooks/useAssets';
-import { ArrowLeft } from 'lucide-react';
 
 export function NewAssetPage() {
   const navigate    = useNavigate();

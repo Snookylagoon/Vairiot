@@ -1,7 +1,9 @@
-import { create } from 'zustand';
-import { api } from '@/lib/api';
 import type { UserProfile } from 'vairiot-shared';
+import { create } from 'zustand';
+
 import { useCurrencyStore } from './currency.store';
+
+import { api } from '@/lib/api';
 
 function syncCurrencyFromUser(user: { currency?: string } | null) {
   if (user?.currency) {

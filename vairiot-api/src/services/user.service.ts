@@ -1,10 +1,14 @@
 import crypto from 'node:crypto';
+
 import bcrypt from 'bcryptjs';
-import { prisma } from '../lib/prisma';
-import { recordAuditEvent } from './audit-event.service';
+
 import { NotFoundError, ConflictError } from '../lib/errors';
-import { validatePasswordPolicy } from './password-policy.service';
+import { prisma } from '../lib/prisma';
 import { enqueueUserInvite } from '../lib/queue';
+
+import { recordAuditEvent } from './audit-event.service';
+import { validatePasswordPolicy } from './password-policy.service';
+
 
 const INVITE_EXPIRY_HOURS = 48;
 

@@ -1,6 +1,7 @@
-import request from 'supertest';
-import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import request from 'supertest';
+
 import { createApp } from '../../app';
 
 const prisma = new PrismaClient();
@@ -93,12 +94,10 @@ describe('Onboarding wizard steps', () => {
     const res = await request(app).post('/api/v1/onboarding/company')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        legalName: 'Test Corp Ltd',
-        addressLine1: '123 Test St',
+        companyName: 'Test Corp Ltd',
+        address: '123 Test St',
         city: 'Wellington',
         country: 'New Zealand',
-        primaryContactName: 'Test User',
-        primaryContactEmail: 'onb@test.com',
         registrationNumber: 'NZ123',
       });
     expect(res.status).toBe(200);
@@ -108,13 +107,10 @@ describe('Onboarding wizard steps', () => {
     const res = await request(app).post('/api/v1/onboarding/client')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        legalName: 'Client Co Ltd',
-        addressLine1: '456 Client Ave',
-        city: 'Auckland',
-        country: 'New Zealand',
-        primaryContactName: 'Jane Doe',
-        primaryContactEmail: 'jane@client.com',
-        authority: { name: 'Jane Doe', email: 'jane@client.com' },
+        clientName: 'Client Co Ltd',
+        contactEmail: 'jane@client.com',
+        signatoryName: 'Jane Doe',
+        signatoryEmail: 'jane@client.com',
       });
     expect(res.status).toBe(200);
   });

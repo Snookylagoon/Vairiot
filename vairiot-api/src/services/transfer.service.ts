@@ -1,6 +1,9 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
+
 import { NotFoundError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
+
+import { dispatchWebhookEvent } from './webhook.service';
 
 export interface TransferCreateInput {
   assetId: string;
@@ -48,8 +51,8 @@ export async function createTransfer(tenantId: string, actorId: string, input: T
   const asset = await prisma.asset.findFirst({ where: { id: input.assetId, tenantId, deletedAt: null } });
   if (!asset) throw new NotFoundError('Asset not found');
 
-  return prisma.$transaction(async (tx) => {
-    const transfer = await tx.transfer.create({
+  const transfer = await prisma.$transaction(async (tx) => {
+    const created = await tx.transfer.create({
       data: {
         tenantId,
         assetId: input.assetId,
@@ -74,6 +77,9 @@ export async function createTransfer(tenantId: string, actorId: string, input: T
       await tx.asset.update({ where: { id: input.assetId }, data: assetUpdate });
     }
 
-    return transfer;
+    return created;
   });
+
+  void dispatchWebhookEvent(tenantId, 'transfer.created', transfer).catch(() => {});
+  return transfer;
 }

@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { DEVICE_HEARTBEAT_INTERVAL_SECONDS } from 'vairiot-shared';
+
 import { api } from '@/lib/api';
 import { getDeviceFingerprint } from '@/lib/device';
 import { useAuthStore } from '@/stores/auth.store';
-import { DEVICE_HEARTBEAT_INTERVAL_SECONDS } from 'vairiot-shared';
+
 
 export interface LicenceStatus {
   licence: {

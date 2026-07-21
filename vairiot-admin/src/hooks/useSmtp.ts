@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+
 import { useMutationWithToast } from './useMutationWithToast';
+
+import { api } from '@/lib/api';
 
 export type SmtpProvider = 'smtp' | 'resend';
 

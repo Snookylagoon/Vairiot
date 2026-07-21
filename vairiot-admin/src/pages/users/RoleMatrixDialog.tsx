@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
 import { X, FileDown, Check } from 'lucide-react';
+import { useMemo } from 'react';
 import { ROLE_PERMISSION_MATRIX, ControlPlane, type Permission } from 'vairiot-shared';
+
 import { Button } from '@/components/ui/Button';
 
 interface ModuleDef {

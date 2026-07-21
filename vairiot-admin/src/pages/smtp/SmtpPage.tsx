@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { useSmtp, useSaveSmtp, useVerifySmtp, useTestSmtp, SmtpProvider } from '@/hooks/useSmtp';
 
 interface FormState {

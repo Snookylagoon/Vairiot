@@ -1,5 +1,5 @@
-import { prisma } from './prisma';
 import { minioClient, MOBILE_RELEASES_BUCKET } from './minio';
+import { prisma } from './prisma';
 
 /** Only this many releases are kept downloadable; older ones are pruned after each upload. */
 export const MOBILE_RELEASE_RETENTION_COUNT = 3;

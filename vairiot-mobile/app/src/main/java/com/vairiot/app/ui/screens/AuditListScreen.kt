@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -25,6 +26,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.AuditCampaignResponse
 import com.vairiot.app.ui.components.ClearableTextField
@@ -38,12 +42,25 @@ private enum class CampaignSortField(val key: String, val label: String) {
     SCANS("scans", "Scans"),
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuditListScreen(
     onCampaignClick: (campaignId: String, status: String) -> Unit,
     viewModel: AuditListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+
+    // Refresh the list whenever the screen returns to the foreground, so a status
+    // change made elsewhere (e.g. an audit completed on the run screen) shows
+    // without a manual pull-to-refresh.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.load()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     var search by rememberSaveable { mutableStateOf("") }
     var statusFilter by rememberSaveable { mutableStateOf("") }
@@ -133,14 +150,22 @@ fun AuditListScreen(
             }
         }
 
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        // Pull down to refresh the campaign list (statuses can change server-side,
+        // e.g. an audit completed on another device or on the run screen).
+        PullToRefreshBox(
+            isRefreshing = state.isLoading && state.campaigns.isNotEmpty(),
+            onRefresh = { viewModel.load() },
+            modifier = Modifier.weight(1f).fillMaxWidth(),
         ) {
-            items(visible, key = { it.id }) { c ->
-                AuditRow(campaign = c, onClick = { onCampaignClick(c.id, c.status) })
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(visible, key = { it.id }) { c ->
+                    AuditRow(campaign = c, onClick = { onCampaignClick(c.id, c.status) })
+                }
+                item { Spacer(Modifier.height(80.dp)) } // breathing room above FAB
             }
-            item { Spacer(Modifier.height(80.dp)) } // breathing room above FAB
         }
     }
 

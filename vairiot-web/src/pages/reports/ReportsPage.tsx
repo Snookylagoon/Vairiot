@@ -1,5 +1,6 @@
+import { TrendingDown, FileText, Trash2, Clock, Wrench, ClipboardCheck, ShoppingCart, Key, Building2, Users, AlertTriangle, Shield } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import { BarChart3, TrendingDown, FileText, Trash2, Clock, Wrench, ClipboardCheck, ShoppingCart, Key, Building2, Users, AlertTriangle, Shield } from 'lucide-react';
+
 import { Card, CardBody } from '@/components/ui/Card';
 
 interface ReportGroup {

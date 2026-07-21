@@ -1,8 +1,10 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
+import { CampaignMode, ReconciliationClassification } from 'vairiot-shared';
+
 import { NotFoundError, ConflictError, ForbiddenError, ValidationError } from '../lib/errors';
 import { tenantHasFeature } from '../lib/feature-flags';
-import { CampaignMode, ReconciliationClassification } from 'vairiot-shared';
+import { prisma } from '../lib/prisma';
+
 
 export interface CreateCampaignInput {
   name: string;
@@ -157,11 +159,42 @@ export interface RecordScanInput {
   deviceId?: string;
   locationId?: string;
   condition?: string;
+  /** Client-generated idempotency key — replays of the same queued scan return the original event. */
+  clientRequestId?: string;
+  /** When the device actually captured the scan (ISO); server-clamped to a sane window. */
+  capturedAt?: string;
+}
+
+// Accept device capture times up to 90 days in the past and 10 minutes of
+// clock skew into the future; anything outside falls back to server time.
+function clampCapturedAt(raw: string | undefined): Date | undefined {
+  if (!raw) return undefined;
+  const t = new Date(raw);
+  if (Number.isNaN(t.getTime())) return undefined;
+  const now = Date.now();
+  if (t.getTime() > now + 10 * 60 * 1000) return new Date();
+  if (t.getTime() < now - 90 * 24 * 3600 * 1000) return undefined;
+  return t;
 }
 
 export async function recordScan(tenantId: string, campaignId: string, actorId: string, input: RecordScanInput) {
   const c = await prisma.auditCampaign.findFirst({ where: { id: campaignId, tenantId } });
   if (!c) throw new NotFoundError('Campaign not found');
+
+  // Idempotent replay: if this client request was already recorded, return the
+  // original event instead of double-counting. Checked before the status guard
+  // so a replay after the campaign closes still resolves instead of erroring.
+  if (input.clientRequestId) {
+    const existing = await prisma.auditScanEvent.findUnique({
+      where: { clientRequestId: input.clientRequestId },
+    });
+    if (existing && existing.tenantId === tenantId) {
+      return c.mode === CampaignMode.Blind
+        ? { ...existing, result: 'recorded', duplicate: true }
+        : { ...existing, duplicate: true };
+    }
+  }
+
   if (c.status !== 'in_progress') throw new ConflictError('Campaign is not in progress', 'CAMPAIGN_NOT_ACTIVE');
 
   const isBlind = c.mode === CampaignMode.Blind;
@@ -184,19 +217,37 @@ export async function recordScan(tenantId: string, campaignId: string, actorId: 
 
   const internalResult = asset ? 'found' : 'unknown';
 
-  const scanEvent = await prisma.auditScanEvent.create({
-    data: {
-      campaignId,
-      tenantId,
-      tagValue:   input.tagValue,
-      assetId:    asset ? asset.id : undefined,
-      scannedBy:  actorId,
-      deviceId:   input.deviceId,
-      locationId: input.locationId,
-      condition:  input.condition,
-      result:     internalResult,
-    },
-  });
+  let scanEvent;
+  try {
+    scanEvent = await prisma.auditScanEvent.create({
+      data: {
+        campaignId,
+        tenantId,
+        tagValue:   input.tagValue,
+        assetId:    asset ? asset.id : undefined,
+        scannedBy:  actorId,
+        deviceId:   input.deviceId,
+        locationId: input.locationId,
+        condition:  input.condition,
+        result:     internalResult,
+        capturedAt: clampCapturedAt(input.capturedAt),
+        clientRequestId: input.clientRequestId,
+      },
+    });
+  } catch (e: unknown) {
+    // Unique violation on clientRequestId — a concurrent replay won the race.
+    if (input.clientRequestId && (e as { code?: string }).code === 'P2002') {
+      const existing = await prisma.auditScanEvent.findUnique({
+        where: { clientRequestId: input.clientRequestId },
+      });
+      if (existing && existing.tenantId === tenantId) {
+        return isBlind
+          ? { ...existing, result: 'recorded', duplicate: true }
+          : { ...existing, duplicate: true };
+      }
+    }
+    throw e;
+  }
 
   if (isBlind) {
     return { ...scanEvent, result: 'recorded' };

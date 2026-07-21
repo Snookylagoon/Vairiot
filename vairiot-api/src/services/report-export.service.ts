@@ -1,5 +1,7 @@
 import axios from 'axios';
+
 import { prisma } from '../lib/prisma';
+
 import { computeDepreciation } from './asset.service';
 import {
   depreciationRegister,
@@ -643,8 +645,6 @@ export async function exportAuditCampaignSummary(tenantId: string, opts: ExportO
 
 export async function exportAuditReconciliation(tenantId: string, opts: ExportOpts): Promise<Buffer> {
   const campaignId = opts.filters?.campaignId;
-  const where = { campaignId: campaignId ?? '', ...(campaignId ? {} : { campaign: { tenantId } }) };
-
   const items = await prisma.auditReconciliationItem.findMany({
     where: campaignId ? { campaignId } : { campaign: { tenantId } },
     include: {

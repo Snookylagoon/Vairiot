@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
+
+import { NotFoundError } from '../lib/errors';
 import { errorHandler, asyncHandler } from '../middleware/error-handler';
-import { NotFoundError, AppError } from '../lib/errors';
 
 jest.mock('../lib/logger', () => ({ logger: { error: jest.fn() } }));
 

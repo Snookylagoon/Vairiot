@@ -1,7 +1,10 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
+
 import { NotFoundError, ConflictError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
 import { buildOrderBy } from '../lib/sort';
+
+import { dispatchWebhookEvent } from './webhook.service';
 
 export interface CheckoutInput {
   assetId: string;
@@ -29,6 +32,7 @@ export async function checkoutAsset(tenantId: string, actorId: string, input: Ch
   await prisma.auditEvent.create({
     data: { tenantId, actorId, entityType: 'asset', entityId: input.assetId, action: 'checked_out', metadata: { custodianId: input.custodianId } },
   });
+  void dispatchWebhookEvent(tenantId, 'checkout.created', checkout).catch(() => {});
   return checkout;
 }
 
@@ -43,6 +47,7 @@ export async function checkinAsset(tenantId: string, actorId: string, assetId: s
   await prisma.auditEvent.create({
     data: { tenantId, actorId, entityType: 'asset', entityId: assetId, action: 'checked_in', metadata: { checkoutId: checkout.id } },
   });
+  void dispatchWebhookEvent(tenantId, 'checkout.returned', updated).catch(() => {});
   return updated;
 }
 

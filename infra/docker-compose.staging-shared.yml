@@ -1,0 +1,26 @@
+# Override for staging on a SHARED host, where the machine's own nginx (serving
+# other sites) owns ports 80/443 and terminates TLS. Activate by setting
+#   COMPOSE_EXTRA_FILE=infra/docker-compose.staging-shared.yml
+# in the staging .env (deploy.sh picks it up).
+#
+# - The bundled vairiot_nginx is parked behind an inactive profile.
+# - api/web/admin are published on loopback ports for the host nginx to proxy:
+#     127.0.0.1:8301 → api:3001     127.0.0.1:8302 → web     127.0.0.1:8303 → admin
+#   Host-nginx vhosts for test.vairiot.com / testadmin.vairiot.com mirror the
+#   routing in nginx/staging.conf (/api/ and /health → api, rest → SPA).
+
+services:
+  nginx:
+    profiles: ["disabled-on-shared-host"]
+
+  api:
+    ports:
+      - "127.0.0.1:8301:3001"
+
+  web:
+    ports:
+      - "127.0.0.1:8302:80"
+
+  admin:
+    ports:
+      - "127.0.0.1:8303:80"

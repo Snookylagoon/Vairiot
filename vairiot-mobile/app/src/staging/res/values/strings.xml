@@ -1,0 +1,5 @@
+<resources>
+    <!-- Overrides app_name for the staging build type only, so the staging app
+         is visibly distinct from the production "Vairiot" app on the launcher. -->
+    <string name="app_name">Vairiot Staging</string>
+</resources>

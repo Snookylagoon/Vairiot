@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
+import { Package, AlertTriangle, CheckCircle, Activity, TrendingDown, Coins } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Package, ClipboardList, AlertTriangle, CheckCircle, Activity, TrendingDown, Coins } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { api } from '@/lib/api';
+
 import { Card, CardBody } from '@/components/ui/Card';
-import { useAuthStore } from '@/stores/auth.store';
 import { useCurrency } from '@/hooks/useCurrency';
+import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import type { AssetStats } from '@/types';
 
 function StatCard({ icon: Icon, label, value, colour, to }: { icon: React.ElementType; label: string; value: string | number; colour: string; to?: string }) {
@@ -50,7 +51,6 @@ export function DashboardPage() {
 
   const { data: assetData }    = useQuery({ queryKey: ['assets', 'summary'], queryFn: () => api.get('/api/v1/assets?pageSize=1').then(r => r.data) });
   const { data: assetStats }   = useQuery<AssetStats>({ queryKey: ['assets', 'stats'], queryFn: () => api.get('/api/v1/assets/stats').then(r => r.data) });
-  const { data: auditData }    = useQuery({ queryKey: ['audits', 'summary'], queryFn: () => api.get('/api/v1/audits').then(r => r.data) });
   const { data: overdueData }  = useQuery({ queryKey: ['checkouts', 'overdue'], queryFn: () => api.get('/api/v1/checkouts/overdue').then(r => r.data) });
   const { data: checkoutData } = useQuery({ queryKey: ['checkouts', 'active'], queryFn: () => api.get('/api/v1/checkouts').then(r => r.data) });
   const { data: events }       = useQuery<AuditEvent[]>({

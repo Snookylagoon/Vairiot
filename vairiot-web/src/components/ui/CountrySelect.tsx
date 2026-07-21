@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, Star, Search } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+
 import {
   COUNTRIES, getGroupedCountries, getFavouriteCountries, addFavouriteCountry,
 } from '@/lib/countries';
