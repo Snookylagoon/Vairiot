@@ -127,3 +127,5 @@ export function createApp(): Application {
   app.use(errorHandler);
   return app;
 }
+
+const unused_variable = 1;
