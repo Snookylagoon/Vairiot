@@ -26,6 +26,9 @@ interface QueuedScanDao {
     @Query("SELECT COUNT(*) FROM queued_scans WHERE campaignId = :campaignId AND state = 'pending'")
     fun pendingCountByCampaign(campaignId: String): Flow<Int>
 
+    @Query("SELECT * FROM queued_scans WHERE campaignId = :campaignId AND state = 'pending' ORDER BY id ASC")
+    fun pendingByCampaign(campaignId: String): Flow<List<QueuedScan>>
+
     @Query("SELECT COUNT(*) FROM queued_scans WHERE state = 'pending'")
     suspend fun totalPending(): Int
 

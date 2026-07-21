@@ -52,6 +52,7 @@ fun AuditRunScreen(
     viewModel: AuditRunViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val pendingScans by viewModel.pendingScans.collectAsState()
     var manual by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -250,6 +251,39 @@ fun AuditRunScreen(
                     Surface(color = ErrorRed.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp)) {
                         Text(it, modifier = Modifier.padding(10.dp),
                             style = MaterialTheme.typography.bodySmall, color = ErrorRed)
+                    }
+                }
+            }
+
+            // Awaiting upload (offline queue) — proves queued scans aren't lost.
+            if (pendingScans.isNotEmpty()) {
+                item {
+                    Surface(
+                        color = VairiotWash,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                "Awaiting upload (${pendingScans.size})",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = VairiotCharcoal,
+                            )
+                            Text(
+                                "Saved on this device. They'll sync automatically when you're back online.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = VairiotCharcoal.copy(alpha = 0.7f),
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            pendingScans.forEach { q ->
+                                Text(
+                                    "• ${q.tagValue}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = VairiotCharcoal,
+                                )
+                            }
+                        }
                     }
                 }
             }

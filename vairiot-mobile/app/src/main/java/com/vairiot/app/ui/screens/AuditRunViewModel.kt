@@ -58,6 +58,12 @@ class AuditRunViewModel @Inject constructor(
         .pendingCountByCampaign(campaignId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
+    // Scans persisted locally but not yet accepted by the server (offline queue).
+    // Surfaced on the Run audit screen so the user can see work awaiting upload.
+    val pendingScans: StateFlow<List<QueuedScan>> = queuedScanDao
+        .pendingByCampaign(campaignId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     init {
         viewModelScope.launch {
             scanner.scanResults.collect { result -> submitTag(result.value) }
