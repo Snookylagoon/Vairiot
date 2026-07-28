@@ -40,37 +40,24 @@ const BARCODE_TYPES: { value: BarcodeType; label: string; group: '2D' | '1D' }[]
 const is2D = (t: BarcodeType) =>
   t === 'qrcode' || t === 'datamatrix' || t === 'pdf417' || t === 'azteccode';
 
-/* ---------- Label presets (dimensions in mm) ---------- */
+/* ---------- Avery label presets (dimensions in mm) ---------- */
 
 type SizePreset = {
   value: string;
   label: string;
   w: number;  // mm
   h: number;  // mm
-  group: 'avery' | 'brother';
 };
 
 const AVERY_PRESETS: SizePreset[] = [
-  { value: 'avery-5167', label: 'Avery 5167 — 44.5 × 12.7 mm (80/sheet)', w: 44.5, h: 12.7, group: 'avery' },
-  { value: 'avery-6570', label: 'Avery 6570 — 31.75 × 19.05 mm (asset)',  w: 31.75, h: 19.05, group: 'avery' },
-  { value: 'avery-5160', label: 'Avery 5160 / 5260 / 8160 — 66.7 × 25.4 mm', w: 66.7, h: 25.4, group: 'avery' },
-  { value: 'avery-l7651', label: 'Avery L7651 (EU) — 38.1 × 21.2 mm',      w: 38.1, h: 21.2, group: 'avery' },
-  { value: 'avery-l7159', label: 'Avery L7159 (EU) — 63.5 × 38.1 mm',      w: 63.5, h: 38.1, group: 'avery' },
-  { value: 'avery-5163', label: 'Avery 5163 — 101.6 × 50.8 mm (10/sheet)', w: 101.6, h: 50.8, group: 'avery' },
-  { value: 'avery-l7163', label: 'Avery L7163 (EU) — 99.1 × 38.1 mm',      w: 99.1, h: 38.1, group: 'avery' },
+  { value: 'avery-5167', label: 'Avery 5167 — 44.5 × 12.7 mm (80/sheet)', w: 44.5, h: 12.7 },
+  { value: 'avery-6570', label: 'Avery 6570 — 31.75 × 19.05 mm (asset)',  w: 31.75, h: 19.05 },
+  { value: 'avery-5160', label: 'Avery 5160 / 5260 / 8160 — 66.7 × 25.4 mm', w: 66.7, h: 25.4 },
+  { value: 'avery-l7651', label: 'Avery L7651 (EU) — 38.1 × 21.2 mm',      w: 38.1, h: 21.2 },
+  { value: 'avery-l7159', label: 'Avery L7159 (EU) — 63.5 × 38.1 mm',      w: 63.5, h: 38.1 },
+  { value: 'avery-5163', label: 'Avery 5163 — 101.6 × 50.8 mm (10/sheet)', w: 101.6, h: 50.8 },
+  { value: 'avery-l7163', label: 'Avery L7163 (EU) — 99.1 × 38.1 mm',      w: 99.1, h: 38.1 },
 ];
-
-// Brother PT-D600 prints on continuous TZe tape (180 dpi, 18.1 mm max print
-// height). Height is the tape's printable area, width the cut label length.
-const BROTHER_PRESETS: SizePreset[] = [
-  { value: 'brother-tze24-76', label: 'Brother TZe 24 mm tape — 76 × 18.1 mm', w: 76, h: 18.1, group: 'brother' },
-  { value: 'brother-tze24-50', label: 'Brother TZe 24 mm tape — 50 × 18.1 mm', w: 50, h: 18.1, group: 'brother' },
-  { value: 'brother-tze18-50', label: 'Brother TZe 18 mm tape — 50 × 15.8 mm', w: 50, h: 15.8, group: 'brother' },
-  { value: 'brother-tze12-40', label: 'Brother TZe 12 mm tape — 40 × 9.0 mm',  w: 40, h: 9.0,  group: 'brother' },
-  { value: 'brother-tze9-30',  label: 'Brother TZe 9 mm tape — 30 × 7.0 mm',   w: 30, h: 7.0,  group: 'brother' },
-];
-
-const SIZE_PRESETS: SizePreset[] = [...AVERY_PRESETS, ...BROTHER_PRESETS];
 
 const MM_TO_PX = 3.7795275591; // 96 dpi
 
@@ -399,11 +386,9 @@ export function LabelsPage() {
     if (sizePreset === 'custom') {
       return { widthPx: customW * MM_TO_PX, heightPx: customH * MM_TO_PX };
     }
-    const p = SIZE_PRESETS.find(x => x.value === sizePreset) ?? SIZE_PRESETS[0];
+    const p = AVERY_PRESETS.find(x => x.value === sizePreset) ?? AVERY_PRESETS[0];
     return { widthPx: p.w * MM_TO_PX, heightPx: p.h * MM_TO_PX };
   }, [sizePreset, customW, customH]);
-
-  const isTapePrinter = SIZE_PRESETS.find(x => x.value === sizePreset)?.group === 'brother';
 
   // Regenerate barcodes whenever the type or selection changes.
   useEffect(() => {
@@ -487,20 +472,6 @@ export function LabelsPage() {
 
     const win = window.open('', '_blank');
     if (!win) return;
-    const labelWmm = widthPx / MM_TO_PX;
-    const labelHmm = heightPx / MM_TO_PX;
-    // Tape printers (Brother PT-D600) take one label per page, sized to the
-    // label with no margins, so the driver cuts after each label.
-    const tapeCss = `
-        .label-grid { display: block; }
-        .label-grid > div { page-break-after: always; border: none !important; border-radius: 0 !important; }
-        @page { size: ${labelWmm.toFixed(1)}mm ${labelHmm.toFixed(1)}mm; margin: 0; }
-        body { padding: 0; }`;
-    const sheetCss = `
-        .label-grid { display: flex; flex-wrap: wrap; gap: 2mm; align-items: flex-start; }
-        .label-grid > div { page-break-inside: avoid; break-inside: avoid; }
-        @page { margin: 8mm; }
-        @media print { body { padding: 0; } }`;
     win.document.write(`
       <html><head><title>Asset Labels</title>
       <style>
@@ -509,8 +480,11 @@ export function LabelsPage() {
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&display=swap');
         body { padding: 8mm; font-family: 'Montserrat', sans-serif; }
         * { font-family: 'Montserrat', sans-serif !important; }
+        .label-grid { display: flex; flex-wrap: wrap; gap: 2mm; align-items: flex-start; }
+        .label-grid > div { page-break-inside: avoid; break-inside: avoid; }
         .label-grid img { display: block; }
-        ${isTapePrinter ? tapeCss : sheetCss}
+        @page { margin: 8mm; }
+        @media print { body { padding: 0; } }
       </style></head><body>
       <div class="label-grid">${printContent.innerHTML}</div>
       </body></html>
@@ -622,24 +596,11 @@ export function LabelsPage() {
               onChange={e => setSizePreset(e.target.value)}
               className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
             >
-              <optgroup label="Avery sheet labels">
-                {AVERY_PRESETS.map(p => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Brother PT-D600 (TZe tape)">
-                {BROTHER_PRESETS.map(p => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
-                ))}
-              </optgroup>
+              {AVERY_PRESETS.map(p => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
               <option value="custom">Custom…</option>
             </select>
-            {isTapePrinter && (
-              <p className="text-[11px] text-gray-400">
-                Each label prints as its own page. In the print dialog, choose the
-                Brother PT-D600 and set the paper size to the matching TZe tape width.
-              </p>
-            )}
             {sizePreset === 'custom' && (
               <div className="flex items-center gap-2 pt-1">
                 <input
