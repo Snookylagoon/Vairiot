@@ -33,6 +33,11 @@ export const BARCODE_TYPES: { value: BarcodeType; label: string; group: '2D' | '
 export const is2D = (t: BarcodeType) =>
   t === 'qrcode' || t === 'datamatrix' || t === 'pdf417' || t === 'azteccode';
 
+export const MM_TO_PX = 3.7795275591; // 96 dpi
+
+// Smallest reliably scannable 2D symbol on a printed label.
+export const MIN_BARCODE_MM = 12;
+
 /* ---------- Content field toggles ---------- */
 
 export type ContentFields = {
@@ -111,6 +116,7 @@ export type LabelDesign = {
   barcodeType: BarcodeType;
   fields: ContentFields;
   logoScale: number;          // logo height as a fraction of inner label height
+  barcodeMm: number | null;   // fixed 2D symbol size in mm; null → automatic
   layout: LayoutMap | null;   // null → automatic layout
 };
 
@@ -173,7 +179,13 @@ export function computeLabelElements(input: LabelLayoutInput): LabelElement[] {
   const minTextW = Math.max(longestTitle * 0.62 * minFont, longestOther * 0.58 * (minFont * 0.82));
   const bcIdeal = Math.min(innerH, innerW - minTextW - gap);
   const bcMin = Math.round(innerH * 0.3);
-  const bcSize2D = Math.round(Math.max(bcMin, Math.min(innerH, bcIdeal)));
+  // Fixed size (slider, ≥12 mm) wins over the auto heuristic, clamped on-label.
+  const bcSize2D = design.barcodeMm != null
+    ? Math.round(Math.min(
+        Math.max(design.barcodeMm, MIN_BARCODE_MM) * MM_TO_PX,
+        Math.min(innerW, innerH),
+      ))
+    : Math.round(Math.max(bcMin, Math.min(innerH, bcIdeal)));
   const bc1DH = Math.min(Math.round(innerH * 0.35), 50);
 
   const textAreaW = wide2D ? innerW - bcSize2D - gap : innerW;

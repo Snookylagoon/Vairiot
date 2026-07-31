@@ -9,7 +9,7 @@ import { assetDigitalLink, gs1128ElementString } from 'vairiot-shared';
 
 import { TemplateLayoutEditor } from './TemplateLayoutEditor';
 import {
-  BARCODE_TYPES, is2D, DEFAULT_FIELDS, FIELD_LABELS,
+  BARCODE_TYPES, is2D, DEFAULT_FIELDS, FIELD_LABELS, MM_TO_PX, MIN_BARCODE_MM,
   computeLabelElements, renderLabelToDataUrl,
   type BarcodeType, type ContentFields, type LayoutMap,
   type LabelDesign, type LabelLayoutInput,
@@ -46,8 +46,6 @@ const AVERY_PRESETS: SizePreset[] = [
   { value: 'avery-5163', label: 'Avery 5163 — 101.6 × 50.8 mm (10/sheet)', w: 101.6, h: 50.8 },
   { value: 'avery-l7163', label: 'Avery L7163 (EU) — 99.1 × 38.1 mm',      w: 99.1, h: 38.1 },
 ];
-
-const MM_TO_PX = 3.7795275591; // 96 dpi
 
 /* ---------- Barcode payload helper ---------- */
 
@@ -150,6 +148,7 @@ type TemplateConfig = {
   customH: number;
   fields: ContentFields;
   logoScale: number;
+  barcodeMm: number | null;
   layout: LayoutMap | null;
 };
 
@@ -164,6 +163,7 @@ export function LabelsPage() {
   const [customH, setCustomH] = useState(25);
   const [fields, setFields] = useState<ContentFields>(DEFAULT_FIELDS);
   const [logoScale, setLogoScale] = useState(0.3);
+  const [barcodeMm, setBarcodeMm] = useState<number | null>(null);
   const [layout, setLayout] = useState<LayoutMap | null>(null);
   const [barcodeUrls, setBarcodeUrls] = useState<Record<string, string>>({});
   const [showPreview, setShowPreview] = useState(false);
@@ -188,20 +188,23 @@ export function LabelsPage() {
   // Sample asset the layout editor works on.
   const sampleAsset = selectedAssets[0] ?? assets[0] ?? null;
 
-  const { widthPx, heightPx } = useMemo(() => {
+  const { widthPx, heightPx, widthMm, heightMm } = useMemo(() => {
     if (sizePreset === 'custom') {
-      return { widthPx: customW * MM_TO_PX, heightPx: customH * MM_TO_PX };
+      return { widthPx: customW * MM_TO_PX, heightPx: customH * MM_TO_PX, widthMm: customW, heightMm: customH };
     }
     const p = AVERY_PRESETS.find(x => x.value === sizePreset) ?? AVERY_PRESETS[0];
-    return { widthPx: p.w * MM_TO_PX, heightPx: p.h * MM_TO_PX };
+    return { widthPx: p.w * MM_TO_PX, heightPx: p.h * MM_TO_PX, widthMm: p.w, heightMm: p.h };
   }, [sizePreset, customW, customH]);
+
+  // Slider bounds for a fixed 2D symbol size: 12 mm up to the label's short edge.
+  const maxBarcodeMm = Math.max(MIN_BARCODE_MM, Math.floor(Math.min(widthMm, heightMm)));
 
   const logoAspect = logo ? logo.width / logo.height : null;
   const logoDataUrl = logo?.dataUrl ?? null;
 
   const design: LabelDesign = useMemo(
-    () => ({ barcodeType, fields, logoScale, layout }),
-    [barcodeType, fields, logoScale, layout],
+    () => ({ barcodeType, fields, logoScale, barcodeMm, layout }),
+    [barcodeType, fields, logoScale, barcodeMm, layout],
   );
 
   const layoutInputFor = useCallback((asset: Asset): LabelLayoutInput => ({
@@ -280,7 +283,7 @@ export function LabelsPage() {
   /* ---------- Templates ---------- */
 
   const currentConfig = (): TemplateConfig => ({
-    barcodeType, sizePreset, customW, customH, fields, logoScale, layout,
+    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout,
   });
 
   const applyTemplate = (id: string) => {
@@ -294,6 +297,7 @@ export function LabelsPage() {
     if (typeof c.customH === 'number') setCustomH(c.customH);
     if (c.fields) setFields({ ...DEFAULT_FIELDS, ...c.fields });
     if (typeof c.logoScale === 'number') setLogoScale(c.logoScale);
+    setBarcodeMm(typeof c.barcodeMm === 'number' ? c.barcodeMm : null);
     setLayout(c.layout ?? null);
     setTemplateName(t.name);
   };
@@ -549,8 +553,9 @@ export function LabelsPage() {
             </div>
           </div>
 
-          {/* Company logo upload + size */}
-          <div className="border-t border-gray-100 pt-4 flex flex-wrap items-center gap-4">
+          {/* Company logo upload + size, barcode size */}
+          <div className="border-t border-gray-100 pt-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-4">
             <label className="block text-xs font-medium text-v-charcoal">Company logo</label>
             {logoDataUrl ? (
               <img src={logoDataUrl} alt="Company logo"
@@ -594,6 +599,32 @@ export function LabelsPage() {
                 “Company logo” is ticked but no logo is uploaded yet.
               </span>
             )}
+          </div>
+
+          {/* Fixed 2D symbol size (auto when untouched) */}
+          {is2D(barcodeType) && (
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="block text-xs font-medium text-v-charcoal">QR code size</label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Size</span>
+                <input
+                  type="range" min={MIN_BARCODE_MM} max={maxBarcodeMm} step={1}
+                  value={barcodeMm ?? maxBarcodeMm}
+                  onChange={e => setBarcodeMm(Number(e.target.value))}
+                  className="w-32 accent-v-violet"
+                />
+                <span className="text-xs text-gray-400 w-12">
+                  {barcodeMm != null ? `${barcodeMm} mm` : 'Auto'}
+                </span>
+                {barcodeMm != null && (
+                  <button onClick={() => setBarcodeMm(null)}
+                    className="text-[11px] text-gray-400 hover:text-v-violet underline">
+                    Reset to auto
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           </div>
 
           {/* Layout editor toggle */}
