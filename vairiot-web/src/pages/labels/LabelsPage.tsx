@@ -2,10 +2,12 @@ import bwipjs from 'bwip-js/browser';
 import { QrCode, Printer, Search, Check, Settings2 } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo, useCallback, type CSSProperties } from 'react';
 import { toast } from 'sonner';
+import { assetDigitalLink, formatHri, gs1128ElementString } from 'vairiot-shared';
 
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { useAssets } from '@/hooks/useAssets';
+import { useIdentification, type TenantIdentification } from '@/hooks/useIdentification';
 import { useCompany, type Company } from '@/hooks/useOnboarding';
 import { api } from '@/lib/api';
 import type { Asset } from '@/types';
@@ -108,7 +110,22 @@ function formatCompanyAddress(c: Company | null | undefined): string {
 
 /* ---------- Barcode payload helper ---------- */
 
-function barcodePayload(asset: Asset, type: BarcodeType): string {
+function barcodePayload(asset: Asset, type: BarcodeType, ident?: TenantIdentification | null): string {
+  // GS1-identified assets encode a plain GS1 Digital Link URL in 2D codes —
+  // readable by any phone camera — and a GS1-128 element string in code128.
+  const iar = asset.individualAssetReference;
+  if (iar && ident) {
+    const mode = ident.mode === 'GS1' && asset.giai ? 'GS1' : 'INTERNAL';
+    if (is2D(type)) {
+      return assetDigitalLink(
+        { mode, giai: asset.giai ?? null, iar, tenantSlug: ident.slug },
+        ident.digitalLinkHost,
+      );
+    }
+    if (type === 'code128') {
+      return gs1128ElementString({ mode, giai: asset.giai ?? null, iar });
+    }
+  }
   // 1D linear codes need a short, numeric or simple-alpha payload.
   // 2D codes can carry the full JSON identifier.
   if (is2D(type)) {
@@ -152,6 +169,7 @@ function renderLabelToDataUrl(
   const lines: { text: string; kind: LineKind }[] = [];
   if (fields.name) lines.push({ text: asset.name, kind: 'title' });
   if (fields.assetNumber) lines.push({ text: asset.assetNumber, kind: 'number' });
+  if (asset.individualAssetReference) lines.push({ text: formatHri(asset.individualAssetReference), kind: 'number' });
   if (fields.serialNumber && asset.serialNumber) lines.push({ text: `SN: ${asset.serialNumber}`, kind: 'muted' });
   if (fields.barcode && asset.barcode) lines.push({ text: `BC: ${asset.barcode}`, kind: 'muted' });
   if (fields.site && asset.site) lines.push({ text: asset.site.name, kind: 'muted' });
@@ -241,6 +259,7 @@ function LabelPreview({
   const lines: { text: string; kind: LineKind }[] = [];
   if (fields.name) lines.push({ text: asset.name, kind: 'title' });
   if (fields.assetNumber) lines.push({ text: asset.assetNumber, kind: 'number' });
+  if (asset.individualAssetReference) lines.push({ text: formatHri(asset.individualAssetReference), kind: 'number' });
   if (fields.serialNumber && asset.serialNumber) lines.push({ text: `SN: ${asset.serialNumber}`, kind: 'muted' });
   if (fields.barcode && asset.barcode) lines.push({ text: `BC: ${asset.barcode}`, kind: 'muted' });
   if (fields.site && asset.site) lines.push({ text: asset.site.name, kind: 'muted' });
@@ -379,6 +398,7 @@ export function LabelsPage() {
   const { data } = useAssets({ search, pageSize: 50 });
   const assets = data?.assets ?? [];
   const { data: company } = useCompany();
+  const { data: ident } = useIdentification();
 
   const selectedAssets = assets.filter(a => selected.has(a.id));
 
@@ -405,7 +425,7 @@ export function LabelsPage() {
           const canvas = document.createElement('canvas');
           bwipjs.toCanvas(canvas, {
             bcid: barcodeType,
-            text: barcodePayload(a, barcodeType),
+            text: barcodePayload(a, barcodeType, ident),
             scale: 3,
             height: is2D(barcodeType) ? 10 : 8,
             includetext: !is2D(barcodeType),
@@ -434,7 +454,7 @@ export function LabelsPage() {
     if (selectedAssets.length > 0) generate();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, barcodeType, assets]);
+  }, [selected, barcodeType, assets, ident?.mode]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {

@@ -17,6 +17,7 @@ const MODULES: ModuleDef[] = [
   { key: 'category',  label: 'Categories',                view: 'category:read',  actions: [{ perm: 'category:write', label: 'Create / Update' }] },
   { key: 'audit',     label: 'Audit Campaigns',           view: 'audit:read',     actions: [{ perm: 'audit:write', label: 'Run / Manage' }] },
   { key: 'scan',      label: 'Scanning (RFID / Barcode)', actions: [{ perm: 'scan:execute', label: 'Execute Scan' }] },
+  { key: 'gs1',       label: 'GS1 Identification',        actions: [{ perm: 'gs1:admin', label: 'Manage Prefixes' }, { perm: 'tag:commission', label: 'Commission Tags' }, { perm: 'device:manage', label: 'Manage Devices & Blocks' }] },
   { key: 'report',    label: 'Reports',                   view: 'report:read',    actions: [{ perm: 'report:export', label: 'Export' }] },
   { key: 'workorder', label: 'Work Orders',               view: 'workorder:read', actions: [{ perm: 'workorder:write', label: 'Create / Update' }, { perm: 'workorder:assigned', label: 'Complete Assigned' }] },
   { key: 'user',      label: 'Users',                     view: 'user:read',      actions: [{ perm: 'user:write', label: 'Manage' }] },

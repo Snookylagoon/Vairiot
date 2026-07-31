@@ -94,6 +94,7 @@ export const ROLE_PERMISSION_MATRIX: RoleDefinition[] = [
       P.CompanyManage,
       P.ClientRead, P.ClientManage,
       P.SystemConfigure,
+      P.Gs1Admin, P.TagCommission, P.DeviceManage,
     ],
   },
 
@@ -114,6 +115,7 @@ export const ROLE_PERMISSION_MATRIX: RoleDefinition[] = [
       P.ApiKeyRead, P.ApiKeyWrite,
       P.CompanyManage,
       P.ClientRead, P.ClientManage,
+      P.Gs1Admin, P.TagCommission, P.DeviceManage,
     ],
   },
 
@@ -129,6 +131,7 @@ export const ROLE_PERMISSION_MATRIX: RoleDefinition[] = [
       P.ScanExecute,
       P.ReportRead, P.ReportExport,
       P.WorkOrderRead,
+      P.TagCommission, P.DeviceManage,
     ],
   },
 
@@ -166,6 +169,7 @@ export const ROLE_PERMISSION_MATRIX: RoleDefinition[] = [
       P.SiteRead,
       P.CategoryRead,
       P.ScanExecute,
+      P.TagCommission,
     ],
   },
 
