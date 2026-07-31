@@ -73,6 +73,7 @@ model Tenant {
   assetTagBindings          AssetTagBinding[]
   assetSecondaryIdentifiers AssetSecondaryIdentifier[]
   labelPrints               LabelPrint[]
+  labelTemplates            LabelTemplate[]
   assetEvents               AssetEvent[]
 
   @@index([parentTenantId])
@@ -1388,6 +1389,24 @@ model LabelPrint {
 
   @@index([tenantId, assetId])
   @@map("label_prints")
+}
+
+// Saved label designs: barcode standard, size, field toggles, logo settings
+// and (optionally) freeform per-element positions, stored as JSON config.
+model LabelTemplate {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  config    Json
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("label_templates")
 }
 
 // Append-only, hash-chained per-asset event log. seq, prevHash and hash are

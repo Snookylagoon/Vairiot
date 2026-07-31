@@ -1,46 +1,32 @@
 import bwipjs from 'bwip-js/browser';
-import { QrCode, Printer, Search, Check, Settings2 } from 'lucide-react';
-import { useState, useEffect, useRef, useMemo, useCallback, type CSSProperties } from 'react';
+import {
+  QrCode, Printer, Search, Check, Settings2, LayoutTemplate,
+  Upload, Trash2, Save, X,
+} from 'lucide-react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
-import { assetDigitalLink, formatHri, gs1128ElementString } from 'vairiot-shared';
+import { assetDigitalLink, gs1128ElementString } from 'vairiot-shared';
+
+import { TemplateLayoutEditor } from './TemplateLayoutEditor';
+import {
+  BARCODE_TYPES, is2D, DEFAULT_FIELDS, FIELD_LABELS,
+  computeLabelElements, renderLabelToDataUrl,
+  type BarcodeType, type ContentFields, type LayoutMap,
+  type LabelDesign, type LabelLayoutInput,
+} from './labelLayout';
 
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { useAssets } from '@/hooks/useAssets';
 import { useIdentification, type TenantIdentification } from '@/hooks/useIdentification';
-import { useCompany, type Company } from '@/hooks/useOnboarding';
+import {
+  useLabelTemplates, useSaveLabelTemplate, useDeleteLabelTemplate,
+  useCompanyLogo, useUploadCompanyLogo, useDeleteCompanyLogo,
+} from '@/hooks/useLabelTemplates';
+import { useCompany } from '@/hooks/useOnboarding';
 import { api } from '@/lib/api';
 import type { Asset } from '@/types';
 
-/* ---------- Barcode standards ---------- */
-
-type BarcodeType =
-  | 'qrcode'
-  | 'datamatrix'
-  | 'pdf417'
-  | 'azteccode'
-  | 'code128'
-  | 'code39'
-  | 'ean13'
-  | 'upca'
-  | 'itf14'
-  | 'code93';
-
-const BARCODE_TYPES: { value: BarcodeType; label: string; group: '2D' | '1D' }[] = [
-  { value: 'qrcode',     label: 'QR Code',     group: '2D' },
-  { value: 'datamatrix', label: 'Data Matrix', group: '2D' },
-  { value: 'pdf417',     label: 'PDF417',      group: '2D' },
-  { value: 'azteccode',  label: 'Aztec',       group: '2D' },
-  { value: 'code128',    label: 'Code 128',    group: '1D' },
-  { value: 'code39',     label: 'Code 39',     group: '1D' },
-  { value: 'code93',     label: 'Code 93',     group: '1D' },
-  { value: 'ean13',      label: 'EAN-13',      group: '1D' },
-  { value: 'upca',       label: 'UPC-A',       group: '1D' },
-  { value: 'itf14',      label: 'ITF-14',      group: '1D' },
-];
-
-const is2D = (t: BarcodeType) =>
-  t === 'qrcode' || t === 'datamatrix' || t === 'pdf417' || t === 'azteccode';
 
 /* ---------- Avery label presets (dimensions in mm) ---------- */
 
@@ -62,51 +48,6 @@ const AVERY_PRESETS: SizePreset[] = [
 ];
 
 const MM_TO_PX = 3.7795275591; // 96 dpi
-
-/* ---------- Content field toggles ---------- */
-
-type ContentFields = {
-  name: boolean;
-  assetNumber: boolean;
-  serialNumber: boolean;
-  barcode: boolean;
-  site: boolean;
-  category: boolean;
-  companyName: boolean;
-  companyAddress: boolean;
-  companyEmail: boolean;
-};
-
-const DEFAULT_FIELDS: ContentFields = {
-  name: true,
-  assetNumber: true,
-  serialNumber: true,
-  barcode: false,
-  site: true,
-  category: false,
-  companyName: false,
-  companyAddress: false,
-  companyEmail: false,
-};
-
-const FIELD_LABELS: { key: keyof ContentFields; label: string }[] = [
-  { key: 'name',           label: 'Asset name' },
-  { key: 'assetNumber',    label: 'Asset number' },
-  { key: 'serialNumber',   label: 'Serial number' },
-  { key: 'barcode',        label: 'Barcode value' },
-  { key: 'site',           label: 'Site' },
-  { key: 'category',       label: 'Category' },
-  { key: 'companyName',    label: 'Company name' },
-  { key: 'companyAddress', label: 'Company address' },
-  { key: 'companyEmail',   label: 'Company email' },
-];
-
-function formatCompanyAddress(c: Company | null | undefined): string {
-  if (!c) return '';
-  return [c.addressLine1, c.addressLine2, c.city, c.stateProvince, c.postalCode, c.country]
-    .filter(Boolean)
-    .join(', ');
-}
 
 /* ---------- Barcode payload helper ---------- */
 
@@ -141,245 +82,76 @@ function barcodePayload(asset: Asset, type: BarcodeType, ident?: TenantIdentific
   return raw;
 }
 
-/* ---------- Render label to canvas data URL ---------- */
-
-function renderLabelToDataUrl(
-  asset: Asset, barcodeDataUrl: string, barcodeType: BarcodeType,
-  fields: ContentFields, company: Company | null | undefined,
-  widthPx: number, heightPx: number,
-): Promise<string> {
-  const scale = 3;
-  const w = Math.round(widthPx * scale);
-  const h = Math.round(heightPx * scale);
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, w, h);
-
-  const companyAddress = formatCompanyAddress(company);
-  const wide2D = is2D(barcodeType);
-  const padding = Math.max(3, Math.round(Math.min(widthPx, heightPx) * 0.04)) * scale;
-  const gap = Math.max(2, Math.round(widthPx * 0.015)) * scale;
-  const innerW = w - padding * 2;
-  const innerH = h - padding * 2;
-
-  type LineKind = 'title' | 'number' | 'muted' | 'brand';
-  const lines: { text: string; kind: LineKind }[] = [];
-  if (fields.name) lines.push({ text: asset.name, kind: 'title' });
-  if (fields.assetNumber) lines.push({ text: asset.assetNumber, kind: 'number' });
-  if (asset.individualAssetReference) lines.push({ text: formatHri(asset.individualAssetReference), kind: 'number' });
-  if (fields.serialNumber && asset.serialNumber) lines.push({ text: `SN: ${asset.serialNumber}`, kind: 'muted' });
-  if (fields.barcode && asset.barcode) lines.push({ text: `BC: ${asset.barcode}`, kind: 'muted' });
-  if (fields.site && asset.site) lines.push({ text: asset.site.name, kind: 'muted' });
-  if (fields.category && asset.category) lines.push({ text: asset.category.name, kind: 'muted' });
-  if (fields.companyName && company?.legalName) lines.push({ text: company.tradingName || company.legalName, kind: 'brand' });
-  if (fields.companyAddress && companyAddress) lines.push({ text: companyAddress, kind: 'muted' });
-  if (fields.companyEmail && company?.primaryContactEmail) lines.push({ text: company.primaryContactEmail, kind: 'muted' });
-
-  const longestTitle = lines.filter(l => l.kind === 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
-  const longestOther = lines.filter(l => l.kind !== 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
-  const minFont = 5 * scale;
-  const minTextW = Math.max(longestTitle * 0.62 * minFont, longestOther * 0.58 * (minFont * 0.82));
-  const bcIdeal = Math.min(innerH, innerW - minTextW - gap);
-  const bcMin = Math.round(innerH * 0.3);
-  const bcSize = Math.round(Math.max(bcMin, Math.min(innerH, bcIdeal)));
-  const textAreaW = wide2D ? innerW - bcSize - gap : innerW;
-  const textAreaH = innerH;
-
-  const maxFontByTitleW = longestTitle > 0 ? textAreaW / (longestTitle * 0.62) : 99;
-  const maxFontByOtherW = longestOther > 0 ? textAreaW / (longestOther * 0.58) : 99;
-  const maxFontByW = Math.min(maxFontByTitleW, maxFontByOtherW / 0.82);
-  const totalWeight = lines.reduce((s, l) => s + (l.kind === 'title' ? 1 : 0.82), 0);
-  const maxFontByH = totalWeight > 0 ? textAreaH / (totalWeight * 1.15) : 12 * scale;
-  const fontSize = Math.max(3 * scale, Math.min(maxFontByH, maxFontByW, 14 * scale));
-  const otherFont = Math.max(3 * scale, Math.round(fontSize * 0.82));
-
-  const colorFor = (kind: LineKind) => {
-    switch (kind) { case 'title': return '#2B3132'; case 'number': return '#615AA0'; case 'brand': return '#2B3132'; case 'muted': return '#6b7280'; }
-  };
-
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      if (wide2D) {
-        const bcY = padding + Math.max(0, (innerH - bcSize) / 2);
-        ctx.drawImage(img, padding, bcY, bcSize, bcSize);
-      }
-      const textX = wide2D ? padding + bcSize + gap : padding;
-      let y = padding;
-      const totalTextH = lines.reduce((s, l) => s + (l.kind === 'title' ? fontSize : otherFont) * 1.15, 0);
-      y += Math.max(0, (textAreaH - totalTextH) / 2);
-
-      for (const l of lines) {
-        const fs = l.kind === 'title' ? fontSize : otherFont;
-        ctx.font = `${l.kind === 'title' ? '700' : '400'} ${fs}px Montserrat, sans-serif`;
-        ctx.fillStyle = colorFor(l.kind);
-        y += fs;
-        ctx.fillText(l.text, textX, y, textAreaW);
-        y += fs * 0.15;
-      }
-
-      if (!wide2D) {
-        const bc1DH = Math.min(Math.round(innerH * 0.35), 50 * scale);
-        ctx.drawImage(img, padding, h - padding - bc1DH, innerW, bc1DH);
-      }
-
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.src = barcodeDataUrl;
-  });
-}
-
 /* ---------- Label preview component ---------- */
 
 function LabelPreview({
-  asset,
-  widthPx,
-  heightPx,
+  input,
   barcodeDataUrl,
-  barcodeType,
-  fields,
-  company,
+  logoDataUrl,
 }: {
-  asset: Asset;
-  widthPx: number;
-  heightPx: number;
+  input: LabelLayoutInput;
   barcodeDataUrl: string;
-  barcodeType: BarcodeType;
-  fields: ContentFields;
-  company: Company | null | undefined;
+  logoDataUrl: string | null;
 }) {
-  const companyAddress = formatCompanyAddress(company);
-  const wide2D = is2D(barcodeType);
-  const padding = Math.max(3, Math.round(Math.min(widthPx, heightPx) * 0.04));
-
-  type LineKind = 'title' | 'number' | 'muted' | 'brand';
-  const lines: { text: string; kind: LineKind }[] = [];
-  if (fields.name) lines.push({ text: asset.name, kind: 'title' });
-  if (fields.assetNumber) lines.push({ text: asset.assetNumber, kind: 'number' });
-  if (asset.individualAssetReference) lines.push({ text: formatHri(asset.individualAssetReference), kind: 'number' });
-  if (fields.serialNumber && asset.serialNumber) lines.push({ text: `SN: ${asset.serialNumber}`, kind: 'muted' });
-  if (fields.barcode && asset.barcode) lines.push({ text: `BC: ${asset.barcode}`, kind: 'muted' });
-  if (fields.site && asset.site) lines.push({ text: asset.site.name, kind: 'muted' });
-  if (fields.category && asset.category) lines.push({ text: asset.category.name, kind: 'muted' });
-  if (fields.companyName && company?.legalName) lines.push({ text: company.tradingName || company.legalName, kind: 'brand' });
-  if (fields.companyAddress && companyAddress) lines.push({ text: companyAddress, kind: 'muted' });
-  if (fields.companyEmail && company?.primaryContactEmail) lines.push({ text: company.primaryContactEmail, kind: 'muted' });
-
-  const innerW = widthPx - padding * 2;
-  const innerH = heightPx - padding * 2;
-  const gap = Math.max(2, Math.round(innerW * 0.015));
-
-  // 2D layout: QR square on left, text on right.
-  // QR is as large as possible (square, up to innerH) but shrinks
-  // to guarantee a minimum readable font size for the text lines.
-  const longestTitle = lines.filter(l => l.kind === 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
-  const longestOther = lines.filter(l => l.kind !== 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
-  const minFont = 5;
-  const minTextW = Math.max(longestTitle * 0.62 * minFont, longestOther * 0.58 * (minFont * 0.82));
-  const bcIdeal = Math.min(innerH, innerW - minTextW - gap);
-  const bcMin = Math.round(innerH * 0.3);
-  const bcSize2D = Math.round(Math.max(bcMin, Math.min(innerH, bcIdeal)));
-  const textAreaW2D = innerW - bcSize2D - gap;
-
-  // 1D layout: text on top, barcode on bottom.
-  const bc1DH = Math.min(Math.round(innerH * 0.35), 50);
-  const textAreaH1D = innerH - bc1DH - 2;
-
-  const textAreaH = wide2D ? innerH : textAreaH1D;
-  const textAreaW = wide2D ? textAreaW2D : innerW;
-
-  // Auto-fit font so each line fits on one visual row.
-  const maxFontByTitleW = longestTitle > 0 ? textAreaW / (longestTitle * 0.62) : 99;
-  const maxFontByOtherW = longestOther > 0 ? textAreaW / (longestOther * 0.58) : 99;
-  const maxFontByW = Math.min(maxFontByTitleW, maxFontByOtherW / 0.82);
-
-  const titleWeight = 1;
-  const otherWeight = 0.82;
-  const totalWeight = lines.reduce((s, l) => s + (l.kind === 'title' ? titleWeight : otherWeight), 0);
-  const maxFontByH = totalWeight > 0 ? textAreaH / (totalWeight * 1.15) : 12;
-  const fontSize = Math.max(3, Math.min(maxFontByH, maxFontByW, 14));
-  const titleFont = fontSize;
-  const otherFont = Math.max(3, Math.round(fontSize * otherWeight));
-
-  const colorFor = (kind: LineKind): string => {
-    switch (kind) {
-      case 'title':  return '#2B3132';
-      case 'number': return '#615AA0';
-      case 'brand':  return '#2B3132';
-      case 'muted':  return '#6b7280';
-    }
-  };
-  const lineStyleFor = (kind: LineKind): CSSProperties => ({
-    margin: 0,
-    fontSize: kind === 'title' ? titleFont : otherFont,
-    lineHeight: 1.15,
-    fontWeight: kind === 'title' ? 700 : 400,
-    fontFamily: 'Montserrat, sans-serif',
-    color: colorFor(kind),
-    whiteSpace: 'nowrap',
-  });
-
-  const TextLines = (
-    <>
-      {lines.map((l, i) => (
-        <p key={i} style={lineStyleFor(l.kind)}>
-          {l.text}
-        </p>
-      ))}
-    </>
-  );
-
-  const wrapperStyle: CSSProperties = {
-    width: widthPx,
-    height: heightPx,
-    padding,
-    boxSizing: 'border-box',
-    border: '1px solid #d1d5db',
-    borderRadius: 4,
-    background: 'white',
-    overflow: 'hidden',
-    fontFamily: 'Montserrat, sans-serif',
-  };
-
+  const elements = computeLabelElements(input);
   return (
-    <div style={wrapperStyle}>
-      {wide2D ? (
-        <div style={{ display: 'flex', gap, height: '100%', alignItems: 'center' }}>
-          <img
-            src={barcodeDataUrl}
-            alt="barcode"
-            style={{ width: bcSize2D, height: bcSize2D, flexShrink: 0 }}
-          />
-          <div style={{
-            display: 'flex', flexDirection: 'column', justifyContent: 'center',
-            minWidth: 0, overflow: 'hidden', flex: 1,
+    <div style={{
+      position: 'relative',
+      width: input.widthPx,
+      height: input.heightPx,
+      boxSizing: 'border-box',
+      border: '1px solid #d1d5db',
+      borderRadius: 4,
+      background: 'white',
+      overflow: 'hidden',
+      fontFamily: 'Montserrat, sans-serif',
+    }}>
+      {elements.map(el => {
+        if (el.kind === 'barcode') {
+          return (
+            <img key={el.key} src={barcodeDataUrl} alt="barcode"
+              style={{ position: 'absolute', left: el.x, top: el.y, width: el.w, height: el.h }} />
+          );
+        }
+        if (el.kind === 'logo') {
+          if (!logoDataUrl) return null;
+          return (
+            <img key={el.key} src={logoDataUrl} alt="logo"
+              style={{ position: 'absolute', left: el.x, top: el.y, width: el.w, height: el.h, objectFit: 'contain' }} />
+          );
+        }
+        return (
+          <p key={el.key} style={{
+            position: 'absolute',
+            left: el.x,
+            top: el.y,
+            margin: 0,
+            fontSize: el.font,
+            lineHeight: 1.15,
+            fontWeight: el.bold ? 700 : 400,
+            fontFamily: 'Montserrat, sans-serif',
+            color: el.color,
+            whiteSpace: 'nowrap',
           }}>
-            {TextLines}
-          </div>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
-          <div style={{ minWidth: 0, overflow: 'hidden' }}>
-            {TextLines}
-          </div>
-          <img
-            src={barcodeDataUrl}
-            alt="barcode"
-            style={{
-              width: innerW,
-              height: bc1DH,
-              alignSelf: 'center',
-              objectFit: 'contain',
-            }}
-          />
-        </div>
-      )}
+            {el.text}
+          </p>
+        );
+      })}
     </div>
   );
 }
+
+/* ---------- Template config (persisted as JSON) ---------- */
+
+type TemplateConfig = {
+  barcodeType: BarcodeType;
+  sizePreset: string;
+  customW: number;
+  customH: number;
+  fields: ContentFields;
+  logoScale: number;
+  layout: LayoutMap | null;
+};
 
 /* ---------- Page ---------- */
 
@@ -391,16 +163,30 @@ export function LabelsPage() {
   const [customW, setCustomW] = useState(50);
   const [customH, setCustomH] = useState(25);
   const [fields, setFields] = useState<ContentFields>(DEFAULT_FIELDS);
+  const [logoScale, setLogoScale] = useState(0.3);
+  const [layout, setLayout] = useState<LayoutMap | null>(null);
   const [barcodeUrls, setBarcodeUrls] = useState<Record<string, string>>({});
   const [showPreview, setShowPreview] = useState(false);
+  const [showLayoutEditor, setShowLayoutEditor] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const printRef = useRef<HTMLDivElement>(null);
+  const logoFileRef = useRef<HTMLInputElement>(null);
 
   const { data } = useAssets({ search, pageSize: 50 });
   const assets = data?.assets ?? [];
   const { data: company } = useCompany();
   const { data: ident } = useIdentification();
+  const { data: logo } = useCompanyLogo();
+  const uploadLogo = useUploadCompanyLogo();
+  const deleteLogo = useDeleteCompanyLogo();
+  const { data: templates = [] } = useLabelTemplates();
+  const saveTemplate = useSaveLabelTemplate();
+  const deleteTemplate = useDeleteLabelTemplate();
 
   const selectedAssets = assets.filter(a => selected.has(a.id));
+  // Sample asset the layout editor works on.
+  const sampleAsset = selectedAssets[0] ?? assets[0] ?? null;
 
   const { widthPx, heightPx } = useMemo(() => {
     if (sizePreset === 'custom') {
@@ -410,12 +196,34 @@ export function LabelsPage() {
     return { widthPx: p.w * MM_TO_PX, heightPx: p.h * MM_TO_PX };
   }, [sizePreset, customW, customH]);
 
+  const logoAspect = logo ? logo.width / logo.height : null;
+  const logoDataUrl = logo?.dataUrl ?? null;
+
+  const design: LabelDesign = useMemo(
+    () => ({ barcodeType, fields, logoScale, layout }),
+    [barcodeType, fields, logoScale, layout],
+  );
+
+  const layoutInputFor = useCallback((asset: Asset): LabelLayoutInput => ({
+    asset, company, design, widthPx, heightPx, logoAspect,
+  }), [company, design, widthPx, heightPx, logoAspect]);
+
+  // Assets whose barcodes we need rendered (selection + editor sample).
+  const assetsNeedingBarcodes = useMemo(() => {
+    const list = [...selectedAssets];
+    if (showLayoutEditor && sampleAsset && !list.some(a => a.id === sampleAsset.id)) {
+      list.push(sampleAsset);
+    }
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAssets.map(a => a.id).join(','), showLayoutEditor, sampleAsset?.id]);
+
   // Regenerate barcodes whenever the type or selection changes.
   useEffect(() => {
     let cancelled = false;
     const generate = async () => {
       const urls: Record<string, string> = {};
-      for (const a of selectedAssets) {
+      for (const a of assetsNeedingBarcodes) {
         const cacheKey = `${a.id}::${barcodeType}`;
         if (barcodeUrls[cacheKey]) {
           urls[cacheKey] = barcodeUrls[cacheKey];
@@ -451,10 +259,10 @@ export function LabelsPage() {
       }
       if (!cancelled) setBarcodeUrls(prev => ({ ...prev, ...urls }));
     };
-    if (selectedAssets.length > 0) generate();
+    if (assetsNeedingBarcodes.length > 0) generate();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, barcodeType, assets, ident?.mode]);
+  }, [assetsNeedingBarcodes, barcodeType, ident?.mode]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -469,19 +277,71 @@ export function LabelsPage() {
     else setSelected(new Set(assets.map(a => a.id)));
   };
 
+  /* ---------- Templates ---------- */
+
+  const currentConfig = (): TemplateConfig => ({
+    barcodeType, sizePreset, customW, customH, fields, logoScale, layout,
+  });
+
+  const applyTemplate = (id: string) => {
+    setSelectedTemplateId(id);
+    const t = templates.find(x => x.id === id);
+    if (!t) return;
+    const c = t.config as Partial<TemplateConfig>;
+    if (c.barcodeType && BARCODE_TYPES.some(b => b.value === c.barcodeType)) setBarcodeType(c.barcodeType);
+    if (c.sizePreset) setSizePreset(c.sizePreset);
+    if (typeof c.customW === 'number') setCustomW(c.customW);
+    if (typeof c.customH === 'number') setCustomH(c.customH);
+    if (c.fields) setFields({ ...DEFAULT_FIELDS, ...c.fields });
+    if (typeof c.logoScale === 'number') setLogoScale(c.logoScale);
+    setLayout(c.layout ?? null);
+    setTemplateName(t.name);
+  };
+
+  const handleSaveTemplate = () => {
+    const name = templateName.trim();
+    if (!name) {
+      toast.error('Give the template a name first');
+      return;
+    }
+    saveTemplate.mutate({ name, config: currentConfig() }, {
+      onSuccess: (t) => setSelectedTemplateId(t.id),
+    });
+  };
+
+  const handleDeleteTemplate = () => {
+    if (!selectedTemplateId) return;
+    deleteTemplate.mutate(selectedTemplateId, {
+      onSuccess: () => {
+        setSelectedTemplateId('');
+        setTemplateName('');
+      },
+    });
+  };
+
+  /* ---------- Logo upload ---------- */
+
+  const onLogoFileChange = (file: File | undefined) => {
+    if (!file) return;
+    uploadLogo.mutate(file);
+    if (logoFileRef.current) logoFileRef.current.value = '';
+  };
+
+  /* ---------- Print / save ---------- */
+
   const saveLabelsToAssets = useCallback(async () => {
     const saves: Promise<void>[] = [];
     for (const a of selectedAssets) {
       const url = barcodeUrls[`${a.id}::${barcodeType}`];
       if (!url) continue;
       saves.push(
-        renderLabelToDataUrl(a, url, barcodeType, fields, company, widthPx, heightPx)
+        renderLabelToDataUrl(layoutInputFor(a), url, logoDataUrl)
           .then(dataUrl => api.patch(`/api/v1/assets/${a.id}`, { labelImage: dataUrl }))
           .then(() => {})
       );
     }
     await Promise.all(saves);
-  }, [selectedAssets, barcodeUrls, barcodeType, fields, company, widthPx, heightPx]);
+  }, [selectedAssets, barcodeUrls, barcodeType, layoutInputFor, logoDataUrl]);
 
   const handlePrint = async () => {
     const printContent = printRef.current;
@@ -512,6 +372,8 @@ export function LabelsPage() {
     win.document.close();
     setTimeout(() => { win.print(); }, 500);
   };
+
+  const sampleBarcodeUrl = sampleAsset ? barcodeUrls[`${sampleAsset.id}::${barcodeType}`] ?? null : null;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -575,87 +437,196 @@ export function LabelsPage() {
 
       {/* Label design */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex items-center justify-between">
           <span className="font-semibold text-v-charcoal text-sm">
             <Settings2 size={16} className="inline mr-2 text-v-violet" />
             Label Design
           </span>
-        </CardHeader>
-        <CardBody className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Barcode standard */}
-          <div className="space-y-2">
-            <label className="block text-xs font-medium text-v-charcoal">Barcode standard</label>
+          {/* Template picker + save */}
+          <div className="flex items-center gap-2">
             <select
-              value={barcodeType}
-              onChange={e => setBarcodeType(e.target.value as BarcodeType)}
-              className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+              value={selectedTemplateId}
+              onChange={e => applyTemplate(e.target.value)}
+              className="text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink max-w-44"
             >
-              <optgroup label="2D codes">
-                {BARCODE_TYPES.filter(t => t.group === '2D').map(t => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </optgroup>
-              <optgroup label="1D codes">
-                {BARCODE_TYPES.filter(t => t.group === '1D').map(t => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </optgroup>
+              <option value="">Template: none</option>
+              {templates.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
             </select>
-            <p className="text-[11px] text-gray-400">
-              {is2D(barcodeType)
-                ? 'Encodes the full asset identifier (id + number + name).'
-                : 'Encodes barcode → serial → asset number. Numeric symbologies will pad/truncate.'}
-            </p>
+            <input
+              value={templateName}
+              onChange={e => setTemplateName(e.target.value)}
+              placeholder="Template name…"
+              className="w-36 text-xs rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink"
+            />
+            <Button size="sm" variant="secondary" onClick={handleSaveTemplate} disabled={saveTemplate.isPending}>
+              <Save size={13} className="mr-1" /> Save
+            </Button>
+            {selectedTemplateId && (
+              <button onClick={handleDeleteTemplate} title="Delete template"
+                className="text-gray-400 hover:text-red-500 p-1">
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        </CardHeader>
+        <CardBody className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Barcode standard */}
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-v-charcoal">Barcode standard</label>
+              <select
+                value={barcodeType}
+                onChange={e => setBarcodeType(e.target.value as BarcodeType)}
+                className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+              >
+                <optgroup label="2D codes">
+                  {BARCODE_TYPES.filter(t => t.group === '2D').map(t => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="1D codes">
+                  {BARCODE_TYPES.filter(t => t.group === '1D').map(t => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </optgroup>
+              </select>
+              <p className="text-[11px] text-gray-400">
+                {is2D(barcodeType)
+                  ? 'Encodes the full asset identifier (id + number + name).'
+                  : 'Encodes barcode → serial → asset number. Numeric symbologies will pad/truncate.'}
+              </p>
+            </div>
+
+            {/* Size preset */}
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-v-charcoal">Label size</label>
+              <select
+                value={sizePreset}
+                onChange={e => setSizePreset(e.target.value)}
+                className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+              >
+                {AVERY_PRESETS.map(p => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+                <option value="custom">Custom…</option>
+              </select>
+              {sizePreset === 'custom' && (
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="number" min={5} max={300} value={customW}
+                    onChange={e => setCustomW(Number(e.target.value) || 0)}
+                    className="w-20 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink"
+                  />
+                  <span className="text-xs text-gray-400">×</span>
+                  <input
+                    type="number" min={5} max={300} value={customH}
+                    onChange={e => setCustomH(Number(e.target.value) || 0)}
+                    className="w-20 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink"
+                  />
+                  <span className="text-xs text-gray-400">mm</span>
+                </div>
+              )}
+            </div>
+
+            {/* Content fields */}
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-v-charcoal">Show on label</label>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                {FIELD_LABELS.map(f => (
+                  <label key={f.key} className="flex items-center gap-2 cursor-pointer text-xs text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={fields[f.key]}
+                      onChange={e => setFields(prev => ({ ...prev, [f.key]: e.target.checked }))}
+                      className="accent-v-violet"
+                    />
+                    {f.label}
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {/* Size preset */}
-          <div className="space-y-2">
-            <label className="block text-xs font-medium text-v-charcoal">Label size</label>
-            <select
-              value={sizePreset}
-              onChange={e => setSizePreset(e.target.value)}
-              className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
-            >
-              {AVERY_PRESETS.map(p => (
-                <option key={p.value} value={p.value}>{p.label}</option>
-              ))}
-              <option value="custom">Custom…</option>
-            </select>
-            {sizePreset === 'custom' && (
-              <div className="flex items-center gap-2 pt-1">
+          {/* Company logo upload + size */}
+          <div className="border-t border-gray-100 pt-4 flex flex-wrap items-center gap-4">
+            <label className="block text-xs font-medium text-v-charcoal">Company logo</label>
+            {logoDataUrl ? (
+              <img src={logoDataUrl} alt="Company logo"
+                className="h-10 max-w-32 object-contain border border-gray-200 rounded bg-white p-0.5" />
+            ) : (
+              <span className="text-xs text-gray-400">No logo uploaded</span>
+            )}
+            <input
+              ref={logoFileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={e => onLogoFileChange(e.target.files?.[0])}
+            />
+            <Button size="sm" variant="secondary"
+              onClick={() => logoFileRef.current?.click()}
+              disabled={uploadLogo.isPending}>
+              <Upload size={13} className="mr-1" />
+              {logoDataUrl ? 'Replace' : 'Upload'}
+            </Button>
+            {logoDataUrl && (
+              <button onClick={() => deleteLogo.mutate()} title="Remove logo"
+                className="text-gray-400 hover:text-red-500 p-1">
+                <X size={14} />
+              </button>
+            )}
+            {fields.companyLogo && logoDataUrl && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Size</span>
                 <input
-                  type="number" min={5} max={300} value={customW}
-                  onChange={e => setCustomW(Number(e.target.value) || 0)}
-                  className="w-20 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink"
+                  type="range" min={10} max={70} step={5}
+                  value={Math.round(logoScale * 100)}
+                  onChange={e => setLogoScale(Number(e.target.value) / 100)}
+                  className="w-32 accent-v-violet"
                 />
-                <span className="text-xs text-gray-400">×</span>
-                <input
-                  type="number" min={5} max={300} value={customH}
-                  onChange={e => setCustomH(Number(e.target.value) || 0)}
-                  className="w-20 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink"
-                />
-                <span className="text-xs text-gray-400">mm</span>
+                <span className="text-xs text-gray-400 w-9">{Math.round(logoScale * 100)}%</span>
               </div>
+            )}
+            {fields.companyLogo && !logoDataUrl && (
+              <span className="text-[11px] text-amber-600">
+                “Company logo” is ticked but no logo is uploaded yet.
+              </span>
             )}
           </div>
 
-          {/* Content fields */}
-          <div className="space-y-2">
-            <label className="block text-xs font-medium text-v-charcoal">Show on label</label>
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-              {FIELD_LABELS.map(f => (
-                <label key={f.key} className="flex items-center gap-2 cursor-pointer text-xs text-gray-600">
-                  <input
-                    type="checkbox"
-                    checked={fields[f.key]}
-                    onChange={e => setFields(prev => ({ ...prev, [f.key]: e.target.checked }))}
-                    className="accent-v-violet"
-                  />
-                  {f.label}
-                </label>
-              ))}
-            </div>
+          {/* Layout editor toggle */}
+          <div className="border-t border-gray-100 pt-4 flex items-center gap-3">
+            <Button size="sm" variant="secondary" onClick={() => setShowLayoutEditor(v => !v)}>
+              <LayoutTemplate size={13} className="mr-1" />
+              {showLayoutEditor ? 'Close layout editor' : 'Edit layout'}
+            </Button>
+            {layout && (
+              <>
+                <span className="text-[11px] text-v-violet font-medium">Custom layout active</span>
+                <button onClick={() => setLayout(null)} className="text-[11px] text-gray-400 hover:text-red-500 underline">
+                  Reset to automatic layout
+                </button>
+              </>
+            )}
           </div>
+
+          {/* Freeform layout editor */}
+          {showLayoutEditor && (
+            sampleAsset && sampleBarcodeUrl ? (
+              <TemplateLayoutEditor
+                input={layoutInputFor(sampleAsset)}
+                barcodeDataUrl={sampleBarcodeUrl}
+                logoDataUrl={logoDataUrl}
+                onLayoutChange={setLayout}
+              />
+            ) : (
+              <p className="text-xs text-gray-400">
+                {sampleAsset ? 'Generating sample barcode…' : 'Add at least one asset to design the layout.'}
+              </p>
+            )
+          )}
         </CardBody>
       </Card>
 
@@ -676,13 +647,9 @@ export function LabelsPage() {
                 return (
                   <LabelPreview
                     key={a.id}
-                    asset={a}
-                    widthPx={widthPx}
-                    heightPx={heightPx}
+                    input={layoutInputFor(a)}
                     barcodeDataUrl={url}
-                    barcodeType={barcodeType}
-                    fields={fields}
-                    company={company}
+                    logoDataUrl={logoDataUrl}
                   />
                 );
               })}

@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 
+import { minioClient, PHOTO_BUCKET } from '../../lib/minio';
+import { prisma } from '../../lib/prisma';
 import { asyncHandler } from '../../middleware/error-handler';
 import {
   getOnboardingProgress,
@@ -50,6 +53,71 @@ onboardingRouter.post('/company', asyncHandler(async (req: Request, res: Respons
     primaryContactEmail: req.user!.email,
   });
   res.json(status);
+}));
+
+/* ── Own-company logo (used on labels, reports) ────────────────────────── */
+
+const LOGO_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!LOGO_MIMES.includes(file.mimetype.toLowerCase())) {
+      cb(new Error('UNSUPPORTED_MEDIA'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+onboardingRouter.get('/company/logo', asyncHandler(async (req: Request, res: Response) => {
+  const company = await prisma.company.findUnique({ where: { tenantId: req.user!.tenantId } });
+  if (!company?.logoStorageKey) { res.status(404).json({ error: 'No logo uploaded' }); return; }
+  try {
+    const stream = await minioClient.getObject(PHOTO_BUCKET, company.logoStorageKey);
+    const ext = company.logoStorageKey.split('.').pop();
+    res.setHeader('Content-Type', ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    stream.pipe(res);
+  } catch {
+    res.status(404).json({ error: 'No logo uploaded' });
+  }
+}));
+
+onboardingRouter.post('/company/logo', logoUpload.single('logo'),
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!req.file) { res.status(400).json({ error: 'No file uploaded (field name "logo")' }); return; }
+    const company = await prisma.company.findUnique({ where: { tenantId: req.user!.tenantId } });
+    if (!company) { res.status(400).json({ error: 'Company details must be set before uploading a logo' }); return; }
+
+    if (company.logoStorageKey) {
+      await minioClient.removeObject(PHOTO_BUCKET, company.logoStorageKey).catch(() => {});
+    }
+    const ext = req.file.mimetype === 'image/png' ? '.png'
+              : req.file.mimetype === 'image/webp' ? '.webp'
+              : '.jpg';
+    const storageKey = `${req.user!.tenantId}/logo/company-logo${ext}`;
+    await minioClient.putObject(PHOTO_BUCKET, storageKey, req.file.buffer, req.file.buffer.length, {
+      'Content-Type': req.file.mimetype,
+    });
+    await prisma.company.update({
+      where: { tenantId: req.user!.tenantId },
+      data: { logoStorageKey: storageKey },
+    });
+    res.json({ logoStorageKey: storageKey });
+  }),
+);
+
+onboardingRouter.delete('/company/logo', asyncHandler(async (req: Request, res: Response) => {
+  const company = await prisma.company.findUnique({ where: { tenantId: req.user!.tenantId } });
+  if (!company?.logoStorageKey) { res.status(404).json({ error: 'No logo uploaded' }); return; }
+  await minioClient.removeObject(PHOTO_BUCKET, company.logoStorageKey).catch(() => {});
+  await prisma.company.update({
+    where: { tenantId: req.user!.tenantId },
+    data: { logoStorageKey: null },
+  });
+  res.json({ ok: true });
 }));
 
 onboardingRouter.post('/client', asyncHandler(async (req: Request, res: Response) => {
