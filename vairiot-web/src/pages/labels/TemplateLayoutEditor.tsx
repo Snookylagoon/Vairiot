@@ -1,9 +1,12 @@
 import {
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
-  Bold, Italic, Group, Ungroup,
+  Bold, Italic, Group, Ungroup, Magnet,
 } from 'lucide-react';
-import { useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
+import {
+  useRef, useState,
+  type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode,
+} from 'react';
 
 import {
   computeLabelElements, labelPadding,
@@ -52,6 +55,10 @@ export function TemplateLayoutEditor({
   const styles: StyleMap = design.styles ?? {};
   const zoom = Math.min(6, Math.max(1.5, 560 / widthPx));
   const [selected, setSelected] = useState<Set<ElementKey>>(new Set());
+  const [snapEnabled, setSnapEnabled] = useState(true);
+  // Active snap guide lines (label px at 1x), rendered while dragging.
+  const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
+  const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     pressedKey: ElementKey;
     startClientX: number;
@@ -86,6 +93,7 @@ export function TemplateLayoutEditor({
     e.preventDefault();
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    canvasRef.current?.focus({ preventScroll: true }); // enable arrow-key nudging
 
     const unit = unitFor(key);
     let next: Set<ElementKey>;
@@ -122,20 +130,86 @@ export function TemplateLayoutEditor({
     if (!drag.moved && Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
     drag.moved = true;
 
+    let vGuide: number | null = null;
+    let hGuide: number | null = null;
+
+    if (snapEnabled) {
+      // Selection bounding box at the raw delta.
+      const minX = Math.min(...drag.members.map(m => m.x)) + dx;
+      const minY = Math.min(...drag.members.map(m => m.y)) + dy;
+      const maxX = Math.max(...drag.members.map(m => m.x + m.w)) + dx;
+      const maxY = Math.max(...drag.members.map(m => m.y + m.h)) + dy;
+
+      // Guide candidates: label padding edges + centre, and the edges/centres
+      // of every element not being dragged.
+      const pad = labelPadding(widthPx, heightPx);
+      const others = elements.filter(el => !drag.members.some(m => m.key === el.key));
+      const vCands = [pad, widthPx / 2, widthPx - pad,
+        ...others.flatMap(o => [o.x, o.x + o.w / 2, o.x + o.w])];
+      const hCands = [pad, heightPx / 2, heightPx - pad,
+        ...others.flatMap(o => [o.y, o.y + o.h / 2, o.y + o.h])];
+
+      const threshold = 6 / zoom; // ~6 screen px
+      const snapAxis = (edges: number[], cands: number[]): { shift: number; guide: number } | null => {
+        let best: { shift: number; guide: number } | null = null;
+        for (const edge of edges) {
+          for (const c of cands) {
+            const d = c - edge;
+            if (Math.abs(d) <= threshold && (!best || Math.abs(d) < Math.abs(best.shift))) {
+              best = { shift: d, guide: c };
+            }
+          }
+        }
+        return best;
+      };
+
+      const vSnap = snapAxis([minX, (minX + maxX) / 2, maxX], vCands);
+      if (vSnap) { dx += vSnap.shift; vGuide = vSnap.guide; }
+      const hSnap = snapAxis([minY, (minY + maxY) / 2, maxY], hCands);
+      if (hSnap) { dy += hSnap.shift; hGuide = hSnap.guide; }
+    }
+
     // Clamp the delta so every member stays on the label — relative
     // positions inside the selection are preserved.
     for (const m of drag.members) {
       dx = Math.min(Math.max(dx, -m.x), Math.max(-m.x, widthPx - m.w - m.x));
       dy = Math.min(Math.max(dy, -m.y), Math.max(-m.y, heightPx - m.h - m.y));
     }
+    setGuides({ v: vGuide, h: hGuide });
     writePositions(drag.members.map(m => ({ key: m.key, x: m.x + dx, y: m.y + dy })));
   };
 
   const onPointerUp = () => {
     dragRef.current = null;
+    setGuides({ v: null, h: null });
   };
 
   const clearSelection = () => setSelected(new Set());
+
+  /* ── Arrow-key nudging ── */
+
+  const nudge = (rawDx: number, rawDy: number) => {
+    if (selectedEls.length === 0) return;
+    let dx = rawDx;
+    let dy = rawDy;
+    for (const el of selectedEls) {
+      dx = Math.min(Math.max(dx, -el.x), Math.max(-el.x, widthPx - el.w - el.x));
+      dy = Math.min(Math.max(dy, -el.y), Math.max(-el.y, heightPx - el.h - el.y));
+    }
+    if (dx === 0 && dy === 0) return;
+    writePositions(selectedEls.map(el => ({ key: el.key, x: el.x + dx, y: el.y + dy })));
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') { clearSelection(); return; }
+    const step = e.shiftKey ? 5 : 1;
+    switch (e.key) {
+      case 'ArrowLeft':  e.preventDefault(); nudge(-step, 0); break;
+      case 'ArrowRight': e.preventDefault(); nudge(step, 0); break;
+      case 'ArrowUp':    e.preventDefault(); nudge(0, -step); break;
+      case 'ArrowDown':  e.preventDefault(); nudge(0, step); break;
+    }
+  };
 
   /* ── Align actions ── */
 
@@ -270,6 +344,9 @@ export function TemplateLayoutEditor({
         <ToolButton title="Group selection" disabled={selected.size < 2} onClick={groupSelection}><Group size={14} /></ToolButton>
         <ToolButton title="Ungroup" disabled={!selectionTouchesGroup} onClick={ungroupSelection}><Ungroup size={14} /></ToolButton>
         <span className="w-px h-5 bg-gray-200 mx-1" />
+        <ToolButton title={snapEnabled ? 'Snapping on' : 'Snapping off'} active={snapEnabled}
+          onClick={() => setSnapEnabled(v => !v)}><Magnet size={14} /></ToolButton>
+        <span className="w-px h-5 bg-gray-200 mx-1" />
         <ToolButton title="Bold" disabled={noText} active={allBold} onClick={() => patchSelectedStyles({ bold: !allBold })}><Bold size={14} /></ToolButton>
         <ToolButton title="Italic" disabled={noText} active={allItalic} onClick={() => patchSelectedStyles({ italic: !allItalic })}><Italic size={14} /></ToolButton>
         <div className="flex items-center gap-1 ml-1">
@@ -296,7 +373,10 @@ export function TemplateLayoutEditor({
 
       {/* Canvas */}
       <div
-        className="relative bg-white border border-gray-300 rounded shadow-sm overflow-hidden"
+        ref={canvasRef}
+        tabIndex={0}
+        onKeyDown={onKeyDown}
+        className="relative bg-white border border-gray-300 rounded shadow-sm overflow-hidden focus:outline-none focus:ring-2 focus:ring-v-pink/40"
         style={{ width: widthPx * zoom, height: heightPx * zoom, maxWidth: '100%' }}
         onPointerDown={clearSelection}
       >
@@ -337,11 +417,27 @@ export function TemplateLayoutEditor({
             )}
           </div>
         ))}
+
+        {/* Snap guides */}
+        {guides.v != null && (
+          <div style={{
+            position: 'absolute', left: guides.v * zoom - 0.5, top: 0,
+            width: 1, height: '100%', background: '#EC4899', pointerEvents: 'none',
+          }} />
+        )}
+        {guides.h != null && (
+          <div style={{
+            position: 'absolute', top: guides.h * zoom - 0.5, left: 0,
+            height: 1, width: '100%', background: '#EC4899', pointerEvents: 'none',
+          }} />
+        )}
       </div>
       <p className="text-[11px] text-gray-400">
-        Drag any element to position it. Shift-click to select several, then align or group them —
-        grouped elements move as one. Positions are stored relative to the label size, so the
-        template scales with different label dimensions.
+        Drag any element to position it — pink guides snap to label edges, centres and other
+        elements (toggle with the magnet). Arrow keys nudge the selection 1&nbsp;px (Shift&nbsp;=&nbsp;5&nbsp;px).
+        Shift-click selects several elements to align or group — grouped elements move as one.
+        Positions are stored relative to the label size, so the template scales with different
+        label dimensions.
       </p>
     </div>
   );
