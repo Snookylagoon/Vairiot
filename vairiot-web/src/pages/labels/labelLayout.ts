@@ -99,12 +99,18 @@ export type ElementKey =
 // width/height so a template scales across label sizes. null = auto layout.
 export type LayoutMap = Partial<Record<ElementKey, { x: number; y: number }>>;
 
+// Per-field text style overrides; anything unset falls back to the automatic
+// style (titles bold, auto-fitted font size).
+export type TextStyle = { bold?: boolean; italic?: boolean; font?: number };
+export type StyleMap = Partial<Record<ElementKey, TextStyle>>;
+
 export type LabelElement = {
   key: ElementKey;
   kind: 'barcode' | 'logo' | 'text';
   text?: string;
   font?: number;   // px at 1x
   bold?: boolean;
+  italic?: boolean;
   color?: string;
   x: number;
   y: number;
@@ -118,6 +124,7 @@ export type LabelDesign = {
   logoScale: number;          // logo height as a fraction of inner label height
   barcodeMm: number | null;   // fixed 2D symbol size in mm; null → automatic
   layout: LayoutMap | null;   // null → automatic layout
+  styles?: StyleMap | null;   // per-field bold/italic/font-size overrides
 };
 
 export type LabelLayoutInput = {
@@ -128,6 +135,11 @@ export type LabelLayoutInput = {
   heightPx: number;
   logoAspect: number | null;  // logo naturalWidth / naturalHeight, null if none
 };
+
+/** Inner margin of the label — also the inset used by editor align actions. */
+export function labelPadding(widthPx: number, heightPx: number): number {
+  return Math.max(3, Math.round(Math.min(widthPx, heightPx) * 0.04));
+}
 
 type LineKind = 'title' | 'number' | 'muted' | 'brand';
 
@@ -165,7 +177,7 @@ export function computeLabelElements(input: LabelLayoutInput): LabelElement[] {
   const { barcodeType, fields, logoScale } = design;
   const wide2D = is2D(barcodeType);
 
-  const padding = Math.max(3, Math.round(Math.min(widthPx, heightPx) * 0.04));
+  const padding = labelPadding(widthPx, heightPx);
   const innerW = widthPx - padding * 2;
   const innerH = heightPx - padding * 2;
   const gap = Math.max(2, Math.round(innerW * 0.015));
@@ -235,10 +247,21 @@ export function computeLabelElements(input: LabelLayoutInput): LabelElement[] {
     });
   }
 
+  // Effective per-line style: explicit overrides win over the auto style.
+  const styles = design.styles ?? {};
+  const styledLines = lines.map(l => {
+    const s = styles[l.key] ?? {};
+    return {
+      ...l,
+      font: s.font ?? (l.kind === 'title' ? titleFont : otherFont),
+      bold: s.bold ?? (l.kind === 'title'),
+      italic: s.italic ?? false,
+    };
+  });
+
   // Text stack (logo on top), vertically centred in its area.
   const textX = wide2D ? padding + bcSize2D + gap : padding;
-  const stackH = logoH + logoGap + lines.reduce(
-    (s, l) => s + (l.kind === 'title' ? titleFont : otherFont) * 1.15, 0);
+  const stackH = logoH + logoGap + styledLines.reduce((s, l) => s + l.font * 1.15, 0);
   const availH = wide2D ? innerH : innerH - bc1DH - 2;
   let y = padding + Math.max(0, (availH - stackH) / 2);
 
@@ -247,15 +270,14 @@ export function computeLabelElements(input: LabelLayoutInput): LabelElement[] {
     y += logoH + logoGap;
   }
 
-  for (const l of lines) {
-    const fs = l.kind === 'title' ? titleFont : otherFont;
-    const estW = Math.min(textAreaW, l.text.length * (l.kind === 'title' ? 0.62 : 0.58) * fs);
+  for (const l of styledLines) {
+    const estW = Math.min(textAreaW, l.text.length * (l.kind === 'title' ? 0.62 : 0.58) * l.font);
     elements.push({
       key: l.key, kind: 'text', text: l.text,
-      font: fs, bold: l.kind === 'title', color: COLOR_FOR[l.kind],
-      x: textX, y, w: Math.max(4, estW), h: fs * 1.15,
+      font: l.font, bold: l.bold, italic: l.italic, color: COLOR_FOR[l.kind],
+      x: textX, y, w: Math.max(4, estW), h: l.font * 1.15,
     });
-    y += fs * 1.15;
+    y += l.font * 1.15;
   }
 
   // Freeform overrides: fractional top-left positions, clamped on-label.
@@ -309,7 +331,7 @@ export async function renderLabelToDataUrl(
       if (logoImg) ctx.drawImage(logoImg, el.x * scale, el.y * scale, el.w * scale, el.h * scale);
     } else if (el.kind === 'text' && el.text) {
       const fs = (el.font ?? 8) * scale;
-      ctx.font = `${el.bold ? '700' : '400'} ${fs}px Montserrat, sans-serif`;
+      ctx.font = `${el.italic ? 'italic ' : ''}${el.bold ? '700' : '400'} ${fs}px Montserrat, sans-serif`;
       ctx.fillStyle = el.color ?? '#2B3132';
       // Draw with the same top-left anchor as the DOM preview.
       ctx.textBaseline = 'alphabetic';

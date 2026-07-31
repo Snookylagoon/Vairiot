@@ -11,8 +11,8 @@ import { TemplateLayoutEditor } from './TemplateLayoutEditor';
 import {
   BARCODE_TYPES, is2D, DEFAULT_FIELDS, FIELD_LABELS, MM_TO_PX, MIN_BARCODE_MM,
   computeLabelElements, renderLabelToDataUrl,
-  type BarcodeType, type ContentFields, type LayoutMap,
-  type LabelDesign, type LabelLayoutInput,
+  type BarcodeType, type ContentFields, type LayoutMap, type StyleMap,
+  type ElementKey, type LabelDesign, type LabelLayoutInput,
 } from './labelLayout';
 
 import { Button } from '@/components/ui/Button';
@@ -127,6 +127,7 @@ function LabelPreview({
             fontSize: el.font,
             lineHeight: 1.15,
             fontWeight: el.bold ? 700 : 400,
+            fontStyle: el.italic ? 'italic' : 'normal',
             fontFamily: 'Montserrat, sans-serif',
             color: el.color,
             whiteSpace: 'nowrap',
@@ -150,6 +151,8 @@ type TemplateConfig = {
   logoScale: number;
   barcodeMm: number | null;
   layout: LayoutMap | null;
+  styles: StyleMap;
+  groups: ElementKey[][];
 };
 
 /* ---------- Page ---------- */
@@ -165,6 +168,8 @@ export function LabelsPage() {
   const [logoScale, setLogoScale] = useState(0.3);
   const [barcodeMm, setBarcodeMm] = useState<number | null>(null);
   const [layout, setLayout] = useState<LayoutMap | null>(null);
+  const [styles, setStyles] = useState<StyleMap>({});
+  const [groups, setGroups] = useState<ElementKey[][]>([]);
   const [barcodeUrls, setBarcodeUrls] = useState<Record<string, string>>({});
   const [showPreview, setShowPreview] = useState(false);
   const [showLayoutEditor, setShowLayoutEditor] = useState(false);
@@ -203,8 +208,8 @@ export function LabelsPage() {
   const logoDataUrl = logo?.dataUrl ?? null;
 
   const design: LabelDesign = useMemo(
-    () => ({ barcodeType, fields, logoScale, barcodeMm, layout }),
-    [barcodeType, fields, logoScale, barcodeMm, layout],
+    () => ({ barcodeType, fields, logoScale, barcodeMm, layout, styles }),
+    [barcodeType, fields, logoScale, barcodeMm, layout, styles],
   );
 
   const layoutInputFor = useCallback((asset: Asset): LabelLayoutInput => ({
@@ -283,7 +288,7 @@ export function LabelsPage() {
   /* ---------- Templates ---------- */
 
   const currentConfig = (): TemplateConfig => ({
-    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout,
+    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups,
   });
 
   const applyTemplate = (id: string) => {
@@ -299,6 +304,8 @@ export function LabelsPage() {
     if (typeof c.logoScale === 'number') setLogoScale(c.logoScale);
     setBarcodeMm(typeof c.barcodeMm === 'number' ? c.barcodeMm : null);
     setLayout(c.layout ?? null);
+    setStyles(c.styles ?? {});
+    setGroups(c.groups ?? []);
     setTemplateName(t.name);
   };
 
@@ -633,10 +640,12 @@ export function LabelsPage() {
               <LayoutTemplate size={13} className="mr-1" />
               {showLayoutEditor ? 'Close layout editor' : 'Edit layout'}
             </Button>
-            {layout && (
+            {(layout || Object.keys(styles).length > 0) && (
               <>
                 <span className="text-[11px] text-v-violet font-medium">Custom layout active</span>
-                <button onClick={() => setLayout(null)} className="text-[11px] text-gray-400 hover:text-red-500 underline">
+                <button
+                  onClick={() => { setLayout(null); setStyles({}); setGroups([]); }}
+                  className="text-[11px] text-gray-400 hover:text-red-500 underline">
                   Reset to automatic layout
                 </button>
               </>
@@ -650,7 +659,10 @@ export function LabelsPage() {
                 input={layoutInputFor(sampleAsset)}
                 barcodeDataUrl={sampleBarcodeUrl}
                 logoDataUrl={logoDataUrl}
+                groups={groups}
                 onLayoutChange={setLayout}
+                onStylesChange={setStyles}
+                onGroupsChange={setGroups}
               />
             ) : (
               <p className="text-xs text-gray-400">
