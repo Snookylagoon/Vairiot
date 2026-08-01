@@ -5,6 +5,10 @@ import { toCsv } from '../../lib/csv';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
+import { listAssetEvents } from '../../services/asset-event.service';
+import { encodeIdentifier } from '../../services/gs1-identifier.service';
+import { listLabelPrints } from '../../services/gs1-label.service';
+import { getAssetByEpc, listTagsForAsset } from '../../services/gs1-tag.service';
 import { bulkImportAssets } from '../../services/import.service';
 import { enforceAssetCap } from '../../services/licence.service';
 
@@ -120,6 +124,35 @@ assetsRouter.get('/stats', requireAnyPermission('asset:read'),
 assetsRouter.get('/tag/:tag',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     res.json(await getAssetByTag(req.user!.tenantId, req.params.tag));
+  }),
+);
+
+// EPC → asset resolution. A GIAI-96 EPC belonging to another tenant's ACTIVE
+// prefix returns FOREIGN_TAG metadata rather than 404 (GS1 spec §6.6).
+assetsRouter.get('/by-epc/:epcHex', requireAnyPermission('asset:read', 'scan:execute'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await getAssetByEpc(req.user!.tenantId, req.params.epcHex));
+  }),
+);
+
+// GS1 identity bundle for one asset: encoding, tag bindings, label prints,
+// hash-chained event log.
+assetsRouter.get('/:id/gs1', requireAnyPermission('asset:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const asset = await getAsset(req.user!.tenantId, req.params.id);
+    const iar = (asset as { individualAssetReference?: string | null }).individualAssetReference;
+    const [encoding, bindings, prints, events] = await Promise.all([
+      iar ? encodeIdentifier(req.user!.tenantId, { individualAssetReference: iar }) : null,
+      listTagsForAsset(req.user!.tenantId, req.params.id),
+      listLabelPrints(req.user!.tenantId, req.params.id),
+      listAssetEvents(req.user!.tenantId, req.params.id),
+    ]);
+    res.json({
+      encoding,
+      bindings,
+      labelPrints: prints,
+      events: events.map((e) => ({ ...e, seq: Number(e.seq), prevHash: undefined, hash: undefined })),
+    });
   }),
 );
 

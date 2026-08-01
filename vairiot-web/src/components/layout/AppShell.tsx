@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown, Building2, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown, Building2, Barcode, type LucideIcon } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 
@@ -56,6 +56,7 @@ const nav: readonly NavEntry[] = [
       { to: '/admin/api-keys',      label: 'API Keys',      icon: KeyRound, require: ['apikey:read', 'apikey:write'] },
       { to: '/admin/webhooks',      label: 'Webhooks',      icon: Webhook,  require: ['apikey:write'] },
       { to: '/admin/custom-fields', label: 'Custom Fields', icon: Settings2 },
+      { to: '/admin/identification', label: 'Identification & GS1', icon: Barcode, require: ['gs1:admin'] },
       { to: '/admin/audit-log',     label: 'Audit Log',     icon: ScrollText, require: ['user:read', 'user:write', 'apikey:read', 'apikey:write'] },
     ],
   },

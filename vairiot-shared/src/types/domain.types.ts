@@ -32,6 +32,10 @@ export interface Asset {
   barcode?:     string;
   rfidTag?:     string;
   labelImage?:  string;
+  // GS1 identity — allocated by the server, never authored by clients
+  individualAssetReference?: string | null;
+  allocationAuthority?: 'SERVER' | 'STANDALONE' | null;
+  giai?: string | null;
   category?:    { id: string; name: string };
   site?:        { id: string; name: string };
   location?:    { id: string; name: string };

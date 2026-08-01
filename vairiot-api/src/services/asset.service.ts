@@ -1,8 +1,11 @@
 import { Prisma } from '@prisma/client';
+import { parseAssetScan, parseHri } from 'vairiot-shared';
 
 import { NotFoundError, ConflictError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
 
+import { recordAssetEvent } from './asset-event.service';
+import { allocateIar } from './gs1-identifier.service';
 import { dispatchWebhookEvent } from './webhook.service';
 
 export interface AssetCreateInput {
@@ -265,9 +268,16 @@ export async function createAsset(tenantId: string, actorId: string, input: Asse
 
 async function createAssetOnce(tenantId: string, actorId: string, input: AssetCreateInput) {
   const assetNumber = await nextAssetNumber(tenantId);
+  // Every new asset gets a server-allocated Individual Asset Reference
+  // (GS1 spec invariant 2 — never caller-supplied). A rolled-back create
+  // burns the number by design; the allocation row records it as consumed.
+  const individualAssetReference = await allocateIar(
+    tenantId, actorId.startsWith('apikey:') ? null : actorId, 'ASSET_CREATE',
+  );
   const asset = await prisma.asset.create({
     data: {
       tenantId, assetNumber, name: input.name, description: input.description,
+      individualAssetReference, allocationAuthority: 'SERVER',
       serialNumber: input.serialNumber, modelNumber: input.modelNumber, manufacturer: input.manufacturer,
       barcode: input.barcode, rfidTag: input.rfidTag, supplier: input.supplier, notes: input.notes,
       condition: input.condition, status: input.status,
@@ -298,6 +308,14 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
     include: assetInclude,
   });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: asset.id, action: 'created', after: asset as unknown as Prisma.InputJsonValue } });
+  await prisma.identifierAllocation.update({
+    where: { tenantId_individualAssetReference: { tenantId, individualAssetReference } },
+    data: { consumedByAssetId: asset.id },
+  }).catch(() => {});
+  await recordAssetEvent({
+    tenantId, assetId: asset.id, eventType: 'CREATED', actor: actorId, source: 'API',
+    payload: { individualAssetReference, assetNumber },
+  });
   return enrichAssetWithDepreciation(asset);
 }
 
@@ -410,6 +428,18 @@ export async function listAssetsForExport(tenantId: string, params: Omit<AssetLi
 }
 
 export async function getAssetByTag(tenantId: string, tag: string) {
+  // GS1 Digital Link URI, raw IAR, or grouped HRI — resolved locally, never
+  // via the network (spec §9.3).
+  const scan = parseAssetScan(tag);
+  const gs1Lookups: Prisma.AssetWhereInput[] = [];
+  if (scan?.giai) gs1Lookups.push({ giai: scan.giai });
+  if (scan?.iar) gs1Lookups.push({ individualAssetReference: scan.iar });
+  if (gs1Lookups.length === 0) {
+    try {
+      gs1Lookups.push({ individualAssetReference: parseHri(tag) });
+    } catch { /* not an HRI either */ }
+  }
+
   const lookups = [tag];
   try {
     const parsed = JSON.parse(tag);
@@ -420,9 +450,12 @@ export async function getAssetByTag(tenantId: string, tag: string) {
   const asset = await prisma.asset.findFirst({
     where: {
       tenantId, deletedAt: null,
-      OR: lookups.flatMap(v => [
-        { rfidTag: v }, { barcode: v }, { assetNumber: v }, { serialNumber: v }, { id: v },
-      ]),
+      OR: [
+        ...gs1Lookups,
+        ...lookups.flatMap(v => [
+          { rfidTag: v }, { barcode: v }, { assetNumber: v }, { serialNumber: v }, { id: v },
+        ]),
+      ],
     },
     include: assetInclude,
   });

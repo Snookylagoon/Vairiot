@@ -17,6 +17,12 @@ export const Permission = {
   // Scanning (RFID / barcode)
   ScanExecute:    'scan:execute',
 
+  // GS1 identification (prefix + identification admin, tag commissioning,
+  // device/block management)
+  Gs1Admin:       'gs1:admin',
+  TagCommission:  'tag:commission',
+  DeviceManage:   'device:manage',
+
   // Reports
   ReportRead:     'report:read',
   ReportExport:   'report:export',

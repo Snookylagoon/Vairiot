@@ -15,3 +15,6 @@ export * from './constants/webhook.constants.js';
 export * from './constants/permissions.constants.js';
 export * from './constants/roles.constants.js';
 export * from './constants/licence.constants.js';
+
+// GS1 asset identification (isomorphic — server, browser, WebView)
+export * from './gs1/index.js';

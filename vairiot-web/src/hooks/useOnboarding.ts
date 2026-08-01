@@ -36,6 +36,7 @@ export interface Company {
   country: string;
   primaryContactEmail: string;
   primaryContactPhone?: string | null;
+  logoStorageKey?: string | null;
 }
 
 export function useCompany() {

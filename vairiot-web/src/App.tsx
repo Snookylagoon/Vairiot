@@ -47,6 +47,7 @@ const ApiKeysPage          = lazy(() => import('@/pages/admin/ApiKeysPage').then
 const AuditLogPage         = lazy(() => import('@/pages/admin/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
 const WebhooksPage         = lazy(() => import('@/pages/admin/WebhooksPage').then(m => ({ default: m.WebhooksPage })));
 const CustomFieldsPage     = lazy(() => import('@/pages/admin/CustomFieldsPage').then(m => ({ default: m.CustomFieldsPage })));
+const IdentificationPage   = lazy(() => import('@/pages/admin/IdentificationPage').then(m => ({ default: m.IdentificationPage })));
 const SubTenantsPage       = lazy(() => import('@/pages/admin/SubTenantsPage').then(m => ({ default: m.SubTenantsPage })));
 const NewSubTenantPage     = lazy(() => import('@/pages/admin/NewSubTenantPage').then(m => ({ default: m.NewSubTenantPage })));
 const SubTenantDetailPage  = lazy(() => import('@/pages/admin/SubTenantDetailPage').then(m => ({ default: m.SubTenantDetailPage })));
@@ -140,6 +141,7 @@ export default function App() {
             <Route path="admin/api-keys" element={<RequirePermission perms={['apikey:read', 'apikey:write']}><ApiKeysPage /></RequirePermission>} />
             <Route path="admin/webhooks" element={<RequirePermission perms={['apikey:write']}><WebhooksPage /></RequirePermission>} />
             <Route path="admin/custom-fields" element={<RequirePermission perms={['asset:write']}><CustomFieldsPage /></RequirePermission>} />
+            <Route path="admin/identification" element={<RequirePermission perms={['gs1:admin']}><IdentificationPage /></RequirePermission>} />
             <Route path="admin/sub-tenants" element={<RequirePermission perms={['company:manage']}><SubTenantsPage /></RequirePermission>} />
             <Route path="admin/sub-tenants/new" element={<RequirePermission perms={['company:manage']}><NewSubTenantPage /></RequirePermission>} />
             <Route path="admin/sub-tenants/:id" element={<RequirePermission perms={['company:manage']}><SubTenantDetailPage /></RequirePermission>} />

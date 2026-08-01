@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import { AssetDocuments } from '@/components/assets/AssetDocuments';
+import { AssetGs1Identity } from '@/components/assets/AssetGs1Identity';
 import { AssetPhotos } from '@/components/assets/AssetPhotos';
 import { AssetTimeline } from '@/components/assets/AssetTimeline';
 import { Badge } from '@/components/ui/Badge';
@@ -156,9 +157,9 @@ export function AssetDetailPage() {
               <LinkedField label="Serial Number" value={asset.serialNumber} navigate={navigate} />
               <Field label="Model Number"   value={asset.modelNumber} />
               <Field label="Manufacturer"   value={asset.manufacturer} />
-              <LinkedField label="Barcode"  value={asset.barcode} navigate={navigate} />
               <LinkedField label="RFID Tag" value={asset.rfidTag} navigate={navigate} />
             </div>
+            <AssetGs1Identity assetId={asset.id} />
             {asset.labelImage && (
               <div>
                 <div className="flex items-center justify-between mb-1">
