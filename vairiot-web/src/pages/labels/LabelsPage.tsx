@@ -436,10 +436,25 @@ export function LabelsPage() {
         .label { width: ${widthMm}mm; height: ${heightMm}mm; overflow: hidden; page-break-inside: avoid; break-inside: avoid; }
         .label img { width: ${widthMm}mm; height: ${heightMm}mm; display: block; }`;
 
+    // Screen-only reminder (never printed): the print dialog must be set to
+    // the matching custom paper size or the driver scales/rotates the job.
+    const note = printMode === 'roll'
+      ? `<div class="print-note"><strong>Before printing:</strong> in the print dialog set
+          <strong>Paper Size</strong> to your custom ${pageW} × ${pageH} mm label size
+          (e.g. “VairiotDemo50x30”) — not Default/A4 — and keep <strong>Scaling at 100%</strong>.
+          Wrong paper size makes labels print rotated or between labels.</div>`
+      : `<div class="print-note"><strong>Before printing:</strong> in the print dialog set
+          <strong>Paper Size</strong> to your sheet size (e.g. A4) and keep
+          <strong>Scaling at 100%</strong> so label dimensions stay exact.</div>`;
+
     win.document.write(`
       <html><head><title>Asset Labels</title>
-      <style>* { box-sizing: border-box; }${style}</style>
-      </head><body>${imgs}</body></html>
+      <style>* { box-sizing: border-box; }${style}
+        .print-note { font: 13px/1.5 -apple-system, system-ui, sans-serif; background: #FEF3C7;
+          color: #92400E; border: 1px solid #F59E0B; border-radius: 6px; padding: 10px 14px; margin: 8px; }
+        @media print { .print-note { display: none; } }
+      </style>
+      </head><body>${note}${imgs}</body></html>
     `);
     win.document.close();
     setTimeout(() => { win.print(); }, 500);
