@@ -161,6 +161,8 @@ type TemplateConfig = {
   leaderLabel: boolean;
   /** Roll mode: shifts artwork down the label (mm, may be negative/fractional) for sub-mm registration the printer driver can't do. */
   printOffsetMm?: number;
+  /** Roll mode, continuous/fixed-feed media: gap between labels (mm). Page height becomes label + gap so each label advances exactly one pitch. 0 = gap-sensing mode (page = label). */
+  printGapMm?: number;
   /** Legacy field from before rotation had a direction (true ≙ 90). */
   printRotate?: boolean;
 };
@@ -190,6 +192,7 @@ export function LabelsPage() {
   const [monochrome, setMonochrome] = useState(false);
   const [leaderLabel, setLeaderLabel] = useState(false);
   const [printOffsetMm, setPrintOffsetMm] = useState(0);
+  const [printGapMm, setPrintGapMm] = useState(0);
   const [showCalibrate, setShowCalibrate] = useState(false);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
@@ -343,7 +346,7 @@ export function LabelsPage() {
   /* ---------- Templates ---------- */
 
   const currentConfig = (): TemplateConfig => ({
-    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotation, monochrome, leaderLabel, printOffsetMm,
+    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotation, monochrome, leaderLabel, printOffsetMm, printGapMm,
   });
 
   const applyTemplate = (id: string) => {
@@ -370,6 +373,7 @@ export function LabelsPage() {
     setMonochrome(c.monochrome === true);
     setLeaderLabel(c.leaderLabel === true);
     setPrintOffsetMm(typeof c.printOffsetMm === 'number' ? c.printOffsetMm : 0);
+    setPrintGapMm(typeof c.printGapMm === 'number' ? c.printGapMm : 0);
     setTemplateName(t.name);
   };
 
@@ -450,12 +454,16 @@ export function LabelsPage() {
       .map(u => u ? `<div class="label"><img src="${u}" alt=""></div>` : '<div class="label"></div>')
       .join('');
 
+    // Continuous / fixed-feed media (gap sensor unusable, e.g. RFID inlay
+    // stock): the page spans the full pitch (label + gap) so every label
+    // advances exactly one pitch by dead reckoning; the gap prints blank.
+    const feedH = pageH + (printGapMm > 0 ? printGapMm : 0);
     const style = printMode === 'roll'
-      // Roll / thermal (e.g. TSC 210): page = label, zero margin, one per page.
+      // Roll / thermal (e.g. TSC 210): page = label (or full pitch), zero margin, one per page.
       ? `
-        @page { size: ${pageW}mm ${pageH}mm; margin: 0; }
+        @page { size: ${pageW}mm ${feedH}mm; margin: 0; }
         html, body { margin: 0; padding: 0; }
-        .label { width: ${pageW}mm; height: ${pageH}mm; overflow: hidden; page-break-after: always; break-after: page; }
+        .label { width: ${pageW}mm; height: ${feedH}mm; overflow: hidden; page-break-after: always; break-after: page; }
         .label img { width: ${pageW}mm; height: ${pageH}mm; display: block; margin-top: ${printOffsetMm}mm; }`
       // Sheet (A4 / Avery): flow labels in a grid with small gaps.
       : `
@@ -469,9 +477,13 @@ export function LabelsPage() {
     // the matching custom paper size or the driver scales/rotates the job.
     const note = printMode === 'roll'
       ? `<div class="print-note"><strong>Before printing:</strong> in the print dialog set
-          <strong>Paper Size</strong> to your custom ${pageW} × ${pageH} mm label size
-          (e.g. “VairiotDemo50x30”) — not Default/A4 — and keep <strong>Scaling at 100%</strong>.
-          Wrong paper size makes labels print rotated or between labels.</div>`
+          <strong>Paper Size</strong> to your custom <strong>${pageW} × ${feedH} mm</strong> size
+          — not Default/A4 — and keep <strong>Scaling at 100%</strong>.
+          ${printGapMm > 0
+            ? `This template uses continuous (fixed-feed) mode: the paper size must span the full
+               ${pageW} × ${feedH} mm pitch (label + ${printGapMm} mm gap), and the printer driver's
+               Media Setting → Type must be <strong>Continuous</strong> with all offsets 0.`
+            : 'Wrong paper size makes labels print rotated or between labels.'}</div>`
       : `<div class="print-note"><strong>Before printing:</strong> in the print dialog set
           <strong>Paper Size</strong> to your sheet size (e.g. A4) and keep
           <strong>Scaling at 100%</strong> so label dimensions stay exact.</div>`;
@@ -808,6 +820,25 @@ export function LabelsPage() {
                   onChange={e => {
                     const v = parseFloat(e.target.value);
                     setPrintOffsetMm(Number.isFinite(v) ? Math.max(-10, Math.min(10, v)) : 0);
+                  }}
+                  className="w-16 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+                />
+                mm
+              </label>
+            )}
+            {printMode === 'roll' && (
+              <label className="flex items-center gap-1.5 text-xs text-gray-600"
+                title="Continuous / fixed-feed mode for media the gap sensor can't read (e.g. RFID labels): enter the gap between labels and each page spans the full pitch. Requires the printer driver's Media Setting → Type = Continuous and a paper size of label + gap. Leave at 0 for normal gap-sensing stock.">
+                Gap
+                <input
+                  type="number"
+                  step={0.5}
+                  min={0}
+                  max={20}
+                  value={printGapMm}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value);
+                    setPrintGapMm(Number.isFinite(v) ? Math.max(0, Math.min(20, v)) : 0);
                   }}
                   className="w-16 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
                 />
