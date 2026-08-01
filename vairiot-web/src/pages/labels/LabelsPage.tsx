@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { assetDigitalLink, gs1128ElementString } from 'vairiot-shared';
 
+import { CalibrateDialog } from './CalibrateDialog';
 import { TemplateLayoutEditor } from './TemplateLayoutEditor';
 import {
   BARCODE_TYPES, is2D, DEFAULT_FIELDS, FIELD_LABELS, MM_TO_PX, MIN_BARCODE_MM,
@@ -189,6 +190,7 @@ export function LabelsPage() {
   const [monochrome, setMonochrome] = useState(false);
   const [leaderLabel, setLeaderLabel] = useState(false);
   const [printOffsetMm, setPrintOffsetMm] = useState(0);
+  const [showCalibrate, setShowCalibrate] = useState(false);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
@@ -812,6 +814,12 @@ export function LabelsPage() {
                 mm
               </label>
             )}
+            {printMode === 'roll' && (
+              <Button size="sm" variant="secondary" onClick={() => setShowCalibrate(true)}
+                title="Run this after every roll change: recalibrates the printer to this label size and gap, and verifies a label stops at the tear line">
+                <Settings2 size={14} className="mr-1" /> Calibrate
+              </Button>
+            )}
             <Button size="sm" variant="secondary" onClick={handlePrint} disabled={selected.size === 0}>
               <Printer size={14} className="mr-1" /> Print
             </Button>
@@ -901,6 +909,13 @@ export function LabelsPage() {
           </CardBody>
         </Card>
       )}
+
+      <CalibrateDialog
+        open={showCalibrate}
+        widthMm={widthMm}
+        heightMm={heightMm}
+        onClose={() => setShowCalibrate(false)}
+      />
     </div>
   );
 }
