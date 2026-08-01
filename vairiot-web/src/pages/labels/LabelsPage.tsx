@@ -153,6 +153,7 @@ type TemplateConfig = {
   layout: LayoutMap | null;
   styles: StyleMap;
   groups: ElementKey[][];
+  printMode: 'sheet' | 'roll';
 };
 
 /* ---------- Page ---------- */
@@ -175,7 +176,8 @@ export function LabelsPage() {
   const [showLayoutEditor, setShowLayoutEditor] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const printRef = useRef<HTMLDivElement>(null);
+  const [printMode, setPrintMode] = useState<'sheet' | 'roll'>('sheet');
+  const [sampleId, setSampleId] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
   const { data } = useAssets({ search, pageSize: 50 });
@@ -190,8 +192,8 @@ export function LabelsPage() {
   const deleteTemplate = useDeleteLabelTemplate();
 
   const selectedAssets = assets.filter(a => selected.has(a.id));
-  // Sample asset the layout editor works on.
-  const sampleAsset = selectedAssets[0] ?? assets[0] ?? null;
+  // Sample asset the layout editor works on — click a preview label to change it.
+  const sampleAsset = assets.find(a => a.id === sampleId) ?? selectedAssets[0] ?? assets[0] ?? null;
 
   const { widthPx, heightPx, widthMm, heightMm } = useMemo(() => {
     if (sizePreset === 'custom') {
@@ -288,7 +290,7 @@ export function LabelsPage() {
   /* ---------- Templates ---------- */
 
   const currentConfig = (): TemplateConfig => ({
-    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups,
+    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode,
   });
 
   const applyTemplate = (id: string) => {
@@ -306,6 +308,7 @@ export function LabelsPage() {
     setLayout(c.layout ?? null);
     setStyles(c.styles ?? {});
     setGroups(c.groups ?? []);
+    if (c.printMode === 'sheet' || c.printMode === 'roll') setPrintMode(c.printMode);
     setTemplateName(t.name);
   };
 
@@ -340,45 +343,53 @@ export function LabelsPage() {
 
   /* ---------- Print / save ---------- */
 
-  const saveLabelsToAssets = useCallback(async () => {
-    const saves: Promise<void>[] = [];
+  // Render every selected label to a high-res PNG at the exact label size.
+  const renderSelectedLabels = useCallback(async () => {
+    const rendered: { asset: Asset; dataUrl: string }[] = [];
     for (const a of selectedAssets) {
       const url = barcodeUrls[`${a.id}::${barcodeType}`];
       if (!url) continue;
-      saves.push(
-        renderLabelToDataUrl(layoutInputFor(a), url, logoDataUrl)
-          .then(dataUrl => api.patch(`/api/v1/assets/${a.id}`, { labelImage: dataUrl }))
-          .then(() => {})
-      );
+      rendered.push({ asset: a, dataUrl: await renderLabelToDataUrl(layoutInputFor(a), url, logoDataUrl) });
     }
-    await Promise.all(saves);
+    return rendered;
   }, [selectedAssets, barcodeUrls, barcodeType, layoutInputFor, logoDataUrl]);
 
   const handlePrint = async () => {
-    const printContent = printRef.current;
-    if (!printContent) return;
+    const rendered = await renderSelectedLabels();
+    if (rendered.length === 0) return;
 
-    await saveLabelsToAssets();
-    toast.success(`Labels saved to ${selectedAssets.length} asset(s)`);
+    await Promise.all(rendered.map(r =>
+      api.patch(`/api/v1/assets/${r.asset.id}`, { labelImage: r.dataUrl }).then(() => {})));
+    toast.success(`Labels saved to ${rendered.length} asset(s)`);
 
     const win = window.open('', '_blank');
     if (!win) return;
+
+    // Print the rendered PNGs at their exact physical size so labels land on
+    // the media, not between labels.
+    const imgs = rendered
+      .map(r => `<div class="label"><img src="${r.dataUrl}" alt=""></div>`)
+      .join('');
+
+    const style = printMode === 'roll'
+      // Roll / thermal (e.g. TSC 210): page = label, zero margin, one per page.
+      ? `
+        @page { size: ${widthMm}mm ${heightMm}mm; margin: 0; }
+        html, body { margin: 0; padding: 0; }
+        .label { width: ${widthMm}mm; height: ${heightMm}mm; overflow: hidden; page-break-after: always; break-after: page; }
+        .label img { width: ${widthMm}mm; height: ${heightMm}mm; display: block; }`
+      // Sheet (A4 / Avery): flow labels in a grid with small gaps.
+      : `
+        @page { margin: 8mm; }
+        html, body { margin: 0; padding: 0; }
+        body { display: flex; flex-wrap: wrap; gap: 2mm; align-content: flex-start; }
+        .label { width: ${widthMm}mm; height: ${heightMm}mm; overflow: hidden; page-break-inside: avoid; break-inside: avoid; }
+        .label img { width: ${widthMm}mm; height: ${heightMm}mm; display: block; }`;
+
     win.document.write(`
       <html><head><title>Asset Labels</title>
-      <style>
-        * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; }
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&display=swap');
-        body { padding: 8mm; font-family: 'Montserrat', sans-serif; }
-        * { font-family: 'Montserrat', sans-serif !important; }
-        .label-grid { display: flex; flex-wrap: wrap; gap: 2mm; align-items: flex-start; }
-        .label-grid > div { page-break-inside: avoid; break-inside: avoid; }
-        .label-grid img { display: block; }
-        @page { margin: 8mm; }
-        @media print { body { padding: 0; } }
-      </style></head><body>
-      <div class="label-grid">${printContent.innerHTML}</div>
-      </body></html>
+      <style>* { box-sizing: border-box; }${style}</style>
+      </head><body>${imgs}</body></html>
     `);
     win.document.close();
     setTimeout(() => { win.print(); }, 500);
@@ -401,6 +412,15 @@ export function LabelsPage() {
               <QrCode size={14} className="mr-1" />
               {showPreview ? 'Hide' : 'Preview'} ({selected.size})
             </Button>
+            <select
+              value={printMode}
+              onChange={e => setPrintMode(e.target.value as 'sheet' | 'roll')}
+              title="Print format"
+              className="text-xs rounded-lg border border-gray-200 px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+            >
+              <option value="sheet">Sheet (A4 / Avery)</option>
+              <option value="roll">Roll (thermal printer)</option>
+            </select>
             <Button size="sm" variant="secondary" onClick={handlePrint}>
               <Printer size={14} className="mr-1" /> Print
             </Button>
@@ -656,7 +676,7 @@ export function LabelsPage() {
           {showLayoutEditor && (
             sampleAsset && sampleBarcodeUrl ? (
               <TemplateLayoutEditor
-                input={layoutInputFor(sampleAsset)}
+                input={{ ...layoutInputFor(sampleAsset), placeholders: true }}
                 barcodeDataUrl={sampleBarcodeUrl}
                 logoDataUrl={logoDataUrl}
                 groups={groups}
@@ -683,20 +703,35 @@ export function LabelsPage() {
             </span>
           </CardHeader>
           <CardBody>
-            <div ref={printRef} className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               {selectedAssets.map(a => {
                 const url = barcodeUrls[`${a.id}::${barcodeType}`];
                 if (!url) return null;
+                const isSample = sampleAsset?.id === a.id;
                 return (
-                  <LabelPreview
+                  <button
                     key={a.id}
-                    input={layoutInputFor(a)}
-                    barcodeDataUrl={url}
-                    logoDataUrl={logoDataUrl}
-                  />
+                    type="button"
+                    title={showLayoutEditor
+                      ? (isSample ? 'Shown in the layout editor' : 'Click to edit layout with this asset')
+                      : a.name}
+                    onClick={() => { setSampleId(a.id); if (!showLayoutEditor) setShowLayoutEditor(true); }}
+                    className={`rounded transition-shadow cursor-pointer text-left ${
+                      isSample && showLayoutEditor ? 'ring-2 ring-v-violet ring-offset-1' : 'hover:ring-2 hover:ring-v-pink/50'
+                    }`}
+                  >
+                    <LabelPreview
+                      input={layoutInputFor(a)}
+                      barcodeDataUrl={url}
+                      logoDataUrl={logoDataUrl}
+                    />
+                  </button>
                 );
               })}
             </div>
+            <p className="text-[11px] text-gray-400 mt-2">
+              Click a label to open it in the layout editor.
+            </p>
           </CardBody>
         </Card>
       )}

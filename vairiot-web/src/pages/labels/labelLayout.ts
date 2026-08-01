@@ -134,6 +134,7 @@ export type LabelLayoutInput = {
   widthPx: number;
   heightPx: number;
   logoAspect: number | null;  // logo naturalWidth / naturalHeight, null if none
+  placeholders?: boolean;     // editor mode: show every enabled field
 };
 
 /** Inner margin of the label — also the inset used by editor align actions. */
@@ -150,19 +151,35 @@ const COLOR_FOR: Record<LineKind, string> = {
   muted:  '#6b7280',
 };
 
-function buildLines(asset: Asset, fields: ContentFields, company: Company | null | undefined) {
+// With `placeholders` (used by the layout editor), every ENABLED field emits a
+// line even when the sample asset has no value for it — otherwise those fields
+// could never be positioned and other assets' labels would ignore the template.
+function buildLines(
+  asset: Asset,
+  fields: ContentFields,
+  company: Company | null | undefined,
+  placeholders = false,
+) {
   const companyAddress = formatCompanyAddress(company);
+  const val = (v: string | null | undefined, ph: string) => v || (placeholders ? ph : '');
   const lines: { key: ElementKey; text: string; kind: LineKind }[] = [];
   if (fields.name) lines.push({ key: 'name', text: asset.name, kind: 'title' });
   if (fields.assetNumber) lines.push({ key: 'assetNumber', text: asset.assetNumber, kind: 'number' });
   if (asset.individualAssetReference) lines.push({ key: 'iar', text: formatHri(asset.individualAssetReference), kind: 'number' });
-  if (fields.serialNumber && asset.serialNumber) lines.push({ key: 'serialNumber', text: `SN: ${asset.serialNumber}`, kind: 'muted' });
-  if (fields.barcode && asset.barcode) lines.push({ key: 'barcodeValue', text: `BC: ${asset.barcode}`, kind: 'muted' });
-  if (fields.site && asset.site) lines.push({ key: 'site', text: asset.site.name, kind: 'muted' });
-  if (fields.category && asset.category) lines.push({ key: 'category', text: asset.category.name, kind: 'muted' });
-  if (fields.companyName && company?.legalName) lines.push({ key: 'companyName', text: company.tradingName || company.legalName, kind: 'brand' });
-  if (fields.companyAddress && companyAddress) lines.push({ key: 'companyAddress', text: companyAddress, kind: 'muted' });
-  if (fields.companyEmail && company?.primaryContactEmail) lines.push({ key: 'companyEmail', text: company.primaryContactEmail, kind: 'muted' });
+  const sn = val(asset.serialNumber, 'SN-000000');
+  if (fields.serialNumber && sn) lines.push({ key: 'serialNumber', text: `SN: ${sn}`, kind: 'muted' });
+  const bc = val(asset.barcode, '000000000');
+  if (fields.barcode && bc) lines.push({ key: 'barcodeValue', text: `BC: ${bc}`, kind: 'muted' });
+  const site = val(asset.site?.name, 'Site');
+  if (fields.site && site) lines.push({ key: 'site', text: site, kind: 'muted' });
+  const category = val(asset.category?.name, 'Category');
+  if (fields.category && category) lines.push({ key: 'category', text: category, kind: 'muted' });
+  const companyName = val(company?.tradingName || company?.legalName, 'Company name');
+  if (fields.companyName && companyName) lines.push({ key: 'companyName', text: companyName, kind: 'brand' });
+  const address = val(companyAddress, 'Company address');
+  if (fields.companyAddress && address) lines.push({ key: 'companyAddress', text: address, kind: 'muted' });
+  const email = val(company?.primaryContactEmail, 'email@company.com');
+  if (fields.companyEmail && email) lines.push({ key: 'companyEmail', text: email, kind: 'muted' });
   return lines;
 }
 
@@ -173,7 +190,7 @@ function buildLines(asset: Asset, fields: ContentFields, company: Company | null
  * position for an element it overrides the automatic one (fractional coords).
  */
 export function computeLabelElements(input: LabelLayoutInput): LabelElement[] {
-  const { asset, company, design, widthPx, heightPx, logoAspect } = input;
+  const { asset, company, design, widthPx, heightPx, logoAspect, placeholders } = input;
   const { barcodeType, fields, logoScale } = design;
   const wide2D = is2D(barcodeType);
 
@@ -182,7 +199,7 @@ export function computeLabelElements(input: LabelLayoutInput): LabelElement[] {
   const innerH = heightPx - padding * 2;
   const gap = Math.max(2, Math.round(innerW * 0.015));
 
-  const lines = buildLines(asset, fields, company);
+  const lines = buildLines(asset, fields, company, placeholders);
 
   // Barcode geometry (same heuristics as before).
   const longestTitle = lines.filter(l => l.kind === 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
