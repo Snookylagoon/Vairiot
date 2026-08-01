@@ -125,6 +125,7 @@ export type LabelDesign = {
   barcodeMm: number | null;   // fixed 2D symbol size in mm; null → automatic
   layout: LayoutMap | null;   // null → automatic layout
   styles?: StyleMap | null;   // per-field bold/italic/font-size overrides
+  monochrome?: boolean;       // force solid black text/logo (thermal printers)
 };
 
 export type LabelLayoutInput = {
@@ -291,7 +292,8 @@ export function computeLabelElements(input: LabelLayoutInput): LabelElement[] {
     const estW = Math.min(textAreaW, l.text.length * (l.kind === 'title' ? 0.62 : 0.58) * l.font);
     elements.push({
       key: l.key, kind: 'text', text: l.text,
-      font: l.font, bold: l.bold, italic: l.italic, color: COLOR_FOR[l.kind],
+      font: l.font, bold: l.bold, italic: l.italic,
+      color: design.monochrome ? '#000000' : COLOR_FOR[l.kind],
       x: textX, y, w: Math.max(4, estW), h: l.font * 1.15,
     });
     y += l.font * 1.15;
@@ -320,6 +322,31 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = reject;
     img.src = src;
   });
+}
+
+/** Convert a logo to solid-black artwork for thermal printing: any pixel that
+ *  is reasonably opaque and not near-white becomes pure black; the rest goes
+ *  transparent. Thermal heads can't dither colour, so mid-tone logos otherwise
+ *  print faint or vanish. */
+export async function monochromeDataUrl(dataUrl: string): Promise<string> {
+  const img = await loadImage(dataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = imageData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    if (d[i + 3] > 60 && lum < 220) {
+      d[i] = 0; d[i + 1] = 0; d[i + 2] = 0; d[i + 3] = 255;
+    } else {
+      d[i + 3] = 0;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.toDataURL('image/png');
 }
 
 /** Rotate a rendered label PNG — for roll printers whose media orientation

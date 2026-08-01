@@ -10,7 +10,7 @@ import { assetDigitalLink, gs1128ElementString } from 'vairiot-shared';
 import { TemplateLayoutEditor } from './TemplateLayoutEditor';
 import {
   BARCODE_TYPES, is2D, DEFAULT_FIELDS, FIELD_LABELS, MM_TO_PX, MIN_BARCODE_MM,
-  computeLabelElements, renderLabelToDataUrl, rotateDataUrl,
+  computeLabelElements, renderLabelToDataUrl, rotateDataUrl, monochromeDataUrl,
   type BarcodeType, type ContentFields, type LayoutMap, type StyleMap,
   type ElementKey, type LabelDesign, type LabelLayoutInput,
 } from './labelLayout';
@@ -155,6 +155,7 @@ type TemplateConfig = {
   groups: ElementKey[][];
   printMode: 'sheet' | 'roll';
   printRotation: 0 | 90 | 180 | 270;
+  monochrome: boolean;
   /** Legacy field from before rotation had a direction (true ≙ 90). */
   printRotate?: boolean;
 };
@@ -181,6 +182,7 @@ export function LabelsPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [printMode, setPrintMode] = useState<'sheet' | 'roll'>('sheet');
   const [printRotation, setPrintRotation] = useState<0 | 90 | 180 | 270>(0);
+  const [monochrome, setMonochrome] = useState(false);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
@@ -211,11 +213,28 @@ export function LabelsPage() {
   const maxBarcodeMm = Math.max(MIN_BARCODE_MM, Math.floor(Math.min(widthMm, heightMm)));
 
   const logoAspect = logo ? logo.width / logo.height : null;
-  const logoDataUrl = logo?.dataUrl ?? null;
+  const rawLogoUrl = logo?.dataUrl ?? null;
+
+  // Black & white mode: convert the logo to solid-black artwork once.
+  const [monoLogoUrl, setMonoLogoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (monochrome && rawLogoUrl) {
+      monochromeDataUrl(rawLogoUrl)
+        .then(u => { if (!cancelled) setMonoLogoUrl(u); })
+        .catch(() => { if (!cancelled) setMonoLogoUrl(null); });
+    } else {
+      setMonoLogoUrl(null);
+    }
+    return () => { cancelled = true; };
+  }, [monochrome, rawLogoUrl]);
+
+  // What every renderer (preview, editor, canvas/print) actually uses.
+  const logoDataUrl = monochrome ? monoLogoUrl : rawLogoUrl;
 
   const design: LabelDesign = useMemo(
-    () => ({ barcodeType, fields, logoScale, barcodeMm, layout, styles }),
-    [barcodeType, fields, logoScale, barcodeMm, layout, styles],
+    () => ({ barcodeType, fields, logoScale, barcodeMm, layout, styles, monochrome }),
+    [barcodeType, fields, logoScale, barcodeMm, layout, styles, monochrome],
   );
 
   const layoutInputFor = useCallback((asset: Asset): LabelLayoutInput => ({
@@ -294,7 +313,7 @@ export function LabelsPage() {
   /* ---------- Templates ---------- */
 
   const currentConfig = (): TemplateConfig => ({
-    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotation,
+    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotation, monochrome,
   });
 
   const applyTemplate = (id: string) => {
@@ -318,6 +337,7 @@ export function LabelsPage() {
     } else if (typeof c.printRotate === 'boolean') {
       setPrintRotation(c.printRotate ? 90 : 0);
     }
+    setMonochrome(c.monochrome === true);
     setTemplateName(t.name);
   };
 
@@ -616,8 +636,8 @@ export function LabelsPage() {
           <div className="border-t border-gray-100 pt-4 space-y-3">
           <div className="flex flex-wrap items-center gap-4">
             <label className="block text-xs font-medium text-v-charcoal">Company logo</label>
-            {logoDataUrl ? (
-              <img src={logoDataUrl} alt="Company logo"
+            {rawLogoUrl ? (
+              <img src={(monochrome && monoLogoUrl) || rawLogoUrl} alt="Company logo"
                 className="h-10 max-w-32 object-contain border border-gray-200 rounded bg-white p-0.5" />
             ) : (
               <span className="text-xs text-gray-400">No logo uploaded</span>
@@ -633,15 +653,15 @@ export function LabelsPage() {
               onClick={() => logoFileRef.current?.click()}
               disabled={uploadLogo.isPending}>
               <Upload size={13} className="mr-1" />
-              {logoDataUrl ? 'Replace' : 'Upload'}
+              {rawLogoUrl ? 'Replace' : 'Upload'}
             </Button>
-            {logoDataUrl && (
+            {rawLogoUrl && (
               <button onClick={() => deleteLogo.mutate()} title="Remove logo"
                 className="text-gray-400 hover:text-red-500 p-1">
                 <X size={14} />
               </button>
             )}
-            {fields.companyLogo && logoDataUrl && (
+            {fields.companyLogo && rawLogoUrl && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">Size</span>
                 <input
@@ -653,11 +673,25 @@ export function LabelsPage() {
                 <span className="text-xs text-gray-400 w-9">{Math.round(logoScale * 100)}%</span>
               </div>
             )}
-            {fields.companyLogo && !logoDataUrl && (
+            {fields.companyLogo && !rawLogoUrl && (
               <span className="text-[11px] text-amber-600">
                 “Company logo” is ticked but no logo is uploaded yet.
               </span>
             )}
+          </div>
+
+          {/* Colour mode */}
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="block text-xs font-medium text-v-charcoal">Print colour</label>
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-600">
+              <input
+                type="checkbox"
+                checked={monochrome}
+                onChange={e => setMonochrome(e.target.checked)}
+                className="accent-v-violet"
+              />
+              Black &amp; white — forces text and logo to solid black (recommended for thermal printers)
+            </label>
           </div>
 
           {/* Fixed 2D symbol size (auto when untouched) */}
