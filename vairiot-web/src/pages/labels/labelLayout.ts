@@ -322,15 +322,16 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Rotate a rendered label PNG by a quarter turn — for roll printers whose
- *  media is defined portrait (e.g. 30 mm across the head × 50 mm feed).
- *  90 = clockwise, 270 = anticlockwise; which one is correct depends on the
- *  printer driver's own rotation. */
-export async function rotateDataUrl(dataUrl: string, degrees: 90 | 270): Promise<string> {
+/** Rotate a rendered label PNG — for roll printers whose media orientation
+ *  (and driver rotation) doesn't match the page. 90 = clockwise quarter turn,
+ *  270 = anticlockwise, 180 = upside down; quarter turns swap the canvas
+ *  dimensions. */
+export async function rotateDataUrl(dataUrl: string, degrees: 90 | 180 | 270): Promise<string> {
   const img = await loadImage(dataUrl);
   const canvas = document.createElement('canvas');
-  canvas.width = img.height;
-  canvas.height = img.width;
+  const quarter = degrees !== 180;
+  canvas.width = quarter ? img.height : img.width;
+  canvas.height = quarter ? img.width : img.height;
   const ctx = canvas.getContext('2d')!;
   ctx.translate(canvas.width / 2, canvas.height / 2);
   ctx.rotate((degrees * Math.PI) / 180);

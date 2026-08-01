@@ -154,7 +154,7 @@ type TemplateConfig = {
   styles: StyleMap;
   groups: ElementKey[][];
   printMode: 'sheet' | 'roll';
-  printRotation: 0 | 90 | 270;
+  printRotation: 0 | 90 | 180 | 270;
   /** Legacy field from before rotation had a direction (true ≙ 90). */
   printRotate?: boolean;
 };
@@ -180,7 +180,7 @@ export function LabelsPage() {
   const [templateName, setTemplateName] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [printMode, setPrintMode] = useState<'sheet' | 'roll'>('sheet');
-  const [printRotation, setPrintRotation] = useState<0 | 90 | 270>(0);
+  const [printRotation, setPrintRotation] = useState<0 | 90 | 180 | 270>(0);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
@@ -313,7 +313,7 @@ export function LabelsPage() {
     setStyles(c.styles ?? {});
     setGroups(c.groups ?? []);
     if (c.printMode === 'sheet' || c.printMode === 'roll') setPrintMode(c.printMode);
-    if (c.printRotation === 0 || c.printRotation === 90 || c.printRotation === 270) {
+    if (c.printRotation === 0 || c.printRotation === 90 || c.printRotation === 180 || c.printRotation === 270) {
       setPrintRotation(c.printRotation);
     } else if (typeof c.printRotate === 'boolean') {
       setPrintRotation(c.printRotate ? 90 : 0);
@@ -371,13 +371,14 @@ export function LabelsPage() {
       api.patch(`/api/v1/assets/${r.asset.id}`, { labelImage: r.dataUrl }).then(() => {})));
     toast.success(`Labels saved to ${rendered.length} asset(s)`);
 
-    // Portrait-feed roll media: rotate the artwork a quarter turn and swap
-    // page dims so the label matches how the printer actually feeds it.
+    // Roll media whose orientation doesn't match the page: rotate the artwork,
+    // and for quarter turns swap the page dims to match the feed.
     const rotate = printMode === 'roll' && printRotation !== 0;
-    const pageW = rotate ? heightMm : widthMm;
-    const pageH = rotate ? widthMm : heightMm;
+    const quarterTurn = rotate && printRotation !== 180;
+    const pageW = quarterTurn ? heightMm : widthMm;
+    const pageH = quarterTurn ? widthMm : heightMm;
     const printUrls = rotate
-      ? await Promise.all(rendered.map(r => rotateDataUrl(r.dataUrl, printRotation as 90 | 270)))
+      ? await Promise.all(rendered.map(r => rotateDataUrl(r.dataUrl, printRotation as 90 | 180 | 270)))
       : rendered.map(r => r.dataUrl);
 
     const win = window.open('', '_blank');
@@ -442,12 +443,13 @@ export function LabelsPage() {
             {printMode === 'roll' && (
               <select
                 value={printRotation}
-                onChange={e => setPrintRotation(Number(e.target.value) as 0 | 90 | 270)}
-                title="Rotate the artwork for printers that feed the label portrait — pick whichever direction prints upright"
+                onChange={e => setPrintRotation(Number(e.target.value) as 0 | 90 | 180 | 270)}
+                title="Rotate the artwork to match how the printer feeds the label — pick whichever prints upright"
                 className="text-xs rounded-lg border border-gray-200 px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
               >
                 <option value={0}>No rotation</option>
                 <option value={90}>Rotate 90° ↻</option>
+                <option value={180}>Rotate 180°</option>
                 <option value={270}>Rotate 90° ↺</option>
               </select>
             )}
