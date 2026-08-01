@@ -153,7 +153,7 @@ export function AssetsPage() {
             <input
               value={searchInput}
               onChange={e => { setSearchInput(e.target.value); }}
-              placeholder="Search by name, serial, barcode, RFID…"
+              placeholder="Search by name, serial, manufacturer EAN, RFID…"
               className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-v-pink"
             />
           </div>

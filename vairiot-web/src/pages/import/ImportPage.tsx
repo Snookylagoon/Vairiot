@@ -14,7 +14,7 @@ const ASSET_FIELDS = [
   { key: 'serialNumber', label: 'Serial Number' },
   { key: 'modelNumber', label: 'Model Number' },
   { key: 'manufacturer', label: 'Manufacturer' },
-  { key: 'barcode', label: 'Barcode' },
+  { key: 'barcode', label: 'Manufacturer EAN' },
   { key: 'rfidTag', label: 'RFID Tag' },
   { key: 'purchaseCost', label: 'Purchase Cost' },
   { key: 'purchaseDate', label: 'Purchase Date' },

@@ -145,7 +145,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
             <Input label="Serial Number"  placeholder="SN-XXXXXXXX" {...register('serialNumber')} />
             <Input label="Model Number"   placeholder="Model"       {...register('modelNumber')} />
             <Input label="Manufacturer"   placeholder="Manufacturer"  {...register('manufacturer')} />
-            <Input label="Barcode"        placeholder="Scan or type barcode"  {...register('barcode')}
+            <Input label="Manufacturer EAN" placeholder="Scan or type the manufacturer's barcode" {...register('barcode')}
               hint="Scan using QR/Barcode Scanner" />
             <Input label="RFID Tag (EPC)" placeholder="Scan RFID tag"         {...register('rfidTag')}
               hint="Scan using RFID Handheld" />

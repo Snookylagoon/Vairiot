@@ -19,7 +19,7 @@ import {
 const KEY_TITLES: Record<ElementKey, string> = {
   barcode: 'Barcode', logo: 'Logo',
   name: 'Asset name', assetNumber: 'Asset number', iar: 'GS1 identifier',
-  serialNumber: 'Serial number', barcodeValue: 'Barcode value',
+  serialNumber: 'Serial number', barcodeValue: 'Manufacturer EAN',
   site: 'Site', category: 'Category', companyName: 'Company name',
   companyAddress: 'Company address', companyEmail: 'Company email',
 };
