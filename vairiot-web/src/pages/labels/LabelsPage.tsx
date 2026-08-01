@@ -10,7 +10,7 @@ import { assetDigitalLink, gs1128ElementString } from 'vairiot-shared';
 import { TemplateLayoutEditor } from './TemplateLayoutEditor';
 import {
   BARCODE_TYPES, is2D, DEFAULT_FIELDS, FIELD_LABELS, MM_TO_PX, MIN_BARCODE_MM,
-  computeLabelElements, renderLabelToDataUrl, rotateDataUrl90,
+  computeLabelElements, renderLabelToDataUrl, rotateDataUrl,
   type BarcodeType, type ContentFields, type LayoutMap, type StyleMap,
   type ElementKey, type LabelDesign, type LabelLayoutInput,
 } from './labelLayout';
@@ -154,7 +154,9 @@ type TemplateConfig = {
   styles: StyleMap;
   groups: ElementKey[][];
   printMode: 'sheet' | 'roll';
-  printRotate: boolean;
+  printRotation: 0 | 90 | 270;
+  /** Legacy field from before rotation had a direction (true ≙ 90). */
+  printRotate?: boolean;
 };
 
 /* ---------- Page ---------- */
@@ -178,7 +180,7 @@ export function LabelsPage() {
   const [templateName, setTemplateName] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [printMode, setPrintMode] = useState<'sheet' | 'roll'>('sheet');
-  const [printRotate, setPrintRotate] = useState(false);
+  const [printRotation, setPrintRotation] = useState<0 | 90 | 270>(0);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
@@ -292,7 +294,7 @@ export function LabelsPage() {
   /* ---------- Templates ---------- */
 
   const currentConfig = (): TemplateConfig => ({
-    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotate,
+    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotation,
   });
 
   const applyTemplate = (id: string) => {
@@ -311,7 +313,11 @@ export function LabelsPage() {
     setStyles(c.styles ?? {});
     setGroups(c.groups ?? []);
     if (c.printMode === 'sheet' || c.printMode === 'roll') setPrintMode(c.printMode);
-    if (typeof c.printRotate === 'boolean') setPrintRotate(c.printRotate);
+    if (c.printRotation === 0 || c.printRotation === 90 || c.printRotation === 270) {
+      setPrintRotation(c.printRotation);
+    } else if (typeof c.printRotate === 'boolean') {
+      setPrintRotation(c.printRotate ? 90 : 0);
+    }
     setTemplateName(t.name);
   };
 
@@ -365,13 +371,13 @@ export function LabelsPage() {
       api.patch(`/api/v1/assets/${r.asset.id}`, { labelImage: r.dataUrl }).then(() => {})));
     toast.success(`Labels saved to ${rendered.length} asset(s)`);
 
-    // Portrait-feed roll media: rotate the artwork 90° and swap page dims so
-    // the label matches how the printer actually feeds it.
-    const rotate = printMode === 'roll' && printRotate;
+    // Portrait-feed roll media: rotate the artwork a quarter turn and swap
+    // page dims so the label matches how the printer actually feeds it.
+    const rotate = printMode === 'roll' && printRotation !== 0;
     const pageW = rotate ? heightMm : widthMm;
     const pageH = rotate ? widthMm : heightMm;
     const printUrls = rotate
-      ? await Promise.all(rendered.map(r => rotateDataUrl90(r.dataUrl)))
+      ? await Promise.all(rendered.map(r => rotateDataUrl(r.dataUrl, printRotation as 90 | 270)))
       : rendered.map(r => r.dataUrl);
 
     const win = window.open('', '_blank');
@@ -434,16 +440,16 @@ export function LabelsPage() {
               <option value="roll">Roll (thermal printer)</option>
             </select>
             {printMode === 'roll' && (
-              <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer"
-                title="Rotate the artwork 90° for printers that feed the label portrait">
-                <input
-                  type="checkbox"
-                  checked={printRotate}
-                  onChange={e => setPrintRotate(e.target.checked)}
-                  className="accent-v-violet"
-                />
-                Rotate 90°
-              </label>
+              <select
+                value={printRotation}
+                onChange={e => setPrintRotation(Number(e.target.value) as 0 | 90 | 270)}
+                title="Rotate the artwork for printers that feed the label portrait — pick whichever direction prints upright"
+                className="text-xs rounded-lg border border-gray-200 px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+              >
+                <option value={0}>No rotation</option>
+                <option value={90}>Rotate 90° ↻</option>
+                <option value={270}>Rotate 90° ↺</option>
+              </select>
             )}
             <Button size="sm" variant="secondary" onClick={handlePrint}>
               <Printer size={14} className="mr-1" /> Print
