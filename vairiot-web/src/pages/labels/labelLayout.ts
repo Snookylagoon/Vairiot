@@ -366,12 +366,22 @@ export async function rotateDataUrl(dataUrl: string, degrees: 90 | 180 | 270): P
   return canvas.toDataURL('image/png');
 }
 
+export type RenderOptions = {
+  /** Pixels per CSS px. 3 (≈288 dpi) suits screen/asset storage; use 6+ for
+   *  print output so thermal heads don't magnify the raster grid. */
+  scale?: number;
+  /** Hard-threshold the finished label to pure 1-bit black/white. Kills the
+   *  antialiasing greys that thermal printers dither into fuzzy edges. */
+  threshold?: boolean;
+};
+
 export async function renderLabelToDataUrl(
   input: LabelLayoutInput,
   barcodeDataUrl: string,
   logoDataUrl: string | null,
+  options: RenderOptions = {},
 ): Promise<string> {
-  const scale = 3;
+  const scale = options.scale ?? 3;
   const w = Math.round(input.widthPx * scale);
   const h = Math.round(input.heightPx * scale);
   const canvas = document.createElement('canvas');
@@ -387,7 +397,10 @@ export async function renderLabelToDataUrl(
 
   for (const el of elements) {
     if (el.kind === 'barcode') {
+      // Nearest-neighbour keeps barcode module edges razor sharp when upscaling.
+      ctx.imageSmoothingEnabled = false;
       ctx.drawImage(barcodeImg, el.x * scale, el.y * scale, el.w * scale, el.h * scale);
+      ctx.imageSmoothingEnabled = true;
     } else if (el.kind === 'logo') {
       if (logoImg) ctx.drawImage(logoImg, el.x * scale, el.y * scale, el.w * scale, el.h * scale);
     } else if (el.kind === 'text' && el.text) {
@@ -398,6 +411,17 @@ export async function renderLabelToDataUrl(
       ctx.textBaseline = 'alphabetic';
       ctx.fillText(el.text, el.x * scale, el.y * scale + fs, w - el.x * scale);
     }
+  }
+
+  if (options.threshold) {
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      const v = lum < 180 ? 0 : 255;
+      d[i] = v; d[i + 1] = v; d[i + 2] = v; d[i + 3] = 255;
+    }
+    ctx.putImageData(imageData, 0, 0);
   }
 
   return canvas.toDataURL('image/png');

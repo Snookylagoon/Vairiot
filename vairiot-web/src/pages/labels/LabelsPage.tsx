@@ -156,6 +156,7 @@ type TemplateConfig = {
   printMode: 'sheet' | 'roll';
   printRotation: 0 | 90 | 180 | 270;
   monochrome: boolean;
+  leaderLabel: boolean;
   /** Legacy field from before rotation had a direction (true ≙ 90). */
   printRotate?: boolean;
 };
@@ -183,6 +184,7 @@ export function LabelsPage() {
   const [printMode, setPrintMode] = useState<'sheet' | 'roll'>('sheet');
   const [printRotation, setPrintRotation] = useState<0 | 90 | 180 | 270>(0);
   const [monochrome, setMonochrome] = useState(false);
+  const [leaderLabel, setLeaderLabel] = useState(false);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
@@ -313,7 +315,7 @@ export function LabelsPage() {
   /* ---------- Templates ---------- */
 
   const currentConfig = (): TemplateConfig => ({
-    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotation, monochrome,
+    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotation, monochrome, leaderLabel,
   });
 
   const applyTemplate = (id: string) => {
@@ -338,6 +340,7 @@ export function LabelsPage() {
       setPrintRotation(c.printRotate ? 90 : 0);
     }
     setMonochrome(c.monochrome === true);
+    setLeaderLabel(c.leaderLabel === true);
     setTemplateName(t.name);
   };
 
@@ -372,18 +375,19 @@ export function LabelsPage() {
 
   /* ---------- Print / save ---------- */
 
-  // Render every selected label to a high-res PNG at the exact label size.
-  const renderSelectedLabels = useCallback(async () => {
+  // Render every selected label to a PNG at the exact label size.
+  const renderSelectedLabels = useCallback(async (options?: { scale?: number; threshold?: boolean }) => {
     const rendered: { asset: Asset; dataUrl: string }[] = [];
     for (const a of selectedAssets) {
       const url = barcodeUrls[`${a.id}::${barcodeType}`];
       if (!url) continue;
-      rendered.push({ asset: a, dataUrl: await renderLabelToDataUrl(layoutInputFor(a), url, logoDataUrl) });
+      rendered.push({ asset: a, dataUrl: await renderLabelToDataUrl(layoutInputFor(a), url, logoDataUrl, options) });
     }
     return rendered;
   }, [selectedAssets, barcodeUrls, barcodeType, layoutInputFor, logoDataUrl]);
 
   const handlePrint = async () => {
+    // Standard-resolution copies stored on the assets.
     const rendered = await renderSelectedLabels();
     if (rendered.length === 0) return;
 
@@ -391,15 +395,22 @@ export function LabelsPage() {
       api.patch(`/api/v1/assets/${r.asset.id}`, { labelImage: r.dataUrl }).then(() => {})));
     toast.success(`Labels saved to ${rendered.length} asset(s)`);
 
+    // Print copies: higher resolution so the thermal head doesn't magnify the
+    // raster grid, and (in B&W mode) hard 1-bit thresholding for crisp text.
+    const printRendered = await renderSelectedLabels({ scale: 6, threshold: monochrome });
+
     // Roll media whose orientation doesn't match the page: rotate the artwork,
     // and for quarter turns swap the page dims to match the feed.
     const rotate = printMode === 'roll' && printRotation !== 0;
     const quarterTurn = rotate && printRotation !== 180;
     const pageW = quarterTurn ? heightMm : widthMm;
     const pageH = quarterTurn ? widthMm : heightMm;
-    const printUrls = rotate
-      ? await Promise.all(rendered.map(r => rotateDataUrl(r.dataUrl, printRotation as 90 | 180 | 270)))
-      : rendered.map(r => r.dataUrl);
+    const printUrls: (string | null)[] = rotate
+      ? await Promise.all(printRendered.map(r => rotateDataUrl(r.dataUrl, printRotation as 90 | 180 | 270)))
+      : printRendered.map(r => r.dataUrl);
+    // Optional blank leader page: the printer spends its first-feed
+    // registration drift on an empty label instead of a real one.
+    if (printMode === 'roll' && leaderLabel) printUrls.unshift(null);
 
     const win = window.open('', '_blank');
     if (!win) return;
@@ -407,7 +418,7 @@ export function LabelsPage() {
     // Print the rendered PNGs at their exact physical size so labels land on
     // the media, not between labels.
     const imgs = printUrls
-      .map(u => `<div class="label"><img src="${u}" alt=""></div>`)
+      .map(u => u ? `<div class="label"><img src="${u}" alt=""></div>` : '<div class="label"></div>')
       .join('');
 
     const style = printMode === 'roll'
@@ -715,6 +726,18 @@ export function LabelsPage() {
                 <option value={180}>Rotate 180°</option>
                 <option value={270}>Rotate 90° ↺</option>
               </select>
+            )}
+            {printMode === 'roll' && (
+              <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer"
+                title="Prepends an empty label so the printer's first-feed registration drift lands on a blank, not a real label">
+                <input
+                  type="checkbox"
+                  checked={leaderLabel}
+                  onChange={e => setLeaderLabel(e.target.checked)}
+                  className="accent-v-violet"
+                />
+                Blank first label
+              </label>
             )}
             <Button size="sm" variant="secondary" onClick={handlePrint} disabled={selected.size === 0}>
               <Printer size={14} className="mr-1" /> Print
