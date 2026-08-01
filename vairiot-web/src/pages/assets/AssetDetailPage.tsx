@@ -157,7 +157,6 @@ export function AssetDetailPage() {
               <LinkedField label="Serial Number" value={asset.serialNumber} navigate={navigate} />
               <Field label="Model Number"   value={asset.modelNumber} />
               <Field label="Manufacturer"   value={asset.manufacturer} />
-              <LinkedField label="Barcode"  value={asset.barcode} navigate={navigate} />
               <LinkedField label="RFID Tag" value={asset.rfidTag} navigate={navigate} />
             </div>
             <AssetGs1Identity assetId={asset.id} />
