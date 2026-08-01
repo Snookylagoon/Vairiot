@@ -129,18 +129,35 @@ final class AssetRepository: ObservableObject {
             try modelContext.save()
             return .found(asset, fromCache: false)
         } catch {
-            // Fallback to cache
+            // Offline resolution mirrors the server's getAssetByTag: GS1
+            // Digital Link URIs, raw IARs and grouped HRIs resolve against
+            // the GS1 columns before the legacy tag/barcode/number match.
+            if let scan = Gs1.parseAssetScan(tag) {
+                if let giai = scan.giai, let cached = fetchFirst(#Predicate<CachedAsset> { $0.giai == giai }) {
+                    return .found(cached.toAssetResponse(), fromCache: true)
+                }
+                if let iar = scan.iar, let cached = fetchFirst(#Predicate<CachedAsset> { $0.individualAssetReference == iar }) {
+                    return .found(cached.toAssetResponse(), fromCache: true)
+                }
+            }
+            if let iar = Gs1.parseHri(tag), let cached = fetchFirst(#Predicate<CachedAsset> { $0.individualAssetReference == iar }) {
+                return .found(cached.toAssetResponse(), fromCache: true)
+            }
             let predicate = #Predicate<CachedAsset> { cached in
                 cached.barcode == tag ||
                 cached.rfidTag == tag ||
                 cached.assetNumber == tag
             }
-            let descriptor = FetchDescriptor<CachedAsset>(predicate: predicate)
-            if let cached = try? modelContext.fetch(descriptor).first {
+            if let cached = fetchFirst(predicate) {
                 return .found(cached.toAssetResponse(), fromCache: true)
             }
             return .notFound
         }
+    }
+
+    private func fetchFirst(_ predicate: Predicate<CachedAsset>) -> CachedAsset? {
+        let descriptor = FetchDescriptor<CachedAsset>(predicate: predicate)
+        return try? modelContext.fetch(descriptor).first
     }
 
     // MARK: - Private persistence helpers

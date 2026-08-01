@@ -23,6 +23,10 @@ data class Asset(
     val serialNumber: String?,
     val barcode:      String?,
     val rfidTag:      String?,
+    // GS1 identity — allocated by the server, never authored by clients
+    val individualAssetReference: String? = null,
+    val allocationAuthority:      String? = null,
+    val giai:                     String? = null,
     val category:     CategoryRef?,
     val site:         SiteRef?,
     val location:     LocationRef?,

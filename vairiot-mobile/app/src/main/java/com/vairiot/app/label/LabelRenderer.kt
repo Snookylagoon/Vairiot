@@ -10,6 +10,7 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.CompanyResponse
+import com.vairiot.app.data.api.Gs1EncodingResponse
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -43,7 +44,8 @@ data class ContentFields(
     val name: Boolean = true,
     val assetNumber: Boolean = true,
     val serialNumber: Boolean = true,
-    val barcode: Boolean = false,
+    /** GS1 identifier line (HRI); falls back to the legacy barcode value. */
+    val barcode: Boolean = true,
     val site: Boolean = true,
     val category: Boolean = false,
     val companyName: Boolean = false,
@@ -63,7 +65,14 @@ object LabelRenderer {
     private const val SCALE = 3
     private const val MM_TO_PX = 3.7795275591f
 
-    fun barcodePayload(asset: AssetResponse, type: BarcodeType): String {
+    fun barcodePayload(asset: AssetResponse, type: BarcodeType, gs1: Gs1EncodingResponse? = null): String {
+        // GS1-identified assets encode a plain GS1 Digital Link URL in 2D
+        // codes — readable by any phone camera — and a GS1-128 element string
+        // in Code 128. Mirrors the web label designer's barcodePayload().
+        if (gs1 != null) {
+            if (type.group == "2D") return gs1.digitalLink
+            if (type == BarcodeType.CODE_128) return gs1.elementString
+        }
         if (type.group == "2D") {
             return """{"id":"${asset.id}","n":"${asset.assetNumber}","name":"${asset.name}"}"""
         }
@@ -100,6 +109,7 @@ object LabelRenderer {
         labelSize: LabelSize,
         fields: ContentFields,
         company: CompanyResponse? = null,
+        gs1: Gs1EncodingResponse? = null,
     ): Bitmap {
         val widthPx = (labelSize.widthMm * MM_TO_PX).roundToInt()
         val heightPx = (labelSize.heightMm * MM_TO_PX).roundToInt()
@@ -121,7 +131,12 @@ object LabelRenderer {
         if (fields.name) lines.add(Line(asset.name, "title"))
         if (fields.assetNumber) lines.add(Line(asset.assetNumber, "number"))
         if (fields.serialNumber && !asset.serialNumber.isNullOrBlank()) lines.add(Line("SN: ${asset.serialNumber}", "muted"))
-        if (fields.barcode && !asset.barcode.isNullOrBlank()) lines.add(Line("BC: ${asset.barcode}", "muted"))
+        // GS1 identifier line — the HRI carries the tenant mark so identifiers
+        // stay distinguishable across tenants (replaces the legacy BC: line).
+        if (fields.barcode) {
+            if (gs1 != null) lines.add(Line(gs1.hri, "number"))
+            else if (!asset.barcode.isNullOrBlank()) lines.add(Line("BC: ${asset.barcode}", "muted"))
+        }
         if (fields.site && asset.site != null) lines.add(Line(asset.site.name, "muted"))
         if (fields.category && asset.category != null) lines.add(Line(asset.category.name, "muted"))
         if (fields.companyName && company != null) {
@@ -153,7 +168,7 @@ object LabelRenderer {
         val fontSize = max(3f * SCALE, min(maxFontByH, min(maxFontByW, 14f * SCALE)))
         val otherFont = max(3f * SCALE, (fontSize * 0.82f).roundToInt().toFloat())
 
-        val payload = barcodePayload(asset, barcodeType)
+        val payload = barcodePayload(asset, barcodeType, gs1)
         val barcodeBmp = try {
             generateBarcode(payload, barcodeType, bcSize)
         } catch (_: Exception) {

@@ -107,9 +107,13 @@ struct AssetDetailView: View {
             VStack(spacing: 16) {
                 headerCard(asset)
                 infoSection(asset)
+                if let gs1 = viewModel.gs1 {
+                    gs1Section(gs1)
+                }
                 if let description = asset.description, !description.isEmpty {
                     descriptionSection(description)
                 }
+                printLabelButton
                 actionButtons
             }
             .padding(16)
@@ -198,6 +202,97 @@ struct AssetDetailView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    // MARK: - GS1 Identity
+
+    /// GS1 identity block: HRI, GIAI and Digital Link, mirroring the web
+    /// asset page. Hidden for assets that predate identifier allocation.
+    private func gs1Section(_ gs1: Gs1EncodingResponse) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("GS1 Identity")
+
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    Image(systemName: "link")
+                        .font(.body)
+                        .foregroundStyle(Color.vairiotViolet)
+                        .frame(width: 24)
+                    Text("Mode")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(gs1.mode == "GS1" ? "GS1" : "Internal")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background((gs1.mode == "GS1" ? Color.successGreen : Color.vairiotViolet).opacity(0.15))
+                        .foregroundStyle(gs1.mode == "GS1" ? Color.successGreen : Color.vairiotViolet)
+                        .clipShape(Capsule())
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                Divider().padding(.leading, 44)
+                gs1Row(icon: "number", label: "Reference", value: gs1.hri)
+                if let giai = gs1.giai {
+                    Divider().padding(.leading, 44)
+                    gs1Row(icon: "building.columns", label: "GIAI", value: giai)
+                }
+                Divider().padding(.leading, 44)
+                gs1Row(icon: "globe", label: "Digital Link", value: gs1.digitalLink)
+            }
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private func gs1Row(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundStyle(Color.vairiotViolet)
+                .frame(width: 24)
+
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Text(value)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = value
+            } label: {
+                Label("Copy \(label)", systemImage: "doc.on.doc")
+            }
+        }
+    }
+
+    // MARK: - Print Label
+
+    private var printLabelButton: some View {
+        Button {
+            showLabel = true
+        } label: {
+            HStack {
+                Image(systemName: "printer.fill")
+                Text("Print Label")
+            }
+            .font(.headline)
+            .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(.vairiotViolet)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Description

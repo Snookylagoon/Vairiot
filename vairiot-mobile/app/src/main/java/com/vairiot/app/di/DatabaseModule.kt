@@ -33,11 +33,21 @@ object DatabaseModule {
         }
     }
 
+    // v6: GS1 identity columns on the asset cache so scans of GS1 labels
+    // resolve offline. Preserves the cache; a destructive fallback would
+    // force a full re-sync on first launch.
+    private val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE cached_assets ADD COLUMN individualAssetReference TEXT")
+            db.execSQL("ALTER TABLE cached_assets ADD COLUMN giai TEXT")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): VairiotDatabase =
         Room.databaseBuilder(context, VairiotDatabase::class.java, "vairiot.db")
-            .addMigrations(MIGRATION_4_5)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
             .fallbackToDestructiveMigration()
             .build()
 

@@ -7,6 +7,7 @@ import com.vairiot.app.data.api.SiteRefResponse
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.data.local.CachedAsset
 import com.vairiot.app.data.local.CachedAssetDao
+import com.vairiot.app.util.Gs1
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -75,13 +76,27 @@ class AssetRepository @Inject constructor(
             dao.upsertAll(listOf(asset.toCached()))
             TagLookup.Found(asset, fromCache = false)
         } catch (e: Exception) {
-            val cached = dao.findByTag(tag)
+            val cached = findCachedByTag(tag)
             if (cached != null) {
                 TagLookup.Found(cached.toApiResponse(), fromCache = true)
             } else {
                 TagLookup.NotFound
             }
         }
+    }
+
+    /**
+     * Offline resolution mirrors the server's getAssetByTag: GS1 Digital Link
+     * URIs, raw IARs and grouped HRIs resolve against the GS1 columns before
+     * falling back to the legacy rfidTag/barcode/assetNumber match.
+     */
+    private suspend fun findCachedByTag(tag: String): CachedAsset? {
+        Gs1.parseAssetScan(tag)?.let { scan ->
+            scan.giai?.let { dao.findByGiai(it)?.let { hit -> return hit } }
+            scan.iar?.let { dao.findByIar(it)?.let { hit -> return hit } }
+        }
+        Gs1.parseHri(tag)?.let { iar -> dao.findByIar(iar)?.let { hit -> return hit } }
+        return dao.findByTag(tag)
     }
 
     private companion object { const val PAGE_SIZE = 200 }
@@ -102,6 +117,8 @@ private fun CachedAsset.toApiResponse(): AssetResponse = AssetResponse(
     serialNumber = serialNumber,
     barcode      = barcode,
     rfidTag      = rfidTag,
+    individualAssetReference = individualAssetReference,
+    giai         = giai,
     category     = categoryName?.let { CategoryRefResponse(id = "", name = it) },
     site         = siteName?.let { SiteRefResponse(id = "", name = it) },
     location     = locationName?.let { LocationRefResponse(id = "", name = it) },
@@ -117,6 +134,8 @@ private fun AssetResponse.toCached(): CachedAsset = CachedAsset(
     serialNumber = serialNumber,
     barcode      = barcode,
     rfidTag      = rfidTag,
+    individualAssetReference = individualAssetReference,
+    giai         = giai,
     categoryName = category?.name,
     siteName     = site?.name,
     locationName = location?.name,

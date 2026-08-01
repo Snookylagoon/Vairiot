@@ -59,6 +59,16 @@ interface VairiotApiService {
     @GET("api/v1/assets/tag/{tag}")
     suspend fun getAssetByTag(@Path("tag") tag: String): AssetResponse
 
+    // ─── GS1 identification ────────────────────────────────────────────────
+    @GET("api/v1/identification")
+    suspend fun getIdentification(): IdentificationResponse
+
+    @GET("api/v1/assets/{id}/gs1")
+    suspend fun getAssetGs1(@Path("id") id: String): AssetGs1Response
+
+    @POST("api/v1/labels/print")
+    suspend fun recordLabelPrint(@Body request: LabelPrintRequest): ResponseBody
+
     // ─── Company ───────────────────────────────────────────────────────────
     @GET("api/v1/onboarding/company")
     suspend fun getCompany(): CompanyResponse?

@@ -17,6 +17,8 @@ final class CachedAsset {
     var serialNumber: String?
     var barcode: String?
     var rfidTag: String?
+    var individualAssetReference: String?
+    var giai: String?
     var categoryName: String?
     var siteName: String?
     var locationName: String?
@@ -32,6 +34,8 @@ final class CachedAsset {
         serialNumber: String? = nil,
         barcode: String? = nil,
         rfidTag: String? = nil,
+        individualAssetReference: String? = nil,
+        giai: String? = nil,
         categoryName: String? = nil,
         siteName: String? = nil,
         locationName: String? = nil,
@@ -46,6 +50,8 @@ final class CachedAsset {
         self.serialNumber = serialNumber
         self.barcode = barcode
         self.rfidTag = rfidTag
+        self.individualAssetReference = individualAssetReference
+        self.giai = giai
         self.categoryName = categoryName
         self.siteName = siteName
         self.locationName = locationName
@@ -69,6 +75,8 @@ extension CachedAsset {
             serialNumber: response.serialNumber,
             barcode: response.barcode,
             rfidTag: response.rfidTag,
+            individualAssetReference: response.individualAssetReference,
+            giai: response.giai,
             categoryName: response.category?.name,
             siteName: response.site?.name,
             locationName: response.location?.name,
@@ -88,6 +96,8 @@ extension CachedAsset {
             serialNumber: serialNumber,
             barcode: barcode,
             rfidTag: rfidTag,
+            individualAssetReference: individualAssetReference,
+            giai: giai,
             category: categoryName.map { CategoryRefResponse(id: "", name: $0) },
             site: siteName.map { SiteRefResponse(id: "", name: $0) },
             location: locationName.map { LocationRefResponse(id: "", name: $0) }
@@ -104,6 +114,8 @@ extension CachedAsset {
         serialNumber = response.serialNumber
         barcode = response.barcode
         rfidTag = response.rfidTag
+        individualAssetReference = response.individualAssetReference
+        giai = response.giai
         categoryName = response.category?.name
         siteName = response.site?.name
         locationName = response.location?.name

@@ -8,6 +8,7 @@ final class AssetDetailViewModel {
     // MARK: - Properties
 
     var asset: AssetResponse?
+    var gs1: Gs1EncodingResponse?
     var isLoading: Bool = false
     var isFromCache: Bool = false
     var errorMessage: String?
@@ -45,6 +46,15 @@ final class AssetDetailViewModel {
         }
 
         isLoading = false
+        await loadGs1()
+    }
+
+    /// GS1 identity is derived, never blocking: assets that predate
+    /// identifier allocation simply have no GS1 section.
+    private func loadGs1() async {
+        guard let iar = asset?.individualAssetReference else { gs1 = nil; return }
+        guard let ident = await Gs1IdentificationStore.fetch(apiClient: apiClient) else { gs1 = nil; return }
+        gs1 = Gs1IdentificationStore.encodeLocally(iar: iar, assetGiai: asset?.giai, ident: ident)
     }
 
     func refresh() async {
@@ -61,6 +71,7 @@ final class AssetDetailViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+        await loadGs1()
     }
 
     /// Offline fallback: serve the cached copy of this asset if we have one.

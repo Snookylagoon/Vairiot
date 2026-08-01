@@ -8,7 +8,8 @@ struct ContentFields {
     var name = true
     var assetNumber = true
     var serialNumber = true
-    var barcode = false
+    /// GS1 identifier line (HRI); falls back to the legacy barcode value.
+    var barcode = true
     var site = true
     var category = false
     var companyName = false
@@ -78,6 +79,7 @@ struct LabelDesignView: View {
 
     @State private var company: CompanyResponse?
     @State private var isLoadingCompany = true
+    @State private var gs1: Gs1EncodingResponse?
 
     @State private var showPrinterSetup = false
     @State private var isPrinting = false
@@ -114,6 +116,7 @@ struct LabelDesignView: View {
         }
         .task {
             await loadCompany()
+            await loadGs1()
             bluetoothPrinter = BluetoothPrinterManager()
             savedPrinterName = UserDefaults.standard.string(forKey: "savedPrinterName")
         }
@@ -224,10 +227,18 @@ struct LabelDesignView: View {
                     .font(.system(size: fontSize * 0.82))
                     .foregroundStyle(.gray)
             }
-            if fields.barcode, let bc = asset.barcode, !bc.isEmpty {
-                Text("BC: \(bc)")
-                    .font(.system(size: fontSize * 0.82))
-                    .foregroundStyle(.gray)
+            if fields.barcode {
+                // GS1 identifier line — the HRI carries the tenant mark so
+                // identifiers stay distinguishable across tenants.
+                if let gs1 {
+                    Text(gs1.hri)
+                        .font(.system(size: fontSize * 0.82, design: .monospaced))
+                        .foregroundStyle(.black)
+                } else if let bc = asset.barcode, !bc.isEmpty {
+                    Text("BC: \(bc)")
+                        .font(.system(size: fontSize * 0.82))
+                        .foregroundStyle(.gray)
+                }
             }
             if fields.site, let site = asset.site?.name {
                 Text(site)
@@ -322,7 +333,7 @@ struct LabelDesignView: View {
                 Divider().padding(.horizontal)
                 fieldToggle("Serial Number", isOn: $fields.serialNumber)
                 Divider().padding(.horizontal)
-                fieldToggle("Barcode", isOn: $fields.barcode)
+                fieldToggle("GS1 Identifier", isOn: $fields.barcode)
                 Divider().padding(.horizontal)
                 fieldToggle("Site", isOn: $fields.site)
                 Divider().padding(.horizontal)
@@ -438,6 +449,13 @@ struct LabelDesignView: View {
     // MARK: - Barcode Generation
 
     private func barcodePayload() -> String {
+        // GS1-identified assets encode a plain GS1 Digital Link URL in 2D
+        // codes — readable by any phone camera — and a GS1-128 element string
+        // in Code 128. Mirrors the web label designer's barcodePayload().
+        if let gs1 {
+            if selectedBarcode.is2D { return gs1.digitalLink }
+            if selectedBarcode == .code128 { return gs1.elementString }
+        }
         if selectedBarcode.is2D {
             let payload: [String: String] = [
                 "id": asset.id,
@@ -561,7 +579,14 @@ struct LabelDesignView: View {
         if fields.name { lines.append((asset.name, titleAttr)) }
         if fields.assetNumber { lines.append((asset.assetNumber, bodyAttr)) }
         if fields.serialNumber, let sn = asset.serialNumber, !sn.isEmpty { lines.append(("SN: \(sn)", bodyAttr)) }
-        if fields.barcode, let bc = asset.barcode, !bc.isEmpty { lines.append(("BC: \(bc)", bodyAttr)) }
+        if fields.barcode {
+            if let gs1 {
+                let hriFont = UIFont.monospacedSystemFont(ofSize: baseFontSize * 0.82, weight: .medium)
+                lines.append((gs1.hri, [.font: hriFont, .foregroundColor: UIColor.black]))
+            } else if let bc = asset.barcode, !bc.isEmpty {
+                lines.append(("BC: \(bc)", bodyAttr))
+            }
+        }
         if fields.site, let site = asset.site?.name { lines.append((site, bodyAttr)) }
         if fields.category, let cat = asset.category?.name { lines.append((cat, bodyAttr)) }
 
@@ -619,6 +644,7 @@ struct LabelDesignView: View {
                 showStatus("Print failed: \(error.localizedDescription)", isError: true)
             } else if completed {
                 showStatus("Label printed successfully", isError: false)
+                recordPrint(printerId: nil)
             }
         }
     }
@@ -641,10 +667,31 @@ struct LabelDesignView: View {
                 isPrinting = false
                 if success {
                     showStatus("Label sent to printer", isError: false)
+                    recordPrint(printerId: address)
                 } else {
                     showStatus(error ?? "Print failed", isError: true)
                 }
             }
+        }
+    }
+
+    /// Best-effort print audit trail — never blocks or fails the print itself.
+    private func recordPrint(printerId: String?) {
+        guard asset.individualAssetReference != nil else { return }
+        let symbology: String?
+        switch selectedBarcode {
+        case .qr: symbology = "QR"
+        case .code128: symbology = "GS1_128"
+        case .pdf417, .code39: symbology = nil
+        }
+        guard let symbology else { return }
+        Task {
+            try? await apiClient.requestVoid(.recordLabelPrint(LabelPrintRequest(
+                assetIds: [asset.id],
+                templateCode: "mobile-ios",
+                symbology: symbology,
+                printerId: printerId
+            )))
         }
     }
 
@@ -686,6 +733,12 @@ struct LabelDesignView: View {
             company = nil
         }
         isLoadingCompany = false
+    }
+
+    private func loadGs1() async {
+        guard let iar = asset.individualAssetReference else { gs1 = nil; return }
+        guard let ident = await Gs1IdentificationStore.fetch(apiClient: apiClient) else { gs1 = nil; return }
+        gs1 = Gs1IdentificationStore.encodeLocally(iar: iar, assetGiai: asset.giai, ident: ident)
     }
 
     private func sectionHeader(_ title: String) -> some View {

@@ -109,6 +109,10 @@ data class AssetResponse(
     val serialNumber: String?,
     val barcode:      String?,
     val rfidTag:      String?,
+    // GS1 identity — allocated by the server, never authored by the app
+    val individualAssetReference: String? = null,
+    val allocationAuthority:      String? = null,
+    val giai:                     String? = null,
     val category:     CategoryRefResponse?,
     val site:         SiteRefResponse?,
     val location:     LocationRefResponse?,
@@ -313,6 +317,43 @@ data class AssetCreateRequest(
     val locationId:   String?  = null,
     /** Idempotency key so offline replays can't create duplicate assets. */
     val clientRequestId: String? = null,
+)
+
+// ─── GS1 identification ────────────────────────────────────────────────────
+data class Gs1PrefixResponse(
+    val id:     String,
+    val prefix: String,
+    val status: String,
+)
+
+data class IdentificationResponse(
+    val slug:            String,
+    val mode:            String? = null,          // "INTERNAL" | "GS1"
+    val tenantMark:      String? = null,
+    val digitalLinkHost: String? = null,
+    val activePrefix:    Gs1PrefixResponse? = null,
+)
+
+data class Gs1EncodingResponse(
+    val mode:          String,
+    val scheme:        String? = null,
+    val epcHex:        String? = null,
+    val giai:          String? = null,
+    val hri:           String,
+    val elementString: String,
+    val digitalLink:   String,
+)
+
+data class AssetGs1Response(
+    val encoding: Gs1EncodingResponse? = null,
+)
+
+data class LabelPrintRequest(
+    val assetIds:     List<String>,
+    val templateCode: String,
+    val symbology:    String? = null,   // QR | GS1_128 | DATAMATRIX
+    val deviceId:     String? = null,
+    val printerId:    String? = null,
 )
 
 // ─── Asset update ──────────────────────────────────────────────────────────

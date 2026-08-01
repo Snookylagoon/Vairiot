@@ -22,6 +22,12 @@ interface CachedAssetDao {
     @Query("SELECT * FROM cached_assets WHERE rfidTag = :tag OR barcode = :tag OR assetNumber = :tag LIMIT 1")
     suspend fun findByTag(tag: String): CachedAsset?
 
+    @Query("SELECT * FROM cached_assets WHERE individualAssetReference = :iar LIMIT 1")
+    suspend fun findByIar(iar: String): CachedAsset?
+
+    @Query("SELECT * FROM cached_assets WHERE giai = :giai LIMIT 1")
+    suspend fun findByGiai(giai: String): CachedAsset?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(assets: List<CachedAsset>)
 

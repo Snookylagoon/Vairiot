@@ -42,6 +42,7 @@
 		74603F02FCC9B33243FB359C /* Asset.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2ADA391E09B77430AA096DE /* Asset.swift */; };
 		8031BB94A75F4305CB844FE4 /* TwoFactorSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C189E5872F2CFFC18D42525 /* TwoFactorSetupView.swift */; };
 		820DC77024946F1FC8C7143C /* TokenManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630CD2DC8B2C44150ED2138D /* TokenManager.swift */; };
+		88EF0638E4034BC118C2BAC7 /* Gs1.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F19FCE3561E8464D92F2330 /* Gs1.swift */; };
 		89028AC8B6AC3BB0343B4BDC /* VairiotLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 271F78BD9E3311CA48292275 /* VairiotLogo.swift */; };
 		8C2E0BE9416976F554898450 /* AuditListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639103B84DDD7D84BC9FE62C /* AuditListViewModel.swift */; };
 		90D6857E622B4D7DB2E1361A /* AssetDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058B105CD7DE7499517FA026 /* AssetDetailViewModel.swift */; };
@@ -80,6 +81,7 @@
 		271F78BD9E3311CA48292275 /* VairiotLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VairiotLogo.swift; sourceTree = "<group>"; };
 		2D3EB9B3A05D0499C0C081B7 /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
 		2E75CD85D2C829C9E36B7357 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		2F19FCE3561E8464D92F2330 /* Gs1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Gs1.swift; sourceTree = "<group>"; };
 		2F4AAAD2216A74C974530A2F /* QueuedAssetCreate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueuedAssetCreate.swift; sourceTree = "<group>"; };
 		34D85CCA0E82FAD162337885 /* TwoFactorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwoFactorView.swift; sourceTree = "<group>"; };
 		406E4AB1043BB20D52F0E9CE /* VairiotApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VairiotApp.swift; sourceTree = "<group>"; };
@@ -177,6 +179,7 @@
 				A570263D6CCC762BA1288303 /* Audit.swift */,
 				083689B39CDD8F823B2A26A0 /* Auth.swift */,
 				F76FED740D4C036BCD307628 /* Company.swift */,
+				2F19FCE3561E8464D92F2330 /* Gs1.swift */,
 				E91CD092F85112B7E033DA23 /* Maintenance.swift */,
 				67969A2CEBE1181E02360E90 /* Photo.swift */,
 			);
@@ -447,6 +450,7 @@
 				31715A7DB1A818A01603CB80 /* Company.swift in Sources */,
 				6F655A4E06994638E0697D91 /* ContentView.swift in Sources */,
 				6C88B9AB2B058D408A24A815 /* Date+Formatting.swift in Sources */,
+				88EF0638E4034BC118C2BAC7 /* Gs1.swift in Sources */,
 				A844812B810A94082BFDADA6 /* LabelDesignView.swift in Sources */,
 				1B144EEA0178F36E73342149 /* LoadingButton.swift in Sources */,
 				FA6D8E21A9D632318A5DB14E /* LoadingView.swift in Sources */,
@@ -518,7 +522,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -532,7 +536,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = VairiotMobile/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.7.3;
+				MARKETING_VERSION = 1.8.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -598,7 +602,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -618,7 +622,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = VairiotMobile/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.7.3;
+				MARKETING_VERSION = 1.8.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

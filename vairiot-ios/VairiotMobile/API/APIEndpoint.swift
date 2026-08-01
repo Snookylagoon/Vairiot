@@ -109,6 +109,20 @@ extension APIEndpoint {
         APIEndpoint(method: .get, path: "api/v1/assets/tag/\(tag)")
     }
 
+    // MARK: GS1 identification
+
+    static var getIdentification: APIEndpoint {
+        APIEndpoint(method: .get, path: "api/v1/identification")
+    }
+
+    static func getAssetGs1(id: String) -> APIEndpoint {
+        APIEndpoint(method: .get, path: "api/v1/assets/\(id)/gs1")
+    }
+
+    static func recordLabelPrint(_ request: LabelPrintRequest) -> APIEndpoint {
+        APIEndpoint(method: .post, path: "api/v1/labels/print", body: request)
+    }
+
     static func createAsset(_ request: AssetCreateRequest) -> APIEndpoint {
         APIEndpoint(method: .post, path: "api/v1/assets", body: request)
     }

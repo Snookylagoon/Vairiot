@@ -14,6 +14,8 @@ data class CachedAsset(
     val serialNumber: String?,
     val barcode:      String?,
     val rfidTag:      String?,
+    val individualAssetReference: String? = null,
+    val giai:         String? = null,
     val categoryName: String?,
     val siteName:     String?,
     val locationName: String?,

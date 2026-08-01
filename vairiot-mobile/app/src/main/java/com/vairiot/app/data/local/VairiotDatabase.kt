@@ -11,7 +11,7 @@ import androidx.room.RoomDatabase
         ScanSessionEntity::class,
         SessionTagEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class VairiotDatabase : RoomDatabase() {

@@ -139,7 +139,7 @@ fun LabelDesignScreen(
                     FieldToggle("Asset name", state.fields.name) { viewModel.toggleField { f -> f.copy(name = it) } }
                     FieldToggle("Asset number", state.fields.assetNumber) { viewModel.toggleField { f -> f.copy(assetNumber = it) } }
                     FieldToggle("Serial number", state.fields.serialNumber) { viewModel.toggleField { f -> f.copy(serialNumber = it) } }
-                    FieldToggle("Barcode value", state.fields.barcode) { viewModel.toggleField { f -> f.copy(barcode = it) } }
+                    FieldToggle("GS1 identifier", state.fields.barcode) { viewModel.toggleField { f -> f.copy(barcode = it) } }
                     FieldToggle("Site", state.fields.site) { viewModel.toggleField { f -> f.copy(site = it) } }
                     FieldToggle("Category", state.fields.category) { viewModel.toggleField { f -> f.copy(category = it) } }
                     FieldToggle("Company name", state.fields.companyName) { viewModel.toggleField { f -> f.copy(companyName = it) } }

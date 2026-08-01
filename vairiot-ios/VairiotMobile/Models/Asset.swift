@@ -71,6 +71,10 @@ struct AssetResponse: Codable, Identifiable {
     let serialNumber: String?
     let barcode: String?
     let rfidTag: String?
+    // GS1 identity — allocated by the server, never authored by the app
+    var individualAssetReference: String? = nil
+    var allocationAuthority: String? = nil
+    var giai: String? = nil
     let category: CategoryRefResponse?
     let site: SiteRefResponse?
     let location: LocationRefResponse?

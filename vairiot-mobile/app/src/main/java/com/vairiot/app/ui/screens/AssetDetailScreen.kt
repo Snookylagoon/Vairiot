@@ -8,6 +8,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.vairiot.app.data.api.AssetResponse
+import com.vairiot.app.data.api.Gs1EncodingResponse
 import com.vairiot.app.ui.theme.*
 
 @Composable
@@ -70,13 +73,17 @@ fun AssetDetailScreen(
         when (val s = state) {
             is AssetDetailUiState.Loading -> LoadingCard()
             is AssetDetailUiState.Error   -> ErrorCard(s.message, onReset = onBack)
-            is AssetDetailUiState.Loaded  -> AssetBody(s.asset)
+            is AssetDetailUiState.Loaded  -> AssetBody(s.asset, s.gs1, onPrintLabel = onLabel)
         }
     }
 }
 
 @Composable
-private fun AssetBody(asset: AssetResponse) {
+private fun AssetBody(
+    asset: AssetResponse,
+    gs1: Gs1EncodingResponse? = null,
+    onPrintLabel: () -> Unit = {},
+) {
     Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
         Card(modifier = Modifier.fillMaxWidth(),
@@ -107,8 +114,72 @@ private fun AssetBody(asset: AssetResponse) {
             }
         }
 
+        gs1?.let { Gs1IdentityCard(it) }
+
+        Button(
+            onClick = onPrintLabel,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
+        ) {
+            Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Print label", fontFamily = MontserratFamily, fontWeight = FontWeight.Bold)
+        }
+
         AssetPhotosSection()
 
         MaintenanceRequestSection()
+    }
+}
+
+/**
+ * GS1 identity block: HRI, GIAI and Digital Link, mirroring the web asset
+ * page. Hidden entirely for assets that predate identifier allocation.
+ */
+@Composable
+private fun Gs1IdentityCard(gs1: Gs1EncodingResponse) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = VairiotWash)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Link, contentDescription = null,
+                    tint = VairiotViolet, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("GS1 identity", style = MaterialTheme.typography.labelMedium,
+                    color = VairiotCharcoal, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.weight(1f))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (gs1.mode == "GS1") SuccessGreen.copy(alpha = 0.15f)
+                            else VairiotViolet.copy(alpha = 0.12f),
+                ) {
+                    Text(
+                        if (gs1.mode == "GS1") "GS1" else "Internal",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (gs1.mode == "GS1") SuccessGreen else VairiotViolet,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+            Gs1Row("Reference", gs1.hri)
+            gs1.giai?.let { Gs1Row("GIAI", it) }
+            Gs1Row("Digital Link", gs1.digitalLink)
+        }
+    }
+}
+
+@Composable
+private fun Gs1Row(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+        Spacer(Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.bodySmall,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            fontWeight = FontWeight.SemiBold, maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 12.dp))
     }
 }
