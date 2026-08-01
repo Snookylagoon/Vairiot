@@ -136,6 +136,7 @@ export type LabelLayoutInput = {
   heightPx: number;
   logoAspect: number | null;  // logo naturalWidth / naturalHeight, null if none
   placeholders?: boolean;     // editor mode: show every enabled field
+  tenantMark?: string | null; // per-tenant Vairiot mark shown in the HRI line
 };
 
 /** Inner margin of the label — also the inset used by editor align actions. */
@@ -160,13 +161,16 @@ function buildLines(
   fields: ContentFields,
   company: Company | null | undefined,
   placeholders = false,
+  tenantMark: string | null = null,
 ) {
   const companyAddress = formatCompanyAddress(company);
   const val = (v: string | null | undefined, ph: string) => v || (placeholders ? ph : '');
   const lines: { key: ElementKey; text: string; kind: LineKind }[] = [];
   if (fields.name) lines.push({ key: 'name', text: asset.name, kind: 'title' });
   if (fields.assetNumber) lines.push({ key: 'assetNumber', text: asset.assetNumber, kind: 'number' });
-  if (asset.individualAssetReference) lines.push({ key: 'iar', text: formatHri(asset.individualAssetReference), kind: 'number' });
+  // HRI carries the per-tenant Vairiot mark (or eventually the GS1 prefix's
+  // tenant mark) so printed identifiers are distinguishable across tenants.
+  if (asset.individualAssetReference) lines.push({ key: 'iar', text: formatHri(asset.individualAssetReference, tenantMark ?? ''), kind: 'number' });
   const sn = val(asset.serialNumber, 'SN-000000');
   if (fields.serialNumber && sn) lines.push({ key: 'serialNumber', text: `SN: ${sn}`, kind: 'muted' });
   const bc = val(asset.barcode, '000000000');
@@ -191,7 +195,7 @@ function buildLines(
  * position for an element it overrides the automatic one (fractional coords).
  */
 export function computeLabelElements(input: LabelLayoutInput): LabelElement[] {
-  const { asset, company, design, widthPx, heightPx, logoAspect, placeholders } = input;
+  const { asset, company, design, widthPx, heightPx, logoAspect, placeholders, tenantMark } = input;
   const { barcodeType, fields, logoScale } = design;
   const wide2D = is2D(barcodeType);
 
@@ -200,7 +204,7 @@ export function computeLabelElements(input: LabelLayoutInput): LabelElement[] {
   const innerH = heightPx - padding * 2;
   const gap = Math.max(2, Math.round(innerW * 0.015));
 
-  const lines = buildLines(asset, fields, company, placeholders);
+  const lines = buildLines(asset, fields, company, placeholders, tenantMark ?? null);
 
   // Barcode geometry (same heuristics as before).
   const longestTitle = lines.filter(l => l.kind === 'title').reduce((m, l) => Math.max(m, l.text.length), 0);
@@ -236,15 +240,26 @@ export function computeLabelElements(input: LabelLayoutInput): LabelElement[] {
 
   const textAreaH = (wide2D ? innerH : innerH - bc1DH - 2) - logoH - logoGap;
 
-  // Auto-fit font so each line fits its row and the stack fits the area.
-  const maxFontByTitleW = longestTitle > 0 ? textAreaW / (longestTitle * 0.62) : 99;
-  const maxFontByOtherW = longestOther > 0 ? textAreaW / (longestOther * 0.58) : 99;
-  const maxFontByW = Math.min(maxFontByTitleW, maxFontByOtherW / 0.82);
-  const totalWeight = lines.reduce((s, l) => s + (l.kind === 'title' ? 1 : 0.82), 0);
-  const maxFontByH = totalWeight > 0 ? textAreaH / (totalWeight * 1.15) : 12;
-  const fontSize = Math.max(3, Math.min(maxFontByH, maxFontByW, 14));
-  const titleFont = fontSize;
-  const otherFont = Math.max(3, Math.round(fontSize * 0.82));
+  // Font sizing. With a custom template layout, fonts are derived from the
+  // label geometry alone so every asset's label matches the template — the
+  // per-asset auto-fit would otherwise shrink text on assets with longer or
+  // more numerous lines (override per field via styles). Automatic layout
+  // keeps the classic auto-fit behaviour.
+  let titleFont: number;
+  let otherFont: number;
+  if (design.layout) {
+    titleFont = Math.max(5, Math.min(14, Math.round(innerH * 0.13)));
+    otherFont = Math.max(4, Math.round(titleFont * 0.82));
+  } else {
+    const maxFontByTitleW = longestTitle > 0 ? textAreaW / (longestTitle * 0.62) : 99;
+    const maxFontByOtherW = longestOther > 0 ? textAreaW / (longestOther * 0.58) : 99;
+    const maxFontByW = Math.min(maxFontByTitleW, maxFontByOtherW / 0.82);
+    const totalWeight = lines.reduce((s, l) => s + (l.kind === 'title' ? 1 : 0.82), 0);
+    const maxFontByH = totalWeight > 0 ? textAreaH / (totalWeight * 1.15) : 12;
+    const fontSize = Math.max(3, Math.min(maxFontByH, maxFontByW, 14));
+    titleFont = fontSize;
+    otherFont = Math.max(3, Math.round(fontSize * 0.82));
+  }
 
   const elements: LabelElement[] = [];
 

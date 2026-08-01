@@ -18,6 +18,7 @@ import {
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
 
+import { recordAssetEvent } from './asset-event.service';
 import { recordAuditEvent } from './audit-event.service';
 import { getIdentification } from './gs1-identification.service';
 
@@ -61,6 +62,43 @@ export async function allocateIdentifiers(
     action: 'identifier.allocated', metadata: { count, purpose },
   });
   return { allocations };
+}
+
+/**
+ * Backfill: give every asset created before GS1 identification (or imported
+ * without one) a server-allocated IAR. The assets table trigger computes the
+ * GIAI automatically when the tenant has an active prefix.
+ */
+export async function backfillMissingIars(tenantId: string, actorId: string) {
+  const assets = await prisma.asset.findMany({
+    where: { tenantId, individualAssetReference: null, deletedAt: null },
+    select: { id: true, assetNumber: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  let updated = 0;
+  for (const a of assets) {
+    const iar = await allocateIar(tenantId, actorId, 'BACKFILL');
+    await prisma.asset.update({
+      where: { id: a.id },
+      data: { individualAssetReference: iar, allocationAuthority: 'SERVER' },
+    });
+    await prisma.identifierAllocation.update({
+      where: { tenantId_individualAssetReference: { tenantId, individualAssetReference: iar } },
+      data: { consumedByAssetId: a.id },
+    }).catch(() => {});
+    await recordAssetEvent({
+      tenantId, assetId: a.id, eventType: 'IDENTIFIER_ASSIGNED', actor: actorId, source: 'API',
+      payload: { individualAssetReference: iar, assetNumber: a.assetNumber, purpose: 'BACKFILL' },
+    });
+    updated++;
+  }
+  if (updated > 0) {
+    recordAuditEvent({
+      tenantId, actor: actorId, entityType: 'identifier_allocation', entityId: tenantId,
+      action: 'identifier.backfilled', metadata: { updated },
+    });
+  }
+  return { updated };
 }
 
 /** Lease a block of pre-computed IARs to a device for offline allocation. */

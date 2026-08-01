@@ -25,6 +25,13 @@ function slugify(name: string): string {
   return s.length >= 2 ? s : `tenant-${s}`;
 }
 
+/** Per-tenant Vairiot mark: stands in where a GS1 Company Prefix would
+ *  distinguish tenants until the tenant licenses a real prefix. Derived from
+ *  the tenant id so it is stable and effectively unique across tenants. */
+function vairiotTenantMark(tenantId: string): string {
+  return `V-${tenantId.slice(-6).toUpperCase()}`;
+}
+
 /**
  * Read the tenant's identification block, provisioning the default INTERNAL
  * row on first access (INTERNAL mode is permanent and first-class).
@@ -37,7 +44,9 @@ export async function getIdentification(tenantId: string) {
     let slug = slugify(tenant.name);
     for (let attempt = 0; ; attempt++) {
       try {
-        ident = await prisma.tenantIdentification.create({ data: { tenantId, slug } });
+        ident = await prisma.tenantIdentification.create({
+          data: { tenantId, slug, tenantMark: vairiotTenantMark(tenantId) },
+        });
         break;
       } catch (e: unknown) {
         const err = e as { code?: string };
@@ -45,6 +54,13 @@ export async function getIdentification(tenantId: string) {
         slug = `${slugify(tenant.name)}-${tenantId.slice(-4)}${attempt || ''}`;
       }
     }
+  }
+  // Lazy backfill for tenants provisioned before the Vairiot mark existed.
+  if (!ident.tenantMark) {
+    ident = await prisma.tenantIdentification.update({
+      where: { tenantId },
+      data: { tenantMark: vairiotTenantMark(tenantId) },
+    });
   }
   const activePrefix = await prisma.tenantGs1Prefix.findFirst({
     where: { tenantId, status: 'ACTIVE' },

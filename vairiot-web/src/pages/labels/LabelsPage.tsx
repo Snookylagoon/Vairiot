@@ -1,3 +1,4 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import bwipjs from 'bwip-js/browser';
 import {
   QrCode, Printer, Search, Check, Settings2, LayoutTemplate,
@@ -203,6 +204,19 @@ export function LabelsPage() {
   // Sample asset the layout editor works on — click a preview label to change it.
   const sampleAsset = assets.find(a => a.id === sampleId) ?? selectedAssets[0] ?? assets[0] ?? null;
 
+  // Assets created before GS1 identification have no IAR — offer a backfill.
+  const qc = useQueryClient();
+  const missingIarCount = assets.filter(a => !a.individualAssetReference).length;
+  const backfillIars = useMutation({
+    mutationFn: () => api.post('/api/v1/identifiers/backfill').then(r => r.data),
+    onSuccess: (data: { updated: number }) => {
+      qc.invalidateQueries({ queryKey: ['assets'] });
+      setBarcodeUrls({}); // payloads changed — regenerate every barcode
+      toast.success(`Identifiers assigned to ${data.updated} asset(s)`);
+    },
+    onError: () => toast.error('Failed to assign identifiers'),
+  });
+
   const { widthPx, heightPx, widthMm, heightMm } = useMemo(() => {
     if (sizePreset === 'custom') {
       return { widthPx: customW * MM_TO_PX, heightPx: customH * MM_TO_PX, widthMm: customW, heightMm: customH };
@@ -241,7 +255,8 @@ export function LabelsPage() {
 
   const layoutInputFor = useCallback((asset: Asset): LabelLayoutInput => ({
     asset, company, design, widthPx, heightPx, logoAspect,
-  }), [company, design, widthPx, heightPx, logoAspect]);
+    tenantMark: ident?.tenantMark ?? null,
+  }), [company, design, widthPx, heightPx, logoAspect, ident?.tenantMark]);
 
   // Assets whose barcodes we need rendered (selection + editor sample).
   const assetsNeedingBarcodes = useMemo(() => {
@@ -250,8 +265,12 @@ export function LabelsPage() {
       list.push(sampleAsset);
     }
     return list;
+    // IAR is part of the key so barcodes regenerate after an identifier backfill.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAssets.map(a => a.id).join(','), showLayoutEditor, sampleAsset?.id]);
+  }, [
+    selectedAssets.map(a => `${a.id}:${a.individualAssetReference ?? ''}`).join(','),
+    showLayoutEditor, sampleAsset?.id, sampleAsset?.individualAssetReference,
+  ]);
 
   // Regenerate barcodes whenever the type or selection changes.
   useEffect(() => {
@@ -482,6 +501,18 @@ export function LabelsPage() {
           </button>
         </CardHeader>
         <CardBody className="space-y-3">
+          {missingIarCount > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <p className="text-xs text-amber-800">
+                {missingIarCount} asset{missingIarCount === 1 ? ' has' : 's have'} no Vairiot/GS1
+                identifier yet — their labels fall back to the legacy barcode payload.
+              </p>
+              <Button size="sm" variant="secondary"
+                onClick={() => backfillIars.mutate()} disabled={backfillIars.isPending}>
+                {backfillIars.isPending ? 'Assigning…' : 'Assign identifiers'}
+              </Button>
+            </div>
+          )}
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={search} onChange={e => setSearch(e.target.value)}

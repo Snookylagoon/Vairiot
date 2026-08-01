@@ -5,6 +5,7 @@ import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import {
   allocateIdentifiers,
+  backfillMissingIars,
   encodeIdentifier,
   leaseBlock,
   listBlocks,
@@ -13,6 +14,13 @@ import {
 } from '../../services/gs1-identifier.service';
 
 export const identifiersRouter = Router();
+
+// Assign IARs to every asset that predates GS1 identification.
+identifiersRouter.post('/backfill', requireAnyPermission('asset:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await backfillMissingIars(req.user!.tenantId, req.user!.sub));
+  }),
+);
 
 identifiersRouter.post('/allocate', requireAnyPermission('asset:write'),
   [
