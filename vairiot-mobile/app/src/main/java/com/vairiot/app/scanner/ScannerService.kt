@@ -30,6 +30,22 @@ interface ScannerService {
     suspend fun getPowerDbm(): Int? = null
     suspend fun setPowerDbm(dbm: Int) {}
 
+    // Whether this reader can write/lock UHF tag EPC memory (tag commissioning).
+    val supportsTagWrite: Boolean
+        get() = false
+
+    /** Read the first 96 bits (24 hex chars) of the TID bank of the tag matching [epcHex]. */
+    suspend fun readTagTid(epcHex: String): Result<String> =
+        Result.failure(UnsupportedOperationException("Tag write not supported on this device"))
+
+    /** Rewrite EPC memory of the tag currently answering to [currentEpcHex]. */
+    suspend fun writeTagEpc(currentEpcHex: String, newEpcHex: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException("Tag write not supported on this device"))
+
+    /** Permanently lock EPC memory of the tag matching [epcHex]. Irreversible. */
+    suspend fun permalockTagEpc(epcHex: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException("Tag write not supported on this device"))
+
     // Inject a result from an external source (e.g. camera fallback scanner)
     fun injectResult(result: ScanResult) {}
 }

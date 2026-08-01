@@ -232,6 +232,61 @@ class NordicIdScannerService @Inject constructor(
             .onFailure { Log.w(TAG, "setSetupTxLevel failed: ${it.message}") }
     }
 
+    /* ── Tag commissioning (EPC write / TID read / permalock) ─────────────── */
+
+    override val supportsTagWrite: Boolean = true
+
+    override suspend fun readTagTid(epcHex: String): Result<String> = singulatedOp("readTagTid") {
+        val epc = hexToBytes(epcHex)
+        // TID bank, word address 0, 12 bytes = the 96-bit serialised TID.
+        val tid = nurApi.readTagByEpc(epc, epc.size, NurApi.BANK_TID, 0, 12)
+        bytesToHex(tid)
+    }
+
+    override suspend fun writeTagEpc(currentEpcHex: String, newEpcHex: String): Result<Unit> =
+        singulatedOp("writeTagEpc") {
+            val current = hexToBytes(currentEpcHex)
+            val next = hexToBytes(newEpcHex)
+            // Rewrites EPC memory and fixes up the PC word length bits.
+            nurApi.writeEpcByEpc(current, current.size, next.size, next)
+        }
+
+    override suspend fun permalockTagEpc(epcHex: String): Result<Unit> =
+        singulatedOp("permalockTagEpc") {
+            val epc = hexToBytes(epcHex)
+            nurApi.setLockByEpc(0, epc, epc.size, NurApi.LOCK_MEMORY_EPCMEM, NurApi.LOCK_ACTION_PERMALOCK)
+        }
+
+    /** Run a singulated tag operation with the inventory stream paused. */
+    private suspend fun <T> singulatedOp(name: String, block: () -> T): Result<T> =
+        withContext(Dispatchers.IO) {
+            if (!nurApi.isConnected) {
+                return@withContext Result.failure(Exception("RFID reader not connected"))
+            }
+            val wasStreaming = streaming
+            if (wasStreaming) {
+                runCatching { nurApi.stopInventoryStream() }
+                streaming = false
+            }
+            try {
+                Result.success(block())
+            } catch (e: Exception) {
+                Log.w(TAG, "$name failed: ${e.message}")
+                Result.failure(e)
+            }
+        }
+
+    private fun hexToBytes(hex: String): ByteArray {
+        val clean = hex.trim()
+        require(clean.length % 2 == 0 && clean.matches(Regex("^[0-9A-Fa-f]+$"))) { "Bad hex: $hex" }
+        return ByteArray(clean.length / 2) { i ->
+            clean.substring(i * 2, i * 2 + 2).toInt(16).toByte()
+        }
+    }
+
+    private fun bytesToHex(bytes: ByteArray): String =
+        bytes.joinToString("") { "%02X".format(it) }
+
     private fun drainTags() {
         try {
             val storage = nurApi.storage ?: return

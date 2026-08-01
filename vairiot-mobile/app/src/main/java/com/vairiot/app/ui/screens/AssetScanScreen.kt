@@ -347,8 +347,8 @@ fun NotFoundCard(
     var assetName by remember { mutableStateOf("") }
     var manualSecondary by remember { mutableStateOf("") }
 
-    val primaryLabel   = if (isRfid) "RFID Tag" else "Barcode"
-    val secondaryLabel = if (isRfid) "Barcode" else "RFID Tag"
+    val primaryLabel   = if (isRfid) "RFID Tag" else "Manufacturer EAN"
+    val secondaryLabel = if (isRfid) "Manufacturer EAN" else "RFID Tag"
     val secondaryFinal = secondaryValue ?: manualSecondary.ifBlank { null }
 
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {

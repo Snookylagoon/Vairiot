@@ -360,6 +360,33 @@ data class AssetByEpcResponse(
     val companyPrefix: String? = null,
 )
 
+// ─── GS1 tag commissioning ─────────────────────────────────────────────────
+data class CommissionTagRequest(
+    val assetId:  String,
+    val tidHex:   String,
+    val deviceId: String? = null,
+)
+
+data class TagWritePlanResponse(
+    val permalockAllowed:       Boolean = false,
+    val permalockBlockedReason: String? = null,
+)
+
+data class CommissionTagResponse(
+    val tagId:     String,
+    val epcHex:    String,
+    val epcScheme: String,
+    val writePlan: TagWritePlanResponse? = null,
+)
+
+data class VerifyTagRequest(
+    val assetId:       String,
+    val readEpcHex:    String,
+    val readTidHex:    String,
+    val writeAttempts: Int?    = null,
+    val deviceId:      String? = null,
+)
+
 data class LabelPrintRequest(
     val assetIds:     List<String>,
     val templateCode: String,

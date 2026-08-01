@@ -100,15 +100,15 @@ fun AssetEditScreen(
                 onValueChange = { viewModel.update("serialNumber", it) },
                 label = { Text("Serial number") })
 
-            Text("Barcode", style = MaterialTheme.typography.labelMedium,
+            Text("Manufacturer EAN", style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
             Row(modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ClearableTextField(value = state.barcode,
                     onValueChange = { viewModel.update("barcode", it) },
-                    label = { Text("Barcode") },
-                    placeholder = { Text("Scan or type barcode") },
+                    label = { Text("Manufacturer EAN") },
+                    placeholder = { Text("Scan or type the manufacturer's barcode") },
                     modifier = Modifier.weight(1f))
                 if (state.scanningBarcode) {
                     OutlinedButton(onClick = { viewModel.cancelBarcodeScan() }) {

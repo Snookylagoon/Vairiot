@@ -72,6 +72,16 @@ interface VairiotApiService {
     @POST("api/v1/labels/print")
     suspend fun recordLabelPrint(@Body request: LabelPrintRequest): ResponseBody
 
+    // ─── GS1 tag commissioning ─────────────────────────────────────────────
+    @POST("api/v1/tags/commission")
+    suspend fun commissionTag(@Body request: CommissionTagRequest): CommissionTagResponse
+
+    @POST("api/v1/tags/{id}/verify")
+    suspend fun verifyTag(@Path("id") id: String, @Body request: VerifyTagRequest): ResponseBody
+
+    @POST("api/v1/tags/{id}/permalock")
+    suspend fun permalockTag(@Path("id") id: String): ResponseBody
+
     // ─── Company ───────────────────────────────────────────────────────────
     @GET("api/v1/onboarding/company")
     suspend fun getCompany(): CompanyResponse?

@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +35,7 @@ fun AssetDetailScreen(
     viewModel: AssetDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val writeState by viewModel.writeState.collectAsState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -73,8 +75,87 @@ fun AssetDetailScreen(
         when (val s = state) {
             is AssetDetailUiState.Loading -> LoadingCard()
             is AssetDetailUiState.Error   -> ErrorCard(s.message, onReset = onBack)
-            is AssetDetailUiState.Loaded  -> AssetBody(s.asset, s.gs1, onPrintLabel = onLabel)
+            is AssetDetailUiState.Loaded  -> AssetBody(
+                asset = s.asset,
+                gs1 = s.gs1,
+                onPrintLabel = onLabel,
+                supportsTagWrite = viewModel.supportsTagWrite,
+                onWriteTag = { viewModel.startRfidWrite() },
+            )
         }
+    }
+
+    RfidWriteDialogs(
+        writeState = writeState,
+        onConfirmInternal = { viewModel.confirmInternalBind(it) },
+        onDismiss = { viewModel.dismissWrite() },
+    )
+}
+
+/** Dialogs for the Write RFID tag flow, driven by [RfidWriteState]. */
+@Composable
+private fun RfidWriteDialogs(
+    writeState: RfidWriteState,
+    onConfirmInternal: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    when (val w = writeState) {
+        is RfidWriteState.Idle -> {}
+        is RfidWriteState.Scanning -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Write RFID tag") },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(color = VairiotViolet,
+                        modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Text("Hold the tag against the reader…")
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        )
+        is RfidWriteState.ConfirmInternal -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Link manufacturer EPC") },
+            text = {
+                Text(
+                    "GS1 is not activated for this workspace yet, so nothing will be " +
+                        "written to the tag. The tag's factory-programmed EPC\n\n${w.epcHex}\n\n" +
+                        "will be linked to this asset. When GS1 is activated, run " +
+                        "Write RFID tag again to encode and lock the GS1 EPC."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onConfirmInternal(w.epcHex) }) { Text("Link tag") }
+            },
+            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        )
+        is RfidWriteState.Working -> AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Write RFID tag") },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(color = VairiotViolet,
+                        modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Text(w.message)
+                }
+            },
+            confirmButton = {},
+        )
+        is RfidWriteState.Done -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Tag ready") },
+            text = { Text(w.message) },
+            confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+        )
+        is RfidWriteState.Failed -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Tag write failed") },
+            text = { Text(w.message) },
+            confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+        )
     }
 }
 
@@ -83,6 +164,8 @@ private fun AssetBody(
     asset: AssetResponse,
     gs1: Gs1EncodingResponse? = null,
     onPrintLabel: () -> Unit = {},
+    supportsTagWrite: Boolean = false,
+    onWriteTag: () -> Unit = {},
 ) {
     Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
@@ -109,7 +192,7 @@ private fun AssetBody(
                 asset.site?.let      { DetailRow("Site",     it.name) }
                 asset.location?.let  { DetailRow("Location", it.name) }
                 asset.serialNumber?.let { DetailRow("Serial number", it) }
-                asset.barcode?.let      { DetailRow("Barcode", it) }
+                asset.barcode?.let      { DetailRow("Manufacturer EAN", it) }
                 asset.rfidTag?.let      { DetailRow("RFID tag", it) }
             }
         }
@@ -125,6 +208,20 @@ private fun AssetBody(
             Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text("Print label", fontFamily = MontserratFamily, fontWeight = FontWeight.Bold)
+        }
+
+        if (supportsTagWrite) {
+            OutlinedButton(
+                onClick = onWriteTag,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Icon(Icons.Default.Wifi, contentDescription = null,
+                    modifier = Modifier.size(18.dp), tint = VairiotViolet)
+                Spacer(Modifier.width(8.dp))
+                Text("Write RFID tag", fontFamily = MontserratFamily,
+                    fontWeight = FontWeight.Bold, color = VairiotViolet)
+            }
         }
 
         AssetPhotosSection()
