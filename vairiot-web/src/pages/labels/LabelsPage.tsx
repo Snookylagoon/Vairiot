@@ -10,7 +10,7 @@ import { assetDigitalLink, gs1128ElementString } from 'vairiot-shared';
 import { TemplateLayoutEditor } from './TemplateLayoutEditor';
 import {
   BARCODE_TYPES, is2D, DEFAULT_FIELDS, FIELD_LABELS, MM_TO_PX, MIN_BARCODE_MM,
-  computeLabelElements, renderLabelToDataUrl,
+  computeLabelElements, renderLabelToDataUrl, rotateDataUrl90,
   type BarcodeType, type ContentFields, type LayoutMap, type StyleMap,
   type ElementKey, type LabelDesign, type LabelLayoutInput,
 } from './labelLayout';
@@ -154,6 +154,7 @@ type TemplateConfig = {
   styles: StyleMap;
   groups: ElementKey[][];
   printMode: 'sheet' | 'roll';
+  printRotate: boolean;
 };
 
 /* ---------- Page ---------- */
@@ -177,6 +178,7 @@ export function LabelsPage() {
   const [templateName, setTemplateName] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [printMode, setPrintMode] = useState<'sheet' | 'roll'>('sheet');
+  const [printRotate, setPrintRotate] = useState(false);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
@@ -290,7 +292,7 @@ export function LabelsPage() {
   /* ---------- Templates ---------- */
 
   const currentConfig = (): TemplateConfig => ({
-    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode,
+    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotate,
   });
 
   const applyTemplate = (id: string) => {
@@ -309,6 +311,7 @@ export function LabelsPage() {
     setStyles(c.styles ?? {});
     setGroups(c.groups ?? []);
     if (c.printMode === 'sheet' || c.printMode === 'roll') setPrintMode(c.printMode);
+    if (typeof c.printRotate === 'boolean') setPrintRotate(c.printRotate);
     setTemplateName(t.name);
   };
 
@@ -362,22 +365,31 @@ export function LabelsPage() {
       api.patch(`/api/v1/assets/${r.asset.id}`, { labelImage: r.dataUrl }).then(() => {})));
     toast.success(`Labels saved to ${rendered.length} asset(s)`);
 
+    // Portrait-feed roll media: rotate the artwork 90° and swap page dims so
+    // the label matches how the printer actually feeds it.
+    const rotate = printMode === 'roll' && printRotate;
+    const pageW = rotate ? heightMm : widthMm;
+    const pageH = rotate ? widthMm : heightMm;
+    const printUrls = rotate
+      ? await Promise.all(rendered.map(r => rotateDataUrl90(r.dataUrl)))
+      : rendered.map(r => r.dataUrl);
+
     const win = window.open('', '_blank');
     if (!win) return;
 
     // Print the rendered PNGs at their exact physical size so labels land on
     // the media, not between labels.
-    const imgs = rendered
-      .map(r => `<div class="label"><img src="${r.dataUrl}" alt=""></div>`)
+    const imgs = printUrls
+      .map(u => `<div class="label"><img src="${u}" alt=""></div>`)
       .join('');
 
     const style = printMode === 'roll'
       // Roll / thermal (e.g. TSC 210): page = label, zero margin, one per page.
       ? `
-        @page { size: ${widthMm}mm ${heightMm}mm; margin: 0; }
+        @page { size: ${pageW}mm ${pageH}mm; margin: 0; }
         html, body { margin: 0; padding: 0; }
-        .label { width: ${widthMm}mm; height: ${heightMm}mm; overflow: hidden; page-break-after: always; break-after: page; }
-        .label img { width: ${widthMm}mm; height: ${heightMm}mm; display: block; }`
+        .label { width: ${pageW}mm; height: ${pageH}mm; overflow: hidden; page-break-after: always; break-after: page; }
+        .label img { width: ${pageW}mm; height: ${pageH}mm; display: block; }`
       // Sheet (A4 / Avery): flow labels in a grid with small gaps.
       : `
         @page { margin: 8mm; }
@@ -421,6 +433,18 @@ export function LabelsPage() {
               <option value="sheet">Sheet (A4 / Avery)</option>
               <option value="roll">Roll (thermal printer)</option>
             </select>
+            {printMode === 'roll' && (
+              <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer"
+                title="Rotate the artwork 90° for printers that feed the label portrait">
+                <input
+                  type="checkbox"
+                  checked={printRotate}
+                  onChange={e => setPrintRotate(e.target.checked)}
+                  className="accent-v-violet"
+                />
+                Rotate 90°
+              </label>
+            )}
             <Button size="sm" variant="secondary" onClick={handlePrint}>
               <Printer size={14} className="mr-1" /> Print
             </Button>

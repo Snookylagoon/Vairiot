@@ -322,6 +322,20 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+/** Rotate a rendered label PNG 90° clockwise — for roll printers whose media
+ *  is defined portrait (e.g. 30 mm across the head × 50 mm feed). */
+export async function rotateDataUrl90(dataUrl: string): Promise<string> {
+  const img = await loadImage(dataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.height;
+  canvas.height = img.width;
+  const ctx = canvas.getContext('2d')!;
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate(Math.PI / 2);
+  ctx.drawImage(img, -img.width / 2, -img.height / 2);
+  return canvas.toDataURL('image/png');
+}
+
 export async function renderLabelToDataUrl(
   input: LabelLayoutInput,
   barcodeDataUrl: string,
