@@ -445,39 +445,6 @@ export function LabelsPage() {
             Generate QR, 2D and 1D barcode labels for your assets
           </p>
         </div>
-        {selected.size > 0 && (
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => setShowPreview(!showPreview)}>
-              <QrCode size={14} className="mr-1" />
-              {showPreview ? 'Hide' : 'Preview'} ({selected.size})
-            </Button>
-            <select
-              value={printMode}
-              onChange={e => setPrintMode(e.target.value as 'sheet' | 'roll')}
-              title="Print format"
-              className="text-xs rounded-lg border border-gray-200 px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
-            >
-              <option value="sheet">Sheet (A4 / Avery)</option>
-              <option value="roll">Roll (thermal printer)</option>
-            </select>
-            {printMode === 'roll' && (
-              <select
-                value={printRotation}
-                onChange={e => setPrintRotation(Number(e.target.value) as 0 | 90 | 180 | 270)}
-                title="Rotate the artwork to match how the printer feeds the label — pick whichever prints upright"
-                className="text-xs rounded-lg border border-gray-200 px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
-              >
-                <option value={0}>No rotation</option>
-                <option value={90}>Rotate 90° ↻</option>
-                <option value={180}>Rotate 180°</option>
-                <option value={270}>Rotate 90° ↺</option>
-              </select>
-            )}
-            <Button size="sm" variant="secondary" onClick={handlePrint}>
-              <Printer size={14} className="mr-1" /> Print
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Asset selection */}
@@ -718,6 +685,43 @@ export function LabelsPage() {
               </div>
             </div>
           )}
+          </div>
+
+          {/* Preview / print controls */}
+          <div className="border-t border-gray-100 pt-4 flex flex-wrap items-center gap-2">
+            <label className="block text-xs font-medium text-v-charcoal mr-2">Print</label>
+            <Button size="sm" onClick={() => setShowPreview(!showPreview)} disabled={selected.size === 0}>
+              <QrCode size={14} className="mr-1" />
+              {showPreview ? 'Hide' : 'Preview'} ({selected.size})
+            </Button>
+            <select
+              value={printMode}
+              onChange={e => setPrintMode(e.target.value as 'sheet' | 'roll')}
+              title="Print format"
+              className="text-xs rounded-lg border border-gray-200 px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+            >
+              <option value="sheet">Sheet (A4 / Avery)</option>
+              <option value="roll">Roll (thermal printer)</option>
+            </select>
+            {printMode === 'roll' && (
+              <select
+                value={printRotation}
+                onChange={e => setPrintRotation(Number(e.target.value) as 0 | 90 | 180 | 270)}
+                title="Rotate the artwork to match how the printer feeds the label — pick whichever prints upright"
+                className="text-xs rounded-lg border border-gray-200 px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+              >
+                <option value={0}>No rotation</option>
+                <option value={90}>Rotate 90° ↻</option>
+                <option value={180}>Rotate 180°</option>
+                <option value={270}>Rotate 90° ↺</option>
+              </select>
+            )}
+            <Button size="sm" variant="secondary" onClick={handlePrint} disabled={selected.size === 0}>
+              <Printer size={14} className="mr-1" /> Print
+            </Button>
+            {selected.size === 0 && (
+              <span className="text-[11px] text-gray-400">Select assets above to preview or print.</span>
+            )}
           </div>
 
           {/* Layout editor toggle */}
