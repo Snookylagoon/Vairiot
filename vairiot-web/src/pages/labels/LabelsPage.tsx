@@ -158,6 +158,8 @@ type TemplateConfig = {
   printRotation: 0 | 90 | 180 | 270;
   monochrome: boolean;
   leaderLabel: boolean;
+  /** Roll mode: shifts artwork down the label (mm, may be negative/fractional) for sub-mm registration the printer driver can't do. */
+  printOffsetMm?: number;
   /** Legacy field from before rotation had a direction (true ≙ 90). */
   printRotate?: boolean;
 };
@@ -186,6 +188,7 @@ export function LabelsPage() {
   const [printRotation, setPrintRotation] = useState<0 | 90 | 180 | 270>(0);
   const [monochrome, setMonochrome] = useState(false);
   const [leaderLabel, setLeaderLabel] = useState(false);
+  const [printOffsetMm, setPrintOffsetMm] = useState(0);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
@@ -338,7 +341,7 @@ export function LabelsPage() {
   /* ---------- Templates ---------- */
 
   const currentConfig = (): TemplateConfig => ({
-    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotation, monochrome, leaderLabel,
+    barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotation, monochrome, leaderLabel, printOffsetMm,
   });
 
   const applyTemplate = (id: string) => {
@@ -364,6 +367,7 @@ export function LabelsPage() {
     }
     setMonochrome(c.monochrome === true);
     setLeaderLabel(c.leaderLabel === true);
+    setPrintOffsetMm(typeof c.printOffsetMm === 'number' ? c.printOffsetMm : 0);
     setTemplateName(t.name);
   };
 
@@ -450,7 +454,7 @@ export function LabelsPage() {
         @page { size: ${pageW}mm ${pageH}mm; margin: 0; }
         html, body { margin: 0; padding: 0; }
         .label { width: ${pageW}mm; height: ${pageH}mm; overflow: hidden; page-break-after: always; break-after: page; }
-        .label img { width: ${pageW}mm; height: ${pageH}mm; display: block; }`
+        .label img { width: ${pageW}mm; height: ${pageH}mm; display: block; margin-top: ${printOffsetMm}mm; }`
       // Sheet (A4 / Avery): flow labels in a grid with small gaps.
       : `
         @page { margin: 8mm; }
@@ -787,6 +791,25 @@ export function LabelsPage() {
                   className="accent-v-violet"
                 />
                 Blank first label
+              </label>
+            )}
+            {printMode === 'roll' && (
+              <label className="flex items-center gap-1.5 text-xs text-gray-600"
+                title="Shifts the artwork down the label (negative = up). Use for sub-millimetre registration steps the printer driver doesn't offer — e.g. driver offset −5 mm plus 0.5 here for an effective −5.5 mm.">
+                Nudge ↓
+                <input
+                  type="number"
+                  step={0.1}
+                  min={-10}
+                  max={10}
+                  value={printOffsetMm}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value);
+                    setPrintOffsetMm(Number.isFinite(v) ? Math.max(-10, Math.min(10, v)) : 0);
+                  }}
+                  className="w-16 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+                />
+                mm
               </label>
             )}
             <Button size="sm" variant="secondary" onClick={handlePrint} disabled={selected.size === 0}>
