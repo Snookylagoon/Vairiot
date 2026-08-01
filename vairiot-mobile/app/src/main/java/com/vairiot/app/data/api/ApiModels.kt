@@ -348,6 +348,18 @@ data class AssetGs1Response(
     val encoding: Gs1EncodingResponse? = null,
 )
 
+/**
+ * GET /assets/by-epc/{epcHex}. kind is ASSET (bound tag, asset present),
+ * UNBOUND_TAG (commissioned but not bound) or FOREIGN_TAG (another tenant's
+ * ACTIVE GS1 prefix — companyPrefix identifies the owner). 404 otherwise.
+ */
+data class AssetByEpcResponse(
+    val kind:          String,
+    val asset:         AssetResponse? = null,
+    val scheme:        String? = null,
+    val companyPrefix: String? = null,
+)
+
 data class LabelPrintRequest(
     val assetIds:     List<String>,
     val templateCode: String,

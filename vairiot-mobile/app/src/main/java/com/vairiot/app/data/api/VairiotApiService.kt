@@ -60,6 +60,9 @@ interface VairiotApiService {
     suspend fun getAssetByTag(@Path("tag") tag: String): AssetResponse
 
     // ─── GS1 identification ────────────────────────────────────────────────
+    @GET("api/v1/assets/by-epc/{epcHex}")
+    suspend fun getAssetByEpc(@Path("epcHex") epcHex: String): AssetByEpcResponse
+
     @GET("api/v1/identification")
     suspend fun getIdentification(): IdentificationResponse
 

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.ImageCompressor
 import com.vairiot.app.data.AssetRepository
+import com.vairiot.app.data.EpcLookup
 import com.vairiot.app.data.TagLookup
 import com.vairiot.app.data.api.MaintenanceCreateRequest
 import com.vairiot.app.data.api.MaintenanceEventResponse
@@ -198,6 +199,33 @@ class MaintenanceListViewModel @Inject constructor(
         _state.value = _state.value.copy(isScanning = false, scanError = null)
         viewModelScope.launch {
             _state.value = _state.value.copy(isSearchingAssets = true)
+            if (result.type != ScanType.BARCODE) {
+                when (val lookup = repo.lookupByEpc(result.value)) {
+                    is EpcLookup.Found -> {
+                        val a = lookup.asset
+                        _state.value = _state.value.copy(
+                            reportAssetId = a.id,
+                            assetSearchQuery = "${a.assetNumber} — ${a.name}",
+                            assetSearchResults = emptyList(),
+                            isSearchingAssets = false,
+                        )
+                    }
+                    is EpcLookup.UnboundTag -> _state.value = _state.value.copy(
+                        isSearchingAssets = false,
+                        scanError = "Tag is commissioned but not yet bound to an asset",
+                    )
+                    is EpcLookup.ForeignTag -> _state.value = _state.value.copy(
+                        isSearchingAssets = false,
+                        scanError = "Tag belongs to another organisation" +
+                            (lookup.companyPrefix?.let { " (GS1 prefix $it)" } ?: ""),
+                    )
+                    is EpcLookup.NotFound -> _state.value = _state.value.copy(
+                        isSearchingAssets = false,
+                        scanError = "No asset found for tag ${result.value}",
+                    )
+                }
+                return@launch
+            }
             when (val lookup = repo.lookupByTag(result.value)) {
                 is TagLookup.Found -> {
                     val a = lookup.asset

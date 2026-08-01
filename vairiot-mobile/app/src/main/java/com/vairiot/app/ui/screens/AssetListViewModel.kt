@@ -3,6 +3,7 @@ package com.vairiot.app.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.AssetRepository
+import com.vairiot.app.data.EpcLookup
 import com.vairiot.app.data.TagLookup
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.scanner.ScanResult
@@ -130,6 +131,22 @@ class AssetListViewModel @Inject constructor(
         scanner.stopScan()
         _state.value = _state.value.copy(isScanning = false, scanError = null)
         viewModelScope.launch {
+            if (result.type != ScanType.BARCODE) {
+                when (val lookup = repo.lookupByEpc(result.value)) {
+                    is EpcLookup.Found -> onSearchChange(lookup.asset.assetNumber)
+                    is EpcLookup.UnboundTag -> _state.value = _state.value.copy(
+                        scanError = "Tag is commissioned but not yet bound to an asset",
+                    )
+                    is EpcLookup.ForeignTag -> _state.value = _state.value.copy(
+                        scanError = "Tag belongs to another organisation" +
+                            (lookup.companyPrefix?.let { " (GS1 prefix $it)" } ?: ""),
+                    )
+                    is EpcLookup.NotFound -> _state.value = _state.value.copy(
+                        scanError = "No asset found for tag ${result.value}",
+                    )
+                }
+                return@launch
+            }
             when (val lookup = repo.lookupByTag(result.value)) {
                 is TagLookup.Found -> {
                     val assetNumber = lookup.asset.assetNumber

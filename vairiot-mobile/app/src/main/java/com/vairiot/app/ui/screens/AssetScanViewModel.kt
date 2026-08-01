@@ -3,6 +3,7 @@ package com.vairiot.app.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.AssetRepository
+import com.vairiot.app.data.EpcLookup
 import com.vairiot.app.data.TagLookup
 import com.vairiot.app.data.api.AssetCreateRequest
 import com.vairiot.app.data.api.AssetResponse
@@ -141,11 +142,32 @@ class AssetScanViewModel @Inject constructor(
         scanTimeoutJob?.cancel()
         viewModelScope.launch {
             _state.value = ScanUiState.Loading
-            when (val result = repo.lookupByTag(value)) {
-                is TagLookup.Found ->
-                    _state.value = ScanUiState.Found(result.asset, fromCache = result.fromCache)
-                is TagLookup.NotFound ->
-                    _state.value = ScanUiState.NotFound(value = value, isRfid = isRfid)
+            if (isRfid) {
+                // Hardware RFID reads are EPCs: GS1-commissioned tags resolve
+                // via /assets/by-epc; legacy tags fall back to the tag match.
+                when (val result = repo.lookupByEpc(value)) {
+                    is EpcLookup.Found ->
+                        _state.value = ScanUiState.Found(result.asset, fromCache = result.fromCache)
+                    is EpcLookup.UnboundTag ->
+                        _state.value = ScanUiState.Error(
+                            "This RFID tag is commissioned but not yet bound to an asset. Bind it from the asset's tag commissioning flow."
+                        )
+                    is EpcLookup.ForeignTag ->
+                        _state.value = ScanUiState.Error(
+                            "This tag belongs to another organisation" +
+                                (result.companyPrefix?.let { " (GS1 prefix $it)" } ?: "") +
+                                " and can't be used here."
+                        )
+                    is EpcLookup.NotFound ->
+                        _state.value = ScanUiState.NotFound(value = value, isRfid = true)
+                }
+            } else {
+                when (val result = repo.lookupByTag(value)) {
+                    is TagLookup.Found ->
+                        _state.value = ScanUiState.Found(result.asset, fromCache = result.fromCache)
+                    is TagLookup.NotFound ->
+                        _state.value = ScanUiState.NotFound(value = value, isRfid = false)
+                }
             }
         }
     }

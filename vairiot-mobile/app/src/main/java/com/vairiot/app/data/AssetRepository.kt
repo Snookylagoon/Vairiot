@@ -10,6 +10,7 @@ import com.vairiot.app.data.local.CachedAssetDao
 import com.vairiot.app.util.Gs1
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -86,6 +87,52 @@ class AssetRepository @Inject constructor(
     }
 
     /**
+     * Resolve a hardware RFID read. GS1-commissioned tags (GIAI-96 / TID96)
+     * resolve via the server's EPC endpoint, which also classifies tags that
+     * belong to another tenant's ACTIVE prefix (FOREIGN_TAG, spec §6.6).
+     * A 404 falls back to the legacy rfidTag match; offline falls back to a
+     * local GIAI-96 decode against the cached GS1 columns.
+     */
+    suspend fun lookupByEpc(epcHex: String): EpcLookup {
+        val epc = epcHex.trim().uppercase()
+        try {
+            val response = api.getAssetByEpc(epc)
+            return when (response.kind) {
+                "ASSET" -> {
+                    val asset = response.asset
+                        ?: return EpcLookup.NotFound
+                    dao.upsertAll(listOf(asset.toCached()))
+                    EpcLookup.Found(asset, fromCache = false)
+                }
+                "UNBOUND_TAG" -> EpcLookup.UnboundTag
+                "FOREIGN_TAG" -> EpcLookup.ForeignTag(response.companyPrefix)
+                else -> EpcLookup.NotFound
+            }
+        } catch (e: HttpException) {
+            if (e.code() != 404) return lookupByEpcOffline(epc)
+            // Not commissioned — legacy tags live in the rfidTag column.
+            return when (val legacy = lookupByTag(epc)) {
+                is TagLookup.Found -> EpcLookup.Found(legacy.asset, legacy.fromCache)
+                is TagLookup.NotFound -> EpcLookup.NotFound
+            }
+        } catch (e: Exception) {
+            return lookupByEpcOffline(epc)
+        }
+    }
+
+    private suspend fun lookupByEpcOffline(epc: String): EpcLookup {
+        Gs1.decodeGiai96(epc)?.let { decoded ->
+            dao.findByGiai(decoded.giai)?.let { return EpcLookup.Found(it.toApiResponse(), fromCache = true) }
+            if (Gs1.isValidIar(decoded.individualAssetReference)) {
+                dao.findByIar(decoded.individualAssetReference)
+                    ?.let { return EpcLookup.Found(it.toApiResponse(), fromCache = true) }
+            }
+        }
+        dao.findByTag(epc)?.let { return EpcLookup.Found(it.toApiResponse(), fromCache = true) }
+        return EpcLookup.NotFound
+    }
+
+    /**
      * Offline resolution mirrors the server's getAssetByTag: GS1 Digital Link
      * URIs, raw IARs and grouped HRIs resolve against the GS1 columns before
      * falling back to the legacy rfidTag/barcode/assetNumber match.
@@ -105,6 +152,15 @@ class AssetRepository @Inject constructor(
 sealed class TagLookup {
     data class Found(val asset: AssetResponse, val fromCache: Boolean) : TagLookup()
     object NotFound : TagLookup()
+}
+
+sealed class EpcLookup {
+    data class Found(val asset: AssetResponse, val fromCache: Boolean) : EpcLookup()
+    /** Commissioned tag with no active asset binding. */
+    object UnboundTag : EpcLookup()
+    /** GIAI-96 tag owned by another tenant's ACTIVE GS1 prefix. */
+    data class ForeignTag(val companyPrefix: String?) : EpcLookup()
+    object NotFound : EpcLookup()
 }
 
 private fun CachedAsset.toApiResponse(): AssetResponse = AssetResponse(

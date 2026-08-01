@@ -1,5 +1,6 @@
 package com.vairiot.app.util
 
+import java.math.BigInteger
 import java.net.URI
 
 /**
@@ -69,6 +70,47 @@ object Gs1 {
     /** GS1-128 element string: AI (8004) for GIAI, AI (91) for internal IARs. */
     fun gs1128ElementString(mode: String, giai: String?, iar: String): String =
         if (mode == "GS1" && !giai.isNullOrBlank()) "(8004)$giai" else "(91)$iar"
+
+    /* ── GIAI-96 EPC decoding (port of vairiot-shared/src/gs1/epc.ts) ────── */
+
+    private const val GIAI96_HEADER = 0x34
+
+    private data class Partition(val cpBits: Int, val cpDigits: Int, val refBits: Int)
+
+    private val GIAI96_PARTITIONS = mapOf(
+        0 to Partition(40, 12, 42),
+        1 to Partition(37, 11, 45),
+        2 to Partition(34, 10, 48),
+        3 to Partition(30, 9, 52),
+        4 to Partition(27, 8, 55),
+        5 to Partition(24, 7, 58),
+        6 to Partition(20, 6, 62),
+    )
+
+    data class Giai96(
+        val filterValue: Int,
+        val partition: Int,
+        val companyPrefix: String,
+        val individualAssetReference: String,
+    ) {
+        val giai: String get() = companyPrefix + individualAssetReference
+    }
+
+    /** INTERNAL-mode EPC: the tag's own 96-bit serialised TID (E2 header). */
+    fun isInternalEpc(hex: String): Boolean = Regex("^E2[0-9A-F]{22}$", RegexOption.IGNORE_CASE).matches(hex)
+
+    /** Decode a GIAI-96 EPC to its company prefix and IAR, or null if not one. */
+    fun decodeGiai96(hex: String): Giai96? {
+        if (!Regex("^[0-9A-Fa-f]{24}$").matches(hex)) return null
+        val bits = BigInteger(hex, 16).toString(2).padStart(96, '0')
+        if (bits.substring(0, 8).toInt(2) != GIAI96_HEADER) return null
+        val filterValue = bits.substring(8, 11).toInt(2)
+        val partition = bits.substring(11, 14).toInt(2)
+        val p = GIAI96_PARTITIONS[partition] ?: return null
+        val cp = BigInteger(bits.substring(14, 14 + p.cpBits), 2).toString().padStart(p.cpDigits, '0')
+        val iar = BigInteger(bits.substring(14 + p.cpBits, 14 + p.cpBits + p.refBits), 2).toString()
+        return Giai96(filterValue, partition, cp, iar)
+    }
 
     data class ScanResult(val giai: String? = null, val iar: String? = null, val tenantSlug: String? = null)
 

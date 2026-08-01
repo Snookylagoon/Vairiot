@@ -64,6 +64,22 @@ class Gs1Test {
     }
 
     @Test
+    fun `decodeGiai96 matches the normative spec vector`() {
+        // Spec §3.4: prefix 9521141, IAR 100000123454, partition 5, filter 0
+        val decoded = Gs1.decodeGiai96("3416451FD40000174878CA3E")!!
+        assertEquals(0, decoded.filterValue)
+        assertEquals(5, decoded.partition)
+        assertEquals("9521141", decoded.companyPrefix)
+        assertEquals("100000123454", decoded.individualAssetReference)
+        assertEquals("9521141100000123454", decoded.giai)
+
+        assertNull(Gs1.decodeGiai96("E280699500005012345678AB")) // TID96, not GIAI-96
+        assertNull(Gs1.decodeGiai96("not-hex"))
+        assertTrue(Gs1.isInternalEpc("E280699500005012345678AB"))
+        assertFalse(Gs1.isInternalEpc("3416451FD40000174878CA3E"))
+    }
+
+    @Test
     fun `parseAssetScan resolves raw iar, giai links and internal links`() {
         assertEquals(Gs1.ScanResult(iar = "100000123454"), Gs1.parseAssetScan("100000123454"))
         assertEquals(
