@@ -253,10 +253,14 @@ export function LabelsPage() {
     [barcodeType, fields, logoScale, barcodeMm, layout, styles, monochrome],
   );
 
+  // The HRI mark: the licensed GS1 Company Prefix once active, otherwise the
+  // per-tenant Vairiot mark that stands in for it.
+  const hriMark = ident?.activePrefix?.prefix ?? ident?.tenantMark ?? null;
+
   const layoutInputFor = useCallback((asset: Asset): LabelLayoutInput => ({
     asset, company, design, widthPx, heightPx, logoAspect,
-    tenantMark: ident?.tenantMark ?? null,
-  }), [company, design, widthPx, heightPx, logoAspect, ident?.tenantMark]);
+    tenantMark: hriMark,
+  }), [company, design, widthPx, heightPx, logoAspect, hriMark]);
 
   // Assets whose barcodes we need rendered (selection + editor sample).
   const assetsNeedingBarcodes = useMemo(() => {

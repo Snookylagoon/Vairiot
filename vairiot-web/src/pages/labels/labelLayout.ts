@@ -57,7 +57,7 @@ export const DEFAULT_FIELDS: ContentFields = {
   name: true,
   assetNumber: true,
   serialNumber: true,
-  barcode: false,
+  barcode: true,
   site: true,
   category: false,
   companyName: false,
@@ -70,7 +70,7 @@ export const FIELD_LABELS: { key: keyof ContentFields; label: string }[] = [
   { key: 'name',           label: 'Asset name' },
   { key: 'assetNumber',    label: 'Asset number' },
   { key: 'serialNumber',   label: 'Serial number' },
-  { key: 'barcode',        label: 'Barcode value' },
+  { key: 'barcode',        label: 'GS1 identifier' },
   { key: 'site',           label: 'Site' },
   { key: 'category',       label: 'Category' },
   { key: 'companyName',    label: 'Company name' },
@@ -168,13 +168,16 @@ function buildLines(
   const lines: { key: ElementKey; text: string; kind: LineKind }[] = [];
   if (fields.name) lines.push({ key: 'name', text: asset.name, kind: 'title' });
   if (fields.assetNumber) lines.push({ key: 'assetNumber', text: asset.assetNumber, kind: 'number' });
-  // HRI carries the per-tenant Vairiot mark (or eventually the GS1 prefix's
-  // tenant mark) so printed identifiers are distinguishable across tenants.
-  if (asset.individualAssetReference) lines.push({ key: 'iar', text: formatHri(asset.individualAssetReference, tenantMark ?? ''), kind: 'number' });
+  // GS1 identifier line ("GS1 identifier" toggle — replaces the legacy
+  // free-text barcode value). The HRI carries the tenant's GS1 Company Prefix
+  // once licensed, or the per-tenant Vairiot mark until then, so printed
+  // identifiers are distinguishable across tenants.
+  const iar = val(asset.individualAssetReference, '100000123454');
+  if (fields.barcode && iar) {
+    lines.push({ key: 'iar', text: formatHri(iar, tenantMark ?? ''), kind: 'number' });
+  }
   const sn = val(asset.serialNumber, 'SN-000000');
   if (fields.serialNumber && sn) lines.push({ key: 'serialNumber', text: `SN: ${sn}`, kind: 'muted' });
-  const bc = val(asset.barcode, '000000000');
-  if (fields.barcode && bc) lines.push({ key: 'barcodeValue', text: `BC: ${bc}`, kind: 'muted' });
   const site = val(asset.site?.name, 'Site');
   if (fields.site && site) lines.push({ key: 'site', text: site, kind: 'muted' });
   const category = val(asset.category?.name, 'Category');
