@@ -77,6 +77,11 @@ final class ProfileViewModel {
         return "\(version) (\(build))"
     }
 
+    /// Public OTA install page — shows the latest published release and installs it via itms-services.
+    var updateCheckURL: URL? {
+        URL(string: "api/v1/ios/install", relativeTo: apiClient.baseURL)
+    }
+
     var rolesDisplay: String {
         guard let roles = profile?.roles, !roles.isEmpty else { return "No roles" }
         return roles.map { $0.replacingOccurrences(of: "_", with: " ").capitalized }.joined(separator: ", ")

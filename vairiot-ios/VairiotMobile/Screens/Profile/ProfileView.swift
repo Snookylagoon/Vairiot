@@ -147,6 +147,18 @@ struct ProfileView: View {
         Section("About") {
             profileRow(icon: "app.badge", label: "Version", value: viewModel.appVersion)
 
+            if let updateURL = viewModel.updateCheckURL {
+                Link(destination: updateURL) {
+                    HStack {
+                        Label("Check for Updates", systemImage: "arrow.down.circle")
+                        Spacer()
+                        Image(systemName: "arrow.up.forward.app")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             HStack {
                 Label("Vairiot Mobile", systemImage: "info.circle")
                 Spacer()
