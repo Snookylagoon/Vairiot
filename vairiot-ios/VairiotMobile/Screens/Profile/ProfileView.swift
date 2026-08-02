@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ProfileView: View {
 
@@ -6,6 +7,10 @@ struct ProfileView: View {
     @State private var showSignOutConfirmation = false
     @State private var failedSyncCount = 0
     @State private var showDiscardConfirmation = false
+    @State private var showUDIDEntry = false
+    @State private var udidEntryText = ""
+    @State private var showUDIDInvalid = false
+    @State private var showUDIDCopied = false
 
     init(apiClient: APIClient = .shared, tokenManager: TokenManager = .shared) {
         _viewModel = State(initialValue: ProfileViewModel(apiClient: apiClient, tokenManager: tokenManager))
@@ -39,8 +44,12 @@ struct ProfileView: View {
             Text("Are you sure you want to sign out? You will need to log in again.")
         }
         .task {
+            viewModel.refreshDeviceUDID()
             await viewModel.loadAll()
             failedSyncCount = SyncManager.shared.failedCount
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .vairiotDeviceUDIDSaved)) { _ in
+            viewModel.refreshDeviceUDID()
         }
     }
 
@@ -50,6 +59,7 @@ struct ProfileView: View {
         List {
             userInfoSection
             licenceSection
+            deviceSection
             if failedSyncCount > 0 { failedSyncSection }
             appInfoSection
             signOutSection
@@ -138,6 +148,91 @@ struct ProfileView: View {
                 Text("Unable to load licence information")
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    // MARK: - Device (UDID)
+
+    private var deviceSection: some View {
+        Section {
+            if let udid = viewModel.deviceUDID {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Device UDID", systemImage: "iphone")
+                    Text(udid)
+                        .font(.footnote.monospaced())
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = udid
+                        showUDIDCopied = true
+                    } label: {
+                        Label("Copy UDID", systemImage: "doc.on.doc")
+                    }
+                    Button(role: .destructive) {
+                        viewModel.clearDeviceUDID()
+                    } label: {
+                        Label("Remove", systemImage: "trash")
+                    }
+                }
+
+                Button {
+                    UIPasteboard.general.string = udid
+                    showUDIDCopied = true
+                } label: {
+                    Label("Copy UDID", systemImage: "doc.on.doc")
+                }
+            } else {
+                if let enrolURL = viewModel.udidEnrolmentURL {
+                    Link(destination: enrolURL) {
+                        HStack {
+                            Label("Find my UDID", systemImage: "iphone.badge.exclamationmark")
+                            Spacer()
+                            Image(systemName: "arrow.up.forward.app")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                Button {
+                    udidEntryText = ""
+                    showUDIDEntry = true
+                } label: {
+                    Label("Enter UDID manually", systemImage: "keyboard")
+                }
+            }
+        } header: {
+            Text("Device")
+        } footer: {
+            if viewModel.deviceUDID == nil {
+                Text("Your device identifier (UDID) is needed to authorise this iPhone for app installs. It is stored securely on this device only.")
+            } else {
+                Text("Stored securely in the device Keychain.")
+            }
+        }
+        .alert("Enter UDID", isPresented: $showUDIDEntry) {
+            TextField("00008030-001A14E93C38802E", text: $udidEntryText)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.characters)
+            Button("Save") {
+                if !viewModel.saveDeviceUDID(udidEntryText) {
+                    showUDIDInvalid = true
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Paste the UDID shown at the end of the enrollment page.")
+        }
+        .alert("Invalid UDID", isPresented: $showUDIDInvalid) {
+            Button("OK") {}
+        } message: {
+            Text("That doesn't look like a device UDID. It should match the value shown on the enrollment page, e.g. 00008030-001A14E93C38802E.")
+        }
+        .alert("Copied", isPresented: $showUDIDCopied) {
+            Button("OK") {}
+        } message: {
+            Text("UDID copied to the clipboard.")
         }
     }
 

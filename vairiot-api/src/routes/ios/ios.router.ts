@@ -246,5 +246,10 @@ iosRouter.get('/udid/done', (req: Request, res: Response): void => {
       <p class="muted">An administrator now authorises the device with Apple (this is a manual step on their side).
       Once that's done and a new build is published, come back and install:</p>
       <a class="btn secondary" href="/api/v1/ios/install">Go to install page</a>
-    </div>`));
+    </div>
+    ${udid ? `<div class="card">
+      <p style="margin-top:0"><strong>Already have the Vairiot app?</strong></p>
+      <p class="muted">Save this UDID into the app so it's always available on your Profile page for future confirmation.</p>
+      <a class="btn" href="vairiot://udid?value=${encodeURIComponent(udid)}">Save in Vairiot app</a>
+    </div>` : ''}`));
 });

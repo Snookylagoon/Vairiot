@@ -24,12 +24,26 @@ struct VairiotApp: App {
         WindowGroup {
             RootView(apiClient: apiClient, tokenManager: tokenManager)
                 .tint(.vairiotPink)
+                .onOpenURL { url in
+                    handleDeepLink(url)
+                }
         }
         .modelContainer(modelContainer)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await SyncManager.shared.syncNow() }
             }
+        }
+    }
+
+    /// vairiot://udid?value=<udid> — sent by the enrollment "done" page so the
+    /// captured UDID can be stored in the Keychain and shown on the Profile screen.
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme == "vairiot", url.host == "udid" else { return }
+        let value = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "value" })?.value
+        if let value, DeviceUDIDStore.save(value) {
+            NotificationCenter.default.post(name: .vairiotDeviceUDIDSaved, object: nil)
         }
     }
 }

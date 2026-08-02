@@ -3,7 +3,7 @@ import Security
 
 // MARK: - Keychain Helper
 
-private enum KeychainHelper {
+enum KeychainHelper {
 
     static func save(key: String, data: Data) -> Bool {
         delete(key: key)

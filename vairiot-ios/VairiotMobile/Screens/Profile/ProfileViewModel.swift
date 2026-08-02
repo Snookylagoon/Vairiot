@@ -12,6 +12,7 @@ final class ProfileViewModel {
     var isLoadingLicence = false
     var errorMessage: String?
     var didSignOut = false
+    var deviceUDID: String? = DeviceUDIDStore.udid
 
     // MARK: - Dependencies
 
@@ -80,6 +81,31 @@ final class ProfileViewModel {
     /// Public OTA install page — shows the latest published release and installs it via itms-services.
     var updateCheckURL: URL? {
         URL(string: "api/v1/ios/install", relativeTo: apiClient.baseURL)
+    }
+
+    /// Web enrollment flow that captures this device's UDID and hands it back
+    /// via the vairiot://udid deep link.
+    var udidEnrolmentURL: URL? {
+        URL(string: "api/v1/ios/udid", relativeTo: apiClient.baseURL)
+    }
+
+    // MARK: - Device UDID
+
+    func refreshDeviceUDID() {
+        deviceUDID = DeviceUDIDStore.udid
+    }
+
+    /// Saves a manually entered UDID. Returns false if it doesn't look like one.
+    @discardableResult
+    func saveDeviceUDID(_ raw: String) -> Bool {
+        guard DeviceUDIDStore.save(raw) else { return false }
+        deviceUDID = DeviceUDIDStore.udid
+        return true
+    }
+
+    func clearDeviceUDID() {
+        DeviceUDIDStore.clear()
+        deviceUDID = nil
     }
 
     var rolesDisplay: String {
