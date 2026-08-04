@@ -40,6 +40,27 @@ val AVERY_PRESETS = listOf(
     LabelSize("Avery L7163 (EU) — 99.1 × 38.1 mm", 99.1f, 38.1f),
 )
 
+// Web designer sizePreset codes → the presets above.
+private val PRESETS_BY_CODE = mapOf(
+    "avery-5167" to AVERY_PRESETS[0],
+    "avery-6570" to AVERY_PRESETS[1],
+    "avery-5160" to AVERY_PRESETS[2],
+    "avery-l7651" to AVERY_PRESETS[3],
+    "avery-l7159" to AVERY_PRESETS[4],
+    "avery-5163" to AVERY_PRESETS[5],
+    "avery-l7163" to AVERY_PRESETS[6],
+)
+
+/** Resolves a template's size config; 'custom' uses explicit millimetres. */
+fun labelSizeFor(presetCode: String?, customWmm: Float?, customHmm: Float?): LabelSize {
+    if (presetCode == "custom") {
+        val w = customWmm?.takeIf { it > 0f }
+        val h = customHmm?.takeIf { it > 0f }
+        if (w != null && h != null) return LabelSize("Custom — $w × $h mm", w, h)
+    }
+    return PRESETS_BY_CODE[presetCode?.lowercase()] ?: AVERY_PRESETS[3]
+}
+
 data class ContentFields(
     val name: Boolean = true,
     val assetNumber: Boolean = true,
@@ -64,6 +85,14 @@ object LabelRenderer {
 
     private const val SCALE = 3
     private const val MM_TO_PX = 3.7795275591f
+
+    /** Rotation applied at print time (template printRotation), not in preview. */
+    fun rotate(bitmap: Bitmap, degrees: Int): Bitmap {
+        val d = ((degrees % 360) + 360) % 360
+        if (d == 0) return bitmap
+        val matrix = android.graphics.Matrix().apply { postRotate(d.toFloat()) }
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    }
 
     fun barcodePayload(asset: AssetResponse, type: BarcodeType, gs1: Gs1EncodingResponse? = null): String {
         // GS1-identified assets encode a plain GS1 Digital Link URL in 2D

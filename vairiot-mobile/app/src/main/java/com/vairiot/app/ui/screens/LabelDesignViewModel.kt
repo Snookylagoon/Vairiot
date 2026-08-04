@@ -5,10 +5,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.Gs1Repository
+import com.vairiot.app.data.LabelTemplateRepository
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.CompanyResponse
 import com.vairiot.app.data.api.Gs1EncodingResponse
 import com.vairiot.app.data.api.LabelPrintRequest
+import com.vairiot.app.data.api.LabelTemplateConfigDto
+import com.vairiot.app.data.api.LabelTemplateDto
+import com.vairiot.app.data.api.LabelTemplateFieldsDto
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.label.*
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,22 +28,30 @@ data class LabelDesignUiState(
     val gs1: Gs1EncodingResponse? = null,
     val error: String? = null,
 
-    val barcodeType: BarcodeType = BarcodeType.QR_CODE,
-    val labelSizeIndex: Int = 3,
-    val fields: ContentFields = ContentFields(),
+    val templates: List<LabelTemplateDto> = emptyList(),
+    val selectedTemplateId: String? = null,
+    val isRefreshingTemplates: Boolean = false,
 
     val previewBitmap: Bitmap? = null,
 
     val isPrinting: Boolean = false,
     val printResult: String? = null,
     val savedPrinter: PrinterInfo? = null,
-)
+    /** Paired printer matching the template's printer.name — used instead of savedPrinter. */
+    val matchedPrinter: PrinterInfo? = null,
+    /** Shown when the template names a printer no paired device matches. */
+    val printerHint: String? = null,
+) {
+    val selectedTemplate: LabelTemplateDto? get() = templates.firstOrNull { it.id == selectedTemplateId }
+    val effectivePrinter: PrinterInfo? get() = matchedPrinter ?: savedPrinter
+}
 
 @HiltViewModel
 class LabelDesignViewModel @Inject constructor(
     private val api: VairiotApiService,
     private val printerService: PrinterService,
     private val gs1Repository: Gs1Repository,
+    private val templateRepository: LabelTemplateRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -64,36 +76,112 @@ class LabelDesignViewModel @Inject constructor(
                         gs1Repository.encodeLocally(iar, asset.giai, ident)
                     }
                 }
-                _state.value = _state.value.copy(isLoading = false, asset = asset, company = company, gs1 = gs1)
-                regeneratePreview()
+                val templates = templateRepository.getTemplates()
+                _state.value = _state.value.copy(
+                    isLoading = false, asset = asset, company = company, gs1 = gs1,
+                    templates = templates,
+                )
+                templates.firstOrNull()?.let { selectTemplate(it.id) }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isLoading = false, error = e.message)
             }
         }
     }
 
-    fun setBarcodeType(type: BarcodeType) {
-        _state.value = _state.value.copy(barcodeType = type)
+    fun selectTemplate(id: String) {
+        val template = _state.value.templates.firstOrNull { it.id == id } ?: return
+        val (matched, hint) = matchPrinter(template.config?.printer?.name)
+        _state.value = _state.value.copy(
+            selectedTemplateId = id,
+            matchedPrinter = matched,
+            printerHint = hint,
+        )
         regeneratePreview()
     }
 
-    fun setLabelSizeIndex(index: Int) {
-        _state.value = _state.value.copy(labelSizeIndex = index)
-        regeneratePreview()
+    fun refreshTemplates() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isRefreshingTemplates = true)
+            try {
+                val templates = templateRepository.refreshTemplates()
+                val keepId = _state.value.selectedTemplateId?.takeIf { id -> templates.any { it.id == id } }
+                _state.value = _state.value.copy(
+                    isRefreshingTemplates = false, templates = templates, error = null,
+                )
+                when {
+                    keepId != null -> selectTemplate(keepId) // re-apply in case the config changed
+                    templates.isNotEmpty() -> selectTemplate(templates.first().id)
+                    else -> _state.value = _state.value.copy(
+                        selectedTemplateId = null, previewBitmap = null,
+                        matchedPrinter = null, printerHint = null,
+                    )
+                }
+            } catch (_: Exception) {
+                _state.value = _state.value.copy(
+                    isRefreshingTemplates = false,
+                    error = "Could not refresh templates — check your connection.",
+                )
+            }
+        }
     }
 
-    fun toggleField(update: (ContentFields) -> ContentFields) {
-        _state.value = _state.value.copy(fields = update(_state.value.fields))
-        regeneratePreview()
+    /** Contains-match both ways so "HH83 BT" matches a paired "Nordic ID HH83 BT Printer". */
+    private fun matchPrinter(templatePrinterName: String?): Pair<PrinterInfo?, String?> {
+        val wanted = templatePrinterName?.trim()?.takeIf { it.isNotEmpty() } ?: return null to null
+        val match = printerService.getPairedPrinters().firstOrNull {
+            val paired = it.name.trim()
+            paired.contains(wanted, ignoreCase = true) || wanted.contains(paired, ignoreCase = true)
+        }
+        return if (match != null) match to null
+        else null to "Template is tuned for ‘$wanted’ — no matching paired printer found."
+    }
+
+    private fun barcodeTypeFor(code: String?): BarcodeType = when (code?.lowercase()) {
+        "qrcode" -> BarcodeType.QR_CODE
+        "datamatrix" -> BarcodeType.DATA_MATRIX
+        "pdf417" -> BarcodeType.PDF417
+        "azteccode" -> BarcodeType.AZTEC
+        "code128" -> BarcodeType.CODE_128
+        "code39" -> BarcodeType.CODE_39
+        "code93" -> BarcodeType.CODE_93
+        "ean13" -> BarcodeType.EAN_13
+        "upca" -> BarcodeType.UPC_A
+        "itf14" -> BarcodeType.ITF
+        else -> BarcodeType.QR_CODE
+    }
+
+    private fun fieldsFor(f: LabelTemplateFieldsDto?): ContentFields = ContentFields(
+        name = f?.name ?: true,
+        assetNumber = f?.assetNumber ?: true,
+        serialNumber = f?.serialNumber ?: true,
+        barcode = f?.barcode ?: true,
+        site = f?.site ?: true,
+        category = f?.category ?: false,
+        companyName = f?.companyName ?: false,
+        companyAddress = f?.companyAddress ?: false,
+        companyEmail = f?.companyEmail ?: false,
+    )
+
+    private fun rotationFor(c: LabelTemplateConfigDto?): Int {
+        val deg = c?.printRotation ?: if (c?.printRotate == true) 90 else 0
+        return if (deg == 90 || deg == 180 || deg == 270) deg else 0
     }
 
     private fun regeneratePreview() {
         val s = _state.value
         val asset = s.asset ?: return
-        val labelSize = AVERY_PRESETS.getOrNull(s.labelSizeIndex) ?: AVERY_PRESETS[3]
+        val template = s.selectedTemplate
+        if (template == null) {
+            _state.value = s.copy(previewBitmap = null)
+            return
+        }
+        val config = template.config
+        val barcodeType = barcodeTypeFor(config?.barcodeType)
+        val labelSize = labelSizeFor(config?.sizePreset, config?.customW?.toFloat(), config?.customH?.toFloat())
+        val fields = fieldsFor(config?.fields)
         viewModelScope.launch {
             try {
-                val bmp = LabelRenderer.render(asset, s.barcodeType, labelSize, s.fields, s.company, s.gs1)
+                val bmp = LabelRenderer.render(asset, barcodeType, labelSize, fields, s.company, s.gs1)
                 _state.value = _state.value.copy(previewBitmap = bmp)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = "Preview failed: ${e.message}")
@@ -104,10 +192,15 @@ class LabelDesignViewModel @Inject constructor(
     fun printLabel() {
         val s = _state.value
         val bmp = s.previewBitmap ?: return
-        val printer = s.savedPrinter ?: return
+        val printer = s.effectivePrinter ?: return
+        val config = s.selectedTemplate?.config
+        val rotation = rotationFor(config)
+        val copies = (config?.printer?.copies ?: 1).coerceIn(1, 20)
         viewModelScope.launch {
             _state.value = _state.value.copy(isPrinting = true, printResult = null)
-            val result = printerService.printBitmap(printer.address, bmp)
+            val toPrint = LabelRenderer.rotate(bmp, rotation)
+            val result = printerService.printBitmap(printer.address, toPrint, copies)
+            if (toPrint !== bmp) toPrint.recycle()
             _state.value = _state.value.copy(
                 isPrinting = false,
                 printResult = if (result.isSuccess) "Label printed" else "Print failed: ${result.exceptionOrNull()?.message}",
@@ -120,7 +213,7 @@ class LabelDesignViewModel @Inject constructor(
     private suspend fun recordPrint(s: LabelDesignUiState) {
         val asset = s.asset ?: return
         if (asset.individualAssetReference == null) return
-        val symbology = when (s.barcodeType) {
+        val symbology = when (barcodeTypeFor(s.selectedTemplate?.config?.barcodeType)) {
             BarcodeType.QR_CODE -> "QR"
             BarcodeType.DATA_MATRIX -> "DATAMATRIX"
             BarcodeType.CODE_128 -> "GS1_128"
@@ -129,15 +222,20 @@ class LabelDesignViewModel @Inject constructor(
         try {
             api.recordLabelPrint(LabelPrintRequest(
                 assetIds = listOf(asset.id),
-                templateCode = "mobile-android",
+                templateCode = s.selectedTemplate?.name ?: "mobile-android",
                 symbology = symbology,
-                printerId = s.savedPrinter?.address,
+                printerId = s.effectivePrinter?.address,
             ))
         } catch (_: Exception) { /* offline or older server — the label is already printed */ }
     }
 
     fun refreshSavedPrinter() {
         _state.value = _state.value.copy(savedPrinter = printerService.getSavedPrinter())
+        // Re-evaluate the template's printer match — pairing may have changed.
+        _state.value.selectedTemplate?.let { t ->
+            val (matched, hint) = matchPrinter(t.config?.printer?.name)
+            _state.value = _state.value.copy(matchedPrinter = matched, printerHint = hint)
+        }
     }
 
     fun clearPrintResult() {

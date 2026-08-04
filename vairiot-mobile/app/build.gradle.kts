@@ -33,8 +33,8 @@ android {
         applicationId = "com.vairiot.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 34
-        versionName = "1.9.0"
+        versionCode = 35
+        versionName = "1.10.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Production API. For local dev on a USB device, swap to
         // "http://localhost:3001/" and run `adb reverse tcp:3001 tcp:3001`.

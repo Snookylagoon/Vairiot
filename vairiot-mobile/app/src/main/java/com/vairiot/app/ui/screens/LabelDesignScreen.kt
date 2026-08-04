@@ -1,6 +1,5 @@
 package com.vairiot.app.ui.screens
 
-import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.vairiot.app.label.*
+import com.vairiot.app.data.api.LabelTemplateDto
 import com.vairiot.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,7 +55,7 @@ fun LabelDesignScreen(
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = White)
                 }
-                Text("Label Design", style = MaterialTheme.typography.titleLarge,
+                Text("Print Label", style = MaterialTheme.typography.titleLarge,
                     fontFamily = MontserratFamily, fontWeight = FontWeight.ExtraBold, color = White)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onPrinterSetup) {
@@ -84,6 +84,45 @@ fun LabelDesignScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
 
+            // Template picker — templates come from the web designer
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text("Template", style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        if (state.isRefreshingTemplates) {
+                            CircularProgressIndicator(color = VairiotViolet,
+                                modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            IconButton(onClick = { viewModel.refreshTemplates() }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Refresh templates",
+                                    tint = VairiotViolet, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                    if (state.templates.isEmpty()) {
+                        Text(
+                            "No label templates yet. Templates are designed in the Vairiot web app " +
+                            "under Asset Labels and appear here automatically once saved.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        )
+                    } else {
+                        TemplateDropdown(
+                            templates = state.templates,
+                            selectedId = state.selectedTemplateId,
+                            onSelect = { viewModel.selectTemplate(it) },
+                        )
+                        val copies = state.selectedTemplate?.config?.printer?.copies ?: 1
+                        if (copies > 1) {
+                            Text("Prints ${copies.coerceIn(1, 20)} copies per label",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        }
+                    }
+                }
+            }
+
             // Preview
             state.previewBitmap?.let { bmp ->
                 Card(
@@ -106,60 +145,24 @@ fun LabelDesignScreen(
                 }
             }
 
-            // Barcode Standard
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Barcode standard", style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold)
-                    BarcodeTypeDropdown(
-                        selected = state.barcodeType,
-                        onSelect = { viewModel.setBarcodeType(it) },
-                    )
-                }
-            }
-
-            // Label Size
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Label size", style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold)
-                    LabelSizeDropdown(
-                        selectedIndex = state.labelSizeIndex,
-                        onSelect = { viewModel.setLabelSizeIndex(it) },
-                    )
-                }
-            }
-
-            // Content Fields
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Show on label", style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(4.dp))
-                    FieldToggle("Asset name", state.fields.name) { viewModel.toggleField { f -> f.copy(name = it) } }
-                    FieldToggle("Asset number", state.fields.assetNumber) { viewModel.toggleField { f -> f.copy(assetNumber = it) } }
-                    FieldToggle("Serial number", state.fields.serialNumber) { viewModel.toggleField { f -> f.copy(serialNumber = it) } }
-                    FieldToggle("GS1 identifier", state.fields.barcode) { viewModel.toggleField { f -> f.copy(barcode = it) } }
-                    FieldToggle("Site", state.fields.site) { viewModel.toggleField { f -> f.copy(site = it) } }
-                    FieldToggle("Category", state.fields.category) { viewModel.toggleField { f -> f.copy(category = it) } }
-                    FieldToggle("Company name", state.fields.companyName) { viewModel.toggleField { f -> f.copy(companyName = it) } }
-                    FieldToggle("Company address", state.fields.companyAddress) { viewModel.toggleField { f -> f.copy(companyAddress = it) } }
-                    FieldToggle("Company email", state.fields.companyEmail) { viewModel.toggleField { f -> f.copy(companyEmail = it) } }
-                }
-            }
-
             // Printer Info
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Printer", style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold)
-                    if (state.savedPrinter != null) {
+                    val printer = state.effectivePrinter
+                    if (printer != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(state.savedPrinter!!.name, fontWeight = FontWeight.Medium)
-                                Text(state.savedPrinter!!.address,
+                                Text(printer.name, fontWeight = FontWeight.Medium)
+                                Text(printer.address,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                                if (state.matchedPrinter != null) {
+                                    Text("Selected by the template",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = VairiotViolet)
+                                }
                             }
                             TextButton(onClick = onPrinterSetup) { Text("Change") }
                         }
@@ -169,6 +172,9 @@ fun LabelDesignScreen(
                             Spacer(Modifier.width(8.dp))
                             Text("Find printer")
                         }
+                    }
+                    state.printerHint?.let { hint ->
+                        Text(hint, style = MaterialTheme.typography.bodySmall, color = WarningAmber)
                     }
                 }
             }
@@ -194,7 +200,8 @@ fun LabelDesignScreen(
         Surface(tonalElevation = 4.dp, shadowElevation = 4.dp) {
             Button(
                 onClick = { viewModel.printLabel() },
-                enabled = !state.isPrinting && state.previewBitmap != null && state.savedPrinter != null,
+                enabled = !state.isPrinting && state.selectedTemplate != null &&
+                          state.previewBitmap != null && state.effectivePrinter != null,
                 modifier = Modifier.fillMaxWidth().padding(16.dp).height(50.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
@@ -215,62 +222,29 @@ fun LabelDesignScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BarcodeTypeDropdown(selected: BarcodeType, onSelect: (BarcodeType) -> Unit) {
+private fun TemplateDropdown(
+    templates: List<LabelTemplateDto>,
+    selectedId: String?,
+    onSelect: (String) -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
+    val selectedName = templates.firstOrNull { it.id == selectedId }?.name ?: "Choose a template"
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
-            value = selected.label,
+            value = selectedName,
             onValueChange = {},
             readOnly = true,
+            singleLine = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             modifier = Modifier.menuAnchor().fillMaxWidth(),
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            BarcodeType.entries.forEach { type ->
+            templates.forEach { template ->
                 DropdownMenuItem(
-                    text = { Text("${type.label} (${type.group})") },
-                    onClick = { onSelect(type); expanded = false },
+                    text = { Text(template.name) },
+                    onClick = { onSelect(template.id); expanded = false },
                 )
             }
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LabelSizeDropdown(selectedIndex: Int, onSelect: (Int) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = AVERY_PRESETS.getOrNull(selectedIndex)?.label ?: ""
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-        OutlinedTextField(
-            value = selectedLabel,
-            onValueChange = {},
-            readOnly = true,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            AVERY_PRESETS.forEachIndexed { i, preset ->
-                DropdownMenuItem(
-                    text = { Text(preset.label) },
-                    onClick = { onSelect(i); expanded = false },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FieldToggle(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(
-            checked = checked,
-            onCheckedChange = onToggle,
-            colors = CheckboxDefaults.colors(checkedColor = VairiotViolet),
-        )
-        Text(label, modifier = Modifier.padding(start = 4.dp))
     }
 }

@@ -395,6 +395,46 @@ data class LabelPrintRequest(
     val printerId:    String? = null,
 )
 
+// ─── Label templates ───────────────────────────────────────────────────────
+// Designed in the web app; config is written by the desktop designer so every
+// field is nullable — older or partially saved templates may omit any of them.
+data class LabelTemplateDto(
+    val id:     String,
+    val name:   String,
+    val config: LabelTemplateConfigDto? = null,
+)
+
+data class LabelTemplateConfigDto(
+    val barcodeType:   String?  = null,   // 'qrcode' | 'datamatrix' | 'code128' | …
+    val sizePreset:    String?  = null,   // 'avery-5167' … | 'custom'
+    val customW:       Double?  = null,   // mm, when sizePreset == 'custom'
+    val customH:       Double?  = null,
+    val fields:        LabelTemplateFieldsDto? = null,
+    val printMode:     String?  = null,   // 'sheet' | 'roll' — browser-driver concern
+    val printRotation: Int?     = null,   // 0 | 90 | 180 | 270
+    val printRotate:   Boolean? = null,   // legacy — true ≙ 90
+    val monochrome:    Boolean? = null,
+    val printer:       PrinterSettingsDto? = null,
+)
+
+data class LabelTemplateFieldsDto(
+    val name:           Boolean? = null,
+    val assetNumber:    Boolean? = null,
+    val serialNumber:   Boolean? = null,
+    val barcode:        Boolean? = null,
+    val site:           Boolean? = null,
+    val category:       Boolean? = null,
+    val companyName:    Boolean? = null,
+    val companyAddress: Boolean? = null,
+    val companyEmail:   Boolean? = null,
+    val companyLogo:    Boolean? = null,  // no logo rendering on mobile — ignored
+)
+
+data class PrinterSettingsDto(
+    val name:   String? = null,   // printer these settings are tuned for
+    val copies: Int?    = null,   // copies per label, 1–20
+)
+
 // ─── Asset update ──────────────────────────────────────────────────────────
 data class AssetUpdateRequest(
     val name:         String?  = null,

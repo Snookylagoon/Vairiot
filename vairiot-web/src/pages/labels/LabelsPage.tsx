@@ -165,6 +165,10 @@ type TemplateConfig = {
   printGapMm?: number;
   /** Legacy field from before rotation had a direction (true ≙ 90). */
   printRotate?: boolean;
+  /** Print settings tuned for a specific printer. They travel with the
+   *  template so mobile devices reproduce the same setup: the device matches
+   *  its saved/paired printer by name and prints `copies` of each label. */
+  printer?: { name?: string; copies?: number };
 };
 
 /* ---------- Page ---------- */
@@ -193,6 +197,8 @@ export function LabelsPage() {
   const [leaderLabel, setLeaderLabel] = useState(false);
   const [printOffsetMm, setPrintOffsetMm] = useState(0);
   const [printGapMm, setPrintGapMm] = useState(0);
+  const [printerName, setPrinterName] = useState('');
+  const [printCopies, setPrintCopies] = useState(1);
   const [showCalibrate, setShowCalibrate] = useState(false);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
@@ -347,6 +353,7 @@ export function LabelsPage() {
 
   const currentConfig = (): TemplateConfig => ({
     barcodeType, sizePreset, customW, customH, fields, logoScale, barcodeMm, layout, styles, groups, printMode, printRotation, monochrome, leaderLabel, printOffsetMm, printGapMm,
+    printer: { name: printerName.trim(), copies: printCopies },
   });
 
   const applyTemplate = (id: string) => {
@@ -374,6 +381,12 @@ export function LabelsPage() {
     setLeaderLabel(c.leaderLabel === true);
     setPrintOffsetMm(typeof c.printOffsetMm === 'number' ? c.printOffsetMm : 0);
     setPrintGapMm(typeof c.printGapMm === 'number' ? c.printGapMm : 0);
+    setPrinterName(typeof c.printer?.name === 'string' ? c.printer.name : '');
+    setPrintCopies(
+      typeof c.printer?.copies === 'number' && c.printer.copies >= 1
+        ? Math.min(20, Math.round(c.printer.copies))
+        : 1,
+    );
     setTemplateName(t.name);
   };
 
@@ -438,9 +451,11 @@ export function LabelsPage() {
     const quarterTurn = rotate && printRotation !== 180;
     const pageW = quarterTurn ? heightMm : widthMm;
     const pageH = quarterTurn ? widthMm : heightMm;
-    const printUrls: (string | null)[] = rotate
+    let printUrls: (string | null)[] = rotate
       ? await Promise.all(printRendered.map(r => rotateDataUrl(r.dataUrl, printRotation as 90 | 180 | 270)))
       : printRendered.map(r => r.dataUrl);
+    // Copies per label (saved with the template's printer settings).
+    if (printCopies > 1) printUrls = printUrls.flatMap(u => Array(printCopies).fill(u) as (string | null)[]);
     // Optional blank leader page: the printer spends its first-feed
     // registration drift on an empty label instead of a real one.
     if (printMode === 'roll' && leaderLabel) printUrls.unshift(null);
@@ -851,6 +866,31 @@ export function LabelsPage() {
                 <Settings2 size={14} className="mr-1" /> Calibrate
               </Button>
             )}
+            <label className="flex items-center gap-1.5 text-xs text-gray-600"
+              title="Which printer these settings are tuned for. Saved with the template — mobile devices match their paired printer by this name and reuse the template's print setup.">
+              Printer
+              <input
+                value={printerName}
+                onChange={e => setPrinterName(e.target.value)}
+                placeholder="e.g. TSC TE210"
+                className="w-28 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+              />
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-gray-600"
+              title="Copies of each label to print. Saved with the template's printer settings.">
+              Copies
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={printCopies}
+                onChange={e => {
+                  const v = parseInt(e.target.value, 10);
+                  setPrintCopies(Number.isFinite(v) ? Math.max(1, Math.min(20, v)) : 1);
+                }}
+                className="w-14 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+              />
+            </label>
             <Button size="sm" variant="secondary" onClick={handlePrint} disabled={selected.size === 0}>
               <Printer size={14} className="mr-1" /> Print
             </Button>

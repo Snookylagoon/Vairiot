@@ -69,6 +69,9 @@ interface VairiotApiService {
     @GET("api/v1/assets/{id}/gs1")
     suspend fun getAssetGs1(@Path("id") id: String): AssetGs1Response
 
+    @GET("api/v1/labels/templates")
+    suspend fun getLabelTemplates(): List<LabelTemplateDto>
+
     @POST("api/v1/labels/print")
     suspend fun recordLabelPrint(@Body request: LabelPrintRequest): ResponseBody
 

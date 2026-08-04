@@ -123,6 +123,10 @@ extension APIEndpoint {
         APIEndpoint(method: .post, path: "api/v1/labels/print", body: request)
     }
 
+    static var getLabelTemplates: APIEndpoint {
+        APIEndpoint(method: .get, path: "api/v1/labels/templates")
+    }
+
     static func createAsset(_ request: AssetCreateRequest) -> APIEndpoint {
         APIEndpoint(method: .post, path: "api/v1/assets", body: request)
     }

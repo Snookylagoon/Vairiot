@@ -22,60 +22,104 @@ struct ContentFields {
 enum BarcodeStandard: String, CaseIterable, Identifiable {
     case qr = "QR Code"
     case code128 = "Code 128"
-    case code39 = "Code 39"
     case pdf417 = "PDF417"
+    case aztec = "Aztec"
 
     var id: String { rawValue }
 
     var is2D: Bool {
         switch self {
-        case .qr, .pdf417: return true
-        case .code128, .code39: return false
+        case .qr, .pdf417, .aztec: return true
+        case .code128: return false
+        }
+    }
+
+    /// Maps a web-designer barcodeType to what this device can render.
+    /// Core Image has no Data Matrix, EAN, UPC, ITF or Code 39/93 generators,
+    /// so those fall back to QR (2D) or Code 128 (1D) with a visible note.
+    static func from(templateType raw: String?) -> (standard: BarcodeStandard, note: String?) {
+        switch (raw ?? "qrcode").lowercased() {
+        case "qrcode":    return (.qr, nil)
+        case "code128":   return (.code128, nil)
+        case "pdf417":    return (.pdf417, nil)
+        case "azteccode": return (.aztec, nil)
+        case "datamatrix":
+            return (.qr, "Rendered as QR on this device")
+        case "code39", "code93", "ean13", "upca", "itf14":
+            return (.code128, "Rendered as Code 128 on this device")
+        default:
+            return (.qr, nil)
         }
     }
 }
 
-// MARK: - Label Size Preset
+// MARK: - Label Size
 
-enum LabelSizePreset: String, CaseIterable, Identifiable {
-    case avery5167 = "Avery 5167"
-    case avery6570 = "Avery 6570"
-    case avery5160 = "Avery 5160"
-    case averyL7651 = "Avery L7651 EU"
-    case averyL7159 = "Avery L7159 EU"
-    case avery5163 = "Avery 5163"
-    case averyL7163 = "Avery L7163 EU"
+/// Physical label size in millimetres. Presets mirror the web designer's
+/// Avery codes; arbitrary custom sizes are supported. 1 mm = 72/25.4 pt.
+struct LabelSize: Equatable {
+    var widthMm: Double
+    var heightMm: Double
 
-    var id: String { rawValue }
+    private static let ptPerMm: CGFloat = 72.0 / 25.4
 
-    var dimensions: (width: CGFloat, height: CGFloat) {
-        switch self {
-        case .avery5167:  return (178, 51)
-        case .avery6570:  return (127, 76)
-        case .avery5160:  return (267, 102)
-        case .averyL7651: return (152, 85)
-        case .averyL7159: return (254, 152)
-        case .avery5163:  return (406, 203)
-        case .averyL7163: return (396, 152)
-        }
-    }
+    var width: CGFloat { CGFloat(widthMm) * Self.ptPerMm }
+    var height: CGFloat { CGFloat(heightMm) * Self.ptPerMm }
 
     var label: String {
-        let d = dimensions
-        return "\(rawValue) — \(Int(d.width/4))×\(Int(d.height/4))mm"
+        String(format: "%.0f×%.0fmm", widthMm, heightMm)
+    }
+
+    /// Avery L7651 — the previous default.
+    static let fallback = LabelSize(widthMm: 38.1, heightMm: 21.2)
+
+    static let presets: [String: LabelSize] = [
+        "avery-5167":  LabelSize(widthMm: 44.5, heightMm: 12.7),
+        "avery-6570":  LabelSize(widthMm: 31.75, heightMm: 19.05),
+        "avery-5160":  LabelSize(widthMm: 66.7, heightMm: 25.4),
+        "avery-l7651": LabelSize(widthMm: 38.1, heightMm: 21.2),
+        "avery-l7159": LabelSize(widthMm: 63.5, heightMm: 38.1),
+        "avery-5163":  LabelSize(widthMm: 101.6, heightMm: 50.8),
+        "avery-l7163": LabelSize(widthMm: 99.1, heightMm: 38.1),
+    ]
+
+    static func from(config: LabelTemplateConfig) -> LabelSize {
+        if config.sizePreset == "custom",
+           let w = config.customW, let h = config.customH, w > 0, h > 0 {
+            return LabelSize(widthMm: min(w, 300), heightMm: min(h, 300))
+        }
+        if let code = config.sizePreset, let preset = presets[code.lowercased()] {
+            return preset
+        }
+        return .fallback
     }
 }
 
 // MARK: - Label Design View
 
+/// Choose-a-template-and-print screen. Templates are designed in the web
+/// app's label designer; this screen fetches them, applies the saved config
+/// (size, barcode, fields, per-printer settings) and prints.
 struct LabelDesignView: View {
 
     let asset: AssetResponse
     let apiClient: APIClient
 
+    private static let templatesCacheKey = "cachedLabelTemplatesJSON"
+
+    @State private var templates: [LabelTemplateResponse] = []
+    @State private var selectedTemplateId: String?
+    @State private var isLoadingTemplates = true
+    @State private var templatesError: String?
+
+    // Render state derived from the selected template's config
     @State private var fields = ContentFields()
-    @State private var selectedSize: LabelSizePreset = .averyL7651
+    @State private var labelSize = LabelSize.fallback
     @State private var selectedBarcode: BarcodeStandard = .qr
+    @State private var barcodeSubstitutionNote: String?
+    @State private var printRotation = 0
+    @State private var printCopies = 1
+    @State private var tunedPrinterName: String?
 
     @State private var company: CompanyResponse?
     @State private var isLoadingCompany = true
@@ -89,13 +133,21 @@ struct LabelDesignView: View {
     @State private var bluetoothPrinter: BluetoothPrinterManager?
     @State private var savedPrinterName: String?
 
+    private var selectedTemplate: LabelTemplateResponse? {
+        templates.first { $0.id == selectedTemplateId }
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                previewSection
-                barcodePicker
-                sizePicker
-                fieldToggles
+                if isLoadingTemplates && templates.isEmpty {
+                    loadingSection
+                } else if templates.isEmpty {
+                    emptyTemplatesSection
+                } else {
+                    templateSection
+                    previewSection
+                }
                 printerSection
             }
             .padding()
@@ -103,7 +155,7 @@ struct LabelDesignView: View {
         .safeAreaInset(edge: .bottom) {
             printButton
         }
-        .navigationTitle("Label Design")
+        .navigationTitle("Print Label")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -112,13 +164,18 @@ struct LabelDesignView: View {
                 } label: {
                     Image(systemName: "square.and.arrow.down")
                 }
+                .disabled(selectedTemplate == nil)
             }
         }
         .task {
+            await loadTemplates()
             await loadCompany()
             await loadGs1()
             bluetoothPrinter = BluetoothPrinterManager()
             savedPrinterName = UserDefaults.standard.string(forKey: "savedPrinterName")
+        }
+        .onChange(of: selectedTemplateId) {
+            applySelectedTemplate()
         }
         .sheet(isPresented: $showPrinterSetup) {
             NavigationStack {
@@ -130,17 +187,193 @@ struct LabelDesignView: View {
         }
     }
 
+    // MARK: - Template Section
+
+    private var templateSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                sectionHeader("Template")
+                Spacer()
+                Button {
+                    Task { await loadTemplates() }
+                } label: {
+                    if isLoadingTemplates {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.subheadline)
+                    }
+                }
+                .disabled(isLoadingTemplates)
+                .tint(.vairiotViolet)
+            }
+
+            Picker("Template", selection: $selectedTemplateId) {
+                ForEach(templates) { template in
+                    Text(template.name).tag(Optional(template.id))
+                }
+            }
+            .pickerStyle(.menu)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(selectedBarcode.rawValue) · \(labelSize.label)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if let note = barcodeSubstitutionNote {
+                    Text(note)
+                        .font(.caption)
+                        .foregroundStyle(Color.warningAmber)
+                }
+                if printCopies > 1 {
+                    Text("\(printCopies) copies per label on Bluetooth printers")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let hint = printerMismatchHint {
+                    Text(hint)
+                        .font(.caption)
+                        .foregroundStyle(Color.warningAmber)
+                }
+                if let err = templatesError {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(Color.errorRed)
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
+    private var loadingSection: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            Text("Loading templates…")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
+
+    private var emptyTemplatesSection: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+            Text("No Label Templates")
+                .font(.headline)
+            Text("Label templates are designed in the Vairiot web app under Asset Labels. Once saved there, they appear here automatically.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            if let err = templatesError {
+                Text(err)
+                    .font(.caption)
+                    .foregroundStyle(Color.errorRed)
+                    .multilineTextAlignment(.center)
+            }
+            Button {
+                Task { await loadTemplates() }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+                    .font(.subheadline)
+            }
+            .tint(.vairiotViolet)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+        .padding(.horizontal, 16)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var printerMismatchHint: String? {
+        guard let tuned = tunedPrinterName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !tuned.isEmpty else { return nil }
+        if let saved = savedPrinterName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !saved.isEmpty {
+            let a = saved.lowercased()
+            let b = tuned.lowercased()
+            if a.contains(b) || b.contains(a) { return nil }
+        }
+        return "Template is tuned for ‘\(tuned)’"
+    }
+
+    // MARK: - Templates Loading
+
+    private func loadTemplates() async {
+        isLoadingTemplates = true
+        templatesError = nil
+        do {
+            let fetched: [LabelTemplateResponse] = try await apiClient.request(.getLabelTemplates)
+            templates = fetched
+            if let data = try? JSONEncoder().encode(fetched) {
+                UserDefaults.standard.set(data, forKey: Self.templatesCacheKey)
+            }
+        } catch {
+            let message = (error as? APIError)?.userMessage ?? error.localizedDescription
+            if let data = UserDefaults.standard.data(forKey: Self.templatesCacheKey),
+               let cached = try? JSONDecoder().decode([LabelTemplateResponse].self, from: data),
+               !cached.isEmpty {
+                templates = cached
+                templatesError = "Couldn’t refresh — showing saved templates. \(message)"
+            } else {
+                templatesError = message
+            }
+        }
+        isLoadingTemplates = false
+
+        if selectedTemplateId == nil || !templates.contains(where: { $0.id == selectedTemplateId }) {
+            selectedTemplateId = templates.first?.id
+        }
+        applySelectedTemplate()
+    }
+
+    private func applySelectedTemplate() {
+        guard let template = selectedTemplate else { return }
+        let cfg = template.config ?? LabelTemplateConfig()
+
+        let mapping = BarcodeStandard.from(templateType: cfg.barcodeType)
+        selectedBarcode = mapping.standard
+        barcodeSubstitutionNote = mapping.note
+
+        labelSize = LabelSize.from(config: cfg)
+
+        var f = ContentFields()
+        if let tf = cfg.fields {
+            f.name = tf.name ?? f.name
+            f.assetNumber = tf.assetNumber ?? f.assetNumber
+            f.serialNumber = tf.serialNumber ?? f.serialNumber
+            f.barcode = tf.barcode ?? f.barcode
+            f.site = tf.site ?? f.site
+            f.category = tf.category ?? f.category
+            f.companyName = tf.companyName ?? f.companyName
+            f.companyAddress = tf.companyAddress ?? f.companyAddress
+            f.companyEmail = tf.companyEmail ?? f.companyEmail
+        }
+        fields = f
+
+        printRotation = cfg.effectiveRotation
+        printCopies = cfg.effectiveCopies
+        tunedPrinterName = cfg.printer?.name
+    }
+
     // MARK: - Preview
 
     private var previewSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Preview")
 
-            let dims = selectedSize.dimensions
-            let scale = min((UIScreen.main.bounds.width - 32) / dims.width, 1.5)
-
+            let scale = previewScale
             labelContent
-                .frame(width: dims.width * scale, height: dims.height * scale)
+                .frame(width: labelSize.width * scale, height: labelSize.height * scale)
                 .background(.white)
                 .border(Color.gray.opacity(0.3), width: 1)
                 .clipShape(RoundedRectangle(cornerRadius: 4))
@@ -149,10 +382,13 @@ struct LabelDesignView: View {
         }
     }
 
+    private var previewScale: CGFloat {
+        min((UIScreen.main.bounds.width - 32) / labelSize.width, 2.2)
+    }
+
     private var labelContent: some View {
-        let dims = selectedSize.dimensions
-        let scale = min((UIScreen.main.bounds.width - 32) / dims.width, 1.5)
-        let pad = dims.height * scale * 0.08
+        let scale = previewScale
+        let pad = labelSize.height * scale * 0.08
 
         return GeometryReader { geo in
             if selectedBarcode.is2D {
@@ -163,14 +399,14 @@ struct LabelDesignView: View {
 
                     Spacer().frame(width: geo.size.width * 0.04)
 
-                    textFields(fontSize: dynamicFontSize(for: dims.height * scale))
+                    textFields(fontSize: dynamicFontSize(for: labelSize.height * scale))
                 }
                 .padding(.horizontal, geo.size.width * 0.04)
                 .padding(.vertical, pad)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(spacing: 2) {
-                    textFields(fontSize: dynamicFontSize(for: dims.height * scale * 0.65))
+                    textFields(fontSize: dynamicFontSize(for: labelSize.height * scale * 0.65))
 
                     barcodeImage
                         .frame(height: (geo.size.height - pad * 2) * 0.3)
@@ -282,82 +518,6 @@ struct LabelDesignView: View {
         }
     }
 
-    // MARK: - Barcode Picker
-
-    private var barcodePicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Barcode Standard")
-
-            Picker("Barcode", selection: $selectedBarcode) {
-                ForEach(BarcodeStandard.allCases) { bc in
-                    Text(bc.rawValue).tag(bc)
-                }
-            }
-            .pickerStyle(.menu)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-    }
-
-    // MARK: - Size Picker
-
-    private var sizePicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Label Size")
-
-            Picker("Size", selection: $selectedSize) {
-                ForEach(LabelSizePreset.allCases) { size in
-                    Text(size.label).tag(size)
-                }
-            }
-            .pickerStyle(.menu)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-    }
-
-    // MARK: - Field Toggles
-
-    private var fieldToggles: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Show on Label")
-
-            VStack(spacing: 0) {
-                fieldToggle("Asset Name", isOn: $fields.name)
-                Divider().padding(.horizontal)
-                fieldToggle("Asset Number", isOn: $fields.assetNumber)
-                Divider().padding(.horizontal)
-                fieldToggle("Serial Number", isOn: $fields.serialNumber)
-                Divider().padding(.horizontal)
-                fieldToggle("GS1 Identifier", isOn: $fields.barcode)
-                Divider().padding(.horizontal)
-                fieldToggle("Site", isOn: $fields.site)
-                Divider().padding(.horizontal)
-                fieldToggle("Category", isOn: $fields.category)
-                Divider().padding(.horizontal)
-                fieldToggle("Company Name", isOn: $fields.companyName)
-                Divider().padding(.horizontal)
-                fieldToggle("Company Address", isOn: $fields.companyAddress)
-                Divider().padding(.horizontal)
-                fieldToggle("Company Email", isOn: $fields.companyEmail)
-            }
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
-
-    private func fieldToggle(_ label: String, isOn: Binding<Bool>) -> some View {
-        Toggle(label, isOn: isOn)
-            .font(.subheadline)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .tint(.vairiotViolet)
-    }
-
     // MARK: - Printer Section
 
     private var printerSection: some View {
@@ -430,7 +590,7 @@ struct LabelDesignView: View {
             .buttonStyle(.borderedProminent)
             .tint(.vairiotViolet)
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .disabled(isPrinting)
+            .disabled(isPrinting || selectedTemplate == nil)
 
             if savedPrinterName != nil {
                 Button {
@@ -440,6 +600,7 @@ struct LabelDesignView: View {
                         .font(.subheadline)
                 }
                 .tint(.secondary)
+                .disabled(isPrinting || selectedTemplate == nil)
             }
         }
         .padding()
@@ -478,10 +639,9 @@ struct LabelDesignView: View {
         let filterName: String
         switch type {
         case .qr:      filterName = "CIQRCodeGenerator"
-        case .code128:  filterName = "CICode128BarcodeGenerator"
-        case .pdf417:   filterName = "CIPDF417BarcodeGenerator"
-        case .code39:
-            return generateCode39Image(from: string)
+        case .code128: filterName = "CICode128BarcodeGenerator"
+        case .pdf417:  filterName = "CIPDF417BarcodeGenerator"
+        case .aztec:   filterName = "CIAztecCodeGenerator"
         }
 
         guard let filter = CIFilter(name: filterName),
@@ -502,26 +662,12 @@ struct LabelDesignView: View {
         return UIImage(cgImage: cgImage)
     }
 
-    private func generateCode39Image(from string: String) -> UIImage? {
-        let context = CIContext()
-        guard let filter = CIFilter(name: "CICode128BarcodeGenerator"),
-              let data = string.data(using: .ascii) else { return nil }
-        filter.setValue(data, forKey: "inputMessage")
-        guard let ciImage = filter.outputImage else { return nil }
-        let scaleX = 300.0 / ciImage.extent.size.width
-        let scaleY = 80.0 / ciImage.extent.size.height
-        let scaled = ciImage.transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
-        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
-        return UIImage(cgImage: cgImage)
-    }
-
     // MARK: - Render Label
 
     private func renderLabelImage() -> UIImage? {
-        let dims = selectedSize.dimensions
-        let renderScale: CGFloat = 3
-        let w = dims.width * renderScale
-        let h = dims.height * renderScale
+        let renderScale: CGFloat = 4
+        let w = labelSize.width * renderScale
+        let h = labelSize.height * renderScale
 
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: w, height: h))
 
@@ -564,8 +710,7 @@ struct LabelDesignView: View {
     }
 
     private func drawTextFields(in rect: CGRect, renderScale: CGFloat) {
-        let dims = selectedSize.dimensions
-        let baseFontSize = dynamicFontSize(for: dims.height) * renderScale
+        let baseFontSize = dynamicFontSize(for: labelSize.height) * renderScale
         let titleFont = UIFont.boldSystemFont(ofSize: baseFontSize)
         let bodyFont = UIFont.systemFont(ofSize: baseFontSize * 0.82)
         let smallFont = UIFont.systemFont(ofSize: baseFontSize * 0.7)
@@ -624,6 +769,28 @@ struct LabelDesignView: View {
         }
     }
 
+    /// Rotates by the template's printRotation before ESC/POS conversion.
+    private func rotatedImage(_ image: UIImage, degrees: Int) -> UIImage {
+        let d = ((degrees % 360) + 360) % 360
+        guard d != 0 else { return image }
+        let radians = CGFloat(d) * .pi / 180
+        let newSize = d % 180 == 0
+            ? image.size
+            : CGSize(width: image.size.height, height: image.size.width)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { ctx in
+            let c = ctx.cgContext
+            c.translateBy(x: newSize.width / 2, y: newSize.height / 2)
+            c.rotate(by: radians)
+            image.draw(in: CGRect(
+                x: -image.size.width / 2,
+                y: -image.size.height / 2,
+                width: image.size.width,
+                height: image.size.height
+            ))
+        }
+    }
+
     // MARK: - Print Actions
 
     private func printViaAirPrint() {
@@ -632,6 +799,8 @@ struct LabelDesignView: View {
             return
         }
 
+        // The AirPrint dialog handles orientation and copies itself, so the
+        // template's rotation/copies settings only apply to the Bluetooth path.
         let printController = UIPrintInteractionController.shared
         let printInfo = UIPrintInfo(dictionary: nil)
         printInfo.jobName = "Vairiot Label - \(asset.assetNumber)"
@@ -661,8 +830,10 @@ struct LabelDesignView: View {
             return
         }
 
+        let rotated = rotatedImage(image, degrees: printRotation)
+
         isPrinting = true
-        printer.printImage(image, toAddress: address) { success, error in
+        printer.printImage(rotated, toAddress: address, copies: printCopies) { success, error in
             DispatchQueue.main.async {
                 isPrinting = false
                 if success {
@@ -682,21 +853,23 @@ struct LabelDesignView: View {
         switch selectedBarcode {
         case .qr: symbology = "QR"
         case .code128: symbology = "GS1_128"
-        case .pdf417, .code39: symbology = nil
+        case .pdf417, .aztec: symbology = nil
         }
         guard let symbology else { return }
+        let templateCode = selectedTemplate?.name ?? "mobile-ios"
         Task {
             try? await apiClient.requestVoid(.recordLabelPrint(LabelPrintRequest(
                 assetIds: [asset.id],
-                templateCode: "mobile-ios",
+                templateCode: templateCode,
                 symbology: symbology,
+                deviceId: DeviceUDIDStore.udid,
                 printerId: printerId
             )))
         }
     }
 
     private func saveAsImage() {
-        guard let image = renderLabelImage() else {
+        guard selectedTemplate != nil, let image = renderLabelImage() else {
             showStatus("Failed to render label", isError: true)
             return
         }
@@ -715,7 +888,8 @@ struct LabelDesignView: View {
     // MARK: - Helpers
 
     private func dynamicFontSize(for height: CGFloat) -> CGFloat {
-        let scale = height / 150.0
+        // 37.5 mm tall (≈106 pt) is the reference height for an 11 pt title.
+        let scale = height / 106.0
         return max(3, min(14, 11 * scale))
     }
 
@@ -798,7 +972,7 @@ final class BluetoothPrinterManager: NSObject, ObservableObject, CBCentralManage
         connectedPeripheralName = nil
     }
 
-    func printImage(_ image: UIImage, toAddress address: String, completion: @escaping (Bool, String?) -> Void) {
+    func printImage(_ image: UIImage, toAddress address: String, copies: Int = 1, completion: @escaping (Bool, String?) -> Void) {
         guard let uuid = UUID(uuidString: address) else {
             completion(false, "Invalid printer address")
             return
@@ -806,7 +980,7 @@ final class BluetoothPrinterManager: NSObject, ObservableObject, CBCentralManage
 
         guard let peripheral = discoveredPeripherals.first(where: { $0.identifier == uuid }) else {
             printCompletion = completion
-            pendingImageData = convertToESCPOS(image)
+            pendingImageData = convertToESCPOS(image, copies: copies)
             centralManager.scanForPeripherals(withServices: nil, options: nil)
             DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
                 if self?.connectedPeripheral == nil {
@@ -817,9 +991,19 @@ final class BluetoothPrinterManager: NSObject, ObservableObject, CBCentralManage
             return
         }
 
-        pendingImageData = convertToESCPOS(image)
+        pendingImageData = convertToESCPOS(image, copies: copies)
         printCompletion = completion
         centralManager.connect(peripheral, options: nil)
+    }
+
+    /// Repeats the single-label ESC/POS payload for multi-copy templates.
+    private func convertToESCPOS(_ image: UIImage, copies: Int) -> Data? {
+        guard let single = convertToESCPOS(image) else { return nil }
+        let count = min(max(copies, 1), 20)
+        guard count > 1 else { return single }
+        var out = Data(capacity: single.count * count)
+        for _ in 0..<count { out.append(single) }
+        return out
     }
 
     private func convertToESCPOS(_ image: UIImage) -> Data? {
@@ -851,13 +1035,14 @@ final class BluetoothPrinterManager: NSObject, ObservableObject, CBCentralManage
         escpos.append(contentsOf: [0x1B, 0x40])
         escpos.append(contentsOf: [0x1B, 0x33, 0x00])
 
-        let bytesPerRow = (w + 7) / 8
+        // ESC * 33 (24-dot double density): n = dot columns; each column is
+        // 3 bytes, byte k covering rows y+8k..y+8k+7, top row in the MSB.
         for stripStart in stride(from: 0, to: h, by: 24) {
             escpos.append(contentsOf: [0x1B, 0x2A, 33])
-            escpos.append(UInt8(bytesPerRow & 0xFF))
-            escpos.append(UInt8((bytesPerRow >> 8) & 0xFF))
+            escpos.append(UInt8(w & 0xFF))
+            escpos.append(UInt8((w >> 8) & 0xFF))
 
-            for x in 0..<bytesPerRow * 8 {
+            for x in 0..<w {
                 for k in 0..<3 {
                     var byte: UInt8 = 0
                     for bit in 0..<8 {

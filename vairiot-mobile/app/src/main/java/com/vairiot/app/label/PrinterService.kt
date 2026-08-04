@@ -87,7 +87,7 @@ class PrinterService @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    suspend fun printBitmap(printerAddress: String, bitmap: Bitmap): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun printBitmap(printerAddress: String, bitmap: Bitmap, copies: Int = 1): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val device: BluetoothDevice = adapter?.getRemoteDevice(printerAddress)
                 ?: return@withContext Result.failure(Exception("Bluetooth not available"))
@@ -97,8 +97,10 @@ class PrinterService @Inject constructor(
 
             try {
                 val out = socket.outputStream
-                sendEscPosImage(out, bitmap)
-                out.write(byteArrayOf(0x0A, 0x0A, 0x0A)) // feed 3 lines
+                repeat(copies.coerceIn(1, 20)) {
+                    sendEscPosImage(out, bitmap)
+                    out.write(byteArrayOf(0x0A, 0x0A, 0x0A)) // feed 3 lines
+                }
                 out.flush()
                 Result.success(Unit)
             } finally {
@@ -118,24 +120,24 @@ class PrinterService @Inject constructor(
 
         val w = bitmap.width
         val h = bitmap.height
-        val bytesPerRow = (w + 7) / 8
 
         // ESC/POS: select bit-image mode
         out.write(byteArrayOf(0x1B, 0x40)) // init
         out.write(byteArrayOf(0x1B, 0x33, 0x00)) // set line spacing to 0
 
+        // ESC * 33 (24-dot double density): n = dot columns; each column is
+        // 3 bytes, byte k covering rows y+8k..y+8k+7 with the top row in the
+        // most significant bit.
         for (y in 0 until h step 24) {
-            out.write(byteArrayOf(0x1B, 0x2A, 33, (bytesPerRow and 0xFF).toByte(), ((bytesPerRow shr 8) and 0xFF).toByte()))
+            out.write(byteArrayOf(0x1B, 0x2A, 33, (w and 0xFF).toByte(), ((w shr 8) and 0xFF).toByte()))
             val slice = ByteArrayOutputStream()
-            for (x in 0 until bytesPerRow) {
+            for (col in 0 until w) {
                 for (k in 0 until 3) {
                     var b = 0
                     for (bit in 0 until 8) {
-                        val px = x * 8 + bit
-                        val py = y + k * 8 + (7 - bit % 8).let { _ -> k * 8 + bit }
-                        val py2 = y + k * 8 + bit
-                        if (px < w && py2 < h) {
-                            val pixel = bitmap.getPixel(px, py2)
+                        val py = y + k * 8 + bit
+                        if (py < h) {
+                            val pixel = bitmap.getPixel(col, py)
                             val lum = (0.299 * android.graphics.Color.red(pixel) +
                                        0.587 * android.graphics.Color.green(pixel) +
                                        0.114 * android.graphics.Color.blue(pixel))

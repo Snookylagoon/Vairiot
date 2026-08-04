@@ -138,6 +138,107 @@ struct LabelPrintRequest: Codable {
     var printerId: String?
 }
 
+// MARK: - Label templates
+//
+// Templates are designed in the web app's label designer and saved
+// server-side; mobile only consumes them. The config JSON is written by the
+// browser, so every field is decoded defensively — anything missing or of an
+// unexpected type simply falls back to the app's defaults.
+
+struct LabelTemplateFieldsConfig: Codable {
+    var name: Bool?
+    var assetNumber: Bool?
+    var serialNumber: Bool?
+    var barcode: Bool?
+    var site: Bool?
+    var category: Bool?
+    var companyName: Bool?
+    var companyAddress: Bool?
+    var companyEmail: Bool?
+    var companyLogo: Bool?         // no logo rendering on iOS; ignored
+}
+
+struct LabelTemplatePrinterConfig: Codable {
+    var name: String?
+    var copies: Int?
+
+    enum CodingKeys: String, CodingKey { case name, copies }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try? c.decodeIfPresent(String.self, forKey: .name)
+        if let i = try? c.decodeIfPresent(Int.self, forKey: .copies) {
+            copies = i
+        } else if let d = try? c.decodeIfPresent(Double.self, forKey: .copies) {
+            copies = Int(d)
+        }
+    }
+}
+
+struct LabelTemplateConfig: Codable {
+    var barcodeType: String?       // qrcode | datamatrix | pdf417 | azteccode | code128 | code39 | code93 | ean13 | upca | itf14
+    var sizePreset: String?        // avery-* code, or "custom"
+    var customW: Double?           // mm, when sizePreset == "custom"
+    var customH: Double?
+    var fields: LabelTemplateFieldsConfig?
+    var printMode: String?         // sheet | roll — browser concern; ignored
+    var printRotation: Int?        // 0 | 90 | 180 | 270
+    var printRotate: Bool?         // legacy; true means 90
+    var monochrome: Bool?
+    var printer: LabelTemplatePrinterConfig?
+
+    init() {}
+
+    enum CodingKeys: String, CodingKey {
+        case barcodeType, sizePreset, customW, customH, fields
+        case printMode, printRotation, printRotate, monochrome, printer
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        barcodeType = try? c.decodeIfPresent(String.self, forKey: .barcodeType)
+        sizePreset  = try? c.decodeIfPresent(String.self, forKey: .sizePreset)
+        customW     = try? c.decodeIfPresent(Double.self, forKey: .customW)
+        customH     = try? c.decodeIfPresent(Double.self, forKey: .customH)
+        fields      = try? c.decodeIfPresent(LabelTemplateFieldsConfig.self, forKey: .fields)
+        printMode   = try? c.decodeIfPresent(String.self, forKey: .printMode)
+        if let i = try? c.decodeIfPresent(Int.self, forKey: .printRotation) {
+            printRotation = i
+        } else if let d = try? c.decodeIfPresent(Double.self, forKey: .printRotation) {
+            printRotation = Int(d)
+        }
+        printRotate = try? c.decodeIfPresent(Bool.self, forKey: .printRotate)
+        monochrome  = try? c.decodeIfPresent(Bool.self, forKey: .monochrome)
+        printer     = try? c.decodeIfPresent(LabelTemplatePrinterConfig.self, forKey: .printer)
+    }
+
+    /// Effective rotation in degrees, folding in the legacy boolean.
+    var effectiveRotation: Int {
+        let raw = printRotation ?? (printRotate == true ? 90 : 0)
+        return [0, 90, 180, 270].contains(raw) ? raw : 0
+    }
+
+    /// Copies per label, clamped to the designer's 1–20 range.
+    var effectiveCopies: Int {
+        min(max(printer?.copies ?? 1, 1), 20)
+    }
+}
+
+struct LabelTemplateResponse: Codable, Identifiable {
+    let id: String
+    let name: String
+    var config: LabelTemplateConfig?
+
+    enum CodingKeys: String, CodingKey { case id, name, config }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        config = try? c.decodeIfPresent(LabelTemplateConfig.self, forKey: .config)
+    }
+}
+
 // MARK: - Identification store
 
 /// Tenant GS1 identification (mode, slug, tenant mark, Digital Link host,
