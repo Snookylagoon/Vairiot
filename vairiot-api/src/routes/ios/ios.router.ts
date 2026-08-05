@@ -136,26 +136,134 @@ iosRouter.get('/install', asyncHandler(async (req: Request, res: Response): Prom
     return;
   }
   const itms = `itms-services://?action=download-manifest&url=${encodeURIComponent(`${baseUrl(req)}/api/v1/ios/manifest.plist`)}`;
+  const sizeMb = (release.sizeBytes / (1024 * 1024)).toFixed(1);
+  // The itms-services install is handled by iOS itself — Safari gets no
+  // progress events, so the page switches to a guided "updating" overlay:
+  // an animated time-based progress bar sized to the IPA, staged status
+  // messages, then a jump back into the app via its vairiot:// URL scheme.
   res.send(page('Install Vairiot on iPhone', `
-    <div class="card">
-      <p style="margin-top:0"><strong>Version ${release.versionName}</strong> (build ${release.versionCode})</p>
-      ${release.releaseNotes ? `<p class="muted">${release.releaseNotes}</p>` : ''}
-      <a class="btn" href="${itms}">Install Vairiot</a>
-      <p class="muted" style="margin-bottom:0">Tap the button, then choose <strong>Install</strong> when iOS asks.
-      The icon appears on your home screen and downloads in the background.</p>
+    <div id="install-cards">
+      <div class="card">
+        <p style="margin-top:0"><strong>Version ${release.versionName}</strong> (build ${release.versionCode}) · ${sizeMb} MB</p>
+        ${release.releaseNotes ? `<p class="muted">${release.releaseNotes}</p>` : ''}
+        <a class="btn" id="install-btn" href="${itms}">Install Vairiot</a>
+        <p class="muted" style="margin-bottom:0">Tap the button, then choose <strong>Install</strong> when iOS asks.</p>
+      </div>
+      <div class="card">
+        <p style="margin-top:0"><strong>Nothing happens when you tap Install?</strong></p>
+        <ol style="margin:0">
+          <li>Make sure you opened this page in <strong>Safari</strong> (not Chrome or an in-app browser).</li>
+          <li>Your device must be authorised first — if it isn't yet, enrol below and we'll add it.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <p style="margin-top:0"><strong>First time on this device?</strong></p>
+        <p class="muted">We need to authorise your iPhone once before installs will work.</p>
+        <a class="btn secondary" href="/api/v1/ios/udid">Enrol this device</a>
+      </div>
     </div>
-    <div class="card">
-      <p style="margin-top:0"><strong>Nothing happens when you tap Install?</strong></p>
-      <ol style="margin:0">
-        <li>Make sure you opened this page in <strong>Safari</strong> (not Chrome or an in-app browser).</li>
-        <li>Your device must be authorised first — if it isn't yet, enrol below and we'll add it.</li>
-      </ol>
+
+    <div id="progress-card" class="card" style="display:none; text-align:center">
+      <div class="spinner"></div>
+      <p id="progress-title" style="font-weight:600; font-size:17px; margin:14px 0 4px">Confirm the install…</p>
+      <p id="progress-detail" class="muted" style="margin:0 0 16px">Choose <strong>Install</strong> on the iOS prompt.</p>
+      <div class="bar"><div id="bar-fill" class="bar-fill"></div></div>
+      <p class="muted" style="margin:10px 0 0">The Vairiot icon on your Home Screen fills in as the
+      update downloads. Keep this page open — we'll send you back to the app when it's done.</p>
+      <a class="btn" id="open-app-btn" href="vairiot://" style="display:none; margin-top:16px">Open Vairiot</a>
+      <p class="muted" style="margin:14px 0 0"><a href="#" id="restart-link" style="color:#6d28d9">Start over</a></p>
     </div>
-    <div class="card">
-      <p style="margin-top:0"><strong>First time on this device?</strong></p>
-      <p class="muted">We need to authorise your iPhone once before installs will work.</p>
-      <a class="btn secondary" href="/api/v1/ios/udid">Enrol this device</a>
-    </div>`));
+
+    <style>
+      .spinner { width: 44px; height: 44px; margin: 6px auto 0; border-radius: 50%;
+                 border: 4px solid #eee9fb; border-top-color: #6d28d9;
+                 animation: spin 0.9s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .bar { height: 10px; background: #eee9fb; border-radius: 999px; overflow: hidden; }
+      .bar-fill { height: 100%; width: 0%; border-radius: 999px;
+                  background: linear-gradient(90deg, #e83e8c, #9b5de5, #6d28d9);
+                  transition: width 0.45s ease; }
+      .done .spinner { border-color: #d9f2e4; border-top-color: #16a34a; animation: none;
+                       position: relative; }
+      .done .spinner::after { content: '✓'; position: absolute; inset: 0; display: flex;
+                              align-items: center; justify-content: center;
+                              color: #16a34a; font-size: 24px; font-weight: 700; }
+    </style>
+
+    <script>
+      (function () {
+        // Install takes roughly download + install for a ${sizeMb} MB IPA;
+        // Safari can't observe it, so the bar is a calibrated estimate.
+        var EXPECTED_SECONDS = 30;
+        var installBtn = document.getElementById('install-btn');
+        var cards = document.getElementById('install-cards');
+        var progress = document.getElementById('progress-card');
+        var title = document.getElementById('progress-title');
+        var detail = document.getElementById('progress-detail');
+        var fill = document.getElementById('bar-fill');
+        var openBtn = document.getElementById('open-app-btn');
+        var restart = document.getElementById('restart-link');
+        var timer = null;
+        var started = 0;
+
+        function setStage(t, d) { title.textContent = t; detail.innerHTML = d; }
+
+        function finish() {
+          clearInterval(timer);
+          fill.style.width = '100%';
+          progress.classList.add('done');
+          setStage('Update complete', 'If Vairiot doesn\\u2019t open by itself, tap the button below.');
+          openBtn.style.display = 'block';
+          // Jump back into the app. If iOS is still finishing the install the
+          // attempt is a no-op and the button remains as the manual path.
+          window.location.href = 'vairiot://';
+        }
+
+        function tick() {
+          var elapsed = (Date.now() - started) / 1000;
+          // Ease towards 95% across the expected window; never claim done early.
+          var pct = Math.min(95, Math.round((elapsed / EXPECTED_SECONDS) * 100));
+          fill.style.width = pct + '%';
+          if (elapsed < 6) {
+            setStage('Confirm the install\\u2026', 'Choose <strong>Install</strong> on the iOS prompt.');
+          } else if (elapsed < EXPECTED_SECONDS) {
+            setStage('Updating Vairiot\\u2026', 'Downloading ${sizeMb} MB \\u2014 the app icon on your Home Screen shows the real progress.');
+          } else {
+            finish();
+          }
+        }
+
+        installBtn.addEventListener('click', function () {
+          // Let the itms-services navigation happen, then flip to progress UI.
+          setTimeout(function () {
+            cards.style.display = 'none';
+            progress.style.display = 'block';
+            started = Date.now();
+            timer = setInterval(tick, 500);
+            tick();
+          }, 400);
+        });
+
+        // If the user backgrounds Safari to watch the Home Screen icon and
+        // comes back after the window, treat the install as finished.
+        document.addEventListener('visibilitychange', function () {
+          if (!document.hidden && started && (Date.now() - started) / 1000 >= EXPECTED_SECONDS) {
+            finish();
+          }
+        });
+
+        restart.addEventListener('click', function (e) {
+          e.preventDefault();
+          clearInterval(timer);
+          started = 0;
+          progress.style.display = 'none';
+          progress.classList.remove('done');
+          openBtn.style.display = 'none';
+          fill.style.width = '0%';
+          cards.style.display = 'block';
+        });
+      })();
+    </script>`));
 }));
 
 // ── UDID enrollment helper ───────────────────────────────────────────────────
