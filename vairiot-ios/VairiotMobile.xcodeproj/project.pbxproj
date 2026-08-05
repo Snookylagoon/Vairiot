@@ -40,6 +40,7 @@
 		6CEE46F7AB843F954F5FFB4E /* RevealableSecureField.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8EE663449000FDA8A285299 /* RevealableSecureField.swift */; };
 		6F655A4E06994638E0697D91 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E75CD85D2C829C9E36B7357 /* ContentView.swift */; };
 		74603F02FCC9B33243FB359C /* Asset.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2ADA391E09B77430AA096DE /* Asset.swift */; };
+		7EE742EE3ED4D8B6D9DDB4D5 /* LabelLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED9C35B3967BD06CB49AB7BD /* LabelLayout.swift */; };
 		8031BB94A75F4305CB844FE4 /* TwoFactorSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C189E5872F2CFFC18D42525 /* TwoFactorSetupView.swift */; };
 		820DC77024946F1FC8C7143C /* TokenManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630CD2DC8B2C44150ED2138D /* TokenManager.swift */; };
 		88EF0638E4034BC118C2BAC7 /* Gs1.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F19FCE3561E8464D92F2330 /* Gs1.swift */; };
@@ -124,6 +125,7 @@
 		E8EECD0C55D0E7FF63C2F7D7 /* AssetDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDetailView.swift; sourceTree = "<group>"; };
 		E91CD092F85112B7E033DA23 /* Maintenance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Maintenance.swift; sourceTree = "<group>"; };
 		EB5B974EE3D536204417D994 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		ED9C35B3967BD06CB49AB7BD /* LabelLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelLayout.swift; sourceTree = "<group>"; };
 		EE7FE78124B0EF2F946EDA64 /* QueuedScan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueuedScan.swift; sourceTree = "<group>"; };
 		EEA2A957513E9A7A4E256CC0 /* LabelDesignView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelDesignView.swift; sourceTree = "<group>"; };
 		F2ADA391E09B77430AA096DE /* Asset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Asset.swift; sourceTree = "<group>"; };
@@ -222,6 +224,7 @@
 			isa = PBXGroup;
 			children = (
 				EEA2A957513E9A7A4E256CC0 /* LabelDesignView.swift */,
+				ED9C35B3967BD06CB49AB7BD /* LabelLayout.swift */,
 			);
 			path = Labels;
 			sourceTree = "<group>";
@@ -456,6 +459,7 @@
 				F4629A1F145780EE4E98D74D /* DeviceUDIDStore.swift in Sources */,
 				88EF0638E4034BC118C2BAC7 /* Gs1.swift in Sources */,
 				A844812B810A94082BFDADA6 /* LabelDesignView.swift in Sources */,
+				7EE742EE3ED4D8B6D9DDB4D5 /* LabelLayout.swift in Sources */,
 				1B144EEA0178F36E73342149 /* LoadingButton.swift in Sources */,
 				FA6D8E21A9D632318A5DB14E /* LoadingView.swift in Sources */,
 				30F7ADD0F009EABFAFBC5437 /* LoginView.swift in Sources */,
@@ -526,7 +530,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -540,7 +544,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = VairiotMobile/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.10.0;
+				MARKETING_VERSION = 1.10.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -606,7 +610,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -626,7 +630,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = VairiotMobile/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.10.0;
+				MARKETING_VERSION = 1.10.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

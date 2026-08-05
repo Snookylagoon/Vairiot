@@ -120,6 +120,11 @@ struct LabelDesignView: View {
     @State private var printRotation = 0
     @State private var printCopies = 1
     @State private var tunedPrinterName: String?
+    @State private var templateLayout: [String: LabelLayoutPosition]?
+    @State private var templateStyles: [String: LabelTextStyleOverride]?
+    @State private var templateBarcodeMm: Double?
+    @State private var templateMonochrome = false
+    @State private var previewImage: UIImage?
 
     @State private var company: CompanyResponse?
     @State private var isLoadingCompany = true
@@ -171,6 +176,7 @@ struct LabelDesignView: View {
             await loadTemplates()
             await loadCompany()
             await loadGs1()
+            updatePreview()   // company/GS1 arrive after the first template render
             bluetoothPrinter = BluetoothPrinterManager()
             savedPrinterName = UserDefaults.standard.string(forKey: "savedPrinterName")
         }
@@ -363,159 +369,54 @@ struct LabelDesignView: View {
         printRotation = cfg.effectiveRotation
         printCopies = cfg.effectiveCopies
         tunedPrinterName = cfg.printer?.name
+
+        // Freeform layout + style overrides saved by the web designer.
+        templateLayout = (cfg.layout?.isEmpty == false) ? cfg.layout : nil
+        templateStyles = cfg.styles
+        templateBarcodeMm = cfg.barcodeMm
+        templateMonochrome = cfg.monochrome ?? false
+
+        updatePreview()
+    }
+
+    private func updatePreview() {
+        previewImage = renderLabelImage()
     }
 
     // MARK: - Preview
 
+    // The preview shows the SAME bitmap that prints (rendered by LabelLayout),
+    // so what you see is exactly what the printer receives — including the
+    // template's freeform layout and style overrides.
     private var previewSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Preview")
 
-            let scale = previewScale
-            labelContent
-                .frame(width: labelSize.width * scale, height: labelSize.height * scale)
-                .background(.white)
-                .border(Color.gray.opacity(0.3), width: 1)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
-                .frame(maxWidth: .infinity)
+            Group {
+                if let img = previewImage {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.15))
+                        .overlay {
+                            Image(systemName: "qrcode")
+                                .foregroundStyle(.gray)
+                        }
+                }
+            }
+            .frame(width: labelSize.width * previewScale, height: labelSize.height * previewScale)
+            .background(.white)
+            .border(Color.gray.opacity(0.3), width: 1)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+            .frame(maxWidth: .infinity)
         }
     }
 
     private var previewScale: CGFloat {
         min((UIScreen.main.bounds.width - 32) / labelSize.width, 2.2)
-    }
-
-    private var labelContent: some View {
-        let scale = previewScale
-        let pad = labelSize.height * scale * 0.08
-
-        return GeometryReader { geo in
-            if selectedBarcode.is2D {
-                HStack(alignment: .center, spacing: 0) {
-                    let barcodeSize = min(geo.size.height - pad * 2, geo.size.width * 0.35)
-                    barcodeImage
-                        .frame(width: barcodeSize, height: barcodeSize)
-
-                    Spacer().frame(width: geo.size.width * 0.04)
-
-                    textFields(fontSize: dynamicFontSize(for: labelSize.height * scale))
-                }
-                .padding(.horizontal, geo.size.width * 0.04)
-                .padding(.vertical, pad)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                VStack(spacing: 2) {
-                    textFields(fontSize: dynamicFontSize(for: labelSize.height * scale * 0.65))
-
-                    barcodeImage
-                        .frame(height: (geo.size.height - pad * 2) * 0.3)
-                        .padding(.horizontal, geo.size.width * 0.06)
-                }
-                .padding(.horizontal, geo.size.width * 0.04)
-                .padding(.vertical, pad)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var barcodeImage: some View {
-        let payload = barcodePayload()
-        if let img = generateBarcode(from: payload, type: selectedBarcode) {
-            Image(uiImage: img)
-                .interpolation(.none)
-                .resizable()
-                .scaledToFit()
-        } else {
-            Rectangle()
-                .fill(Color.gray.opacity(0.15))
-                .overlay {
-                    Image(systemName: "qrcode")
-                        .foregroundStyle(.gray)
-                }
-        }
-    }
-
-    private var hasCompanyBottom: Bool {
-        guard let co = company else { return false }
-        if fields.companyName, co.tradingName ?? co.legalName != nil { return true }
-        if fields.companyAddress { return true }
-        if fields.companyEmail, co.primaryContactEmail != nil { return true }
-        return false
-    }
-
-    private func textFields(fontSize: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if fields.name {
-                Text(asset.name)
-                    .font(.system(size: fontSize, weight: .bold))
-                    .foregroundStyle(.black)
-                    .lineLimit(2)
-            }
-            if fields.assetNumber {
-                Text(asset.assetNumber)
-                    .font(.system(size: fontSize * 0.82))
-                    .foregroundStyle(.gray)
-            }
-            if fields.serialNumber, let sn = asset.serialNumber, !sn.isEmpty {
-                Text("SN: \(sn)")
-                    .font(.system(size: fontSize * 0.82))
-                    .foregroundStyle(.gray)
-            }
-            if fields.barcode {
-                // GS1 identifier line — the HRI carries the tenant mark so
-                // identifiers stay distinguishable across tenants.
-                if let gs1 {
-                    Text(gs1.hri)
-                        .font(.system(size: fontSize * 0.82, design: .monospaced))
-                        .foregroundStyle(.black)
-                } else if let bc = asset.barcode, !bc.isEmpty {
-                    Text("BC: \(bc)")
-                        .font(.system(size: fontSize * 0.82))
-                        .foregroundStyle(.gray)
-                }
-            }
-            if fields.site, let site = asset.site?.name {
-                Text(site)
-                    .font(.system(size: fontSize * 0.82))
-                    .foregroundStyle(.gray)
-            }
-            if fields.category, let cat = asset.category?.name {
-                Text(cat)
-                    .font(.system(size: fontSize * 0.82))
-                    .foregroundStyle(.gray)
-            }
-            if hasCompanyBottom {
-                Spacer(minLength: 0)
-                companyFields(fontSize: fontSize)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: hasCompanyBottom ? .infinity : nil, alignment: .topLeading)
-    }
-
-    @ViewBuilder
-    private func companyFields(fontSize: CGFloat) -> some View {
-        if let co = company {
-            if fields.companyName, let name = co.tradingName ?? co.legalName {
-                Text(name)
-                    .font(.system(size: fontSize * 0.7))
-                    .foregroundStyle(.gray)
-                    .lineLimit(1)
-            }
-            if fields.companyAddress {
-                Text(formattedAddress(co))
-                    .font(.system(size: fontSize * 0.65))
-                    .foregroundStyle(.gray)
-                    .lineLimit(2)
-            }
-            if fields.companyEmail, let email = co.primaryContactEmail {
-                Text(email)
-                    .font(.system(size: fontSize * 0.65))
-                    .foregroundStyle(.gray)
-                    .lineLimit(1)
-            }
-        }
     }
 
     // MARK: - Printer Section
@@ -664,109 +565,25 @@ struct LabelDesignView: View {
 
     // MARK: - Render Label
 
+    /// Renders the label via the shared LabelLayout engine — the exact port of
+    /// the web designer's layout algorithm, honouring the template's freeform
+    /// layout, per-field styles, fixed barcode size and monochrome flag.
     private func renderLabelImage() -> UIImage? {
-        let renderScale: CGFloat = 4
-        let w = labelSize.width * renderScale
-        let h = labelSize.height * renderScale
-
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: w, height: h))
-
-        return renderer.image { ctx in
-            let rect = CGRect(x: 0, y: 0, width: w, height: h)
-            UIColor.white.setFill()
-            ctx.fill(rect)
-
-            let padH = w * 0.04
-            let padV = h * 0.08
-            let gap = w * 0.03
-
-            if selectedBarcode.is2D {
-                let barcodeSize = min(h - padV * 2, w * 0.35)
-                let barcodeRect = CGRect(
-                    x: padH,
-                    y: (h - barcodeSize) / 2,
-                    width: barcodeSize,
-                    height: barcodeSize
-                )
-                if let img = generateBarcode(from: barcodePayload(), type: selectedBarcode) {
-                    img.draw(in: barcodeRect)
-                }
-                drawTextFields(
-                    in: CGRect(x: barcodeRect.maxX + gap, y: padV, width: w - barcodeRect.maxX - gap - padH, height: h - padV * 2),
-                    renderScale: renderScale
-                )
-            } else {
-                let barcodeH = h * 0.3
-                drawTextFields(
-                    in: CGRect(x: padH, y: padV, width: w - padH * 2, height: h - barcodeH - padV * 2),
-                    renderScale: renderScale
-                )
-                if let img = generateBarcode(from: barcodePayload(), type: selectedBarcode) {
-                    let barcodeRect = CGRect(x: w * 0.1, y: h - barcodeH - padV, width: w * 0.8, height: barcodeH)
-                    img.draw(in: barcodeRect)
-                }
-            }
-        }
-    }
-
-    private func drawTextFields(in rect: CGRect, renderScale: CGFloat) {
-        let baseFontSize = dynamicFontSize(for: labelSize.height) * renderScale
-        let titleFont = UIFont.boldSystemFont(ofSize: baseFontSize)
-        let bodyFont = UIFont.systemFont(ofSize: baseFontSize * 0.82)
-        let smallFont = UIFont.systemFont(ofSize: baseFontSize * 0.7)
-
-        let titleAttr: [NSAttributedString.Key: Any] = [.font: titleFont, .foregroundColor: UIColor.black]
-        let bodyAttr: [NSAttributedString.Key: Any] = [.font: bodyFont, .foregroundColor: UIColor.gray]
-        let smallAttr: [NSAttributedString.Key: Any] = [.font: smallFont, .foregroundColor: UIColor.gray]
-
-        var lines: [(String, [NSAttributedString.Key: Any])] = []
-
-        if fields.name { lines.append((asset.name, titleAttr)) }
-        if fields.assetNumber { lines.append((asset.assetNumber, bodyAttr)) }
-        if fields.serialNumber, let sn = asset.serialNumber, !sn.isEmpty { lines.append(("SN: \(sn)", bodyAttr)) }
-        if fields.barcode {
-            if let gs1 {
-                let hriFont = UIFont.monospacedSystemFont(ofSize: baseFontSize * 0.82, weight: .medium)
-                lines.append((gs1.hri, [.font: hriFont, .foregroundColor: UIColor.black]))
-            } else if let bc = asset.barcode, !bc.isEmpty {
-                lines.append(("BC: \(bc)", bodyAttr))
-            }
-        }
-        if fields.site, let site = asset.site?.name { lines.append((site, bodyAttr)) }
-        if fields.category, let cat = asset.category?.name { lines.append((cat, bodyAttr)) }
-
-        var bottomLines: [(String, [NSAttributedString.Key: Any])] = []
-        if let co = company {
-            if fields.companyName, let name = co.tradingName ?? co.legalName { bottomLines.append((name, smallAttr)) }
-            if fields.companyAddress { bottomLines.append((formattedAddress(co), smallAttr)) }
-            if fields.companyEmail, let email = co.primaryContactEmail { bottomLines.append((email, smallAttr)) }
-        }
-
-        let lineSpacing: CGFloat = 1.15
-        var y = rect.minY
-        for (text, attr) in lines {
-            let ns = NSString(string: text)
-            let font = attr[.font] as! UIFont
-            let lineRect = CGRect(x: rect.minX, y: y, width: rect.width, height: font.lineHeight * 1.5)
-            ns.draw(with: lineRect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: attr, context: nil)
-            y += font.lineHeight * lineSpacing
-            if y > rect.maxY { break }
-        }
-
-        if !bottomLines.isEmpty {
-            var bottomY = rect.maxY
-            for (text, attr) in bottomLines.reversed() {
-                let font = attr[.font] as! UIFont
-                bottomY -= font.lineHeight * lineSpacing
-                let ns = NSString(string: text)
-                ns.draw(
-                    with: CGRect(x: rect.minX, y: bottomY, width: rect.width, height: font.lineHeight * 1.5),
-                    options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
-                    attributes: attr,
-                    context: nil
-                )
-            }
-        }
+        let input = LabelLayout.Input(
+            asset: asset,
+            company: company,
+            gs1: gs1,
+            fields: fields,
+            is2D: selectedBarcode.is2D,
+            widthPx: CGFloat(labelSize.widthMm) * LabelLayout.mmToPx,
+            heightPx: CGFloat(labelSize.heightMm) * LabelLayout.mmToPx,
+            layout: templateLayout,
+            styles: templateStyles,
+            barcodeMm: templateBarcodeMm.map { CGFloat($0) },
+            monochrome: templateMonochrome
+        )
+        let barcode = generateBarcode(from: barcodePayload(), type: selectedBarcode)
+        return LabelLayout.render(input, barcodeImage: barcode, scale: 4)
     }
 
     /// Rotates by the template's printRotation before ESC/POS conversion.
@@ -886,19 +703,6 @@ struct LabelDesignView: View {
     }
 
     // MARK: - Helpers
-
-    private func dynamicFontSize(for height: CGFloat) -> CGFloat {
-        // 37.5 mm tall (≈106 pt) is the reference height for an 11 pt title.
-        let scale = height / 106.0
-        return max(3, min(14, 11 * scale))
-    }
-
-    private func formattedAddress(_ co: CompanyResponse) -> String {
-        [co.addressLine1, co.addressLine2, co.city, co.stateProvince, co.postalCode, co.country]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: ", ")
-    }
 
     private func loadCompany() async {
         do {

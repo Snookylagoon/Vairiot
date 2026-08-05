@@ -175,12 +175,30 @@ struct LabelTemplatePrinterConfig: Codable {
     }
 }
 
+/// Fractional top-left position (0–1 of label width/height) saved by the web
+/// layout editor.
+struct LabelLayoutPosition: Codable {
+    var x: Double?
+    var y: Double?
+}
+
+/// Per-field text style override saved by the web designer; anything unset
+/// falls back to the automatic style.
+struct LabelTextStyleOverride: Codable {
+    var bold: Bool?
+    var italic: Bool?
+    var font: Double?              // px at 1× (96 dpi label space)
+}
+
 struct LabelTemplateConfig: Codable {
     var barcodeType: String?       // qrcode | datamatrix | pdf417 | azteccode | code128 | code39 | code93 | ean13 | upca | itf14
     var sizePreset: String?        // avery-* code, or "custom"
     var customW: Double?           // mm, when sizePreset == "custom"
     var customH: Double?
     var fields: LabelTemplateFieldsConfig?
+    var barcodeMm: Double?         // fixed 2D symbol size in mm; nil → automatic
+    var layout: [String: LabelLayoutPosition]?      // freeform positions; nil → automatic
+    var styles: [String: LabelTextStyleOverride]?   // per-field bold/italic/font overrides
     var printMode: String?         // sheet | roll — browser concern; ignored
     var printRotation: Int?        // 0 | 90 | 180 | 270
     var printRotate: Bool?         // legacy; true means 90
@@ -191,6 +209,7 @@ struct LabelTemplateConfig: Codable {
 
     enum CodingKeys: String, CodingKey {
         case barcodeType, sizePreset, customW, customH, fields
+        case barcodeMm, layout, styles
         case printMode, printRotation, printRotate, monochrome, printer
     }
 
@@ -201,6 +220,13 @@ struct LabelTemplateConfig: Codable {
         customW     = try? c.decodeIfPresent(Double.self, forKey: .customW)
         customH     = try? c.decodeIfPresent(Double.self, forKey: .customH)
         fields      = try? c.decodeIfPresent(LabelTemplateFieldsConfig.self, forKey: .fields)
+        if let d = try? c.decodeIfPresent(Double.self, forKey: .barcodeMm) {
+            barcodeMm = d
+        } else if let i = try? c.decodeIfPresent(Int.self, forKey: .barcodeMm) {
+            barcodeMm = Double(i)
+        }
+        layout      = try? c.decodeIfPresent([String: LabelLayoutPosition].self, forKey: .layout)
+        styles      = try? c.decodeIfPresent([String: LabelTextStyleOverride].self, forKey: .styles)
         printMode   = try? c.decodeIfPresent(String.self, forKey: .printMode)
         if let i = try? c.decodeIfPresent(Int.self, forKey: .printRotation) {
             printRotation = i
