@@ -196,13 +196,14 @@ fun LabelDesignScreen(
             Spacer(Modifier.height(8.dp))
         }
 
-        // Print button pinned to bottom
+        // Print button pinned to bottom — navigationBarsPadding keeps it above
+        // the Android system nav bar (edge-to-edge would otherwise cover it).
         Surface(tonalElevation = 4.dp, shadowElevation = 4.dp) {
             Button(
                 onClick = { viewModel.printLabel() },
                 enabled = !state.isPrinting && state.selectedTemplate != null &&
                           state.previewBitmap != null && state.effectivePrinter != null,
-                modifier = Modifier.fillMaxWidth().padding(16.dp).height(50.dp),
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp).height(50.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
             ) {

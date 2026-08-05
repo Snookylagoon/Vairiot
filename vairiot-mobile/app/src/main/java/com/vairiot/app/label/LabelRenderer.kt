@@ -132,6 +132,34 @@ object LabelRenderer {
         return bmp
     }
 
+    // Smallest reliably scannable 2D symbol on a printed label (mm) — web MIN_BARCODE_MM.
+    private const val MIN_BARCODE_MM = 12f
+
+    /** Fractional top-left position from the web layout editor (0–1 of label size). */
+    data class LayoutPos(val x: Float, val y: Float)
+
+    /** Per-field style override from the web designer; unset falls back to auto. */
+    data class TextStyle(val bold: Boolean? = null, val italic: Boolean? = null, val font: Float? = null)
+
+    private data class Element(
+        val key: String,
+        val kind: String,          // 'barcode' | 'text'
+        val text: String = "",
+        val font: Float = 0f,
+        val bold: Boolean = false,
+        val italic: Boolean = false,
+        val color: Int = Color.BLACK,
+        var x: Float, var y: Float, val w: Float, val h: Float,
+    )
+
+    /**
+     * Kotlin port of the web designer's computeLabelElements() (labelLayout.ts).
+     * All geometry is at 1× label px (96 dpi) and drawn at SCALE, so a saved
+     * template renders identically here and in the web preview/print. The
+     * company-logo element is not rendered on mobile (no logo asset on device);
+     * everything else — element order, auto layout, freeform `layout` overrides,
+     * per-field `styles`, fixed `barcodeMm` — matches the web.
+     */
     fun render(
         asset: AssetResponse,
         barcodeType: BarcodeType,
@@ -139,102 +167,168 @@ object LabelRenderer {
         fields: ContentFields,
         company: CompanyResponse? = null,
         gs1: Gs1EncodingResponse? = null,
+        layout: Map<String, LayoutPos>? = null,
+        styles: Map<String, TextStyle> = emptyMap(),
+        barcodeMm: Float? = null,
+        monochrome: Boolean = false,
     ): Bitmap {
-        val widthPx = (labelSize.widthMm * MM_TO_PX).roundToInt()
-        val heightPx = (labelSize.heightMm * MM_TO_PX).roundToInt()
-        val w = widthPx * SCALE
-        val h = heightPx * SCALE
+        val widthPx = labelSize.widthMm * MM_TO_PX
+        val heightPx = labelSize.heightMm * MM_TO_PX
+        val w = (widthPx * SCALE).roundToInt()
+        val h = (heightPx * SCALE).roundToInt()
+
+        val wide2D = barcodeType.group == "2D"
+        val padding = max(3, (min(widthPx, heightPx) * 0.04f).roundToInt()).toFloat()
+        val innerW = widthPx - padding * 2
+        val innerH = heightPx - padding * 2
+        val gap = max(2, (innerW * 0.015f).roundToInt()).toFloat()
+
+        // Lines in the web designer's order, keyed by the web's ElementKey so
+        // saved layout/style maps apply to the right element.
+        data class Line(val key: String, val text: String, val kind: String)
+        val lines = mutableListOf<Line>()
+        if (fields.name) lines.add(Line("name", asset.name, "title"))
+        if (fields.assetNumber) lines.add(Line("assetNumber", asset.assetNumber, "number"))
+        // GS1 identifier line — the HRI carries the tenant mark so identifiers
+        // stay distinguishable across tenants (replaces the legacy BC: line).
+        if (fields.barcode) {
+            if (gs1 != null) lines.add(Line("iar", gs1.hri, "number"))
+            else if (!asset.barcode.isNullOrBlank()) lines.add(Line("barcodeValue", "BC: ${asset.barcode}", "muted"))
+        }
+        if (fields.serialNumber && !asset.serialNumber.isNullOrBlank()) lines.add(Line("serialNumber", "SN: ${asset.serialNumber}", "muted"))
+        if (fields.site && asset.site != null) lines.add(Line("site", asset.site.name, "muted"))
+        if (fields.category && asset.category != null) lines.add(Line("category", asset.category.name, "muted"))
+        if (fields.companyName && company != null) {
+            val cName = company.tradingName?.takeIf { it.isNotBlank() } ?: company.legalName
+            if (!cName.isNullOrBlank()) lines.add(Line("companyName", cName, "brand"))
+        }
+        if (fields.companyAddress) {
+            val addr = formatCompanyAddress(company)
+            if (addr.isNotBlank()) lines.add(Line("companyAddress", addr, "muted"))
+        }
+        if (fields.companyEmail && !company?.primaryContactEmail.isNullOrBlank()) {
+            lines.add(Line("companyEmail", company!!.primaryContactEmail!!, "muted"))
+        }
+
+        // Barcode geometry — a fixed template size (≥12 mm) wins over the heuristic.
+        val longestTitle = lines.filter { it.kind == "title" }.maxOfOrNull { it.text.length } ?: 0
+        val longestOther = lines.filter { it.kind != "title" }.maxOfOrNull { it.text.length } ?: 0
+        val minFont = 5f
+        val minTextW = max(longestTitle * 0.62f * minFont, longestOther * 0.58f * (minFont * 0.82f))
+        val bcIdeal = min(innerH, innerW - minTextW - gap)
+        val bcMin = (innerH * 0.3f).roundToInt().toFloat()
+        val bcSize2D = if (barcodeMm != null) {
+            min(max(barcodeMm, MIN_BARCODE_MM) * MM_TO_PX, min(innerW, innerH)).roundToInt().toFloat()
+        } else {
+            max(bcMin, min(innerH, bcIdeal)).roundToInt().toFloat()
+        }
+        val bc1DH = min((innerH * 0.35f).roundToInt(), 50).toFloat()
+        val textAreaW = if (wide2D) innerW - bcSize2D - gap else innerW
+
+        // Font sizing. With a custom template layout, fonts derive from the label
+        // geometry alone so every asset's label matches the template; automatic
+        // layout keeps the classic per-asset auto-fit.
+        val titleFont: Float
+        val otherFont: Float
+        if (layout != null) {
+            titleFont = max(5f, min(14f, (innerH * 0.13f).roundToInt().toFloat()))
+            otherFont = max(4f, (titleFont * 0.82f).roundToInt().toFloat())
+        } else {
+            val maxFontByTitleW = if (longestTitle > 0) textAreaW / (longestTitle * 0.62f) else 99f
+            val maxFontByOtherW = if (longestOther > 0) textAreaW / (longestOther * 0.58f) else 99f
+            val maxFontByW = min(maxFontByTitleW, maxFontByOtherW / 0.82f)
+            val totalWeight = lines.sumOf { if (it.kind == "title") 1.0 else 0.82 }.toFloat()
+            val textAreaH = if (wide2D) innerH else innerH - bc1DH - 2f
+            val maxFontByH = if (totalWeight > 0) textAreaH / (totalWeight * 1.15f) else 12f
+            val fontSize = max(3f, min(maxFontByH, min(maxFontByW, 14f)))
+            titleFont = fontSize
+            otherFont = max(3f, (fontSize * 0.82f).roundToInt().toFloat())
+        }
+
+        val elements = mutableListOf<Element>()
+
+        if (wide2D) {
+            elements.add(Element(key = "barcode", kind = "barcode",
+                x = padding, y = padding + max(0f, (innerH - bcSize2D) / 2f),
+                w = bcSize2D, h = bcSize2D))
+        } else {
+            elements.add(Element(key = "barcode", kind = "barcode",
+                x = padding, y = heightPx - padding - bc1DH,
+                w = innerW, h = bc1DH))
+        }
+
+        // Effective per-line style: explicit overrides win over the auto style.
+        val styledLines = lines.map { l ->
+            val s = styles[l.key]
+            Triple(l, s?.font ?: (if (l.kind == "title") titleFont else otherFont),
+                Pair(s?.bold ?: (l.kind == "title"), s?.italic ?: false))
+        }
+
+        // Text stack, vertically centred in its area.
+        val textX = if (wide2D) padding + bcSize2D + gap else padding
+        val stackH = styledLines.map { it.second * 1.15f }.sum()
+        val availH = if (wide2D) innerH else innerH - bc1DH - 2f
+        var stackY = padding + max(0f, (availH - stackH) / 2f)
+
+        for ((l, font, style) in styledLines) {
+            val estW = min(textAreaW, l.text.length * (if (l.kind == "title") 0.62f else 0.58f) * font)
+            elements.add(Element(
+                key = l.key, kind = "text", text = l.text,
+                font = font, bold = style.first, italic = style.second,
+                color = if (monochrome) Color.BLACK else Color.parseColor(when (l.kind) {
+                    "title" -> "#2B3132"
+                    "number" -> "#615AA0"
+                    "brand" -> "#2B3132"
+                    else -> "#6b7280"
+                }),
+                x = textX, y = stackY, w = max(4f, estW), h = font * 1.15f,
+            ))
+            stackY += font * 1.15f
+        }
+
+        // Freeform overrides: fractional top-left positions, clamped on-label.
+        if (layout != null) {
+            for (el in elements) {
+                val pos = layout[el.key] ?: continue
+                el.x = min(max(0f, pos.x * widthPx), max(0f, widthPx - el.w))
+                el.y = min(max(0f, pos.y * heightPx), max(0f, heightPx - el.h))
+            }
+        }
 
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
 
-        val wide2D = barcodeType.group == "2D"
-        val padding = max(3, (min(widthPx, heightPx) * 0.04f).roundToInt()) * SCALE
-        val gap = max(2, (widthPx * 0.015f).roundToInt()) * SCALE
-        val innerW = w - padding * 2
-        val innerH = h - padding * 2
-
-        data class Line(val text: String, val kind: String)
-        val lines = mutableListOf<Line>()
-        if (fields.name) lines.add(Line(asset.name, "title"))
-        if (fields.assetNumber) lines.add(Line(asset.assetNumber, "number"))
-        if (fields.serialNumber && !asset.serialNumber.isNullOrBlank()) lines.add(Line("SN: ${asset.serialNumber}", "muted"))
-        // GS1 identifier line — the HRI carries the tenant mark so identifiers
-        // stay distinguishable across tenants (replaces the legacy BC: line).
-        if (fields.barcode) {
-            if (gs1 != null) lines.add(Line(gs1.hri, "number"))
-            else if (!asset.barcode.isNullOrBlank()) lines.add(Line("BC: ${asset.barcode}", "muted"))
-        }
-        if (fields.site && asset.site != null) lines.add(Line(asset.site.name, "muted"))
-        if (fields.category && asset.category != null) lines.add(Line(asset.category.name, "muted"))
-        if (fields.companyName && company != null) {
-            val cName = company.tradingName?.takeIf { it.isNotBlank() } ?: company.legalName
-            if (!cName.isNullOrBlank()) lines.add(Line(cName, "brand"))
-        }
-        if (fields.companyAddress) {
-            val addr = formatCompanyAddress(company)
-            if (addr.isNotBlank()) lines.add(Line(addr, "muted"))
-        }
-        if (fields.companyEmail && !company?.primaryContactEmail.isNullOrBlank()) {
-            lines.add(Line(company!!.primaryContactEmail!!, "muted"))
-        }
-
-        val longestTitle = lines.filter { it.kind == "title" }.maxOfOrNull { it.text.length } ?: 0
-        val longestOther = lines.filter { it.kind != "title" }.maxOfOrNull { it.text.length } ?: 0
-        val minFont = 5f * SCALE
-        val minTextW = max(longestTitle * 0.62f * minFont, longestOther * 0.58f * (minFont * 0.82f))
-        val bcIdeal = min(innerH.toFloat(), innerW - minTextW - gap)
-        val bcMin = (innerH * 0.3f).roundToInt()
-        val bcSize = max(bcMin, min(innerH, bcIdeal.roundToInt()))
-        val textAreaW = if (wide2D) innerW - bcSize - gap else innerW
-
-        val maxFontByTitleW = if (longestTitle > 0) textAreaW / (longestTitle * 0.62f) else 99f
-        val maxFontByOtherW = if (longestOther > 0) textAreaW / (longestOther * 0.58f) else 99f
-        val maxFontByW = min(maxFontByTitleW, maxFontByOtherW / 0.82f)
-        val totalWeight = lines.sumOf { if (it.kind == "title") 1.0 else 0.82 }.toFloat()
-        val maxFontByH = if (totalWeight > 0) innerH / (totalWeight * 1.15f) else 12f * SCALE
-        val fontSize = max(3f * SCALE, min(maxFontByH, min(maxFontByW, 14f * SCALE)))
-        val otherFont = max(3f * SCALE, (fontSize * 0.82f).roundToInt().toFloat())
-
         val payload = barcodePayload(asset, barcodeType, gs1)
+        val bcEl = elements.first { it.kind == "barcode" }
         val barcodeBmp = try {
-            generateBarcode(payload, barcodeType, bcSize)
+            generateBarcode(payload, barcodeType, (max(bcEl.w, bcEl.h) * SCALE).roundToInt())
         } catch (_: Exception) {
-            generateBarcode(asset.assetNumber, BarcodeType.QR_CODE, bcSize)
+            generateBarcode(asset.assetNumber, BarcodeType.QR_CODE, (max(bcEl.w, bcEl.h) * SCALE).roundToInt())
         }
-
-        if (wide2D) {
-            val bcY = padding + max(0, (innerH - bcSize) / 2)
-            canvas.drawBitmap(barcodeBmp, null,
-                android.graphics.Rect(padding, bcY, padding + bcSize, bcY + bcSize), null)
-        }
-
-        val textX = (if (wide2D) padding + bcSize + gap else padding).toFloat()
-        val totalTextH = lines.sumOf { ((if (it.kind == "title") fontSize else otherFont) * 1.15f).toDouble() }.toFloat()
-        var y = padding + max(0f, (innerH - totalTextH) / 2f)
 
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-
-        for (l in lines) {
-            val fs = if (l.kind == "title") fontSize else otherFont
-            paint.textSize = fs
-            paint.typeface = if (l.kind == "title") Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) else Typeface.SANS_SERIF
-            paint.color = when (l.kind) {
-                "title" -> Color.parseColor("#2B3132")
-                "number" -> Color.parseColor("#615AA0")
-                "brand" -> Color.parseColor("#2B3132")
-                else -> Color.parseColor("#6b7280")
+        for (el in elements) {
+            when (el.kind) {
+                "barcode" -> canvas.drawBitmap(barcodeBmp, null,
+                    android.graphics.Rect(
+                        (el.x * SCALE).roundToInt(), (el.y * SCALE).roundToInt(),
+                        ((el.x + el.w) * SCALE).roundToInt(), ((el.y + el.h) * SCALE).roundToInt()), null)
+                "text" -> {
+                    if (el.text.isEmpty()) continue
+                    val fs = el.font * SCALE
+                    paint.textSize = fs
+                    paint.typeface = Typeface.create(Typeface.SANS_SERIF, when {
+                        el.bold && el.italic -> Typeface.BOLD_ITALIC
+                        el.bold -> Typeface.BOLD
+                        el.italic -> Typeface.ITALIC
+                        else -> Typeface.NORMAL
+                    })
+                    paint.color = el.color
+                    // Same top-left anchor as the web canvas renderer (baseline = top + font size).
+                    canvas.drawText(el.text, el.x * SCALE, el.y * SCALE + fs, paint)
+                }
             }
-            y += fs
-            canvas.drawText(l.text, textX, y, paint)
-            y += fs * 0.15f
-        }
-
-        if (!wide2D) {
-            val bc1DH = min((innerH * 0.35f).roundToInt(), 50 * SCALE)
-            canvas.drawBitmap(barcodeBmp, null,
-                android.graphics.Rect(padding, h - padding - bc1DH, w - padding, h - padding), null)
         }
 
         barcodeBmp.recycle()

@@ -410,11 +410,23 @@ data class LabelTemplateConfigDto(
     val customW:       Double?  = null,   // mm, when sizePreset == 'custom'
     val customH:       Double?  = null,
     val fields:        LabelTemplateFieldsDto? = null,
+    val barcodeMm:     Double?  = null,   // fixed 2D symbol size in mm; null → automatic
+    val layout:        Map<String, LabelLayoutPosDto>? = null, // freeform positions; null → automatic
+    val styles:        Map<String, LabelTextStyleDto>? = null, // per-field bold/italic/font overrides
     val printMode:     String?  = null,   // 'sheet' | 'roll' — browser-driver concern
     val printRotation: Int?     = null,   // 0 | 90 | 180 | 270
     val printRotate:   Boolean? = null,   // legacy — true ≙ 90
     val monochrome:    Boolean? = null,
     val printer:       PrinterSettingsDto? = null,
+)
+
+/** Fractional top-left position (0–1 of label width/height) — web layout editor. */
+data class LabelLayoutPosDto(val x: Double? = null, val y: Double? = null)
+
+data class LabelTextStyleDto(
+    val bold:   Boolean? = null,
+    val italic: Boolean? = null,
+    val font:   Double?  = null,  // px at 1× (96 dpi label space)
 )
 
 data class LabelTemplateFieldsDto(

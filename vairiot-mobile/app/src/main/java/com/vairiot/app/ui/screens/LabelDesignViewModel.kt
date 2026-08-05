@@ -179,9 +179,25 @@ class LabelDesignViewModel @Inject constructor(
         val barcodeType = barcodeTypeFor(config?.barcodeType)
         val labelSize = labelSizeFor(config?.sizePreset, config?.customW?.toFloat(), config?.customH?.toFloat())
         val fields = fieldsFor(config?.fields)
+        // Freeform layout + style overrides saved by the web designer.
+        val layout = config?.layout
+            ?.mapNotNull { (k, v) ->
+                val x = v.x?.toFloat(); val y = v.y?.toFloat()
+                if (x != null && y != null) k to LabelRenderer.LayoutPos(x, y) else null
+            }
+            ?.toMap()
+            ?.takeIf { it.isNotEmpty() }
+        val styles = config?.styles
+            ?.mapValues { (_, v) -> LabelRenderer.TextStyle(v.bold, v.italic, v.font?.toFloat()) }
+            ?: emptyMap()
         viewModelScope.launch {
             try {
-                val bmp = LabelRenderer.render(asset, barcodeType, labelSize, fields, s.company, s.gs1)
+                val bmp = LabelRenderer.render(
+                    asset, barcodeType, labelSize, fields, s.company, s.gs1,
+                    layout = layout, styles = styles,
+                    barcodeMm = config?.barcodeMm?.toFloat(),
+                    monochrome = config?.monochrome == true,
+                )
                 _state.value = _state.value.copy(previewBitmap = bmp)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = "Preview failed: ${e.message}")
