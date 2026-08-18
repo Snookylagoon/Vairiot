@@ -34,8 +34,11 @@ describe('permissions constants', () => {
   });
 
   it('all permissions follow resource:action pattern', () => {
+    // The resource segment may contain digits after the first character —
+    // 'gs1:admin' is named after the GS1 standards body. It must still start
+    // with a letter, so '1gs:admin' stays invalid.
     for (const p of ALL_PERMISSIONS) {
-      expect(p).toMatch(/^[a-z]+:[a-z]+$/);
+      expect(p).toMatch(/^[a-z][a-z0-9]*:[a-z]+$/);
     }
   });
 });
