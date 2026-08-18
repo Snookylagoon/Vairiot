@@ -2,7 +2,7 @@
   "name": "vairiot",
   "version": "1.0.0",
   "private": true,
-  "description": "Vairiot Enhanced Asset Management Platform — monorepo root",
+  "description": "Vairiot Enhanced Asset Management Platform \u2014 monorepo root",
   "workspaces": [
     "vairiot-api",
     "vairiot-web",
@@ -10,6 +10,9 @@
     "vairiot-worker",
     "vairiot-shared"
   ],
+  "overrides": {
+    "deepmerge-ts": "^8.0.0"
+  },
   "scripts": {
     "dev": "docker compose -f infra/docker-compose.yml up",
     "dev:api": "npm run dev --workspace=vairiot-api",
