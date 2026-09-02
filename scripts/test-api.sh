@@ -20,7 +20,10 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
 
-COMPOSE="docker compose -f infra/docker-compose.test.yml"
+# Absolute path: the last step cd's into vairiot-api to run jest, and the
+# EXIT trap fires from there. With a relative path the teardown silently
+# resolved against the wrong directory and left the stack running.
+COMPOSE="docker compose -f $REPO_DIR/infra/docker-compose.test.yml"
 export DATABASE_URL='postgresql://vairiot_test:testpassword@127.0.0.1:55432/vairiot_test'
 export REDIS_URL='redis://127.0.0.1:56379'
 # Test-only values. Real secrets never appear here, and NODE_ENV=test keeps the
@@ -43,7 +46,10 @@ cleanup() {
   else
     echo ""
     echo "→ Tearing down the throwaway stack…"
-    $COMPOSE down -v >/dev/null 2>&1 || true
+    if ! $COMPOSE down -v >/dev/null 2>&1; then
+      echo "⚠️  Teardown failed. Stop it by hand with:" >&2
+      echo "    $COMPOSE down -v" >&2
+    fi
   fi
 }
 trap cleanup EXIT
