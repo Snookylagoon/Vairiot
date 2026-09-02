@@ -1,7 +1,8 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
 import { PLATFORM_ROLES, type RoleName } from 'vairiot-shared';
 
 import { prisma } from '../lib/prisma';
+import type { Request } from '../types/http';
 
 // Steps in required order. client_registration is optional (checked separately).
 const REQUIRED_STEPS = [

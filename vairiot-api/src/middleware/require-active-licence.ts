@@ -1,7 +1,8 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
 import { PLATFORM_ROLES, type RoleName } from 'vairiot-shared';
 
 import { prisma } from '../lib/prisma';
+import type { Request } from '../types/http';
 
 // Blocks write operations when the tenant's licence is expired or revoked.
 // Expired licences still allow read access (data is never locked out).

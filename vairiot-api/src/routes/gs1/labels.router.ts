@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 
 import { prisma } from '../../lib/prisma';
@@ -8,6 +8,7 @@ import {
   markScanVerified,
   recordLabelPrints,
 } from '../../services/gs1-label.service';
+import type { Request } from '../../types/http';
 
 export const labelsRouter = Router();
 

@@ -1,9 +1,10 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { listCategories, createCategory, updateCategory, deleteCategory } from '../../services/category.service';
+import type { Request } from '../../types/http';
 
 export const categoriesRouter = Router();
 

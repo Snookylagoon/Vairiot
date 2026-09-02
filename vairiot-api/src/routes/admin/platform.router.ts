@@ -1,6 +1,6 @@
 import { Readable } from 'stream';
 
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import multer from 'multer';
 
 import { AppError } from '../../lib/errors';
@@ -41,6 +41,7 @@ import {
   getUserPermissionsView,
   setUserPermissionOverrides,
 } from '../../services/user-permissions.service';
+import type { Request } from '../../types/http';
 
 export const platformRouter = Router();
 

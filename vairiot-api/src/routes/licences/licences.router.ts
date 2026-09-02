@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { Permission, RoleName } from 'vairiot-shared';
 
 import { prisma } from '../../lib/prisma';
@@ -20,6 +20,7 @@ import {
   deactivateDevice,
   deleteDevice,
 } from '../../services/licence.service';
+import type { Request } from '../../types/http';
 
 export const licencesRouter = Router();
 

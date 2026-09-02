@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
+
 
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
@@ -7,6 +8,7 @@ import {
   depreciationRegister, fixedAssetRegister, disposalReport,
   assetAgingReport, maintenanceCostReport,
 } from '../../services/report.service';
+import type { Request } from '../../types/http';
 
 export const reportsRouter = Router();
 reportsRouter.use(requireAnyPermission('asset:read'));

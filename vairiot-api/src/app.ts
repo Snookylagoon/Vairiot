@@ -1,3 +1,5 @@
+import type { Readable } from 'stream';
+
 import cors from 'cors';
 import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
@@ -77,7 +79,6 @@ export function createApp(): Application {
     try {
       const { prisma } = await import('./lib/prisma');
       const { minioClient, PHOTO_BUCKET } = await import('./lib/minio');
-      const { Readable } = await import('stream');
       const company = await prisma.company.findUnique({ where: { tenantId: req.params.id } });
       if (!company?.logoStorageKey) { res.status(404).json({ error: 'No logo' }); return; }
       const stream = await minioClient.getObject(PHOTO_BUCKET, company.logoStorageKey);
@@ -85,7 +86,7 @@ export function createApp(): Application {
       const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
       res.setHeader('Content-Type', mime);
       res.setHeader('Cache-Control', 'public, max-age=300');
-      (stream as InstanceType<typeof Readable>).pipe(res);
+      (stream as Readable).pipe(res);
     } catch {
       res.status(404).json({ error: 'No logo' });
     }

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 
 import { requireAnyPermission } from '../../middleware/authorise';
@@ -12,6 +12,7 @@ import {
   settleBlock,
   validateIarPublic,
 } from '../../services/gs1-identifier.service';
+import type { Request } from '../../types/http';
 
 export const identifiersRouter = Router();
 

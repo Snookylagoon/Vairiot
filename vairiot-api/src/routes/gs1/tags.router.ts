@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 
 import { requireAnyPermission } from '../../middleware/authorise';
@@ -9,6 +9,7 @@ import {
   retireTag,
   verifyTag,
 } from '../../services/gs1-tag.service';
+import type { Request } from '../../types/http';
 
 export const tagsRouter = Router();
 

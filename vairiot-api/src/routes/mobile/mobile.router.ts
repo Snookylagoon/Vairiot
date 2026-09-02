@@ -1,10 +1,12 @@
 import { Readable } from 'stream';
 
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
+
 
 import { minioClient, MOBILE_RELEASES_BUCKET } from '../../lib/minio';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler } from '../../middleware/error-handler';
+import type { Request } from '../../types/http';
 
 // Public router — the mobile app polls these endpoints with no auth so it can
 // check for updates even before the user logs in.

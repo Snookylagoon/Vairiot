@@ -13,7 +13,6 @@ function getKey(): Buffer {
     throw new Error('APP_ENCRYPTION_KEY must be set (>=16 chars) for encrypted secret storage.');
   }
   if (secret.length < 32) {
-    // eslint-disable-next-line no-console
     console.warn('[security] APP_ENCRYPTION_KEY is shorter than 32 characters — generate a stronger value (e.g. `openssl rand -hex 32`).');
   }
   cachedKey = scryptSync(secret, SALT, 32);
