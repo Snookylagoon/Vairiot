@@ -57,6 +57,13 @@ export function createApp(): Application {
   app.use(globalLimiter);
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
+  // express 4's body parsers left `req.body` as `{}` when a request carried no
+  // body; express 5 leaves it `undefined`. 43 handlers read `req.body.<prop>`
+  // directly, so under v5 any of them reached without a body throws and returns
+  // 500 instead of doing its job — a POST /licences/:id/suspend with no payload
+  // is a real example, and the licensing tests catch exactly that. Restore the
+  // v4 contract in one place rather than scattering `?.` across 43 call sites.
+  app.use((req, _res, next) => { if (req.body === undefined) req.body = {}; next(); });
   app.use(requestId);
   app.use(requestLogger);
   app.use((_req, res, next) => { res.setHeader('X-API-Version', '1.0.0'); next(); });

@@ -1,0 +1,49 @@
+# Throwaway backing services for the vairiot-api test suite.
+#
+# Deliberately mirrors the `services:` block of the test-api job in
+# .github/workflows/ci.yml — same images, same credentials — so running the
+# suite locally exercises what CI exercises. If you change one, change both.
+#
+# Nothing here is persistent: the database lives in a tmpfs, so every run gets
+# a clean server and stopping the stack destroys it. That is the point. The
+# suite seeds its own fixtures (each test upserts the tenant and licence it
+# needs), so it does not want a database anyone cares about — and pointing it
+# at one that matters is a genuinely bad idea.
+#
+# Container names and host ports are deliberately unlike the dev and prod
+# stacks so this can never bind over them or be mistaken for them.
+#
+# Use scripts/test-api.sh rather than driving this directly.
+
+name: vairiot-test
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vairiot_test_postgres
+    environment:
+      POSTGRES_USER: vairiot_test
+      POSTGRES_PASSWORD: testpassword
+      POSTGRES_DB: vairiot_test
+    # Bound to loopback only, on a port no other stack here uses.
+    ports:
+      - '127.0.0.1:55432:5432'
+    # No volume: the data directory is memory-backed and dies with the container.
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vairiot_test -d vairiot_test']
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    container_name: vairiot_test_redis
+    ports:
+      - '127.0.0.1:56379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 5s
+      retries: 15
