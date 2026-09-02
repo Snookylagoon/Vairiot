@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import multer from 'multer';
 
 import { minioClient, PHOTO_BUCKET } from '../../lib/minio';
@@ -12,6 +12,7 @@ import {
   activateOnboardingLicence,
   completeOnboarding,
 } from '../../services/onboarding.service';
+import type { Request } from '../../types/http';
 
 export const onboardingRouter = Router();
 

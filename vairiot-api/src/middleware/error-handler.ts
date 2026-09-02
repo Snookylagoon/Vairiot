@@ -1,10 +1,12 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Request as ExpressRequest, Response } from 'express';
+
 
 import { AppError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { captureException } from '../lib/monitoring';
+import type { Request } from '../types/http';
 
-export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
+export function errorHandler(err: Error, _req: ExpressRequest, res: Response, _next: NextFunction): void {
   if (err instanceof AppError) {
     // Report server-side AppErrors (5xx) to Sentry; client errors (4xx) are expected.
     if (err.statusCode >= 500) {

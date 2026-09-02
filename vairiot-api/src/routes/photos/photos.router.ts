@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import multer from 'multer';
 
@@ -8,6 +8,7 @@ import {
   listPhotos, uploadPhoto, getPhotoStream, deletePhoto, updatePhoto,
   listMaintenancePhotos, uploadMaintenancePhoto,
 } from '../../services/photo.service';
+import type { Request } from '../../types/http';
 
 export const photosRouter = Router();
 

@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
+
 
 import { asyncHandler } from '../../middleware/error-handler';
 import {
@@ -7,6 +8,7 @@ import {
   disableTwoFactor,
   checkTwoFactorRequirement,
 } from '../../services/two-factor.service';
+import type { Request } from '../../types/http';
 
 export const twoFactorRouter = Router();
 

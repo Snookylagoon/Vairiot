@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import multer from 'multer';
 
 import { requireAnyPermission } from '../../middleware/authorise';
@@ -11,6 +11,7 @@ import {
   uploadSubTenantLogo,
   deleteSubTenantLogo,
 } from '../../services/sub-tenant.service';
+import type { Request } from '../../types/http';
 
 export const subTenantsRouter = Router();
 

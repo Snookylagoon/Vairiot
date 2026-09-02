@@ -1,6 +1,8 @@
 import { randomUUID } from 'crypto';
 
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
+
+import type { Request } from '../types/http';
 
 declare global { namespace Express { interface Request { requestId?: string; } } }
 

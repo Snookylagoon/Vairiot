@@ -1,8 +1,10 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
+
 
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { getAssetTimeline } from '../../services/timeline.service';
+import type { Request } from '../../types/http';
 
 export const timelineRouter = Router();
 

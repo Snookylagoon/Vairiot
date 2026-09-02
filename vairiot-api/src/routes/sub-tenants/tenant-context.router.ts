@@ -12,13 +12,15 @@
  * tenant. This is enforced by refusing to mint a token when the caller's
  * currently-effective tenantId is a child (has a parentTenantId).
  */
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
+
 
 import { AppError, ValidationError } from '../../lib/errors';
 import { signAccessToken } from '../../lib/jwt';
 import { prisma } from '../../lib/prisma';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
+import type { Request } from '../../types/http';
 
 export const tenantContextRouter = Router();
 

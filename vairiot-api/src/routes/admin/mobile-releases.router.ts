@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import multer from 'multer';
 
 import { minioClient, MOBILE_RELEASES_BUCKET } from '../../lib/minio';
@@ -8,6 +8,7 @@ import { pruneOldMobileReleases } from '../../lib/mobileReleaseRetention';
 import { prisma } from '../../lib/prisma';
 import { requireRole } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
+import type { Request } from '../../types/http';
 
 export const mobileReleasesRouter = Router();
 

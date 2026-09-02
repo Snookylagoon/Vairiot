@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 
 import { UnauthorizedError } from '../../lib/errors';
@@ -16,6 +16,7 @@ import { registerNewTenant } from '../../services/registration.service';
 import { generateTwoFactorSetup, verifyAndEnableTwoFactor } from '../../services/two-factor.service';
 import { effectivePermissionsForUser } from '../../services/user-permissions.service';
 import { acceptInvite } from '../../services/user.service';
+import type { Request } from '../../types/http';
 
 export const authRouter = Router();
 

@@ -1,10 +1,11 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 
 import { asyncHandler } from '../../middleware/error-handler';
 import {
   listSubscriptions, upsertSubscription, deleteSubscription, toggleSubscription,
 } from '../../services/alert.service';
+import type { Request } from '../../types/http';
 
 export const alertsRouter = Router();
 

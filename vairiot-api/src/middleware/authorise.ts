@@ -1,9 +1,11 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
 import {
   PLATFORM_ROLES,
   CLIENT_ROLES,
   type RoleName,
 } from 'vairiot-shared';
+
+import type { Request } from '../types/http';
 
 // ─── requireRole ─────────────────────────────────────────────────────────────
 // Passes if the user holds ANY of the listed roles.
