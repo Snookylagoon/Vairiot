@@ -1,10 +1,15 @@
 name: Vairiot CI
 
 on:
+  # `dev` is this repo's working branch — scripts/deploy-dev.sh pushes it and
+  # scripts/go-live.sh promotes it to main. The trigger said `develop`, which
+  # has never existed here, so CI only ever ran on main (after a change was
+  # already in production) and on Dependabot PRs. Every change made on dev
+  # reached production having been checked locally and nowhere else.
   push:
-    branches: [main, develop]
+    branches: [main, dev]
   pull_request:
-    branches: [main, develop]
+    branches: [main, dev]
 
 jobs:
   # ── Lint & type-check ─────────────────────────────────────────────────────────
