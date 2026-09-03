@@ -17,6 +17,17 @@ export interface RecordEventInput {
   metadata?:  Prisma.InputJsonValue;
 }
 
+// Audit writes are deliberately fire-and-forget: a request should not wait on
+// them, and a failed audit insert must not fail the operation being audited.
+// But "nobody is waiting" is not the same as "nobody ever needs to wait" —
+// the write is still in flight when the handler responds, which makes it
+// racy for anything that tears the data down afterwards, and means a shutdown
+// can drop events that were about to land.
+//
+// Tracking the promises costs nothing and makes them awaitable when it
+// matters. See flushAuditEvents() below.
+const pending = new Set<Promise<void>>();
+
 export function recordAuditEvent(input: RecordEventInput): void {
   const isApiKey   = input.actor.startsWith('apikey:');
   const actorId    = isApiKey ? null : input.actor;
@@ -28,7 +39,7 @@ export function recordAuditEvent(input: RecordEventInput): void {
     ? { ...(metaSource ?? {}), actorKey: input.actor.slice('apikey:'.length) }
     : (metaSource ?? {});
 
-  prisma.auditEvent
+  const write = prisma.auditEvent
     .create({
       data: {
         tenantId:   input.tenantId,
@@ -41,7 +52,33 @@ export function recordAuditEvent(input: RecordEventInput): void {
         metadata:   Object.keys(metaBase).length ? (metaBase as Prisma.InputJsonValue) : undefined,
       },
     })
-    .catch((e) => logger.error('audit_event_write_failed', { error: e?.message, action: input.action }));
+    .then(() => undefined)
+    // Braces matter: logger.error returns the Logger, so an expression body
+    // would make this Promise<Logger | undefined> rather than Promise<void>.
+    .catch((e) => {
+      logger.error('audit_event_write_failed', { error: e?.message, action: input.action });
+    });
+
+  pending.add(write);
+  void write.finally(() => pending.delete(write));
+}
+
+/**
+ * Resolve once every audit write currently in flight has settled.
+ *
+ * Loops because awaiting can itself let queued writes start — a single
+ * Promise.allSettled would miss anything added while it was waiting.
+ *
+ * Used by the integration tests: their afterAll hooks delete the tenant they
+ * created, and an audit event landing between the cleanup and the tenant
+ * delete violates audit_events_tenantId_fkey. That produced intermittent
+ * "Test suite failed to run" failures on unrelated pull requests (#6 in July,
+ * #7 in September). Also worth calling on graceful shutdown.
+ */
+export async function flushAuditEvents(): Promise<void> {
+  while (pending.size) {
+    await Promise.allSettled([...pending]);
+  }
 }
 
 interface ListOpts {

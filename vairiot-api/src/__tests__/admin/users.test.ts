@@ -3,6 +3,7 @@ import request from 'supertest';
 
 import { createApp } from '../../app';
 import { prisma } from '../../lib/prisma';
+import { flushAuditEvents } from '../../services/audit-event.service';
 
 const app = createApp();
 const TID = 'test-tenant-users';
@@ -61,6 +62,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await flushAuditEvents(); // let in-flight audit writes land before deleting the tenant
   await prisma.userInvitation.deleteMany({ where: { tenantId: TID } });
   await prisma.auditEvent.deleteMany({ where: { tenantId: TID } });
   await prisma.userRole.deleteMany({ where: { user: { tenantId: TID } } });

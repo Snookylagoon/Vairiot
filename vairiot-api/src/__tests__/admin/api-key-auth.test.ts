@@ -2,6 +2,7 @@ import request from 'supertest';
 
 import { createApp } from '../../app';
 import { prisma } from '../../lib/prisma';
+import { flushAuditEvents } from '../../services/audit-event.service';
 
 const app = createApp();
 const TID = 'test-tenant-apikey';
@@ -25,7 +26,13 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await flushAuditEvents(); // let in-flight audit writes land before deleting the tenant
   await prisma.apiKey.deleteMany({ where: { tenantId: TID } });
+  // The api-key service records audit events, so this tenant can own rows in
+  // audit_events even though these tests only consume keys. Without this the
+  // tenant delete would violate audit_events_tenantId_fkey the moment a test
+  // here creates or revokes a key.
+  await prisma.auditEvent.deleteMany({ where: { tenantId: TID } });
   await prisma.tenant.deleteMany({ where: { id: TID } });
   await prisma.$disconnect();
 });
