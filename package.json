@@ -11,7 +11,8 @@
     "vairiot-shared"
   ],
   "overrides": {
-    "deepmerge-ts": "^8.0.0"
+    "deepmerge-ts": "^8.0.0",
+    "mysql2": "^3.24.3"
   },
   "scripts": {
     "dev": "docker compose -f infra/docker-compose.yml up",

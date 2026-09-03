@@ -1,14 +1,13 @@
-import { PrismaClient } from '@prisma/client';
 import { Job, Queue } from 'bullmq';
 
 import { logger } from '../logger';
+import { prisma } from '../prisma';
 import {
   SchedulerTickJob,
   AlertDigestJob,
   UpcomingMaintenanceItem,
 } from '../queues';
 
-const prisma = new PrismaClient();
 
 // How far ahead the digest looks for upcoming maintenance.
 const MAINTENANCE_LOOKAHEAD_DAYS = 7;

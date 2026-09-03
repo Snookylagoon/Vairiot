@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client';
 import { Job } from 'bullmq';
 
 import { logger } from '../logger';
+import { prisma } from '../prisma';
 
-const prisma = new PrismaClient();
 
 /**
  * Nightly per-tenant usage snapshot: storage consumed by photos/documents plus

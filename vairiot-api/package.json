@@ -18,7 +18,8 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "@sentry/node": "^10.66.0",
     "@types/multer": "^2.1.0",
     "axios": "^1.18.0",
@@ -57,7 +58,7 @@
     "@types/supertest": "^7.2.1",
     "@types/swagger-ui-express": "^4.1.8",
     "jest": "^30.5.1",
-    "prisma": "^6.19.3",
+    "prisma": "^7.10.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.4.12",
     "tsx": "^4.15.0",

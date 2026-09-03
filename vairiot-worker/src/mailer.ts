@@ -1,11 +1,10 @@
-import { PrismaClient } from '@prisma/client';
 import nodemailer, { Transporter, SendMailOptions, SentMessageInfo } from 'nodemailer';
 import { Resend } from 'resend';
 
 import { decryptSecret } from './crypto';
 import { logger } from './logger';
+import { prisma } from './prisma';
 
-const prisma = new PrismaClient();
 
 interface TransportSpec {
   provider: 'smtp' | 'resend';
