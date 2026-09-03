@@ -1,12 +1,11 @@
 import { createHmac } from 'crypto';
 
-import { PrismaClient } from '@prisma/client';
 import { Job } from 'bullmq';
 
 import { logger } from '../logger';
+import { prisma } from '../prisma';
 import { WebhookDeliverJob } from '../queues';
 
-const prisma = new PrismaClient();
 
 /**
  * POSTs one logged webhook delivery. Throwing lets BullMQ retry with backoff;

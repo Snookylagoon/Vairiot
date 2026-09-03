@@ -1,11 +1,10 @@
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { ROLE_PERMISSION_MATRIX } from 'vairiot-shared';
 
 import { createApp } from '../../app';
+import { prisma } from '../../lib/prisma';
 
-const prisma = new PrismaClient();
 const app    = createApp();
 
 const TID  = 'test-rbac';
