@@ -1,23 +1,22 @@
-import { defineConfig, env } from 'prisma/config';
+import { defineConfig } from 'prisma/config';
 
 // Prisma 7 no longer accepts `url` inside the datasource block in
 // schema.prisma. Connection details now serve two consumers separately: this
-// file for the CLI (generate, migrate deploy, db pull), and a driver adapter
+// file for the CLI (migrate deploy, db execute, db pull), and a driver adapter
 // for the runtime client in src/lib/prisma.ts.
 //
-// The API reads DATABASE_URL from the process environment in every
-// environment that matters — docker compose injects it, CI sets it, and
-// scripts/test-api.sh exports it — so there is nothing to load here. A .env is
-// picked up when one happens to exist locally, and its absence is not an error.
-try {
-  process.loadEnvFile('.env');
-} catch {
-  // no .env here — DATABASE_URL is expected to be in the environment already
-}
+// The datasource is set only when DATABASE_URL is actually present, and that
+// is deliberate. `prisma generate` needs the schema, not a database — but it
+// runs from this package's postinstall, which means it runs during
+// `npm install` inside the Docker build, where no DATABASE_URL exists and
+// none should. Prisma's own `env()` helper throws on a missing variable at
+// config-load time, which broke the image build. Reading it directly and
+// omitting the key keeps `generate` working everywhere while migration
+// commands still get the URL wherever one is set (compose injects it, CI sets
+// it, scripts/test-api.sh exports it).
+const url = process.env.DATABASE_URL;
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
-  datasource: {
-    url: env('DATABASE_URL'),
-  },
+  ...(url ? { datasource: { url } } : {}),
 });
