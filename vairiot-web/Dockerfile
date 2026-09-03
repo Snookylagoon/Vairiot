@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Build from repo root context so the npm workspace (incl. vairiot-shared) resolves
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 WORKDIR /app
