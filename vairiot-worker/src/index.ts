@@ -122,23 +122,52 @@ schedulerWorker.on('failed', (job, err) => {
   reportIfExhausted(QUEUE_NAMES.notificationScheduler, job, err);
 });
 
+// bullmq 6 removed repeatable jobs (getRepeatableJobs / removeRepeatableByKey
+// and the `repeat` job option) in favour of Job Schedulers. The behaviour is
+// the same — a cron pattern producing one job per tick — but a scheduler is
+// addressed by a stable id we choose, and upsert is idempotent. That replaces
+// the old drop-everything-then-re-add dance: changing a cron pattern now just
+// updates the scheduler under the same id, so there is no window where a
+// schedule is missing.
+const SCHEDULER_IDS = {
+  daily: 'notification-daily',
+  weekly: 'notification-weekly',
+  metering: 'storage-metering-daily',
+} as const;
+
 async function registerSchedules(): Promise<void> {
-  // Drop stale repeatable entries (e.g. a changed cron pattern) before re-adding
-  // so exactly one daily and one weekly schedule exist.
-  const existing = await schedulerQueue.getRepeatableJobs();
-  for (const r of existing) {
-    await schedulerQueue.removeRepeatableByKey(r.key);
+  await schedulerQueue.upsertJobScheduler(
+    SCHEDULER_IDS.daily,
+    { pattern: DAILY_CRON },
+    { name: 'tick', data: { frequency: 'daily' },
+      opts: { removeOnComplete: 20, removeOnFail: 50, attempts: 2 } },
+  );
+  await schedulerQueue.upsertJobScheduler(
+    SCHEDULER_IDS.weekly,
+    { pattern: WEEKLY_CRON },
+    { name: 'tick', data: { frequency: 'weekly' },
+      opts: { removeOnComplete: 20, removeOnFail: 50, attempts: 2 } },
+  );
+  await meteringQueue.upsertJobScheduler(
+    SCHEDULER_IDS.metering,
+    { pattern: METERING_CRON },
+    { name: 'snapshot', data: {},
+      opts: { removeOnComplete: 10, removeOnFail: 20, attempts: 2 } },
+  );
+
+  // Anything left over is from the pre-bullmq-6 layout or a since-renamed
+  // schedule. Without this an old entry would keep firing alongside the new
+  // one — the exact duplicate the previous code avoided by wiping first.
+  const wanted = new Set<string>(Object.values(SCHEDULER_IDS));
+  for (const queue of [schedulerQueue, meteringQueue]) {
+    for (const existing of await queue.getJobSchedulers()) {
+      if (existing.key && !wanted.has(existing.key)) {
+        await queue.removeJobScheduler(existing.key);
+        logger.info(`removed stale job scheduler "${existing.key}" from ${queue.name}`);
+      }
+    }
   }
-  await schedulerQueue.add('tick', { frequency: 'daily' },
-    { repeat: { pattern: DAILY_CRON },  removeOnComplete: 20, removeOnFail: 50, attempts: 2 });
-  await schedulerQueue.add('tick', { frequency: 'weekly' },
-    { repeat: { pattern: WEEKLY_CRON }, removeOnComplete: 20, removeOnFail: 50, attempts: 2 });
-  const meteringRepeats = await meteringQueue.getRepeatableJobs();
-  for (const r of meteringRepeats) {
-    await meteringQueue.removeRepeatableByKey(r.key);
-  }
-  await meteringQueue.add('snapshot', {},
-    { repeat: { pattern: METERING_CRON }, removeOnComplete: 10, removeOnFail: 20, attempts: 2 });
+
   logger.info(`notification-scheduler registered: daily "${DAILY_CRON}", weekly "${WEEKLY_CRON}"; storage-metering "${METERING_CRON}"`);
 }
 registerSchedules().catch((err) => {
