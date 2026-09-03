@@ -14,7 +14,6 @@
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
     "@tanstack/react-query": "^5.45.0",
-    "@tanstack/react-table": "^9.2.4",
     "axios": "^1.7.0",
     "bwip-js": "^4.11.1",
     "clsx": "^2.1.0",
