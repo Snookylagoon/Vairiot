@@ -3,6 +3,7 @@ import request from 'supertest';
 
 import { createApp } from '../../app';
 import { prisma } from '../../lib/prisma';
+import { flushAuditEvents } from '../../services/audit-event.service';
 
 const app = createApp();
 const TID   = 'test-tenant-photos';
@@ -58,6 +59,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await flushAuditEvents(); // let in-flight audit writes land before deleting the tenant
   await prisma.photo.deleteMany({ where: { tenantId: TID } });
   await prisma.auditEvent.deleteMany({ where: { tenantId: TID } });
   await prisma.asset.deleteMany({ where: { tenantId: TID } });

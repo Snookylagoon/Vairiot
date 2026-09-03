@@ -3,6 +3,7 @@ import request from 'supertest';
 
 import { createApp } from '../../app';
 import { prisma } from '../../lib/prisma';
+import { flushAuditEvents } from '../../services/audit-event.service';
 
 const app = createApp();
 const TID = 'test-blind-audit-tenant';
@@ -91,6 +92,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await flushAuditEvents(); // let in-flight audit writes land before deleting the tenant
   await prisma.auditAdjustment.deleteMany({ where: { reconciliationItem: { campaign: { tenantId: TID } } } });
   await prisma.auditReconciliationItem.deleteMany({ where: { campaign: { tenantId: TID } } });
   await prisma.auditZoneSubmission.deleteMany({ where: { campaign: { tenantId: TID } } });

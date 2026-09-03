@@ -3,6 +3,7 @@ import request from 'supertest';
 
 import { createApp } from '../../app';
 import { prisma } from '../../lib/prisma';
+import { flushAuditEvents } from '../../services/audit-event.service';
 
 const app = createApp();
 const TID = 'test-gs1-tenant-001';
@@ -64,6 +65,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await flushAuditEvents(); // let in-flight audit writes land before deleting the tenant
   // Hard-deleting the assets cascades bindings, prints and events; deleting
   // the tenants cascades identification, prefixes, tags and allocations.
   for (const tid of [TID, TID_B]) {
