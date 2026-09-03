@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Build from repo root context so the npm workspace (incl. vairiot-shared) resolves
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 RUN apk add --no-cache openssl
 WORKDIR /app
 
@@ -24,7 +24,7 @@ COPY vairiot-api ./vairiot-api
 RUN npm run build --workspace=vairiot-api
 
 # ---- Runtime image ----
-FROM node:22-alpine
+FROM node:24-alpine
 RUN apk add --no-cache openssl
 WORKDIR /app
 

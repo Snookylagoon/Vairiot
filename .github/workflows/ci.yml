@@ -16,10 +16,10 @@ jobs:
 
       # Node 22 LTS — matches the prod engines floor (Prisma 6 fixed the
       # generate panic that previously forced CI onto Node 24).
-      - name: Set up Node.js 22 LTS
+      - name: Set up Node.js 24 LTS
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
@@ -92,10 +92,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js 22 LTS
+      - name: Set up Node.js 24 LTS
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
