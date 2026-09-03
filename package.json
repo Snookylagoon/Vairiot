@@ -12,7 +12,9 @@
   ],
   "overrides": {
     "deepmerge-ts": "^8.0.0",
-    "mysql2": "^3.24.3"
+    "mysql2": "^3.24.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "scripts": {
     "dev": "docker compose -f infra/docker-compose.yml up",
