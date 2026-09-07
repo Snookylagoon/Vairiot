@@ -15,7 +15,7 @@
     "bullmq": "^6.3.1",
     "ioredis": "^6.0.0",
     "nodemailer": "^9.0.3",
-    "resend": "^6.14.0",
+    "resend": "^6.26.0",
     "winston": "^3.13.0"
   },
   "devDependencies": {
