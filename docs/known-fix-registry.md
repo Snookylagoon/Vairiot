@@ -238,4 +238,14 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Fix Applied** | Corrected it, and documented `changedSince`/`changedUntil`, the `AssetChanges` response, 200 responses for duplicates, the 409 meanings and 429. |
 | **Test Added** | None. Consider validating responses against the spec in tests. |
 
-*Last updated: S0.4, October 2026*
+## KFR-025 — API tests talked to other apps on macOS (random 401/405/"socket hang up")
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-api test harness (`jest.setup.ts`; supertest) |
+| **Root Cause** | For `request(app)`, supertest creates a server, calls `listen(0)` (a wildcard `::` bind on a random port) and then connects to `127.0.0.1:<port>`. On macOS (BSD sockets) a wildcard bind may share a port with another process's more specific `127.0.0.1` bind, and loopback connections then go to that process. This Mac has several such listeners in the ephemeral range (Adobe Creative Cloud, a Java process, Docker's forwards for the test Postgres and Redis). A full run makes about 1,000 supertest requests, so roughly 1 run in 11 sent a request to another app. Symptoms: RBAC logins with no token (then 401), `405 MethodNotAllowed` from Creative Cloud, or "socket hang up", sometimes failing whole files. Linux refuses the overlapping bind, so CI never saw it. Reproduced directly: Node bound `::59661` alongside Creative Cloud's `127.0.0.1:59661`, and a request to 127.0.0.1 got Creative Cloud's 405. |
+| **Fix Applied** | `jest.setup.ts` patches supertest's `Test#serverAddress`/`Test#end`. The bind is deferred to `end()` and done on `127.0.0.1` (an asynchronous bind, which supertest's synchronous constructor can't do), so the kernel refuses a port someone else holds. It covers every `request(app)` with no test changes. Patching `http.Server#listen` doesn't work: binding to a host is asynchronous, and supertest reads the port immediately. |
+| **Test Added** | `src/__tests__/test-server-binding.test.ts` asserts, through a real supertest request, that the server listens on `127.0.0.1`. It fails without the fix (`::`). Evidence: before the fix, 8 of ~88 local full runs got a wrong-server failure (~9%); after it, 40 of 40 passed (about 2% likely by chance at the old rate). |
+| **Also seen** | Before the fix, about 1 run in 8 crashed: the Jest process segfaulted inside V8's garbage collector (`ClearStaleLeftTrimmedPointerVisitor::VisitRootPointers`, Node v24.15.0 arm64, with or without Maglev; 8 crashes in ~65 runs). None occurred in the 40 runs after the fix (under 1% likely at the old rate), so the crash appears to be triggered by the wrong-server error paths. That's a runtime bug, not app code, and the link isn't proven. If it returns, capture the `~/Library/Logs/DiagnosticReports/node-*.ips` report and try a newer Node 24 patch release. |
+
+*Last updated: S0.4 (test harness), October 2026*
