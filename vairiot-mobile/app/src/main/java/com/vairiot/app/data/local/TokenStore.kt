@@ -7,6 +7,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -33,6 +35,10 @@ class TokenStore @Inject constructor(
             prefs[TENANT_ID]     = tenantId
         }
     }
+
+    /** True while a session exists. Emits on sign-in and when a refresh is rejected. */
+    val signedIn: Flow<Boolean> =
+        context.dataStore.data.map { it[REFRESH_TOKEN] != null }.distinctUntilChanged()
 
     suspend fun getAccessToken(): String? =
         context.dataStore.data.map { it[ACCESS_TOKEN] }.first()

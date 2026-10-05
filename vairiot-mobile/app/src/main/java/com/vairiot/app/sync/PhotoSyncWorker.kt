@@ -6,24 +6,21 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.vairiot.app.data.api.VairiotApiService
-import com.vairiot.app.data.local.QueuedAssetDao
 import com.vairiot.app.data.local.QueuedPhotoDao
 import com.vairiot.app.data.local.TokenStore
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
-private const val TAG = "AssetSyncWorker"
+private const val TAG = "PhotoSyncWorker"
 
-/** Drains the offline asset-creation queue. Mirrors [ScanSyncWorker]. */
+/** Drains the offline photo queue. Mirrors [ScanSyncWorker]. */
 @HiltWorker
-class AssetSyncWorker @AssistedInject constructor(
+class PhotoSyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
-    private val dao: QueuedAssetDao,
-    private val photoDao: QueuedPhotoDao,
+    private val dao: QueuedPhotoDao,
     private val api: VairiotApiService,
     private val tokenStore: TokenStore,
-    private val photoSyncScheduler: PhotoSyncScheduler,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -31,9 +28,8 @@ class AssetSyncWorker @AssistedInject constructor(
             Log.i(TAG, "Skipping sync — no session")
             return Result.success()
         }
-        val report = drainQueue(AssetSyncQueue(dao, photoDao, api.assetSender()))
-        // Newly created assets may have photos waiting on their server id.
-        if (report.synced > 0) photoSyncScheduler.triggerNow()
+        // Photos are large; smaller batches keep one run short on a weak signal.
+        val report = drainQueue(PhotoSyncQueue(dao, api.photoUploader()), batchSize = 10)
         return report.toWorkResult(TAG)
     }
 }
