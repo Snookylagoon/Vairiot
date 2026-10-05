@@ -25,7 +25,9 @@ final class QueuedAssetCreate {
     var createdAt: Date
     var attempts: Int
     var lastError: String?
-    /// Exhausted its attempts — kept for the user to retry or discard, never silently deleted.
+    /// `QueueState` value (literal default for lightweight migration).
+    var state: String = "pending"
+    /// Pre-S0.3 dead-letter flag, see `QueuedScan.dead`.
     var dead: Bool = false
 
     init(

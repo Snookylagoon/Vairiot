@@ -3,8 +3,8 @@ import SwiftData
 
 /// Offline queue for scans that could not be submitted immediately.
 ///
-/// Mirrors the Android Room `QueuedScan` entity. Scans accumulate here when
-/// the device is offline and are drained by a background sync worker.
+/// Mirrors the Android Room `QueuedScan` entity. `id` doubles as the
+/// clientRequestId, so the online attempt and every replay share one key.
 @Model
 final class QueuedScan {
 
@@ -17,7 +17,11 @@ final class QueuedScan {
     var createdAt: Date
     var attempts: Int
     var lastError: String?
-    /// Exhausted its attempts — kept for the user to retry or discard, never silently deleted.
+    /// `QueueState` value. A literal default so SwiftData's lightweight
+    /// migration can add the column to existing stores.
+    var state: String = "pending"
+    /// Pre-S0.3 dead-letter flag. Read once by `QueueState.migrateLegacyFlags`
+    /// to carry old parked rows over to `state`; not written any more.
     var dead: Bool = false
 
     init(

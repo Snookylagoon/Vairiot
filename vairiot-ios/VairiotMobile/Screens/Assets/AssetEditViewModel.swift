@@ -175,6 +175,11 @@ final class AssetEditViewModel {
 
     // MARK: - Save
 
+    /// One idempotency key for this form, sent on every online try and reused
+    /// as the queued row's id. If a create times out after the server stored
+    /// it, the retry or queued replay returns that asset instead of a duplicate.
+    private let createRequestId = UUID()
+
     func save() async {
         guard isFormValid else {
             errorMessage = "Asset name is required"
@@ -211,6 +216,7 @@ final class AssetEditViewModel {
 
     private func queueOfflineCreate() {
         let queued = QueuedAssetCreate(
+            localId: createRequestId,
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             assetDescription: description.isEmpty ? nil : description,
             serialNumber: serialNumber.isEmpty ? nil : serialNumber,
@@ -253,7 +259,8 @@ final class AssetEditViewModel {
             status: selectedStatus.rawValue,
             categoryId: selectedCategoryId,
             siteId: selectedSiteId,
-            locationId: selectedLocationId
+            locationId: selectedLocationId,
+            clientRequestId: createRequestId.uuidString
         )
 
         let _: AssetResponse = try await apiClient.request(.createAsset(request))

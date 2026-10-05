@@ -31,6 +31,9 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: false
         SWIFT_EMIT_LOC_STRINGS: true
+    scheme:
+      testTargets:
+        - VairiotMobileTests
     info:
       path: VairiotMobile/Resources/Info.plist
       properties:
@@ -54,3 +57,24 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
+        # Offline queues drain in the background (Sync/BackgroundSync.swift).
+        UIBackgroundModes:
+          - processing
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.vairiot.mobile.sync
+
+  VairiotMobileTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - VairiotMobileTests
+    dependencies:
+      - target: VairiotMobile
+    settings:
+      base:
+        DEVELOPMENT_TEAM: J7GGB8W37T
+        PRODUCT_BUNDLE_IDENTIFIER: com.vairiot.mobile.tests
+        # The project-level INFOPLIST_FILE is the app's; the test bundle gets
+        # a generated one instead.
+        INFOPLIST_FILE: ""
+        GENERATE_INFOPLIST_FILE: true

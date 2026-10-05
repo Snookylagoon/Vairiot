@@ -22,7 +22,9 @@ struct AuditRunView: View {
                 if viewModel.isActive {
                     scanSection
                     lastScanSection
-                    zoneSection
+                    if viewModel.isBlind {
+                        zoneSection
+                    }
                     completeSection
                 }
 
@@ -48,10 +50,15 @@ struct AuditRunView: View {
             Text(viewModel.errorMessage ?? "")
         }
         .task {
+            viewModel.refreshPendingCount()
+            await viewModel.loadLocations()
             await viewModel.loadZones()
             if viewModel.isCompleted {
                 await viewModel.loadReport()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .vairiotSyncQueuesChanged)) { _ in
+            viewModel.refreshPendingCount()
         }
         .onChange(of: scanner.scannedCode) { _, newCode in
             guard let code = newCode else { return }
@@ -129,6 +136,22 @@ struct AuditRunView: View {
                 .font(.headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+            if viewModel.isBlind {
+                zonePicker
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Condition (optional)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("Condition", selection: $viewModel.selectedCondition) {
+                    ForEach(AuditRunViewModel.conditionOptions, id: \.self) { option in
+                        Text(option.isEmpty ? "—" : option.capitalized).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
             Button {
                 viewModel.showScanner = true
             } label: {
@@ -139,10 +162,55 @@ struct AuditRunView: View {
             .buttonStyle(.borderedProminent)
             .tint(.vairiotViolet)
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            .disabled(viewModel.isBlind && !canScanSelectedZone)
+
+            if viewModel.pendingScanCount > 0 {
+                Label(
+                    "\(viewModel.pendingScanCount) scan\(viewModel.pendingScanCount == 1 ? "" : "s") awaiting upload",
+                    systemImage: "clock.arrow.circlepath"
+                )
+                .font(.caption)
+                .foregroundStyle(Color.warningAmber)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Blind zone
+
+    private var canScanSelectedZone: Bool {
+        guard let id = viewModel.selectedZoneLocationId, !id.isEmpty else { return false }
+        return !viewModel.isZoneLocked(id)
+    }
+
+    /// Blind campaigns record every scan against a zone (a site location).
+    private var zonePicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Zone")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if viewModel.locations.isEmpty {
+                Text("Zones could not be loaded. Connect to load this site's locations.")
+                    .font(.caption)
+                    .foregroundStyle(Color.warningAmber)
+            } else {
+                Picker("Zone", selection: Binding(
+                    get: { viewModel.selectedZoneLocationId ?? "" },
+                    set: { viewModel.selectedZoneLocationId = $0.isEmpty ? nil : $0 }
+                )) {
+                    Text("Select a zone").tag("")
+                    ForEach(viewModel.locations) { location in
+                        Text(viewModel.isZoneLocked(location.id) ? "\(location.name) (locked)" : location.name)
+                            .tag(location.id)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
     }
 
     // MARK: - Last Scan Result
@@ -161,6 +229,19 @@ struct AuditRunView: View {
                             .font(.caption)
                             .foregroundStyle(Color.successGreen)
                         Text(assetName)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+
+                case .recorded(let tagValue):
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(Color.successGreen)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Recorded")
+                            .font(.caption)
+                            .foregroundStyle(Color.successGreen)
+                        Text(tagValue)
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
@@ -217,7 +298,7 @@ struct AuditRunView: View {
                     HStack {
                         Image(systemName: "mappin.circle.fill")
                             .foregroundStyle(Color.vairiotPink)
-                        Text(zone.locationId)
+                        Text(viewModel.locationName(zone.locationId))
                             .font(.subheadline)
                         Spacer()
                         Text(zone.submittedAt.formattedDateShort)
@@ -227,22 +308,20 @@ struct AuditRunView: View {
                 }
             }
 
-            HStack {
-                TextField("Location ID", text: Binding(
-                    get: { viewModel.selectedZoneLocationId ?? "" },
-                    set: { viewModel.selectedZoneLocationId = $0.isEmpty ? nil : $0 }
-                ))
-                .textFieldStyle(.roundedBorder)
-
+            if let locationId = viewModel.selectedZoneLocationId, canScanSelectedZone {
                 LoadingButton(
-                    title: "Submit",
+                    title: "Submit \(viewModel.locationName(locationId))",
                     isLoading: viewModel.isSubmittingZone
                 ) {
-                    guard let locationId = viewModel.selectedZoneLocationId,
-                          !locationId.isEmpty else { return }
                     Task { await viewModel.submitZone(locationId: locationId) }
                 }
-                .frame(width: 100)
+                Text("Submitting locks the zone. No further scans can be recorded in it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Choose the zone you are scanning above.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding()

@@ -130,4 +130,58 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Fix Applied** | Clear only on 401. Workers that hit a 401 now pause (return success, not retry) instead of spinning on backoff. `TokenStore.signedIn` triggers every queue on launch and on each sign-in (`VairiotApp`). |
 | **Test Added** | `QueueDrainerTest` "401 pauses without touching the row"; `AuditScanRecorderTest` "signed-out scan stays pending". |
 
-*Last updated: S0.2, October 2026*
+## KFR-013 — iOS offline queue: same silent-loss rules as Android had
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-ios `Data/SyncManager.swift`, queue models |
+| **Root Cause** | 5xx and other 4xx both counted toward a 5-attempt limit and then parked the row, so a server outage could park good scans. 403 stopped the whole drain instead of parking the one row. Only a `dead` flag existed. |
+| **Fix Applied** | Same model and rules as Android (KFR-006/007): a `state` column (`pending`/`failed`/`dead`) on `QueuedScan` and `QueuedAssetCreate`, and a shared `drainQueue()` (`Sync/QueueDrainer.swift`). Rows parked under the old `dead` flag are carried over on launch by `QueueState.migrateLegacyFlags`. iOS has no WorkManager, so `SyncManager.syncSoon()` retries transient failures in the foreground with backoff (30 s doubling to 15 min); reconnecting already triggers a sync. |
+| **Test Added** | `QueueDrainerTests` (12) and `SyncFailureTests` (8) in the new `VairiotMobileTests` target. Run `xcodebuild -scheme VairiotMobile -destination 'platform=iOS Simulator,name=iPhone 17' test`. Upgrade verified on the simulator: an old-schema store with a parked and a pending scan opened under the new build with `dead`/`pending` states and no crash. |
+
+## KFR-014 — iOS blind audits rejected online and offline
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-ios `Screens/Audits/AuditRunViewModel.swift`, `AuditRunView.swift` |
+| **Root Cause** | iOS sent only `tagValue`. The API requires `locationId` on every blind-campaign scan (`audit.service.ts`), so every iOS blind scan was rejected. Offline ones were queued without a zone and could never sync. The zone field was free text used only for zone submission. Blind results (`"recorded"`) were shown as "Unknown Tag". No condition could be recorded. |
+| **Fix Applied** | A zone picker from the site's locations (falling back to `ReferenceCache` when offline), required and checked against locked zones before scanning. An optional condition picker. Scans go through `AuditScanRecorder` (write-ahead, one key for the online try and the replay). "Recorded" result shown. Zone submission shown only for blind campaigns (the API rejects it for others). A pending-scan count on the screen. |
+| **Test Added** | `AuditScanRecorderTests` (5): blind scan carries zone, condition and key; offline replay identical; rejection kept as dead; signed-out scan stays pending. |
+
+## KFR-015 — iOS signed users out on refresh 5xx/403; photo uploads never refreshed
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-ios `API/APIClient.swift` |
+| **Root Cause** | Any refresh failure except a dropped connection called `tokenManager.clear()`, including 5xx, a proxy 403 or an unreadable response. Separately, `upload()` had no 401 refresh path, so a photo upload with an expired access token failed, and a queued photo would pause forever. |
+| **Fix Applied** | `refreshAfter401()` clears the session only when the refresh endpoint answers 401. Both `performRequest` and `upload` use it and retry once. |
+| **Test Added** | Covered indirectly by `SyncFailureTests` (401 = pause). Refresh behaviour needs a URLProtocol-stubbed test (follow-up). |
+
+## KFR-016 — iOS lost the server's reason for every 4xx
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-ios `API/APIClient.swift` |
+| **Root Cause** | Every non-401/403/404 status, 4xx and 5xx alike, became `APIError.serverError(Int)` and the body was discarded. The app could not tell a rejection from a hiccup, or a duplicate 409 from a "campaign closed" 409, and the user saw "Server error (409)". |
+| **Fix Applied** | New `APIError.rejected(status:message:code:)` for other 4xx, decoded from the API's `{"error","code"}` body. `serverError` now means 5xx only. Existing `catch let error as APIError` sites are unchanged and now show the server's message. |
+| **Test Added** | `SyncFailureTests`: 409 classification by code, message preserved. |
+
+## KFR-017 — Drain re-sent rows within one run (SwiftData object identity)
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-ios `Sync/QueueDrainer.swift` |
+| **Root Cause** | The "each row once per drain" guard keyed on `ObjectIdentifier`. A SwiftData re-fetch can return fresh instances, and a freed instance's address can be reused, so already-tried rows looked new. Rows were re-sent within a run (6 sends for 3 rows), and failing rows could loop. Found because the test was intermittent. |
+| **Fix Applied** | Key on `persistentModelID` (`SyncQueue<Item: PersistentModel>`). **Never use `ObjectIdentifier` to track SwiftData models across fetches.** |
+| **Test Added** | `QueueDrainerTests.testEachRowIsTriedOncePerDrain`, run 50 times in a row with `-test-iterations 50`, all passing. |
+
+## KFR-018 — iOS offline photos lost; no background sync; online creates without a key
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-ios `AssetPhotosView.swift`, `AssetEditViewModel.swift`, `App/VairiotApp.swift` |
+| **Root Cause** | A failed photo upload showed "Failed to upload photo" and kept nothing. Queues drained only in the foreground, so work captured offline waited until the app was reopened. Online asset creates sent no `clientRequestId`, so a timeout followed by a retry created a duplicate. |
+| **Fix Applied** | `QueuedPhoto` model plus `PhotoFileStore` (files in Application Support/QueuedPhotos, stored by name not path, excluded from backup). The photo is written before upload; photos of offline-created assets follow their asset. `BGProcessingTask` `com.vairiot.mobile.sync` (requires network) is registered in `VairiotApp.init` and scheduled when the app backgrounds with work queued (`Sync/BackgroundSync.swift`; Info.plist keys come from `project.yml`). Every queue drains on each sign-in. The asset form uses one key per form for every try and the queued row. Profile → Pending uploads shows counts by state, with per-row Retry and confirmed Discard. |
+| **Test Added** | `AssetAndPhotoQueueTests` (7). Background execution cannot run in the simulator; to test it on a device, use Xcode's `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"com.vairiot.mobile.sync"]`. |
+
+*Last updated: S0.3, October 2026*

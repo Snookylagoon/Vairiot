@@ -2,23 +2,36 @@ import Foundation
 import Network
 import SwiftData
 
-/// Watches connectivity and drains the offline queues (`QueuedAssetCreate`,
-/// then `QueuedScan`) whenever the network comes back or the app foregrounds.
+/// A row on one of the offline queues, for the Profile "Pending uploads" UI.
+enum PendingUpload {
+    case scan(QueuedScan)
+    case asset(QueuedAssetCreate)
+    case photo(QueuedPhoto)
+}
+
+/// Watches connectivity and drains the offline queues (asset creates, then
+/// photos, then scans) when the network comes back, the app foregrounds, the
+/// user signs in, or the background task runs (`BackgroundSync`).
 ///
-/// Mirrors the Android `ScanSyncWorker`: FIFO drain, delete on success, stop
-/// early when the device is still offline or the session is rejected. Records
-/// that exhaust `maxAttempts` are parked (`dead = true`) for the user to retry
-/// or discard — never silently deleted.
+/// The drain rules live in `drainQueue` and match Android: failures never
+/// delete a row; rows the server rejects are parked as dead for the user to
+/// retry or discard under Profile → Pending uploads.
 @MainActor
 final class SyncManager {
 
     static let shared = SyncManager()
 
-    private static let maxAttempts = 5
-
-    private let apiClient: APIClient = .shared
     private let monitor = NWPathMonitor()
     private var isSyncing = false
+    private let api: SyncAPI = .live()
+
+    // Foreground retry after a transient failure (5xx, a row that failed
+    // mid-drain). Android gets this from WorkManager backoff; iOS has to do it
+    // itself. Offline is not retried here — reconnecting triggers a sync.
+    private static let minRetryDelay: TimeInterval = 30
+    private static let maxRetryDelay: TimeInterval = 15 * 60
+    private var retryDelay = minRetryDelay
+    private var retryTask: Task<Void, Never>?
 
     private(set) var isOnline = true
 
@@ -28,6 +41,7 @@ final class SyncManager {
 
     /// Call once at app launch to begin watching connectivity.
     func start() {
+        QueueState.migrateLegacyFlags(in: context)
         monitor.pathUpdateHandler = { [weak self] path in
             Task { @MainActor in
                 guard let self else { return }
@@ -40,134 +54,145 @@ final class SyncManager {
         monitor.start(queue: DispatchQueue(label: "com.vairiot.network-monitor"))
     }
 
-    /// Number of records still waiting to sync (for UI badges).
+    /// Rows not yet accepted by the server and not rejected (pending or retrying).
     var pendingCount: Int {
+        let dead = QueueState.dead
         let creates = (try? context.fetchCount(
-            FetchDescriptor<QueuedAssetCreate>(predicate: #Predicate { !$0.dead }))) ?? 0
+            FetchDescriptor<QueuedAssetCreate>(predicate: #Predicate { $0.state != dead }))) ?? 0
         let scans = (try? context.fetchCount(
-            FetchDescriptor<QueuedScan>(predicate: #Predicate { !$0.dead }))) ?? 0
-        return creates + scans
+            FetchDescriptor<QueuedScan>(predicate: #Predicate { $0.state != dead }))) ?? 0
+        let photos = (try? context.fetchCount(
+            FetchDescriptor<QueuedPhoto>(predicate: #Predicate { $0.state != dead }))) ?? 0
+        return creates + scans + photos
     }
 
-    /// Records that exhausted their sync attempts and await a user decision.
-    var failedCount: Int {
-        let creates = (try? context.fetchCount(
-            FetchDescriptor<QueuedAssetCreate>(predicate: #Predicate { $0.dead }))) ?? 0
-        let scans = (try? context.fetchCount(
-            FetchDescriptor<QueuedScan>(predicate: #Predicate { $0.dead }))) ?? 0
-        return creates + scans
-    }
-
-    /// Re-queue all failed records and try to sync immediately.
-    func retryAllFailed() async {
-        if let creates = try? context.fetch(FetchDescriptor<QueuedAssetCreate>(predicate: #Predicate { $0.dead })) {
-            for c in creates { c.dead = false; c.attempts = 0; c.lastError = nil }
+    /// Drains every queue. Returns `.pausedAuth` when signed out or the session
+    /// was rejected, `.retry` when something is left to try later.
+    @discardableResult
+    func syncNow() async -> DrainOutcome {
+        guard TokenManager.shared.isLoggedIn else { return .pausedAuth }
+        // Another drain is already running and will cover everything.
+        guard !isSyncing else { return .done }
+        isSyncing = true
+        defer {
+            isSyncing = false
+            NotificationCenter.default.post(name: .vairiotSyncQueuesChanged, object: nil)
         }
-        if let scans = try? context.fetch(FetchDescriptor<QueuedScan>(predicate: #Predicate { $0.dead })) {
-            for s in scans { s.dead = false; s.attempts = 0; s.lastError = nil }
+
+        // Assets first: their photos only become uploadable once they exist.
+        let reports = [
+            await drainQueue(SyncQueues.assetCreates(context: context, api: api)),
+            await drainQueue(SyncQueues.photos(context: context, api: api)),
+            await drainQueue(SyncQueues.scans(context: context, api: api)),
+        ]
+        let outcome: DrainOutcome
+        if reports.contains(where: { $0.outcome == .pausedAuth }) {
+            outcome = .pausedAuth
+        } else if reports.contains(where: { $0.outcome == .retry }) {
+            outcome = .retry
+        } else {
+            outcome = .done
+        }
+
+        if outcome == .retry && isOnline {
+            syncSoon()
+            retryDelay = min(retryDelay * 2, Self.maxRetryDelay)
+        } else if outcome == .done {
+            retryDelay = Self.minRetryDelay
+        }
+        return outcome
+    }
+
+    /// Runs a sync after the current backoff delay, unless one is already waiting.
+    func syncSoon() {
+        guard retryTask == nil else { return }
+        let delay = retryDelay
+        retryTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard let self, !Task.isCancelled else { return }
+            self.retryTask = nil
+            await self.syncNow()
+        }
+    }
+
+    // MARK: - User actions on rejected rows
+
+    /// Send a rejected row again (e.g. after the cause was fixed on the server).
+    func retry(_ item: PendingUpload) async {
+        switch item {
+        case .scan(let scan):   scan.state = QueueState.pending; scan.lastError = nil
+        case .asset(let asset): asset.state = QueueState.pending; asset.lastError = nil
+        case .photo(let photo): photo.state = QueueState.pending; photo.lastError = nil
         }
         try? context.save()
         await syncNow()
     }
 
-    /// Permanently discard all failed records (user-confirmed in the UI).
-    func discardAllFailed() {
-        if let creates = try? context.fetch(FetchDescriptor<QueuedAssetCreate>(predicate: #Predicate { $0.dead })) {
-            for c in creates {
-                // Also remove the provisional cache row so the asset stops appearing.
-                let pendingId = c.provisionalCacheId
-                if let provisional = try? context.fetch(
-                    FetchDescriptor<CachedAsset>(predicate: #Predicate { $0.id == pendingId })).first {
-                    context.delete(provisional)
-                }
-                context.delete(c)
+    func retryAllRejected() async {
+        for item in rejectedItems() {
+            switch item {
+            case .scan(let scan):   scan.state = QueueState.pending; scan.lastError = nil
+            case .asset(let asset): asset.state = QueueState.pending; asset.lastError = nil
+            case .photo(let photo): photo.state = QueueState.pending; photo.lastError = nil
             }
         }
-        if let scans = try? context.fetch(FetchDescriptor<QueuedScan>(predicate: #Predicate { $0.dead })) {
-            for s in scans { context.delete(s) }
+        try? context.save()
+        await syncNow()
+    }
+
+    /// Permanently delete one rejected row (user-confirmed in the UI). Rows
+    /// that are not dead are left alone: they are still going to sync.
+    func discard(_ item: PendingUpload) {
+        switch item {
+        case .scan(let scan):
+            guard scan.state == QueueState.dead else { return }
+            context.delete(scan)
+        case .asset(let asset):
+            guard asset.state == QueueState.dead else { return }
+            discardAsset(asset)
+        case .photo(let photo):
+            guard photo.state == QueueState.dead else { return }
+            deletePhoto(photo)
         }
         try? context.save()
+        NotificationCenter.default.post(name: .vairiotSyncQueuesChanged, object: nil)
     }
 
-    func syncNow() async {
-        guard !isSyncing, TokenManager.shared.isLoggedIn else { return }
-        isSyncing = true
-        defer { isSyncing = false }
-        await drainAssetCreates()
-        await drainScans()
+    func discardAllRejected() {
+        for item in rejectedItems() { discard(item) }
     }
 
-    // MARK: - Asset creates
+    private func rejectedItems() -> [PendingUpload] {
+        let dead = QueueState.dead
+        let scans = (try? context.fetch(FetchDescriptor<QueuedScan>(predicate: #Predicate { $0.state == dead }))) ?? []
+        let assets = (try? context.fetch(FetchDescriptor<QueuedAssetCreate>(predicate: #Predicate { $0.state == dead }))) ?? []
+        let photos = (try? context.fetch(FetchDescriptor<QueuedPhoto>(predicate: #Predicate { $0.state == dead }))) ?? []
+        return scans.map(PendingUpload.scan) + assets.map(PendingUpload.asset) + photos.map(PendingUpload.photo)
+    }
 
-    private func drainAssetCreates() async {
-        var descriptor = FetchDescriptor<QueuedAssetCreate>(sortBy: [SortDescriptor(\.createdAt)])
-        descriptor.predicate = #Predicate { !$0.dead }
-        guard let queued = try? context.fetch(descriptor), !queued.isEmpty else { return }
-
-        for item in queued {
-            do {
-                let created: AssetResponse = try await apiClient.request(.createAsset(item.toCreateRequest()))
-
-                // Swap the provisional cache row for the server copy.
-                let pendingId = item.provisionalCacheId
-                let predicate = #Predicate<CachedAsset> { $0.id == pendingId }
-                if let provisional = try? context.fetch(FetchDescriptor<CachedAsset>(predicate: predicate)).first {
-                    context.delete(provisional)
-                }
-                context.insert(CachedAsset(from: created))
-                context.delete(item)
-                try? context.save()
-            } catch {
-                if case APIError.networkError = error { return } // still offline — stop draining
-                if case APIError.unauthorized = error { return } // session rejected — stop, don't burn attempts
-                if case APIError.forbidden = error { return }
-                recordFailure(of: item, error: error)
-            }
+    private func discardAsset(_ asset: QueuedAssetCreate) {
+        // The provisional list row and any photos waiting on this asset go with it:
+        // without the asset they could never upload.
+        let pendingId = asset.provisionalCacheId
+        if let provisional = try? context.fetch(FetchDescriptor<CachedAsset>(
+            predicate: #Predicate { $0.id == pendingId })).first {
+            context.delete(provisional)
         }
+        let localId: UUID? = asset.localId
+        let photos = (try? context.fetch(FetchDescriptor<QueuedPhoto>(
+            predicate: #Predicate { $0.assetLocalId == localId && $0.assetId == nil }))) ?? []
+        photos.forEach(deletePhoto)
+        context.delete(asset)
     }
 
-    // MARK: - Audit scans
-
-    private func drainScans() async {
-        var descriptor = FetchDescriptor<QueuedScan>(sortBy: [SortDescriptor(\.createdAt)])
-        descriptor.predicate = #Predicate { !$0.dead }
-        guard let queued = try? context.fetch(descriptor), !queued.isEmpty else { return }
-
-        for scan in queued {
-            var request = RecordScanRequest(tagValue: scan.tagValue)
-            request.deviceId = scan.deviceId
-            request.locationId = scan.locationId
-            request.condition = scan.condition
-            request.clientRequestId = scan.id.uuidString
-            request.capturedAt = ISO8601DateFormatter().string(from: scan.createdAt)
-            do {
-                let _: AuditScanEventResponse = try await apiClient.request(
-                    .recordAuditScan(campaignId: scan.campaignId, request)
-                )
-                context.delete(scan)
-                try? context.save()
-            } catch {
-                if case APIError.networkError = error { return }
-                if case APIError.unauthorized = error { return }
-                if case APIError.forbidden = error { return }
-                recordFailure(of: scan, error: error)
-            }
-        }
+    private func deletePhoto(_ photo: QueuedPhoto) {
+        PhotoFileStore.shared.delete(photo.fileName)
+        PhotoFileStore.shared.delete(photo.thumbFileName)
+        context.delete(photo)
     }
+}
 
-    // MARK: - Failure bookkeeping
-
-    private func recordFailure(of item: QueuedAssetCreate, error: Error) {
-        item.attempts += 1
-        item.lastError = (error as? APIError)?.userMessage ?? error.localizedDescription
-        if item.attempts >= Self.maxAttempts { item.dead = true }
-        try? context.save()
-    }
-
-    private func recordFailure(of scan: QueuedScan, error: Error) {
-        scan.attempts += 1
-        scan.lastError = (error as? APIError)?.userMessage ?? error.localizedDescription
-        if scan.attempts >= Self.maxAttempts { scan.dead = true }
-        try? context.save()
-    }
+extension Notification.Name {
+    /// Posted after a sync run or a retry/discard, so screens can refresh counts.
+    static let vairiotSyncQueuesChanged = Notification.Name("vairiotSyncQueuesChanged")
 }

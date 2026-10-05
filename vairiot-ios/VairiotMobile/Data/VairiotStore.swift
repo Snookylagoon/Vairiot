@@ -13,8 +13,13 @@ final class VairiotStore {
 
     var context: ModelContext { container.mainContext }
 
+    /// Every persisted model. Tests build in-memory containers from this.
+    static let schema = Schema([
+        CachedAsset.self, QueuedScan.self, QueuedAssetCreate.self, QueuedPhoto.self, CachedReference.self,
+    ])
+
     private init() {
-        let schema = Schema([CachedAsset.self, QueuedScan.self, QueuedAssetCreate.self, CachedReference.self])
+        let schema = Self.schema
         let configuration = ModelConfiguration(
             "VairiotStore",
             schema: schema,
