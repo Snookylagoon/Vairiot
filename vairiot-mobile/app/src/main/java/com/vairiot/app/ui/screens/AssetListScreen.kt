@@ -22,6 +22,7 @@ import com.vairiot.app.LocalUseSideRail
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.scanner.CameraBarcodeScannerScreen
 import com.vairiot.app.ui.theme.*
+import com.vairiot.app.util.formatSyncAge
 
 
 @Composable
@@ -30,6 +31,15 @@ fun AssetListScreen(
     viewModel: AssetListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val lastSyncedAtMs by viewModel.lastSyncedAtMs.collectAsState()
+    // Re-evaluated every 30s so "Last synced X minutes ago" keeps counting.
+    val nowMs by produceState(System.currentTimeMillis()) {
+        while (true) {
+            kotlinx.coroutines.delay(30_000)
+            value = System.currentTimeMillis()
+        }
+    }
+    val syncAge = formatSyncAge(lastSyncedAtMs, nowMs)
     val sideRail = LocalUseSideRail.current
 
     if (state.showCamera) {
@@ -66,6 +76,10 @@ fun AssetListScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Assets — ${state.total}", style = MaterialTheme.typography.bodySmall,
                             color = White.copy(alpha = 0.6f))
+                        syncAge?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall,
+                                color = White.copy(alpha = 0.6f))
+                        }
                         if (state.offline) {
                             Text("OFFLINE • cached",
                                 style = MaterialTheme.typography.labelSmall,

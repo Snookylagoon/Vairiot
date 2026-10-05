@@ -5,8 +5,10 @@ import com.vairiot.app.data.api.CategoryRefResponse
 import com.vairiot.app.data.api.LocationRefResponse
 import com.vairiot.app.data.api.SiteRefResponse
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.data.local.AssetSyncStateStore
 import com.vairiot.app.data.local.CachedAsset
 import com.vairiot.app.data.local.CachedAssetDao
+import com.vairiot.app.data.local.TokenStore
 import com.vairiot.app.util.Gs1
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -18,16 +20,32 @@ import javax.inject.Singleton
 class AssetRepository @Inject constructor(
     private val api: VairiotApiService,
     private val dao: CachedAssetDao,
+    private val syncState: AssetSyncStateStore,
+    private val tokenStore: TokenStore,
 ) {
+    private val deltaSync = AssetDeltaSync(
+        dao = dao,
+        cursorStore = syncState,
+        fetchPage = { since, until, page ->
+            api.listAssets(page = page, pageSize = PAGE_SIZE, changedSince = since, changedUntil = until)
+        },
+        toCached = { it.toCached() },
+    )
+
+    /** Device time of the last completed asset sync (null = never). */
+    val lastSyncedAtMs: Flow<Long?> = syncState.lastSyncedAtMs
+
     /** Local-first stream. Caller filters by [query] (may be blank). */
     fun observeAssets(query: String): Flow<List<AssetResponse>> =
         dao.searchFlow(query.trim())
             .map { rows -> rows.map { it.toApiResponse() } }
 
     /**
-     * Pull every page from the API and replace the local cache. Returns the
-     * total reported by the server, or null if any page failed (cache stays
-     * intact — a partial sync would leave the user staring at half a register).
+     * Brings the local cache up to date. Unfiltered refreshes use delta sync
+     * ([AssetDeltaSync]): only assets changed since the last sync are fetched.
+     * Filtered refreshes pull the matching pages and upsert them. Returns the
+     * total, or null if anything failed (the cache stays intact — a partial
+     * sync would leave the user staring at half a register).
      */
     suspend fun refresh(
         query: String? = null,
@@ -40,16 +58,14 @@ class AssetRepository @Inject constructor(
         val statusParam = status?.takeIf { it.isNotBlank() }
         val conditionParam = condition?.takeIf { it.isNotBlank() }
         return try {
+            if (search == null && statusParam == null && conditionParam == null) {
+                return deltaSync.sync(tenantId = tokenStore.getTenantId() ?: "")
+            }
             val firstPage = api.listAssets(
                 search = search, status = statusParam, condition = conditionParam,
                 sortBy = sortBy, sortOrder = sortOrder, page = 1, pageSize = PAGE_SIZE,
             )
-            val fullSync = search == null && statusParam == null && conditionParam == null
-            if (fullSync) {
-                dao.replaceAll(firstPage.assets.map { it.toCached() })
-            } else {
-                dao.upsertAll(firstPage.assets.map { it.toCached() })
-            }
+            dao.upsertAll(firstPage.assets.map { it.toCached() })
             var page = 2
             while (page <= firstPage.totalPages) {
                 val next = api.listAssets(

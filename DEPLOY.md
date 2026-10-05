@@ -74,6 +74,37 @@ Required env for real protection (in `/opt/Vairiot/.env` or the cron line):
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` / `JWT_SETUP_SECRET` | Per-token-class JWT secrets | falls back to `JWT_SECRET` |
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | Scoped MinIO service account | falls back to root user |
 | `BACKUP_REMOTE_TARGET` / `BACKUP_AGE_RECIPIENT` | Off-host backup destination + encryption | local-only / unencrypted |
+| `RATE_LIMIT_SYNC_PER_MIN` | Per-user limit on the offline-sync routes (POST assets, audit scans, scan sessions, photo uploads). These routes are exempt from the 100/min per-IP limit so scanners behind one NAT don't throttle each other | 600 |
+| `IOS_UDID_CA_FILE` | Path *inside the api container* to the Apple CA bundle used to verify iOS enrolment payloads. When set, unverified enrolments are refused | unset: accepted, stored as `signatureVerified = false` |
+
+### iOS enrolment signature checks (`IOS_UDID_CA_FILE`)
+
+The public enrolment endpoint (`/api/v1/ios/udid/callback`) receives a plist
+signed by the iPhone's Apple-issued device certificate. Until verification is
+switched on, an attacker could queue made-up devices. They can't install
+anything, but an admin could be fooled into registering one. Each device in
+the admin list shows `signatureVerified`; register only devices that are
+verified, or that you know.
+
+To switch verification on:
+
+1. Download Apple's root and iPhone device CA certificates from
+   <https://www.apple.com/certificateauthority/> (Apple Root CA, Apple iPhone
+   Certification Authority, Apple iPhone Device CA). Concatenate them as PEM
+   into `/opt/Vairiot/infra/apple-device-ca.pem`.
+2. Mount it into the api container (`volumes: - ./apple-device-ca.pem:/etc/vairiot/apple-device-ca.pem:ro`)
+   and set `IOS_UDID_CA_FILE=/etc/vairiot/apple-device-ca.pem` in `.env`.
+3. **Before relying on it**, enrol a real iPhone and check that the device row
+   shows `signatureVerified: true`. If enrolment fails (Settings shows an
+   error), unset the variable to fall back, and check the API log for
+   `iOS enrolment refused`. The certificate chain is the likely cause.
+
+### Delta sync and the asset cache
+
+The apps keep an offline copy of the asset register. They fetch changes with
+`GET /api/v1/assets?changedSince=` and run a full sync once a day. After a
+bulk change that does not touch asset rows (for example renaming a category or
+site), cached names refresh on the next daily full sync.
 
 ## Services
 

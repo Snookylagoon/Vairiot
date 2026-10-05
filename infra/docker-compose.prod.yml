@@ -111,6 +111,11 @@ services:
       WEB_ORIGIN:    ${WEB_ORIGIN}
       LOG_LEVEL:     info
       SENTRY_DSN:    ${SENTRY_DSN:-}
+      # Per-user budget for offline-sync routes (S0.4). Default 600/min.
+      RATE_LIMIT_SYNC_PER_MIN: ${RATE_LIMIT_SYNC_PER_MIN:-}
+      # Apple CA bundle for iOS enrolment signature checks (DEPLOY.md). Unset =
+      # enrolments accepted but stored with signatureVerified = false.
+      IOS_UDID_CA_FILE: ${IOS_UDID_CA_FILE:-}
       MINIO_ENDPOINT:         minio
       MINIO_PORT:             9000
       MINIO_USE_SSL:          "false"

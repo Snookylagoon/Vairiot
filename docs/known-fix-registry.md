@@ -184,4 +184,58 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Fix Applied** | `QueuedPhoto` model plus `PhotoFileStore` (files in Application Support/QueuedPhotos, stored by name not path, excluded from backup). The photo is written before upload; photos of offline-created assets follow their asset. `BGProcessingTask` `com.vairiot.mobile.sync` (requires network) is registered in `VairiotApp.init` and scheduled when the app backgrounds with work queued (`Sync/BackgroundSync.swift`; Info.plist keys come from `project.yml`). Every queue drains on each sign-in. The asset form uses one key per form for every try and the queued row. Profile → Pending uploads shows counts by state, with per-row Retry and confirmed Discard. |
 | **Test Added** | `AssetAndPhotoQueueTests` (7). Background execution cannot run in the simulator; to test it on a device, use Xcode's `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"com.vairiot.mobile.sync"]`. |
 
-*Last updated: S0.3, October 2026*
+## KFR-019 — Scanner fleets behind one NAT throttled by the per-IP limit
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-api `middleware/rate-limit.ts`, `app.ts` |
+| **Root Cause** | Every request counted against one global 100/min limit keyed by client IP. A depot of handhelds flushing offline queues shares one public IP, so a single reconnect throttled the whole fleet and turned queued work into retries. |
+| **Fix Applied** | `isSyncRequest()` matches the sync routes (POST `/assets`, `/audits/:id/scans`, `/scan-sessions`, asset and maintenance photo uploads). The global limiter skips them. `syncLimiter` (600/min, `RATE_LIMIT_SYNC_PER_MIN`) runs after `authenticate`, keyed by tenant and user, in Redis. Login lockout was already in Postgres and the other limiters already in Redis, so all of them hold across replicas. |
+| **Test Added** | `__tests__/sync/sync-hardening.test.ts` (per-user budget behind one IP, route matching) and `__tests__/sync/replicas.test.ts` (six failed logins across two app instances lock the account on both; two instances share one Redis-backed sync budget). |
+
+## KFR-020 — Replay of an existing asset refused at the licence cap
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-api `routes/assets/assets.router.ts` |
+| **Root Cause** | `enforceAssetCap()` ran before the `clientRequestId` lookup. A tenant at its cap whose device replayed a create the server already had got a 403, and the device parked a record the server actually holds. Duplicates also returned 201, the same as a real create. |
+| **Fix Applied** | The route looks up the key first and returns the existing asset with **200** before the cap check. `createAssetIdempotent()` reports `created`, so a race between two requests with the same key also answers 200. Duplicate scans (`POST /audits/:id/scans`) also return 200. Clients treat any 2xx as success. |
+| **Test Added** | `sync-hardening.test.ts`: "returns the existing asset even when the tenant is at its asset cap"; 200 on duplicate asset and scan. |
+
+## KFR-021 — Public iOS enrolment trusted unsigned, unbounded input (SEC-H2)
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-api `routes/ios/ios.router.ts`, new `lib/ios-enrolment.ts` |
+| **Root Cause** | `/api/v1/ios/udid/callback` regex-matched attributes out of the raw body without verifying the PKCS#7 signature. It accepted 2 MB bodies with no limit on field length, had no rate limit beyond the global one, and its upsert let anyone rewrite an already-registered device's details. |
+| **Fix Applied** | `openssl cms -verify` against `IOS_UDID_CA_FILE`; when that is set, unverified payloads get a 400 and attributes are read only from the verified content. When it isn't set, enrolment works as before but the device is stored with the new `signatureVerified = false`. UDID, product, OS build and serial must match Apple's formats. Body limit is 128 KB; `enrolmentLimiter` allows 10 per 15 min per IP. An unverified payload never updates a registered or previously verified device. APK/IPA downloads get `appDownloadLimiter` (60 per 15 min, SEC-L1). |
+| **Test Added** | `__tests__/ios/ios-enrolment.test.ts` (12). It builds a throwaway CA and a device certificate with openssl and signs real CMS payloads, then checks that a trusted signature verifies and that rogue-CA, unsigned and tampered payloads are refused. It also covers format checks and registered-device protection. **Switching it on in production requires a real-iPhone check: see DEPLOY.md.** |
+
+## KFR-022 — `npm test` could run destructive tests against any database
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-api `jest.setup.ts` |
+| **Root Cause** | The integration suite (including tenant-delete tests) ran against whatever `DATABASE_URL` was in `.env`. It hit staging once (2 Sep 2026) and the local dev database during the S0.1 baseline. |
+| **Fix Applied** | The tests refuse to start unless the database is on localhost/127.0.0.1/::1 **and** its name ends in `_test` (what `scripts/test-api.sh` and CI use). Override deliberately with `ALLOW_ANY_TEST_DATABASE=1`. |
+| **Test Added** | Verified manually: `npx jest` with the dev `.env` stops with "Refusing to run the API tests against database "vairiot_dev"". |
+
+## KFR-023 — Asset cache wiped on refresh (Android partial wipe; iOS lost offline creates)
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-mobile `data/AssetRepository.kt`; vairiot-ios `Data/AssetRepository.swift` |
+| **Root Cause** | Android replaced the whole cache after page 1 and then upserted later pages. A connection drop mid-sync left a partial register while reporting failure. iOS deleted *every* cached asset on a full refresh, including the provisional `pending-…` rows for assets created offline, so they vanished from the list until synced. Both downloaded the full register on every refresh. |
+| **Fix Applied** | `AssetDeltaSync` on both platforms, using `GET /assets?changedSince=`. It fetches every page before touching the cache and saves the cursor last. iOS full syncs keep `pending-…` rows. A full sync runs on first use, on a tenant switch, or every 24 h; otherwise it's a delta with a 2-minute overlap, with later pages pinned by `changedUntil`. It falls back to the old full download if the server lacks delta support. The asset lists show "Last synced X minutes ago". |
+| **Test Added** | Android `AssetDeltaSyncTest` (8), iOS `AssetDeltaSyncTests` (9), API delta tests in `sync-hardening.test.ts` (including paging stability when an asset is edited mid-sync). |
+
+## KFR-024 — OpenAPI said the asset list was `data`; the API returns `assets`
+
+| Field | Detail |
+|---|---|
+| **Module** | vairiot-api `lib/openapi.ts` |
+| **Root Cause** | The `AssetList` schema named the array `data` (and omitted `totalPages`), so generated clients would decode nothing. |
+| **Fix Applied** | Corrected it, and documented `changedSince`/`changedUntil`, the `AssetChanges` response, 200 responses for duplicates, the 409 meanings and 429. |
+| **Test Added** | None. Consider validating responses against the spec in tests. |
+
+*Last updated: S0.4, October 2026*

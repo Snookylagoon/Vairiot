@@ -34,6 +34,12 @@ interface CachedAssetDao {
     @Query("DELETE FROM cached_assets")
     suspend fun deleteAll()
 
+    @Query("DELETE FROM cached_assets WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
+
+    @Query("SELECT COUNT(*) FROM cached_assets")
+    suspend fun count(): Int
+
     @Transaction
     suspend fun replaceAll(assets: List<CachedAsset>) {
         deleteAll()

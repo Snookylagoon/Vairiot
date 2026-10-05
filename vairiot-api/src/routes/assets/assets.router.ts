@@ -5,7 +5,7 @@ import { toCsv } from '../../lib/csv';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { listAssetEvents } from '../../services/asset-event.service';
-import { listAssets, getAsset, createAsset, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
+import { listAssets, listAssetChanges, getAsset, createAssetIdempotent, findAssetByClientRequestId, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
 import { encodeIdentifier } from '../../services/gs1-identifier.service';
 import { listLabelPrints } from '../../services/gs1-label.service';
 import { getAssetByEpc, listTagsForAsset } from '../../services/gs1-tag.service';
@@ -16,8 +16,31 @@ import type { Request } from '../../types/http';
 export const assetsRouter = Router();
 
 assetsRouter.get('/',
-  [query('page').optional().isInt({ min: 1 }), query('pageSize').optional().isInt({ min: 1, max: 200 })],
+  [
+    query('page').optional().isInt({ min: 1 }),
+    query('pageSize').optional().isInt({ min: 1, max: 200 }),
+    query('changedSince').optional().isISO8601({ strict: true }),
+    query('changedUntil').optional().isISO8601({ strict: true }),
+  ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
+
+    // Delta sync for mobile caches: only what changed, plus deletions.
+    if (typeof req.query.changedSince === 'string') {
+      res.json(await listAssetChanges(req.user!.tenantId, {
+        since:      new Date(req.query.changedSince),
+        until:      typeof req.query.changedUntil === 'string' ? new Date(req.query.changedUntil) : undefined,
+        categoryId: req.query.categoryId as string,
+        siteId:     req.query.siteId as string,
+        status:     req.query.status as string,
+        condition:  req.query.condition as string,
+        page:       Number(req.query.page) || 1,
+        pageSize:   Number(req.query.pageSize) || 50,
+      }));
+      return;
+    }
+
     res.json(await listAssets(req.user!.tenantId, {
       search:     req.query.search as string,
       categoryId: req.query.categoryId as string,
@@ -164,12 +187,25 @@ assetsRouter.get('/:id',
 );
 
 assetsRouter.post('/', requireAnyPermission('asset:write'),
-  [body('name').notEmpty().withMessage('Asset name required')],
+  [
+    body('name').notEmpty().withMessage('Asset name required'),
+    body('clientRequestId').optional({ nullable: true }).isString().isLength({ max: 64 }),
+  ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    await enforceAssetCap(req.user!.tenantId);
-    res.status(201).json(await createAsset(req.user!.tenantId, req.user!.sub, req.body));
+    const tenantId = req.user!.tenantId;
+    const clientRequestId = typeof req.body.clientRequestId === 'string' ? req.body.clientRequestId : undefined;
+    // A replay of a create that already succeeded returns the original with 200,
+    // before the licence cap check: a tenant at its cap must still get back the
+    // asset it already has, or the device would park it as rejected.
+    if (clientRequestId) {
+      const existing = await findAssetByClientRequestId(tenantId, clientRequestId);
+      if (existing) { res.status(200).json(existing); return; }
+    }
+    await enforceAssetCap(tenantId);
+    const { asset, created } = await createAssetIdempotent(tenantId, req.user!.sub, req.body);
+    res.status(created ? 201 : 200).json(asset);
   }),
 );
 

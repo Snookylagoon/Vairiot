@@ -346,6 +346,7 @@ model Asset {
   @@index([tenantId, categoryId])
   @@index([tenantId, siteId])
   @@index([tenantId, deletedAt])
+  @@index([tenantId, updatedAt]) // delta sync: GET /assets?changedSince=
   @@index([rfidTag])
   @@index([barcode])
   @@map("assets")
@@ -1085,14 +1086,18 @@ model IosRelease {
 
 // ─── iOS Devices (UDIDs captured by the enrollment helper) ───────────────────
 model IosDevice {
-  id         String   @id @default(cuid())
-  udid       String   @unique
-  product    String? // e.g. iPhone18,2
-  osVersion  String?
-  serial     String?
-  name       String? // label set by the admin ("Don's iPhone")
-  registered Boolean  @default(false) // true once added to the Apple Developer portal
-  createdAt  DateTime @default(now())
+  id                String   @id @default(cuid())
+  udid              String   @unique
+  product           String? // e.g. iPhone18,2
+  osVersion         String?
+  serial            String?
+  name              String? // label set by the admin ("Don's iPhone")
+  registered        Boolean  @default(false) // true once added to the Apple Developer portal
+  /// True when the enrolment payload's PKCS#7 signature verified against the
+  /// configured Apple CA (IOS_UDID_CA_FILE). False = unverified: treat the
+  /// attributes as untrusted until an admin has checked the device.
+  signatureVerified Boolean  @default(false)
+  createdAt         DateTime @default(now())
 
   @@map("ios_devices")
 }

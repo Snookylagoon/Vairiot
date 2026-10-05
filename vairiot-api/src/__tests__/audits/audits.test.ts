@@ -72,7 +72,7 @@ describe('Audit Campaigns', () => {
     const first = await request(app).post(`/api/v1/audits/${campaignId}/scans`).set('Authorization', `Bearer ${token}`).send(payload);
     expect(first.status).toBe(201);
     const replay = await request(app).post(`/api/v1/audits/${campaignId}/scans`).set('Authorization', `Bearer ${token}`).send(payload);
-    expect(replay.status).toBe(201);
+    expect(replay.status).toBe(200); // replay: the original event, not a new one
     expect(replay.body.id).toBe(first.body.id);
     expect(replay.body.duplicate).toBe(true);
   });

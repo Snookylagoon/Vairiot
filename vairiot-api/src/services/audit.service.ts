@@ -165,16 +165,26 @@ export interface RecordScanInput {
   capturedAt?: string;
 }
 
-// Accept device capture times up to 90 days in the past and 10 minutes of
-// clock skew into the future; anything outside falls back to server time.
-function clampCapturedAt(raw: string | undefined): Date | undefined {
+const DAY_MS = 24 * 3600 * 1000;
+
+/**
+ * Clamps a device capture time into [campaign.startedAt − 1 day, now]. A scan
+ * can't have happened after it reached the server, and can't predate the audit
+ * by more than a day of clock skew; a device with a wrong clock gets the
+ * nearest plausible time rather than a nonsense one. Campaigns without a start
+ * (legacy rows) fall back to a 90-day window. Exported for tests.
+ */
+export function clampCapturedAt(
+  raw: string | undefined,
+  campaignStartedAt: Date | null,
+  now: Date = new Date(),
+): Date | undefined {
   if (!raw) return undefined;
-  const t = new Date(raw);
-  if (Number.isNaN(t.getTime())) return undefined;
-  const now = Date.now();
-  if (t.getTime() > now + 10 * 60 * 1000) return new Date();
-  if (t.getTime() < now - 90 * 24 * 3600 * 1000) return undefined;
-  return t;
+  const t = new Date(raw).getTime();
+  if (Number.isNaN(t)) return undefined;
+  const upper = now.getTime();
+  const lower = campaignStartedAt ? campaignStartedAt.getTime() - DAY_MS : upper - 90 * DAY_MS;
+  return new Date(Math.min(Math.max(t, lower), upper));
 }
 
 export async function recordScan(tenantId: string, campaignId: string, actorId: string, input: RecordScanInput) {
@@ -230,7 +240,7 @@ export async function recordScan(tenantId: string, campaignId: string, actorId: 
         locationId: input.locationId,
         condition:  input.condition,
         result:     internalResult,
-        capturedAt: clampCapturedAt(input.capturedAt),
+        capturedAt: clampCapturedAt(input.capturedAt, c.startedAt),
         clientRequestId: input.clientRequestId,
       },
     });

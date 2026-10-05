@@ -131,10 +131,27 @@ export const openApiSpec = {
       AssetList: {
         type: 'object',
         properties: {
-          data: { type: 'array', items: { $ref: '#/components/schemas/Asset' } },
+          assets: { type: 'array', items: { $ref: '#/components/schemas/Asset' } },
           total: { type: 'integer' },
           page: { type: 'integer' },
           pageSize: { type: 'integer' },
+          totalPages: { type: 'integer' },
+        },
+      },
+      AssetChanges: {
+        type: 'object',
+        description: 'Delta-sync page (GET /assets?changedSince=). Assets changed in (changedSince, serverTime], oldest change first.',
+        properties: {
+          assets: { type: 'array', items: { $ref: '#/components/schemas/Asset' } },
+          total: { type: 'integer', description: 'Changed assets in the window (all pages)' },
+          page: { type: 'integer' },
+          pageSize: { type: 'integer' },
+          totalPages: { type: 'integer' },
+          deletedIds: { type: 'array', items: { type: 'string' }, description: 'Assets soft-deleted in the window. Remove them from the cache.' },
+          serverTime: {
+            type: 'string', format: 'date-time',
+            description: 'Upper bound of the window. Send it as changedUntil on later pages; start the next delta from it minus ~2 minutes.',
+          },
         },
       },
       Category: {
@@ -358,13 +375,33 @@ export const openApiSpec = {
           { name: 'sortBy', in: 'query', schema: { type: 'string' } },
           { name: 'sortOrder', in: 'query', schema: { type: 'string', enum: ['asc', 'desc'] } },
           { name: 'includeDeleted', in: 'query', schema: { type: 'boolean' } },
+          {
+            name: 'changedSince', in: 'query', schema: { type: 'string', format: 'date-time' },
+            description: 'Delta sync: return only assets updated after this instant, plus deletedIds and serverTime (AssetChanges). search, sortBy and sortOrder are ignored; results are ordered by last change.',
+          },
+          {
+            name: 'changedUntil', in: 'query', schema: { type: 'string', format: 'date-time' },
+            description: 'With changedSince: upper bound of the window. Pass page 1\'s serverTime on later pages so the set cannot shift while paging.',
+          },
         ],
-        responses: { 200: { description: 'Paginated asset list', content: { 'application/json': { schema: { $ref: '#/components/schemas/AssetList' } } } } },
+        responses: {
+          200: {
+            description: 'Paginated asset list, or a delta page when changedSince is given',
+            content: { 'application/json': { schema: { oneOf: [{ $ref: '#/components/schemas/AssetList' }, { $ref: '#/components/schemas/AssetChanges' }] } } },
+          },
+          400: { description: 'Invalid query (e.g. changedSince is not ISO-8601)' },
+        },
       },
       post: {
         tags: ['Assets'], summary: 'Create an asset',
+        description: 'Idempotent when clientRequestId is sent: a repeat of a create that already succeeded returns the original asset with 200 (checked before the licence asset cap).',
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AssetCreate' } } } },
-        responses: { 201: { description: 'Created asset', content: { 'application/json': { schema: { $ref: '#/components/schemas/Asset' } } } }, 400: { description: 'Validation error' } },
+        responses: {
+          201: { description: 'Created asset', content: { 'application/json': { schema: { $ref: '#/components/schemas/Asset' } } } },
+          200: { description: 'Duplicate clientRequestId: the asset created by the earlier request', content: { 'application/json': { schema: { $ref: '#/components/schemas/Asset' } } } },
+          400: { description: 'Validation error' },
+          429: { description: 'Per-user sync rate limit exceeded (RATE_LIMITED)' },
+        },
       },
     },
     '/assets/stats': {
@@ -507,7 +544,38 @@ export const openApiSpec = {
       },
     },
     '/audits/{id}/start': { post: { tags: ['Audits'], summary: 'Start an audit campaign', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Started' } } } },
-    '/audits/{id}/scans': { post: { tags: ['Audits'], summary: 'Record a scan event', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['tagValue'], properties: { tagValue: { type: 'string' }, deviceId: { type: 'string' } } } } } }, responses: { 200: { description: 'Scan recorded' } } } },
+    '/audits/{id}/scans': {
+      post: {
+        tags: ['Audits'], summary: 'Record a scan event',
+        description: 'Idempotent when clientRequestId is sent: a replay returns the original event with 200 and duplicate: true. capturedAt is clamped to [campaign.startedAt − 1 day, now]. Blind campaigns require locationId.',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object', required: ['tagValue'],
+                properties: {
+                  tagValue: { type: 'string' },
+                  deviceId: { type: 'string' },
+                  locationId: { type: 'string', description: 'Zone (site location). Required for blind campaigns.' },
+                  condition: { type: 'string', enum: ['good', 'fair', 'poor', 'damaged'] },
+                  clientRequestId: { type: 'string', maxLength: 64, description: 'Idempotency key, generated once per scan on the device' },
+                  capturedAt: { type: 'string', format: 'date-time', description: 'When the device captured the scan' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: 'Scan recorded' },
+          200: { description: 'Duplicate clientRequestId: the original event (duplicate: true)' },
+          400: { description: 'Validation error (e.g. blind scan without locationId)' },
+          409: { description: 'CAMPAIGN_NOT_ACTIVE or ZONE_LOCKED — a rejection, not a duplicate' },
+          429: { description: 'Per-user sync rate limit exceeded (RATE_LIMITED)' },
+        },
+      },
+    },
     '/audits/{id}/complete': { post: { tags: ['Audits'], summary: 'Complete an audit campaign', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Completed' } } } },
     '/audits/{id}/export.csv': { get: { tags: ['Audits'], summary: 'Export audit results as CSV', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'CSV file', content: { 'text/csv': { schema: { type: 'string' } } } } } } },
     '/audits/{id}/report': { get: { tags: ['Audits'], summary: 'Get audit report summary', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Audit report' } } } },

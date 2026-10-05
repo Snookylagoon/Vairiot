@@ -57,6 +57,10 @@ class AssetListViewModel @Inject constructor(
     private val _state = MutableStateFlow(AssetListUiState())
     val state: StateFlow<AssetListUiState> = _state
 
+    /** Device time of the last completed asset sync, for the header label. */
+    val lastSyncedAtMs: StateFlow<Long?> = repo.lastSyncedAtMs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     val supportsRfid: Boolean get() = scanner.supportsRfid
     val supportsBarcode: Boolean get() = scanner.supportsBarcode
     val supportsCameraScan: Boolean get() = scanner.supportsCameraScan

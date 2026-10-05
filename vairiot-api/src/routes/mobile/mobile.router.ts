@@ -6,6 +6,7 @@ import { Router, Response } from 'express';
 import { minioClient, MOBILE_RELEASES_BUCKET } from '../../lib/minio';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler } from '../../middleware/error-handler';
+import { appDownloadLimiter } from '../../middleware/rate-limit';
 import type { Request } from '../../types/http';
 
 // Public router — the mobile app polls these endpoints with no auth so it can
@@ -33,7 +34,7 @@ mobileRouter.get('/version', asyncHandler(async (_req: Request, res: Response): 
   });
 }));
 
-mobileRouter.get('/latest.apk', asyncHandler(async (_req: Request, res: Response): Promise<void> => {
+mobileRouter.get('/latest.apk', appDownloadLimiter, asyncHandler(async (_req: Request, res: Response): Promise<void> => {
   const release = await prisma.mobileRelease.findFirst({
     where: { isCurrent: true },
     orderBy: { versionCode: 'desc' },
