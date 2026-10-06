@@ -4,8 +4,8 @@
 x-logging: &default-logging
   driver: json-file
   options:
-    max-size: "10m"
-    max-file: "3"
+    max-size: "20m"
+    max-file: "5"
 
 services:
 
@@ -157,6 +157,9 @@ services:
       dockerfile: vairiot-web/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL}
+        # Optional browser error tracking (Sentry/GlitchTip). Build-time: set
+        # in .env, then redeploy. Empty = disabled.
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     container_name: vairiot_web
     restart: always
     logging: *default-logging
@@ -165,6 +168,11 @@ services:
       - api
     expose:
       - "80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   admin:
     build:
@@ -180,6 +188,11 @@ services:
       - api
     expose:
       - "80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   worker:
     build:
@@ -199,6 +212,9 @@ services:
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
       LOG_LEVEL:    info
       SENTRY_DSN:   ${SENTRY_DSN:-}
+      # Where to email when a background job fails for good (all retries
+      # used). Unset = Sentry/logs only. See vairiot-worker/src/monitoring.ts.
+      OPS_ALERT_EMAIL: ${OPS_ALERT_EMAIL:-}
       APP_URL:      ${APP_URL:-}
       # SMTP for outbound mail when not configured via the admin panel (DB) — the
       # mailer falls back to these env vars, then to logging-only. See mailer.ts.

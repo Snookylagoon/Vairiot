@@ -2,19 +2,22 @@
 # Production deploy script for Vairiot.
 # Run on the prod server from anywhere:  bash /opt/Vairiot/infra/deploy.sh
 #
-# What it does:
+# What it does, stopping at the first failure:
 #   1. Pulls latest main
-#   2. Rebuilds and (re)starts containers using the repo-root .env
-#      — the `migrate` service applies Prisma migrations before the API starts
-#   3. Reloads nginx to pick up any prod.conf changes (upstream IPs no longer
-#      require a restart: nginx re-resolves them at request time via `resolver`)
-#   4. Prints container status
+#   2. Builds every image
+#   3. Applies Prisma migrations as a separate step. A failed migration stops
+#      the deploy here, before any running container is replaced, so the
+#      current version keeps serving.
+#   4. Starts the new containers
+#   5. Waits until every long-running container reports healthy
+#   6. Reloads nginx (upstream IPs re-resolve at request time via `resolver`)
+#   7. Checks /health/ready from inside the api container (database + Redis)
+#   8. Installs the certbot renewal hook if it is missing
 #
-# TLS renewal: certbot should reload nginx after renewing. Install a deploy hook once:
-#   echo 'docker exec vairiot_nginx nginx -s reload' \
-#     | sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-#   sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-# Without it, a renewed cert is not served until the next deploy/restart.
+# Exit code is non-zero if any step fails; the failing container's recent
+# logs are printed. Settings (optional, in .env):
+#   COMPOSE_EXTRA_FILE    extra compose file, e.g. infra/docker-compose.staging-shared.yml
+#   DEPLOY_WAIT_SECONDS   how long to wait for healthy containers (default 300)
 
 set -euo pipefail
 
@@ -29,27 +32,92 @@ fi
 
 cd "$REPO_DIR"
 
+env_value() { grep -E "^$1=" "$ENV_FILE" | tail -1 | cut -d= -f2- || true; }
+
 # Optional extra compose file (e.g. staging on a shared host where the box's
-# own nginx fronts the stack). Set in .env:
-#   COMPOSE_EXTRA_FILE=infra/docker-compose.staging-shared.yml
-COMPOSE_ARGS=(-f "$COMPOSE_FILE")
-EXTRA_FILE="$(grep -E '^COMPOSE_EXTRA_FILE=' "$ENV_FILE" | tail -1 | cut -d= -f2- || true)"
+# own nginx fronts the stack).
+COMPOSE=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
+EXTRA_FILE="$(env_value COMPOSE_EXTRA_FILE)"
 if [ -n "$EXTRA_FILE" ]; then
   echo "→ Using extra compose file: $EXTRA_FILE"
-  COMPOSE_ARGS+=(-f "$REPO_DIR/$EXTRA_FILE")
+  COMPOSE+=(-f "$REPO_DIR/$EXTRA_FILE")
 fi
+WAIT_SECONDS="$(env_value DEPLOY_WAIT_SECONDS)"
+WAIT_SECONDS="${WAIT_SECONDS:-300}"
+
+die() {
+  echo "" >&2
+  echo "❌ DEPLOY FAILED: $*" >&2
+  exit 1
+}
 
 echo "→ Pulling latest…"
 git pull --ff-only
 
-echo "→ Building & starting containers (migrations run via the migrate service)…"
-docker compose --env-file "$ENV_FILE" "${COMPOSE_ARGS[@]}" up -d --build
+echo "→ Building images…"
+"${COMPOSE[@]}" build
+
+echo "→ Applying database migrations…"
+"${COMPOSE[@]}" run --rm migrate \
+  || die "migrations failed — nothing was restarted; the previous version is still serving. Fix the migration and deploy again."
+
+echo "→ Starting containers…"
+"${COMPOSE[@]}" up -d --remove-orphans
+
+# Wait for every long-running container to be running and, where it has a
+# healthcheck, healthy. Done here rather than with `up --wait`, whose handling
+# of one-shot containers (migrate) has varied between Compose releases.
+echo "→ Waiting up to ${WAIT_SECONDS}s for containers to become healthy…"
+deadline=$(( $(date +%s) + WAIT_SECONDS ))
+while :; do
+  pending=()
+  for id in $("${COMPOSE[@]}" ps -q); do
+    read -r name state health < <(docker inspect -f \
+      '{{.Name}} {{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id")
+    name="${name#/}"
+    [ "$name" = "vairiot_migrate" ] && continue
+    if [ "$state" != "running" ] || { [ "$health" != "healthy" ] && [ "$health" != "none" ]; }; then
+      pending+=("${name}(${state}/${health})")
+    fi
+  done
+  [ ${#pending[@]} -eq 0 ] && break
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    for p in "${pending[@]}"; do
+      echo "--- last logs of ${p%%(*} ---" >&2
+      docker logs --tail 30 "${p%%(*}" >&2 2>&1 || true
+    done
+    die "not healthy after ${WAIT_SECONDS}s: ${pending[*]}"
+  fi
+  sleep 5
+done
+echo "  ✓ all containers healthy"
 
 # Reload the bundled nginx if it's part of this deployment (it isn't on shared
 # hosts, where the host nginx fronts the stack instead).
 if docker ps --format '{{.Names}}' | grep -q '^vairiot_nginx$'; then
   echo "→ Reloading nginx to pick up any conf changes…"
   docker exec vairiot_nginx nginx -s reload >/dev/null 2>&1 || docker restart vairiot_nginx >/dev/null
+fi
+
+echo "→ Checking /health/ready…"
+READY="$(docker exec vairiot_api node -e "
+  fetch('http://127.0.0.1:3001/health/ready')
+    .then(async (r) => { console.log(r.status, await r.text()); process.exit(r.ok ? 0 : 1); })
+    .catch((e) => { console.log('error', e.message); process.exit(1); });
+" 2>&1)" || die "/health/ready failed: ${READY}"
+echo "  ✓ ${READY}"
+
+# TLS renewal: certbot must reload nginx after renewing, or a renewed
+# certificate is not served until the next restart.
+HOOK_DIR=/etc/letsencrypt/renewal-hooks/deploy
+HOOK="${HOOK_DIR}/vairiot-reload-nginx.sh"
+if [ -d "$HOOK_DIR" ] && ! cmp -s "${REPO_DIR}/infra/certbot/reload-nginx.sh" "$HOOK"; then
+  if install -m 755 "${REPO_DIR}/infra/certbot/reload-nginx.sh" "$HOOK" 2>/dev/null; then
+    echo "→ Installed certbot renewal hook: $HOOK"
+  else
+    echo "⚠  Could not install the certbot renewal hook (needs root). Run once:"
+    echo "     sudo install -m 755 ${REPO_DIR}/infra/certbot/reload-nginx.sh $HOOK"
+  fi
 fi
 
 echo "→ Container status:"

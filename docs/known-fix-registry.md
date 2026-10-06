@@ -248,4 +248,49 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Test Added** | `src/__tests__/test-server-binding.test.ts` asserts, through a real supertest request, that the server listens on `127.0.0.1`. It fails without the fix (`::`). Evidence: before the fix, 8 of ~88 local full runs got a wrong-server failure (~9%); after it, 40 of 40 passed (about 2% likely by chance at the old rate). |
 | **Also seen** | Before the fix, about 1 run in 8 crashed: the Jest process segfaulted inside V8's garbage collector (`ClearStaleLeftTrimmedPointerVisitor::VisitRootPointers`, Node v24.15.0 arm64, with or without Maglev; 8 crashes in ~65 runs). None occurred in the 40 runs after the fix (under 1% likely at the old rate), so the crash appears to be triggered by the wrong-server error paths. That's a runtime bug, not app code, and the link isn't proven. If it returns, capture the `~/Library/Logs/DiagnosticReports/node-*.ips` report and try a newer Node 24 patch release. |
 
-*Last updated: S0.4 (test harness), October 2026*
+## KFR-026 — Backups: placeholder key left unencrypted archives; no Redis; silent bucket skips
+
+| Field | Detail |
+|---|---|
+| **Module** | `infra/backup.sh`, `infra/backup.crontab`, `infra/restore.sh` |
+| **Root Cause** | The crontab passed `BACKUP_AGE_RECIPIENT=age1REPLACE_ME`, so unless `.env` overrode it `age` failed. The script then exited with the **unencrypted** archive (containing `.env`) on disk and nothing uploaded. A bucket whose mirror failed was skipped silently (`|| true`). Redis was not backed up. Retention was a flat 14 days. |
+| **Fix Applied** | All settings live in `.env`; the crontab holds none. The archive is streamed straight into `age`. Without a recipient it is kept locally (mode 600), never sent off-host, and the run exits **2** with `[BACKUP-INCOMPLETE]`. A failed bucket mirror fails the run. Redis RDB via `BGSAVE`. Native S3 settings (`BACKUP_S3_*`, credentials via environment so they never show in `ps`), with `BACKUP_REMOTE_TARGET` still supported. 30 daily + 12 monthly off-host. A manifest records row and object counts before and after the dump. `restore.sh` can restore Redis (`RESTORE_REDIS=yes`). |
+| **Test Added** | End to end in throwaway containers (real Postgres schema with 58 tables, MinIO, Redis, a second MinIO as off-site S3, runner with age and rclone): unencrypted → exit 2, local only; encrypted → daily and monthly off-host; second run → no extra monthly; planted aged copies → exactly the expired ones pruned. ShellCheck clean at style level. |
+
+## KFR-027 — No proof backups could be restored
+
+| Field | Detail |
+|---|---|
+| **Module** | new `infra/restore-test.sh`, `infra/docker-compose.restoretest.yml` |
+| **Root Cause** | Nothing ever restored a backup, so a corrupt or partial archive would only be discovered during a disaster. |
+| **Fix Applied** | `restore-test.sh` fetches the newest off-host backup (or the newest local one), decrypts it and restores it into the isolated compose project `vairiot-restoretest`. It checks `prisma migrate status` (pending = warning, failed or drift = failure), row counts per table against the manifest, file counts per bucket and that the Redis snapshot loads, then tears down. Run monthly (DEPLOY.md). **Bug caught while testing it:** `docker compose exec` inside a `while read` loop swallowed the loop's input, so only the first table was compared ("1 tables match"). It now uses `</dev/null`, and a manifest with no tables fails. |
+| **Test Added** | Pass from off-site and from local; a manifest claiming 30 tenants vs 25 restored → `✗ tenants … [RESTORE-TEST-FAILED]`; a truncated archive → `decryption/unpack failed`; a backup missing the newest migration → warning and pass. |
+
+## KFR-028 — Deploys could half-apply; nothing waited for health; certbot never reloaded nginx
+
+| Field | Detail |
+|---|---|
+| **Module** | `infra/deploy.sh`, new `infra/certbot/reload-nginx.sh`, `infra/docker-compose.prod.yml` |
+| **Root Cause** | `deploy.sh` ran `up -d --build` and reported success without checking anything; a failed migration surfaced only as an API that wouldn't start. web and admin had no healthcheck. The certbot renewal hook existed only as a comment, so renewed certificates weren't served until a restart. |
+| **Fix Applied** | Build, then migrations as their own step (`run --rm migrate`): a failure stops the deploy before anything is restarted. Then `up -d`, a wait for every long-running container to be healthy (logs printed on timeout), and `/health/ready` from inside the api. It doesn't use `up --wait`, whose handling of one-shot containers has varied between Compose releases. Installs the certbot hook. web/admin healthchecks. Log rotation 5 × 20 MB. |
+| **Test Added** | The health-wait loop, extracted from `deploy.sh`, against a test compose project: healthy → pass; an unhealthy container → its logs and `DEPLOY FAILED … (running/unhealthy)`. `docker compose config` validates. |
+
+## KFR-029 — Background jobs failing for good went unnoticed
+
+| Field | Detail |
+|---|---|
+| **Module** | `vairiot-worker` (`job-alerts.ts`, `index.ts`) |
+| **Root Cause** | A job that used all its retries was reported only to Sentry, and only if `SENTRY_DSN` was set. Otherwise it disappeared from BullMQ's capped failed list. |
+| **Fix Applied** | `JobFailureAlerter` emails `OPS_ALERT_EMAIL`, throttled to one email per queue per 15 min with a count of held-back failures, and no job data (PII). A mail failure is logged, not looped. Browser error tracking added to web (`VITE_SENTRY_DSN`, SDK lazy-loaded; verified it is absent from the entry bundle). The worker gained a Jest setup, and CI now runs the worker, shared and web unit tests (previously none ran). |
+| **Test Added** | `vairiot-worker/src/__tests__/job-alerts.test.ts` (5), `vairiot-web/src/__tests__/monitoring.test.ts` (2). |
+
+## KFR-030 — MinIO image can no longer be pulled (open)
+
+| Field | Detail |
+|---|---|
+| **Module** | `infra/docker-compose*.yml` (object storage) |
+| **Root Cause** | MinIO stopped publishing community images in 2025. `minio/minio` on Docker Hub (every tag tried, including the pinned one) and `quay.io/minio/minio` no longer resolve. Production starts only because the image is cached on the server. |
+| **Fix Applied** | **Not fixed: needs a decision** (build from source into our own registry, a maintained third-party image, another S3-compatible store, or managed S3). Interim: DEPLOY.md warns never to `docker image prune -a` on prod. Tracked as INF-15 in `docs/sprints/S0-audit-triage.md`. |
+| **Test Added** | `docker manifest inspect minio/minio:RELEASE.2025-09-07T16-13-09Z` must succeed before any server rebuild. |
+
+*Last updated: S0.5, October 2026*

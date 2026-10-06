@@ -118,6 +118,7 @@ Status key: **FIXED** = closed in current code; **PARTLY FIXED** = some of it is
 | INF-10 | Prisma 5.22 forces a Node mismatch | FIXED | Prisma `^7.10.0` (`vairiot-api/package.json:22,61`); `node:24-alpine` in all Dockerfiles and CI | `a6df1ff`, `0e17ee5` |
 | INF-11 | No Dependabot | FIXED | `.github/dependabot.yml`: npm, pip, gradle, github-actions, docker | `06a7d33`. Docker covers only `/vairiot-api`; S0.5 step 7 adds the other Dockerfiles |
 | INF-12 | No CDN | OPEN | — | Deferred (hosting decision; not relevant to in-country TUDA) |
+| INF-15 | *New (found in S0.5).* MinIO image no longer obtainable | **OPEN — decision needed** | `minio/minio` (pinned `RELEASE.2025-09-07T16-13-09Z`, `latest`, older tags) and `quay.io/minio/minio` no longer resolve (checked 6 Oct 2026; `postgres:16-alpine` resolves fine from the same machine). Production runs from its cached image. | **Blocks any rebuild**: a new server, S0.6's standalone TUDA install, or disaster recovery can't start the object store. Options: build MinIO from source into our own registry; a maintained third-party image (e.g. `cgr.dev/chainguard/minio`); another S3-compatible store; or managed S3 (audit Option A). Until then: never `docker image prune -a` on prod (DEPLOY.md) |
 
 ---
 

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@sentry/react": "^11.4.0",
     "@tanstack/react-query": "^5.45.0",
     "axios": "^1.7.0",
     "bwip-js": "^4.11.1",

@@ -14,66 +14,121 @@ Or, if already on the server:
 bash /opt/Vairiot/infra/deploy.sh
 ```
 
-The script handles `git pull`, Prisma migrations (via the one-shot `migrate` service), container rebuild/restart, and an nginx reload for config changes.
+The script stops at the first failure and exits non-zero, printing the failing container's recent logs.
 
 ## What the script does
 
 1. `git pull --ff-only` in `/opt/Vairiot`.
-2. `docker compose --env-file /opt/Vairiot/.env -f infra/docker-compose.prod.yml up -d --build`
+2. Builds every image (`docker compose --env-file /opt/Vairiot/.env -f infra/docker-compose.prod.yml build`).
    — the `--env-file` flag is required because compose by default only reads `.env` from the compose file's directory (`infra/`), but the real env lives at the repo root.
-   — the `migrate` service runs `prisma migrate deploy` and must exit 0 before the api starts, so schema changes are applied automatically.
-3. `docker exec vairiot_nginx nginx -s reload` — picks up any `prod.conf` changes. Upstream container IPs no longer require a restart: nginx re-resolves them at request time via the `resolver` directive.
-4. Prints `docker ps`.
+3. Applies migrations on their own (`… run --rm migrate`, i.e. `prisma migrate deploy`). **If a migration fails, the deploy stops here and nothing has been restarted: the previous version keeps serving.** Fix the migration and deploy again.
+4. `… up -d --remove-orphans` starts the new containers.
+5. Waits up to `DEPLOY_WAIT_SECONDS` (default 300) for every long-running container to report healthy; fails with their logs if one doesn't.
+6. `docker exec vairiot_nginx nginx -s reload` — picks up any `prod.conf` changes. Upstream container IPs no longer require a restart: nginx re-resolves them at request time via the `resolver` directive.
+7. Calls `/health/ready` inside the api container (database + Redis must answer).
+8. Installs the certbot renewal hook (`infra/certbot/reload-nginx.sh` → `/etc/letsencrypt/renewal-hooks/deploy/vairiot-reload-nginx.sh`) if it is missing or out of date, so a renewed certificate is served straight away. If the deploy user can't write there, it prints the one `sudo install` command to run.
+9. Prints `docker ps`.
 
 ## Manual deploy (if the script fails)
 
 ```
 cd /opt/Vairiot
 git pull
-docker compose --env-file /opt/Vairiot/.env -f infra/docker-compose.prod.yml up -d --build
+docker compose --env-file /opt/Vairiot/.env -f infra/docker-compose.prod.yml build
+docker compose --env-file /opt/Vairiot/.env -f infra/docker-compose.prod.yml run --rm migrate   # stop here if this fails
+docker compose --env-file /opt/Vairiot/.env -f infra/docker-compose.prod.yml up -d
 docker restart vairiot_nginx
-docker ps
+docker ps                                                                                    # wait for (healthy)
 ```
 
 ## Common gotchas
 
 - **`WARN: variable is not set` everywhere** — you forgot `--env-file /opt/Vairiot/.env`. Postgres/Redis will recreate with blank passwords and refuse connections against the existing data volume.
 - **502 Bad Gateway after deploy** — should no longer happen (nginx re-resolves upstreams via `resolver`). If it does, `docker exec vairiot_nginx nginx -s reload`, or restart nginx.
+- **Never `docker image prune -a` on the server.** The official MinIO images are no longer published (Docker Hub and quay.io stopped serving `minio/minio` in 2025), so the copy cached on this host is the only one: delete it and the object store won't start again. Build or choose a replacement before rebuilding the server (see `docs/sprints/S0-audit-triage.md`).
 - **`Permission denied (publickey)`** when SSHing — make sure `~/.ssh/vairiot_key` exists locally and `~/.ssh/config` has the `Host vairiot` block pointing at it.
 
 ## Operations
 
 ### Backups (off-host)
 
-`infra/backup.sh` produces a single timestamped archive of the Postgres dump, the MinIO buckets, and the `.env` (which holds `APP_ENCRYPTION_KEY` — without it, a DB dump's encrypted SMTP creds are unrecoverable), then pushes it off-host via `rclone` and prunes old copies. Restore with `infra/restore.sh <archive>` (`CONFIRM=yes`, destructive).
+`infra/backup.sh` makes one archive of the Postgres dump, the MinIO buckets, a Redis snapshot and the `.env` (which holds `APP_ENCRYPTION_KEY` — without it, a dump's encrypted SMTP credentials are unrecoverable), encrypts it with [age](https://age-encryption.org), and copies it to S3-compatible storage off the host. It keeps **30 daily and 12 monthly** copies off-host (the first backup of each month is also kept under `monthly/`) and a week locally. Each archive carries a manifest of row and object counts, which the restore test checks.
 
 Set up once on the server:
 
 ```
-# 1. install tools:  apt-get install -y rclone age   (age optional, for at-rest encryption)
-# 2. configure an rclone remote in an EU region (GDPR):  rclone config   → e.g. remote name "s3eu"
-# 3. install the cron line (edit the age recipient first):
+# 1. Tools
+apt-get install -y age rclone
+
+# 2. An encryption key pair. Keep the PRIVATE key (identity) somewhere safe
+#    OFF this server too (password manager): without it no backup can be read.
+age-keygen -o /root/vairiot-backup-identity.txt     # prints "Public key: age1…"
+
+# 3. A bucket in an EU region (GDPR), e.g. Backblaze B2 eu-central or Scaleway.
+#    Create an application key limited to that bucket.
+
+# 4. Settings in /opt/Vairiot/.env
+BACKUP_AGE_RECIPIENT=age1…                         # the public key from step 2
+BACKUP_S3_ENDPOINT=https://s3.eu-central-003.backblazeb2.com
+BACKUP_S3_BUCKET=vairiot-backups
+BACKUP_S3_ACCESS_KEY=…
+BACKUP_S3_SECRET_KEY=…
+BACKUP_AGE_IDENTITY=/root/vairiot-backup-identity.txt   # only for restore-test on this host
+
+# 5. Cron (daily backup at 02:30 UTC)
 crontab -l 2>/dev/null | cat - /opt/Vairiot/infra/backup.crontab | crontab -
-# 4. test it end to end, then test a RESTORE into a throwaway DB before trusting it.
+
+# 6. Prove it works
+bash /opt/Vairiot/infra/backup.sh && bash /opt/Vairiot/infra/restore-test.sh
 ```
 
-Required env for real protection (in `/opt/Vairiot/.env` or the cron line):
-`BACKUP_REMOTE_TARGET` (rclone `remote:path`) and `BACKUP_AGE_RECIPIENT` (age public key). Without the remote target the backup is local-only and dies with the host.
+`BACKUP_REMOTE_TARGET` (an `rclone` `remote:path` set up with `rclone config`) still works instead of `BACKUP_S3_*`.
+
+**Exit codes and alerting.** `0` = complete. `1` = failed (`[BACKUP-FAILED]` in `/var/log/vairiot-backup.log`). `2` = an archive was made but is **incomplete** (`[BACKUP-INCOMPLETE]`). For example, with no `BACKUP_AGE_RECIPIENT` the archive stays local (mode 600) and is never sent off-host unencrypted, because it contains `.env`. Alert on either marker.
+
+**Restore** into production: `CONFIRM=yes bash infra/restore.sh <archive>` (destructive; add `RESTORE_REDIS=yes` to also restore queues/blacklist, usually unnecessary). The `.env` from the backup is written to `.env.restored` for you to reconcile by hand.
+
+### Monthly restore test
+
+A backup nobody has restored is a hope, not a backup. Once a month run:
+
+```
+bash /opt/Vairiot/infra/restore-test.sh
+```
+
+It downloads the **newest off-host** backup (the copy that matters when the server is gone), decrypts it, restores it into a throwaway compose project (`vairiot-restoretest`, never touches production), and checks:
+- `prisma migrate status` against this checkout (a backup older than the latest deploy's migrations is reported, not failed);
+- every table's row count against the backup's manifest;
+- every bucket's file count;
+- that the Redis snapshot loads.
+
+It then tears the stack down. Exit 0 and `✅ Restore test passed` mean the backup is restorable; anything else prints `[RESTORE-TEST-FAILED]` with the reason. It needs `BACKUP_AGE_IDENTITY`. If you would rather not keep the private key on the server, run it from another machine with Docker, a checkout of this repo and the same `.env` settings. `infra/backup.crontab` has a commented monthly cron line for running it on the server.
 
 ### Monitoring
 
-- **Healthchecks** — every container has a Docker healthcheck; `docker ps` shows `(healthy)`. The api checks `/health`, the worker checks a liveness heartbeat file, nginx checks `/nginx-health`.
-- **Sentry** (optional) — set `SENTRY_DSN` in `.env` to enable error tracking on the api (5xx + unhandled errors) and worker (jobs that exhaust their retries). Unset = disabled, no-op.
-- **Uptime** — configure an external monitor (UptimeRobot / Better Stack, free tier) to poll `https://vai.vairiot.com/health/ready` every 1–5 min with an alert to phone/email. This is the only check that catches a fully-down host, which internal healthchecks cannot.
+- **Healthchecks** — every long-running container has a Docker healthcheck; `docker ps` shows `(healthy)`. The api checks `/health`, the worker a liveness heartbeat file, nginx `/nginx-health`, web and admin their index page; postgres, redis, minio and reports their own probes. `deploy.sh` waits for all of them.
+- **Error tracking** (optional) — Sentry, or self-hosted [GlitchTip](https://glitchtip.com) which speaks the same protocol (useful for in-country deployments):
+  - `SENTRY_DSN` in `.env` → api (5xx and unhandled errors) and worker (jobs that exhaust their retries).
+  - `VITE_SENTRY_DSN` in `.env` → the web app (browser errors, no tracing). Read at build time: redeploy after changing it. The SDK is only downloaded when this is set.
+  - Unset = disabled.
+- **Failed-job email** — set `OPS_ALERT_EMAIL` and the worker emails that address when a background job (invites, digests, webhooks, reports) fails for good. Throttled to one email per queue per 15 minutes, with a count of the failures held back; no job data is included. Uses the same mail settings as the rest of the app.
+- **Log rotation** — container logs are capped at 5 × 20 MB per container (`x-logging` in the compose file).
+- **Uptime** — configure an external monitor to poll `https://vai.vairiot.com/health/ready` every 1–5 min and alert by phone/email. It returns `200 {"status":"ready"}` only when the API can reach Postgres and Redis, and `503` otherwise. This is the only check that catches a fully-down host, which internal healthchecks cannot. For example, UptimeRobot (free): *Add New Monitor* → type **HTTP(s) – Keyword** → URL `https://vai.vairiot.com/health/ready` → keyword `"ready"` (*alert when not exists*) → interval 5 min → alert contacts: phone app + email. Better Stack works the same way.
 
 ### Operational env vars (added)
 
 | Var | Purpose | Default if unset |
 |-----|---------|------------------|
 | `SENTRY_DSN` | Error tracking (api + worker) | disabled |
+| `VITE_SENTRY_DSN` | Error tracking (web app; build-time) | disabled |
+| `OPS_ALERT_EMAIL` | Email for background jobs that fail for good | no email |
+| `DEPLOY_WAIT_SECONDS` | How long `deploy.sh` waits for healthy containers | 300 |
+| `BACKUP_AGE_RECIPIENT` | age public key the backups are encrypted to | backups stay local, exit 2 |
+| `BACKUP_S3_ENDPOINT` / `BACKUP_S3_BUCKET` / `BACKUP_S3_ACCESS_KEY` / `BACKUP_S3_SECRET_KEY` (`BACKUP_S3_REGION`, `BACKUP_S3_PREFIX`) | Off-host backup storage | backups stay local, exit 2 |
+| `BACKUP_AGE_IDENTITY` | age private key file, for `restore.sh` / `restore-test.sh` | — |
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` / `JWT_SETUP_SECRET` | Per-token-class JWT secrets | falls back to `JWT_SECRET` |
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | Scoped MinIO service account | falls back to root user |
-| `BACKUP_REMOTE_TARGET` / `BACKUP_AGE_RECIPIENT` | Off-host backup destination + encryption | local-only / unencrypted |
+| `BACKUP_REMOTE_TARGET` | rclone `remote:path`, alternative to `BACKUP_S3_*` | — |
 | `RATE_LIMIT_SYNC_PER_MIN` | Per-user limit on the offline-sync routes (POST assets, audit scans, scan sessions, photo uploads). These routes are exempt from the 100/min per-IP limit so scanners behind one NAT don't throttle each other | 600 |
 | `IOS_UDID_CA_FILE` | Path *inside the api container* to the Apple CA bundle used to verify iOS enrolment payloads. When set, unverified enrolments are refused | unset: accepted, stored as `signatureVerified = false` |
 

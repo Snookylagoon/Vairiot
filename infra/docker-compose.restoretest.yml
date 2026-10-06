@@ -1,0 +1,41 @@
+# Throwaway stack for infra/restore-test.sh. Always run as project
+# `vairiot-restoretest` (the script does): nothing here publishes a port, uses
+# a fixed container name or a bind mount, so it can't touch the prod stack.
+# `down -v` removes everything it creates.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: restoretest
+      POSTGRES_PASSWORD: restoretest
+      POSTGRES_DB: restoretest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U restoretest -d restoretest"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    # Loads /data/dump.rdb (copied in by the script) on start.
+    command: redis-server --appendonly no
+    volumes:
+      - redis-data:/data
+
+  # Same build as the prod `migrate` service (the builder stage carries the
+  # prisma CLI), so `prisma migrate status` compares the restored database
+  # with the migrations in this checkout.
+  prisma:
+    build:
+      context: ..
+      dockerfile: vairiot-api/Dockerfile
+      target: builder
+    working_dir: /app/vairiot-api
+    environment:
+      DATABASE_URL: postgresql://restoretest:restoretest@postgres:5432/restoretest
+    depends_on:
+      postgres: { condition: service_healthy }
+    profiles: ["tools"]
+
+volumes:
+  redis-data:
