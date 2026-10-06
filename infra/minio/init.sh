@@ -72,6 +72,13 @@ EOF
 mc admin policy create vairiot "$POLICY" "$POLICY_FILE" >/dev/null
 rm -f "$POLICY_FILE"
 
+# An access key (service account) with this name blocks `user add` with
+# MinIO's misleading "Credential is not allowed to be same as admin access key".
+if mc admin accesskey info vairiot "$MINIO_ACCESS_KEY" >/dev/null 2>&1; then
+    echo "minio-init: MinIO already has an access key named '$MINIO_ACCESS_KEY' (created by hand?). Choose another MINIO_ACCESS_KEY in .env, e.g. vairiot-api" >&2
+    exit 1
+fi
+
 # `user add` creates the user or resets its secret, so rotating
 # MINIO_SECRET_KEY in .env takes effect on the next deploy.
 mc admin user add vairiot "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" >/dev/null
