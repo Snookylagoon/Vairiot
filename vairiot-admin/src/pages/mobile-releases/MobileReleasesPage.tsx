@@ -153,7 +153,7 @@ export function MobileReleasesPage() {
                   type="file"
                   accept=".apk,application/vnd.android.package-archive"
                   onChange={(e) => setApk(e.target.files?.[0] ?? null)}
-                  className="block mt-1 w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-v-violet file:text-white hover:file:bg-v-violet/90"
+                  className="block mt-1 w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:bg-v-violet file:text-white hover:file:bg-v-violet/90"
                 />
                 {apk && (
                   <p className="mt-1 text-xs text-gray-500">
@@ -184,7 +184,7 @@ export function MobileReleasesPage() {
                   value={releaseNotes}
                   onChange={(e) => setReleaseNotes(e.target.value)}
                   rows={3}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-v-violet focus:outline-none focus:ring-1 focus:ring-v-violet"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-v-violet focus:outline-hidden focus:ring-1 focus:ring-v-violet"
                   placeholder="Bug fixes and improvements"
                 />
               </div>

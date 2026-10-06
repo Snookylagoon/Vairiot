@@ -200,7 +200,7 @@ function Row({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="flex justify-between gap-4">
       <span className="text-gray-500 shrink-0">{label}</span>
-      <span className="text-v-charcoal font-medium text-right break-words">{value || '—'}</span>
+      <span className="text-v-charcoal font-medium text-right wrap-break-word">{value || '—'}</span>
     </div>
   );
 }

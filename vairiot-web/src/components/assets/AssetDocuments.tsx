@@ -65,7 +65,7 @@ export function AssetDocuments({ assetId }: { assetId: string }) {
         {canWrite && (
           <div className="flex items-center gap-2">
             <select value={docType} onChange={e => setDocType(e.target.value)}
-              className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-v-pink">
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs focus:outline-hidden focus:ring-2 focus:ring-v-pink">
               {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
             <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()} loading={uploadDoc.isPending}>
@@ -93,12 +93,12 @@ export function AssetDocuments({ assetId }: { assetId: string }) {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => handleDownload(doc.id, doc.fileName)}
-                    className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-v-violet transition-colors">
+                    className="p-1.5 rounded-sm hover:bg-gray-100 text-gray-400 hover:text-v-violet transition-colors">
                     <Download size={14} />
                   </button>
                   {canDelete && (
                     <button onClick={() => setDelId(doc.id)}
-                      className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
+                      className="p-1.5 rounded-sm hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
                       <Trash2 size={14} />
                     </button>
                   )}

@@ -81,7 +81,7 @@ export function UsersPage() {
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-v-charcoal">Role</label>
                 <select
-                  className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-v-charcoal hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-v-pink focus:border-transparent"
+                  className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-v-charcoal hover:border-gray-300 focus:outline-hidden focus:ring-2 focus:ring-v-pink focus:border-transparent"
                   {...register('roleId')}>
                   <option value="">— No role —</option>
                   {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -100,7 +100,7 @@ export function UsersPage() {
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search by name or email…"
-          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-v-pink" />
+          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-v-pink" />
       </div>
 
       <Card>
@@ -131,7 +131,7 @@ export function UsersPage() {
                   </Button>
                   <ShieldCheck size={14} className="text-gray-400" />
                   <select
-                    className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-v-charcoal focus:outline-none focus:ring-2 focus:ring-v-pink"
+                    className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-v-charcoal focus:outline-hidden focus:ring-2 focus:ring-v-pink"
                     value={currentRoleId}
                     onChange={e => setRole.mutate({ userId: u.id, roleId: e.target.value })}>
                     <option value="" disabled>— Select role —</option>

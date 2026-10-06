@@ -138,7 +138,7 @@ export function AuditRunPage() {
           <CardBody className="space-y-3">
             <p className="text-sm font-medium text-v-charcoal">Select zone</p>
             <select value={locationId} onChange={e => setLocationId(e.target.value)}
-              className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink">
+              className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink">
               <option value="">Choose a location…</option>
               {siteLocations.map(l => (
                 <option key={l.id} value={l.id} disabled={submittedLocationIds.has(l.id)}>
@@ -182,7 +182,7 @@ export function AuditRunPage() {
           <div className="flex gap-2">
             <select value={condition} onChange={e => setCondition(e.target.value)}
               disabled={scanDisabled}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink disabled:bg-gray-50">
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink disabled:bg-gray-50">
               <option value="">Condition (optional)</option>
               <option value="good">Good</option>
               <option value="fair">Fair</option>

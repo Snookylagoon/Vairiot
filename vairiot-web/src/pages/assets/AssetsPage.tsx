@@ -154,7 +154,7 @@ export function AssetsPage() {
               value={searchInput}
               onChange={e => { setSearchInput(e.target.value); }}
               placeholder="Search by name, serial, manufacturer EAN, RFID…"
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-v-pink"
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-v-pink"
             />
           </div>
           <Button variant="secondary" size="sm" onClick={() => setShowFilters(f => !f)}>
@@ -177,7 +177,7 @@ export function AssetsPage() {
               <select
                 value={categoryId}
                 onChange={e => setCategoryId(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink">
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink">
                 <option value="">All categories</option>
                 {categories.map((c: { id: string; name: string }) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -187,7 +187,7 @@ export function AssetsPage() {
               <select
                 value={siteId}
                 onChange={e => setSiteId(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink">
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink">
                 <option value="">All sites</option>
                 {sites.map((s: { id: string; name: string }) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
@@ -197,7 +197,7 @@ export function AssetsPage() {
               <select
                 value={status}
                 onChange={e => setStatus(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink">
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink">
                 <option value="">All statuses</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -213,7 +213,7 @@ export function AssetsPage() {
               <select
                 value={condition}
                 onChange={e => setCondition(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink">
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink">
                 <option value="">All conditions</option>
                 <option value="good">Good</option>
                 <option value="excellent">Excellent</option>
@@ -228,7 +228,7 @@ export function AssetsPage() {
                   type="checkbox"
                   checked={includeDeleted}
                   onChange={e => set({ archived: e.target.checked ? '1' : '', page: '' })}
-                  className="rounded border-gray-300 text-v-violet focus:ring-v-pink"
+                  className="rounded-sm border-gray-300 text-v-violet focus:ring-v-pink"
                 />
                 Show archived
               </label>

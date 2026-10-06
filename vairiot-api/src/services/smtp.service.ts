@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import nodemailer, { type Transporter } from 'nodemailer';
 import { Resend } from 'resend';
 
 import { encryptSecret, decryptSecret } from '../lib/crypto';
@@ -94,7 +94,7 @@ export async function upsertSmtpConfig(input: SmtpUpsertInput, userId: string): 
 interface MailTransport {
   provider: SmtpProvider;
   fromAddress: string;
-  nodemailer?: nodemailer.Transporter;
+  nodemailer?: Transporter;
   resend?: Resend;
 }
 

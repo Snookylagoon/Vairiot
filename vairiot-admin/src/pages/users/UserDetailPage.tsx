@@ -310,7 +310,7 @@ export function UserDetailPage() {
 }
 
 function Tick({ on, editable, overridden, onClick }: { on: boolean; editable: boolean; overridden: boolean; onClick?: () => void }) {
-  const base = 'relative inline-flex items-center justify-center h-5 w-5 rounded border transition-colors';
+  const base = 'relative inline-flex items-center justify-center h-5 w-5 rounded-sm border transition-colors';
   const state = on
     ? 'bg-v-violet border-v-violet text-white'
     : 'bg-white border-gray-300 text-gray-300';

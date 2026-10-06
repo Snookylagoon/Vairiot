@@ -554,11 +554,11 @@ export function LabelsPage() {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search assets…"
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-v-pink" />
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-v-pink" />
           </div>
           <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
             {assets.map(a => (
-              <label key={a.id} className="flex items-center gap-3 py-2.5 px-1 cursor-pointer hover:bg-gray-50 rounded">
+              <label key={a.id} className="flex items-center gap-3 py-2.5 px-1 cursor-pointer hover:bg-gray-50 rounded-sm">
                 <div className={`size-5 rounded border-2 flex items-center justify-center transition-colors ${
                   selected.has(a.id) ? 'bg-v-violet border-v-violet' : 'border-gray-300'
                 }`} onClick={() => toggleSelect(a.id)}>
@@ -591,7 +591,7 @@ export function LabelsPage() {
             <select
               value={selectedTemplateId}
               onChange={e => applyTemplate(e.target.value)}
-              className="text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink max-w-44"
+              className="text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink max-w-44"
             >
               <option value="">Template: none</option>
               {templates.map(t => (
@@ -602,7 +602,7 @@ export function LabelsPage() {
               value={templateName}
               onChange={e => setTemplateName(e.target.value)}
               placeholder="Template name…"
-              className="w-36 text-xs rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink"
+              className="w-36 text-xs rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-v-pink"
             />
             <Button size="sm" variant="secondary" onClick={handleSaveTemplate} disabled={saveTemplate.isPending}>
               <Save size={13} className="mr-1" /> Save
@@ -623,7 +623,7 @@ export function LabelsPage() {
               <select
                 value={barcodeType}
                 onChange={e => setBarcodeType(e.target.value as BarcodeType)}
-                className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+                className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink"
               >
                 <optgroup label="2D codes">
                   {BARCODE_TYPES.filter(t => t.group === '2D').map(t => (
@@ -649,7 +649,7 @@ export function LabelsPage() {
               <select
                 value={sizePreset}
                 onChange={e => setSizePreset(e.target.value)}
-                className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+                className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink"
               >
                 {AVERY_PRESETS.map(p => (
                   <option key={p.value} value={p.value}>{p.label}</option>
@@ -661,13 +661,13 @@ export function LabelsPage() {
                   <input
                     type="number" min={5} max={300} value={customW}
                     onChange={e => setCustomW(Number(e.target.value) || 0)}
-                    className="w-20 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink"
+                    className="w-20 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-v-pink"
                   />
                   <span className="text-xs text-gray-400">×</span>
                   <input
                     type="number" min={5} max={300} value={customH}
                     onChange={e => setCustomH(Number(e.target.value) || 0)}
-                    className="w-20 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink"
+                    className="w-20 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-v-pink"
                   />
                   <span className="text-xs text-gray-400">mm</span>
                 </div>
@@ -699,7 +699,7 @@ export function LabelsPage() {
             <label className="block text-xs font-medium text-v-charcoal">Company logo</label>
             {rawLogoUrl ? (
               <img src={(monochrome && monoLogoUrl) || rawLogoUrl} alt="Company logo"
-                className="h-10 max-w-32 object-contain border border-gray-200 rounded bg-white p-0.5" />
+                className="h-10 max-w-32 object-contain border border-gray-200 rounded-sm bg-white p-0.5" />
             ) : (
               <span className="text-xs text-gray-400">No logo uploaded</span>
             )}
@@ -792,7 +792,7 @@ export function LabelsPage() {
               value={printMode}
               onChange={e => setPrintMode(e.target.value as 'sheet' | 'roll')}
               title="Print format"
-              className="text-xs rounded-lg border border-gray-200 px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+              className="text-xs rounded-lg border border-gray-200 px-2 py-2 bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink"
             >
               <option value="sheet">Sheet (A4 / Avery)</option>
               <option value="roll">Roll (thermal printer)</option>
@@ -802,7 +802,7 @@ export function LabelsPage() {
                 value={printRotation}
                 onChange={e => setPrintRotation(Number(e.target.value) as 0 | 90 | 180 | 270)}
                 title="Rotate the artwork to match how the printer feeds the label — pick whichever prints upright"
-                className="text-xs rounded-lg border border-gray-200 px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+                className="text-xs rounded-lg border border-gray-200 px-2 py-2 bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink"
               >
                 <option value={0}>No rotation</option>
                 <option value={90}>Rotate 90° ↻</option>
@@ -836,7 +836,7 @@ export function LabelsPage() {
                     const v = parseFloat(e.target.value);
                     setPrintOffsetMm(Number.isFinite(v) ? Math.max(-10, Math.min(10, v)) : 0);
                   }}
-                  className="w-16 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+                  className="w-16 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink"
                 />
                 mm
               </label>
@@ -855,7 +855,7 @@ export function LabelsPage() {
                     const v = parseFloat(e.target.value);
                     setPrintGapMm(Number.isFinite(v) ? Math.max(0, Math.min(20, v)) : 0);
                   }}
-                  className="w-16 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+                  className="w-16 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink"
                 />
                 mm
               </label>
@@ -873,7 +873,7 @@ export function LabelsPage() {
                 value={printerName}
                 onChange={e => setPrinterName(e.target.value)}
                 placeholder="e.g. TSC TE210"
-                className="w-28 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+                className="w-28 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink"
               />
             </label>
             <label className="flex items-center gap-1.5 text-xs text-gray-600"
@@ -888,7 +888,7 @@ export function LabelsPage() {
                   const v = parseInt(e.target.value, 10);
                   setPrintCopies(Number.isFinite(v) ? Math.max(1, Math.min(20, v)) : 1);
                 }}
-                className="w-14 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+                className="w-14 text-xs rounded-lg border border-gray-200 px-2 py-1.5 bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink"
               />
             </label>
             <Button size="sm" variant="secondary" onClick={handlePrint} disabled={selected.size === 0}>

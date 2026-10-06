@@ -74,7 +74,7 @@ export function DataTable<T>({
                 value={search.value}
                 onChange={e => search.onChange(e.target.value)}
                 placeholder={search.placeholder ?? 'Search…'}
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-v-pink"
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-v-pink"
               />
             </div>
           )}

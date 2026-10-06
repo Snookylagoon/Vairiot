@@ -203,12 +203,12 @@ export function ImportPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {csvHeaders.map(h => (
                 <div key={h} className="flex items-center gap-3">
-                  <span className="text-sm text-v-charcoal font-mono bg-gray-50 px-2 py-1 rounded min-w-[120px] truncate">{h}</span>
+                  <span className="text-sm text-v-charcoal font-mono bg-gray-50 px-2 py-1 rounded-sm min-w-[120px] truncate">{h}</span>
                   <ArrowRight size={14} className="text-gray-300 shrink-0" />
                   <select
                     value={mapping[h] ?? ''}
                     onChange={e => setMapping(prev => ({ ...prev, [h]: e.target.value }))}
-                    className="flex-1 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink bg-white"
+                    className="flex-1 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white"
                   >
                     <option value="">— Skip column —</option>
                     {ASSET_FIELDS.map(f => (

@@ -135,7 +135,7 @@ export function MaintenanceDetailPage() {
             <div>
               <label className="block text-sm font-medium text-v-charcoal mb-1">Type *</label>
               <select disabled={!canWrite}
-                className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-v-pink disabled:bg-gray-50"
+                className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink disabled:bg-gray-50"
                 {...register('maintenanceType')}>
                 <option value="repair">Repair</option>
                 <option value="preventive">Preventive</option>
@@ -150,7 +150,7 @@ export function MaintenanceDetailPage() {
             <div>
               <label className="block text-sm font-medium text-v-charcoal mb-1">Status *</label>
               <select disabled={!canWrite}
-                className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-v-pink disabled:bg-gray-50"
+                className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink disabled:bg-gray-50"
                 {...register('status')}>
                 <option value="scheduled">Scheduled</option>
                 <option value="in_progress">In Progress</option>
@@ -267,7 +267,7 @@ function MaintenancePhotosCard({ eventId, canWrite }: { eventId: string; canWrit
               <PhotoThumb id={p.id} hasThumb={p.hasThumb} />
               {canWrite && (
                 <button onClick={(e) => { e.stopPropagation(); remove.mutate(p.id); }}
-                  className="absolute top-1 right-1 p-1 rounded bg-white/80 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-1 right-1 p-1 rounded-sm bg-white/80 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Delete photo">
                   <Trash2 size={12} />
                 </button>

@@ -89,7 +89,7 @@ export function ReportExportButton({ reportType, filters = {}, disabled }: Props
       <button
         onClick={() => setOpen(o => !o)}
         disabled={disabled || loading !== null}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-white text-v-charcoal border border-gray-200 hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-v-pink focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-white text-v-charcoal border border-gray-200 hover:bg-gray-50 transition-all focus:outline-hidden focus:ring-2 focus:ring-v-pink focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? (
           <Loader2 size={14} className="animate-spin" />
