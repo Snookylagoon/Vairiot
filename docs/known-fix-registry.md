@@ -284,13 +284,13 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Fix Applied** | `JobFailureAlerter` emails `OPS_ALERT_EMAIL`, throttled to one email per queue per 15 min with a count of held-back failures, and no job data (PII). A mail failure is logged, not looped. Browser error tracking added to web (`VITE_SENTRY_DSN`, SDK lazy-loaded; verified it is absent from the entry bundle). The worker gained a Jest setup, and CI now runs the worker, shared and web unit tests (previously none ran). |
 | **Test Added** | `vairiot-worker/src/__tests__/job-alerts.test.ts` (5), `vairiot-web/src/__tests__/monitoring.test.ts` (2). |
 
-## KFR-030 — MinIO image can no longer be pulled (open)
+## KFR-030 — MinIO image can no longer be pulled
 
 | Field | Detail |
 |---|---|
 | **Module** | `infra/docker-compose*.yml` (object storage) |
 | **Root Cause** | MinIO stopped publishing community images in 2025. `minio/minio` on Docker Hub (every tag tried, including the pinned one) and `quay.io/minio/minio` no longer resolve. Production starts only because the image is cached on the server. |
-| **Fix Applied** | **Not fixed: needs a decision** (build from source into our own registry, a maintained third-party image, another S3-compatible store, or managed S3). Interim: DEPLOY.md warns never to `docker image prune -a` on prod. Tracked as INF-15 in `docs/sprints/S0-audit-triage.md`. |
-| **Test Added** | `docker manifest inspect minio/minio:RELEASE.2025-09-07T16-13-09Z` must succeed before any server rebuild. |
+| **Fix Applied** | Built from source: `infra/minio/Dockerfile` compiles the MinIO server and `mc` from GitHub release tags with the upstream Makefile's flags. Each tag is pinned to its commit, and the build fails if a tag moves. Alpine runtime with `curl`; `minio` as the entrypoint, like the old image. Upgraded to `RELEASE.2025-10-15T17-29-55Z`, MinIO's security release for GHSA-jjjj-jwhf-8rgr (privilege escalation via session-policy bypass in service accounts/STS), which production's 2025-09-07 version is affected by. Prod, dev and infra compose files build it (`pull_policy: build`, so a Docker Hub image of the same name is never pulled). CI builds it and publishes `vairiot-minio` to GHCR on main. |
+| **Test Added** | Upgrade path: objects written by the 2025-09-07 image (production's version) were read back byte-identical by the new build on the same volume, new writes worked, and the `curl` healthcheck returned 200. The full backup → off-site → restore-test cycle passes with the new image as the source store. |
 
 *Last updated: S0.5, October 2026*

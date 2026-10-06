@@ -147,12 +147,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, worker, web, admin, reports]
+        service: [api, worker, web, admin, reports, minio]
         include:
           - service: reports
             context: vairiot-reports
+          # MinIO built from source (no upstream images any more). Publishing
+          # it to GHCR keeps a copy we control for new servers and restores.
+          - service: minio
+            context: infra/minio
+            file: infra/minio/Dockerfile
     env:
       BUILD_CONTEXT: ${{ matrix.context || '.' }}
+      DOCKERFILE: ${{ matrix.file || format('vairiot-{0}/Dockerfile', matrix.service) }}
 
     steps:
       - uses: actions/checkout@v7
@@ -177,7 +183,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: ${{ env.BUILD_CONTEXT }}
-          file: vairiot-${{ matrix.service }}/Dockerfile
+          file: ${{ env.DOCKERFILE }}
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
             ghcr.io/${{ steps.owner.outputs.value }}/vairiot-${{ matrix.service }}:latest
