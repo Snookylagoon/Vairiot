@@ -311,4 +311,31 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Fix Applied** | The seed creates the first administrator before activating the licence and passes that user's id. Non-FK fields (`paymentConfirmedBy`, `grantedBy`) still say `seed:tuda`. |
 | **Test Added** | Verified by running `npm run seed:tuda` against a throwaway database: no FK error, and `audit_events` has `licence_activated` with an actor. |
 
-*Last updated: S0.6, October 2026*
+## KFR-033 — The API ran with the MinIO root credentials (SEC-M3)
+
+| Field | Detail |
+|---|---|
+| **Module** | `infra/docker-compose.prod.yml`, new `infra/minio/init.sh`, `vairiot-api/src/index.ts`, `infra/deploy.sh` |
+| **Root Cause** | `minio.ts` preferred `MINIO_ACCESS_KEY`, but nothing created such a user, so the API connected as root. The root credentials were in the API container's environment either way, so a compromised API owned the whole object store, including its users and policies. |
+| **Fix Applied** | A one-shot `minio-init` service (same self-built image, uses `mc`) runs on every deploy. It creates the buckets and the `vairiot-app` policy (`ListBucket`/`GetBucketLocation`/`CreateBucket` on the three app buckets; `Get`/`Put`/`DeleteObject` and multipart on their objects), then creates or updates the app user and attaches the policy. The API waits for it. The API receives **only** the credentials it uses (`MINIO_ACCESS_KEY:-${MINIO_ROOT_USER}`), so with the app user set the root password never reaches the container. Without it, the API and `deploy.sh` warn. |
+| **Test Added** | Against the real self-built MinIO: the init ran twice idempotently and rejected a root-named or short key. The scoped user could put/get/list/delete in app buckets, but couldn't create other buckets, read a private bucket (which is also hidden from its bucket list) or use any admin call. The API's own `minio.ts` calls (`ensure*Bucket`, put/get/list/remove) all worked as the scoped user. `docker compose config` rendered no root variables in the API in either mode. |
+
+## KFR-034 — nginx cut off slow reports at 60 s; no server timeouts (COM-3)
+
+| Field | Detail |
+|---|---|
+| **Module** | `infra/nginx/*.conf`, `standalone.conf.template`, new `vairiot-api/src/lib/server-timeouts.ts` |
+| **Root Cause** | No timeouts were set anywhere. nginx's default 60 s `proxy_read_timeout` equals the 60 s report export waits on the reports service, so a slow report returned 504 while the API was still working. Tenant deletion (up to 120 s) would always have hit it. The API had no header timeout tuned for slow-request attacks. |
+| **Fix Applied** | nginx: 5 s connect (fail fast when the API is down), 120 s send/read, 15 s client header, 60 s client body/send. The admin `/api/` gets 300 s. On the shared staging host the settings sit inside each Vairiot `server` block, so other sites on that nginx are untouched. API: `headersTimeout` 30 s and `requestTimeout` 330 s (above nginx's longest). `keepalive_timeout` is left to the image (setting it again is a duplicate-directive error). |
+| **Test Added** | `nginx -t` passes for prod, staging, shared-host and the rendered standalone template. Behaviour test: a fake API answering in 65 s gave **504 after 60.08 s** with the old `prod.conf` and **200 after 65.03 s** with the new one, side by side. `src/__tests__/server-timeouts.test.ts`: a client that never finishes its headers gets `408`. |
+
+## KFR-035 — A missing or short APP_ENCRYPTION_KEY only failed at first use (SEC-M6, partly)
+
+| Field | Detail |
+|---|---|
+| **Module** | `vairiot-api/src/lib/crypto.ts` + `index.ts`, `vairiot-worker/src/crypto.ts` + `index.ts`, `DEPLOY.md` |
+| **Root Cause** | The key was read lazily, so a server deployed without it started normally and then failed on the first 2FA set-up or mail send. It was also undocumented. |
+| **Fix Applied** | In production the API and worker check the key at startup (`assertEncryptionKey()`), so `deploy.sh`'s health wait fails the deploy. DEPLOY.md documents it: required, 32+ characters, how to generate it, never change it. **Still open:** adding it to `.env.example` / `infra/.env.prod.example` (env files were not accessible in this session). The static scrypt salt stays: changing it needs a re-encryption migration. |
+| **Test Added** | `assertEncryptionKey` refuses an empty or 9-character key and accepts a 48-character one. |
+
+*Last updated: S0.5 follow-up, October 2026*

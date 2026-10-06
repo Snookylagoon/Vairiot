@@ -78,8 +78,13 @@
   - Writes an A4-landscape Excel report and a column mapping for the importer.
   - A synthetic sample with planted problems is included.
 
+### S0.5 follow-up (after the first PR review)
+- **SEC-M3:** a one-shot `minio-init` gives the API its own MinIO user, limited to the three app buckets. The root password no longer reaches the API container.
+- **COM-3:** nginx and API timeouts. A report taking 65 s used to return 504 at 60 s; now it completes.
+- **SEC-M6 (partly):** `APP_ENCRYPTION_KEY` is documented and checked at startup in production. Adding it to the env templates is still to do.
+
 ### Bugs found and fixed while doing the above
-Every one is recorded in `docs/known-fix-registry.md` (**KFR-006 to KFR-032**). The notable ones:
+Every one is recorded in `docs/known-fix-registry.md` (**KFR-006 to KFR-035**). The notable ones:
 - **iOS sync re-sent rows within a run** (SwiftData object identity, KFR-017). Caught by an intermittent test.
 - **The restore test compared only the first table** (KFR-027). Caught by its own test.
 - **The API test suite intermittently talked to other apps on macOS** (KFR-025).
@@ -112,9 +117,7 @@ Every one is recorded in `docs/known-fix-registry.md` (**KFR-006 to KFR-032**). 
 
 | Item | Why it's open | Where |
 |---|---|---|
-| SEC-M3 scoped MinIO service account | Planned for S0.5, not done | triage |
-| SEC-M6 `APP_ENCRYPTION_KEY` in env templates | Planned for S0.5, not done (template unreadable in this session) | triage |
-| COM-3 server and proxy timeouts | Proposed for S0.5, not done | triage |
+| SEC-M6 `APP_ENCRYPTION_KEY` in `.env.example` / `infra/.env.prod.example` | Env files not accessible in this session; documented in DEPLOY.md and checked at startup instead (KFR-035) | triage |
 | iOS enrolment signature enforcement | Needs `IOS_UDID_CA_FILE` and a check with a real iPhone | DEPLOY.md |
 | Maintenance photos offline; server-side photo dedupe | Out of S0 scope | OFF-4 |
 | `postgres`, `redis`, `nginx` images not pinned | Tags on the server unknown; a wrong pin breaks deploys | INF-9 |
@@ -123,7 +126,7 @@ Every one is recorded in `docs/known-fix-registry.md` (**KFR-006 to KFR-032**). 
 | Blind-audit scan responses include `assetId` | Noticed in S0.4; may reveal matches blind mode should hide | to triage in S3 |
 | TUDA licence renewal | Enterprise licence runs 12 months; no platform admin on a standalone server | DEPLOY.md |
 
-## Files changed (140)
+## Files changed (157)
 
 Relative to `16df41e`.
 
@@ -143,7 +146,15 @@ Relative to `16df41e`.
 
 ### docs
 
+- `docs/sprints/README.md` (added)
 - `docs/sprints/S0-audit-triage.md` (added)
+- `docs/sprints/S0-hardening-and-hosting.md` (added)
+- `docs/sprints/S0-summary.md` (added)
+- `docs/sprints/S1-gis-condition-photos.md` (added)
+- `docs/sprints/S2-ipsas-ledger-import.md` (added)
+- `docs/sprints/S3-zones-qa-georgian.md` (added)
+- `docs/sprints/S4-reconciliation-and-dq.md` (added)
+- `docs/sprints/S5-reporting-and-handover.md` (added)
 - `docs/STAGING-SETUP.md` (modified)
 - `docs/known-fix-registry.md` (modified)
 
@@ -153,6 +164,7 @@ Relative to `16df41e`.
 - `infra/docker-compose.restoretest.yml` (added)
 - `infra/docker-compose.standalone.yml` (added)
 - `infra/minio/Dockerfile` (added)
+- `infra/minio/init.sh` (added)
 - `infra/nginx/standalone-default.conf` (added)
 - `infra/nginx/standalone.conf.template` (added)
 - `infra/restore-test.sh` (added)
@@ -162,6 +174,9 @@ Relative to `16df41e`.
 - `infra/docker-compose.infra.yml` (modified)
 - `infra/docker-compose.prod.yml` (modified)
 - `infra/docker-compose.yml` (modified)
+- `infra/nginx/prod.conf` (modified)
+- `infra/nginx/staging-shared-host.conf` (modified)
+- `infra/nginx/staging.conf` (modified)
 - `infra/restore.sh` (modified)
 
 ### package-lock.json
@@ -182,17 +197,21 @@ Relative to `16df41e`.
 - `vairiot-api/prisma/migrations/20261006000000_s0_company_timezone/migration.sql` (added)
 - `vairiot-api/prisma/seed-tuda.ts` (added)
 - `vairiot-api/src/__tests__/ios/ios-enrolment.test.ts` (added)
+- `vairiot-api/src/__tests__/server-timeouts.test.ts` (added)
 - `vairiot-api/src/__tests__/sync/replicas.test.ts` (added)
 - `vairiot-api/src/__tests__/sync/sync-hardening.test.ts` (added)
 - `vairiot-api/src/__tests__/test-server-binding.test.ts` (added)
 - `vairiot-api/src/__tests__/tuda/seed-tuda.test.ts` (added)
 - `vairiot-api/src/lib/ios-enrolment.ts` (added)
+- `vairiot-api/src/lib/server-timeouts.ts` (added)
 - `vairiot-api/jest.setup.ts` (modified)
 - `vairiot-api/package.json` (modified)
 - `vairiot-api/prisma/schema.prisma` (modified)
 - `vairiot-api/src/__tests__/assets/assets.test.ts` (modified)
 - `vairiot-api/src/__tests__/audits/audits.test.ts` (modified)
 - `vairiot-api/src/app.ts` (modified)
+- `vairiot-api/src/index.ts` (modified)
+- `vairiot-api/src/lib/crypto.ts` (modified)
 - `vairiot-api/src/lib/feature-flags.ts` (modified)
 - `vairiot-api/src/lib/openapi.ts` (modified)
 - `vairiot-api/src/middleware/rate-limit.ts` (modified)
@@ -302,4 +321,5 @@ Relative to `16df41e`.
 - `vairiot-worker/src/__tests__/job-alerts.test.ts` (added)
 - `vairiot-worker/src/job-alerts.ts` (added)
 - `vairiot-worker/package.json` (modified)
+- `vairiot-worker/src/crypto.ts` (modified)
 - `vairiot-worker/src/index.ts` (modified)

@@ -2,6 +2,7 @@ import { writeFileSync } from 'node:fs';
 
 import { Worker, Queue, ConnectionOptions, Job } from 'bullmq';
 
+import { assertEncryptionKey } from './crypto';
 import { JobFailureAlerter } from './job-alerts';
 import { logger } from './logger';
 import { sendMail, verifyMailer } from './mailer';
@@ -15,6 +16,7 @@ import { handleWebhookDeliver } from './processors/webhook-deliver';
 import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, UserInviteJob, SchedulerTickJob, WebhookDeliverJob } from './queues';
 
 initMonitoring();
+if (process.env.NODE_ENV === 'production') assertEncryptionKey();
 
 const jobAlerts = new JobFailureAlerter(sendMail);
 

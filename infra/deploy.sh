@@ -42,6 +42,10 @@ if [ -n "$EXTRA_FILE" ]; then
   echo "→ Using extra compose file: $EXTRA_FILE"
   COMPOSE+=(-f "$REPO_DIR/$EXTRA_FILE")
 fi
+if [ -z "$(env_value MINIO_ACCESS_KEY)" ]; then
+  echo "⚠  MINIO_ACCESS_KEY is not set: the API uses the MinIO root credentials."
+  echo "   Set MINIO_ACCESS_KEY and MINIO_SECRET_KEY in .env (DEPLOY.md → Operational env vars)."
+fi
 WAIT_SECONDS="$(env_value DEPLOY_WAIT_SECONDS)"
 WAIT_SECONDS="${WAIT_SECONDS:-300}"
 
@@ -71,11 +75,18 @@ echo "→ Waiting up to ${WAIT_SECONDS}s for containers to become healthy…"
 deadline=$(( $(date +%s) + WAIT_SECONDS ))
 while :; do
   pending=()
-  for id in $("${COMPOSE[@]}" ps -q); do
-    read -r name state health < <(docker inspect -f \
-      '{{.Name}} {{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id")
+  # -a: include exited containers, so a failed one-shot is seen.
+  for id in $("${COMPOSE[@]}" ps -a -q); do
+    read -r name state health restart code < <(docker inspect -f \
+      '{{.Name}} {{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} {{.HostConfig.RestartPolicy.Name}} {{.State.ExitCode}}' "$id")
     name="${name#/}"
-    [ "$name" = "vairiot_migrate" ] && continue
+    # One-shot jobs (migrate, minio-init): done when they exited 0.
+    if [ "$restart" = "no" ] && [ "$state" = "exited" ]; then
+      [ "$code" = "0" ] && continue
+      echo "--- last logs of ${name} ---" >&2
+      docker logs --tail 30 "$name" >&2 2>&1 || true
+      die "${name} failed (exit code ${code})"
+    fi
     if [ "$state" != "running" ] || { [ "$health" != "healthy" ] && [ "$health" != "none" ]; }; then
       pending+=("${name}(${state}/${health})")
     fi

@@ -15,6 +15,15 @@ function getKey(): Buffer {
   return cachedKey;
 }
 
+/**
+ * Checks APP_ENCRYPTION_KEY now rather than at the first encrypt/decrypt, so
+ * a missing or short key stops the process at startup (and so fails the
+ * deploy's health wait) instead of breaking a later 2FA set-up or mail send.
+ */
+export function assertEncryptionKey(): void {
+  getKey();
+}
+
 export function decryptSecret(payload: string): string {
   const [ver, ivB64, tagB64, encB64] = payload.split(':');
   if (ver !== 'v1') throw new Error(`Unknown ciphertext version: ${ver}`);
