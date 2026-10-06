@@ -11,7 +11,7 @@ describe('APP_ENCRYPTION_KEY check', () => {
     else process.env.APP_ENCRYPTION_KEY = key;
     let mod!: typeof import('../lib/crypto');
     jest.isolateModules(() => {
-      mod = require('../lib/crypto');
+      mod = jest.requireActual<typeof import('../lib/crypto')>('../lib/crypto');
     });
     return mod;
   }
