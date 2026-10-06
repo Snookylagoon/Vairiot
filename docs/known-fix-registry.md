@@ -338,4 +338,13 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Fix Applied** | The minimum is now 32 characters (was 16, with a warning under 32); raising it does not change the derived key, so existing data stays readable as long as the key itself is kept. In production the API and worker check the key at startup (`assertEncryptionKey()`), so `deploy.sh`'s health wait fails the deploy. DEPLOY.md, `.env.example` and `infra/.env.prod.example` document it: required, 32+ characters, how to generate it, never change it. The prod template also gained `MINIO_ACCESS_KEY`/`MINIO_SECRET_KEY` and the backup variables. **Still open:** the static scrypt salt stays; changing it needs a re-encryption migration. |
 | **Test Added** | `vairiot-api/src/__tests__/crypto-key.test.ts`: missing and 31-character keys refused, 32-character key accepted, encrypt/decrypt round trip. |
 
-*Last updated: S0.5 follow-up, October 2026*
+## KFR-036 — minio-init failed on staging with a misleading MinIO error
+
+| Field | Detail |
+|---|---|
+| **Module** | `infra/minio/init.sh` |
+| **Root Cause** | Staging already had a MinIO access key (service account) named `vairiot-app`, created by hand. `mc admin user add` with that name fails with "Credential is not allowed to be same as admin access key", although `MINIO_ACCESS_KEY` differed from `MINIO_ROOT_USER`. The deploy stopped with the API not started. |
+| **Fix Applied** | Staging now uses `MINIO_ACCESS_KEY=vairiot-api`. `init.sh` checks for an access key with the chosen name first and exits with a clear message naming the clash. |
+| **Test Added** | `init.sh` against the self-built MinIO: new user, rerun (idempotent) and an existing same-named access key (clear error, exit 1). |
+
+*Last updated: S0 staging deploy, October 2026*
