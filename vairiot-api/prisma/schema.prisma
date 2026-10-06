@@ -922,6 +922,9 @@ model Company {
   primaryContactPhone String?
   logoStorageKey      String?
   currency            String   @default("USD")
+  /// IANA time zone (e.g. "Asia/Tbilisi") for dates shown and reported in the
+  /// tenant's local time. Defaults to UTC.
+  timezone            String   @default("UTC")
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

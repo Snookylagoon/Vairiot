@@ -161,6 +161,56 @@ The apps keep an offline copy of the asset register. They fetch changes with
 bulk change that does not touch asset rows (for example renaming a category or
 site), cached names refresh on the next daily full sync.
 
+## Standalone install (one organisation, own server)
+
+For an organisation that hosts Vairiot itself, for example **TUDA** on a server in Georgia. It is the production stack plus `infra/docker-compose.standalone.yml`. That override adds Postgres with PostGIS and closes public sign-up (API and web), and nginx serves the install's own host names and certificates. `deploy.sh`, backups and the restore test work unchanged.
+
+1. **Server.** Ubuntu 24.04, x86-64, 4 vCPU, 8 GB RAM and 100 GB disk to start. Docker as in `docs/STAGING-SETUP.md` §5, then clone the repo to `/opt/Vairiot`. (`postgis/postgis` is x86-64 only; on ARM set `POSTGIS_IMAGE=imresamu/postgis:16-3.4`.)
+2. **DNS.** Two host names pointing at the server, e.g. `assets.tuda.example` (app + API) and `assets-admin.tuda.example` (admin console).
+3. **Certificates.** Either Let's Encrypt (`docs/STAGING-SETUP.md` §8, for both names), or certificates the organisation supplies copied to `/etc/vairiot/tls/` on the server.
+4. **`.env`** at `/opt/Vairiot/.env`: everything from `infra/.env.prod.example`, plus
+
+   ```
+   COMPOSE_EXTRA_FILE=infra/docker-compose.standalone.yml
+   APP_SERVER_NAME=assets.tuda.example
+   ADMIN_SERVER_NAME=assets-admin.tuda.example
+   TLS_CERT=/etc/letsencrypt/live/assets.tuda.example/fullchain.pem     # or /etc/vairiot/tls/…
+   TLS_KEY=/etc/letsencrypt/live/assets.tuda.example/privkey.pem
+   VITE_API_URL=https://assets.tuda.example
+   WEB_ORIGIN=https://assets.tuda.example,https://assets-admin.tuda.example
+   APP_URL=https://assets.tuda.example
+   ```
+5. **Deploy:** `bash /opt/Vairiot/infra/deploy.sh`. The first deploy also builds MinIO from source, which takes a few minutes.
+6. **Create the organisation.** For TUDA:
+
+   ```
+   docker compose --env-file .env -f infra/docker-compose.prod.yml -f infra/docker-compose.standalone.yml \
+     run --rm -e TUDA_ADMIN_EMAIL=it.admin@tuda.example -e TUDA_ADMIN_NAME="IT Administrator" \
+     -e APP_URL=https://assets.tuda.example migrate npm run seed:tuda
+   ```
+
+   It creates the tenant `tuda` (standalone; GEL, Georgia, Asia/Tbilisi; `gis`, `ipsas` and `reconciliation` switched on), TUDA's six roles (Administrator, Finance, Inventory Manager, Field Operator, Verifier, Viewer), an Enterprise licence, and an invitation for the first administrator. It **prints the invitation link** (valid 7 days), so this works before mail is set up. Running it again is safe: nothing is duplicated, and an unused invitation is replaced with a new link.
+7. **Backups:** as in [Backups (off-host)](#backups-off-host), with the bucket in a location the organisation's data rules allow. For the restore test, add `RESTORETEST_POSTGRES_IMAGE=postgis/postgis:16-3.4`.
+8. **Licence.** The Enterprise licence runs for 12 months from activation. Renew it before then (Admin console → Licences).
+
+### Profiling a legacy register before import
+
+`scripts/profile-register.py` checks an organisation's existing asset register (Excel or CSV, in English, Georgian or Russian) before anything is imported. It finds the header row and profiles every column: fill rate, distinct values, samples, detected type. It flags:
+- duplicate asset numbers
+- blank names
+- costs that are not numbers
+- dates outside 1990–today
+
+It writes an A4-landscape Excel report and a suggested column mapping (JSON) for the importer.
+
+```
+pip install -r scripts/requirements.txt
+python3 scripts/profile-register.py register.xlsx            # → register-profile.xlsx, register-mapping.json
+python3 scripts/profile-register.py scripts/samples/register-sample.xlsx   # try it on the synthetic sample
+```
+
+Issues are reported by spreadsheet row, so they can be fixed in the source file. Fix them and re-run until the report is clean, then import. Columns Vairiot has no import field for yet (legacy inventory number, location, custodian) are recognised and marked "not yet" rather than dropped.
+
 ## Services
 
 | Service          | Container          | Internal port | Notes                                    |

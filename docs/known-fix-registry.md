@@ -293,4 +293,22 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Fix Applied** | Built from source: `infra/minio/Dockerfile` compiles the MinIO server and `mc` from GitHub release tags with the upstream Makefile's flags. Each tag is pinned to its commit, and the build fails if a tag moves. Alpine runtime with `curl`; `minio` as the entrypoint, like the old image. Upgraded to `RELEASE.2025-10-15T17-29-55Z`, MinIO's security release for GHSA-jjjj-jwhf-8rgr (privilege escalation via session-policy bypass in service accounts/STS), which production's 2025-09-07 version is affected by. Prod, dev and infra compose files build it (`pull_policy: build`, so a Docker Hub image of the same name is never pulled). CI builds it and publishes `vairiot-minio` to GHCR on main. |
 | **Test Added** | Upgrade path: objects written by the 2025-09-07 image (production's version) were read back byte-identical by the new build on the same volume, new writes worked, and the `curl` healthcheck returned 200. The full backup → off-site → restore-test cycle passes with the new image as the source store. |
 
-*Last updated: S0.5, October 2026*
+## KFR-031 — pandas reads "n/a", "NA", "null", "None" as blank
+
+| Field | Detail |
+|---|---|
+| **Module** | Any Python that reads registers with pandas (`scripts/profile-register.py`; the S2 importer) |
+| **Root Cause** | `pd.read_excel`/`read_csv` treat a default list of strings (`n/a`, `NA`, `N/A`, `null`, `None`, `nan`, `-`…) as missing. A cost cell saying "n/a" became blank and the "cost is not a number" check missed it. An importer would silently import nothing where the register says something. |
+| **Fix Applied** | Read with `keep_default_na=False` (and `dtype=object`/`str`), then decide what is blank yourself. **Do this in every pandas reader of user data.** |
+| **Test Added** | `scripts/tests/test_profile_register.py::SampleRegister.test_costs_that_are_not_numbers` (the planted "n/a" on row 18). |
+
+## KFR-032 — Services called from scripts need a real user id as the actor
+
+| Field | Detail |
+|---|---|
+| **Module** | Seeds and scripts calling `vairiot-api` services (e.g. `activateLicence` from `prisma/seed-tuda.ts`) |
+| **Root Cause** | Services write audit events whose `actorId` is a foreign key to `users`. The first TUDA seed passed `'seed:tuda'` as the actor, so the `licence_activated` audit event failed the FK. The failure is logged and swallowed, so the licence activation left no audit trail. |
+| **Fix Applied** | The seed creates the first administrator before activating the licence and passes that user's id. Non-FK fields (`paymentConfirmedBy`, `grantedBy`) still say `seed:tuda`. |
+| **Test Added** | Verified by running `npm run seed:tuda` against a throwaway database: no FK error, and `audit_events` has `licence_activated` with an actor. |
+
+*Last updated: S0.6, October 2026*

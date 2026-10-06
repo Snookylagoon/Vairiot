@@ -57,3 +57,7 @@ vairiot-admin/public/favicon[0-9]*.svg
 
 # TypeScript incremental build cache (must never reach Docker)
 **/*.tsbuildinfo
+
+# scripts/profile-register.py output written next to the sample register
+scripts/samples/*-profile.xlsx
+scripts/samples/*-mapping.json
