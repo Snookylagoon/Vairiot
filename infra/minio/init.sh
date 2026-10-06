@@ -42,8 +42,8 @@ if [ "$MINIO_ACCESS_KEY" = "$MINIO_ROOT_USER" ]; then
     echo "minio-init: MINIO_ACCESS_KEY must differ from MINIO_ROOT_USER" >&2
     exit 1
 fi
-if [ "${#MINIO_SECRET_KEY}" -lt 16 ]; then
-    echo "minio-init: MINIO_SECRET_KEY must be at least 16 characters" >&2
+if [ "${#MINIO_SECRET_KEY}" -lt 32 ]; then
+    echo "minio-init: MINIO_SECRET_KEY must be at least 32 characters (openssl rand -base64 33)" >&2
     exit 1
 fi
 

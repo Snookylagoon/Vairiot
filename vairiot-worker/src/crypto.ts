@@ -8,8 +8,8 @@ let cachedKey: Buffer | null = null;
 function getKey(): Buffer {
   if (cachedKey) return cachedKey;
   const secret = process.env.APP_ENCRYPTION_KEY;
-  if (!secret || secret.length < 16) {
-    throw new Error('APP_ENCRYPTION_KEY must be set (>=16 chars) for SMTP secret decryption.');
+  if (!secret || secret.length < 32) {
+    throw new Error('APP_ENCRYPTION_KEY must be set (>=32 chars) for SMTP secret decryption.');
   }
   cachedKey = scryptSync(secret, SALT, 32);
   return cachedKey;

@@ -81,7 +81,7 @@
 ### S0.5 follow-up (after the first PR review)
 - **SEC-M3:** a one-shot `minio-init` gives the API its own MinIO user, limited to the three app buckets. The root password no longer reaches the API container.
 - **COM-3:** nginx and API timeouts. A report taking 65 s used to return 504 at 60 s; now it completes.
-- **SEC-M6 (partly):** `APP_ENCRYPTION_KEY` is documented (DEPLOY.md and both env templates) and checked at startup in production. The prod template also lists the scoped MinIO user and backup variables. The static salt stays (needs a re-encryption migration).
+- **SEC-M6 (partly):** `APP_ENCRYPTION_KEY` is documented (DEPLOY.md and both env templates) and checked at startup in production. The prod template also lists the scoped MinIO user and backup variables. The key minimum is now 32 characters (MinIO app secret too). The static salt stays (needs a re-encryption migration).
 
 ### Bugs found and fixed while doing the above
 Every one is recorded in `docs/known-fix-registry.md` (**KFR-006 to KFR-035**). The notable ones:
@@ -117,7 +117,7 @@ Every one is recorded in `docs/known-fix-registry.md` (**KFR-006 to KFR-035**). 
 
 | Item | Why it's open | Where |
 |---|---|---|
-| SEC-M6 static scrypt salt and 16-char key minimum | Changing them needs a re-encryption migration of stored secrets (KFR-035) | triage |
+| SEC-M6 static scrypt salt | Changing it needs a re-encryption migration of stored secrets (KFR-035) | triage |
 | iOS enrolment signature enforcement | Needs `IOS_UDID_CA_FILE` and a check with a real iPhone | DEPLOY.md |
 | Maintenance photos offline; server-side photo dedupe | Out of S0 scope | OFF-4 |
 | `postgres`, `redis`, `nginx` images not pinned | Tags on the server unknown; a wrong pin breaks deploys | INF-9 |
@@ -126,7 +126,7 @@ Every one is recorded in `docs/known-fix-registry.md` (**KFR-006 to KFR-035**). 
 | Blind-audit scan responses include `assetId` | Noticed in S0.4; may reveal matches blind mode should hide | to triage in S3 |
 | TUDA licence renewal | Enterprise licence runs 12 months; no platform admin on a standalone server | DEPLOY.md |
 
-## Files changed (159)
+## Files changed (160)
 
 Relative to `16df41e`.
 
@@ -201,6 +201,7 @@ Relative to `16df41e`.
 - `vairiot-api/prisma/migrations/20261005000000_s0_delta_sync_ios_enrolment/migration.sql` (added)
 - `vairiot-api/prisma/migrations/20261006000000_s0_company_timezone/migration.sql` (added)
 - `vairiot-api/prisma/seed-tuda.ts` (added)
+- `vairiot-api/src/__tests__/crypto-key.test.ts` (added)
 - `vairiot-api/src/__tests__/ios/ios-enrolment.test.ts` (added)
 - `vairiot-api/src/__tests__/server-timeouts.test.ts` (added)
 - `vairiot-api/src/__tests__/sync/replicas.test.ts` (added)
