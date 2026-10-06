@@ -163,7 +163,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # GHCR repository names must be lowercase; the owner login can contain
       # capitals (e.g. "Snookylagoon"), which makes the tag invalid.
