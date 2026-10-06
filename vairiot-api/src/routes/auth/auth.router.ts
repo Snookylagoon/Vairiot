@@ -54,6 +54,12 @@ authRouter.post('/register', loginLimiter,
     body('password').isLength({ min: 12 }).withMessage('Password must be at least 12 characters'),
   ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    // Standalone installs (one organisation per server) close public sign-up:
+    // tenants and users are created by the seed and by invitation instead.
+    if (process.env.ALLOW_REGISTRATION === 'false') {
+      res.status(403).json({ error: 'Registration is closed on this server. Ask your administrator for an invitation.', code: 'REGISTRATION_CLOSED' });
+      return;
+    }
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     const result = await registerNewTenant({

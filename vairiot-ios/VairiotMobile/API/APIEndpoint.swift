@@ -87,7 +87,9 @@ extension APIEndpoint {
         sortBy: String? = nil,
         sortOrder: String? = nil,
         page: Int = 1,
-        pageSize: Int = 25
+        pageSize: Int = 25,
+        changedSince: String? = nil,
+        changedUntil: String? = nil
     ) -> APIEndpoint {
         var items: [URLQueryItem] = [
             URLQueryItem(name: "page", value: String(page)),
@@ -98,6 +100,8 @@ extension APIEndpoint {
         if let condition { items.append(URLQueryItem(name: "condition", value: condition)) }
         if let sortBy    { items.append(URLQueryItem(name: "sortBy", value: sortBy)) }
         if let sortOrder { items.append(URLQueryItem(name: "sortOrder", value: sortOrder)) }
+        if let changedSince { items.append(URLQueryItem(name: "changedSince", value: changedSince)) }
+        if let changedUntil { items.append(URLQueryItem(name: "changedUntil", value: changedUntil)) }
         return APIEndpoint(method: .get, path: "api/v1/assets", queryItems: items)
     }
 

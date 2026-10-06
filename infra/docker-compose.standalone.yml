@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------
+# Standalone install: one organisation on its own server (e.g. TUDA, hosted
+# in-country). Layered on docker-compose.prod.yml, so the same services run
+# (postgres, redis, minio, api, worker, web, admin, reports, nginx) and the same
+# scripts work unchanged: deploy.sh, backup.sh, restore-test.sh.
+#
+# Enable it in /opt/Vairiot/.env:
+#   COMPOSE_EXTRA_FILE=infra/docker-compose.standalone.yml
+#   APP_SERVER_NAME=assets.example.gov.ge
+#   ADMIN_SERVER_NAME=assets-admin.example.gov.ge
+#   TLS_CERT=/etc/letsencrypt/live/assets.example.gov.ge/fullchain.pem
+#   TLS_KEY=/etc/letsencrypt/live/assets.example.gov.ge/privkey.pem
+# (or certificates the organisation supplies: put them in /etc/vairiot/tls on
+# the host and point TLS_CERT/TLS_KEY at /etc/vairiot/tls/…). Full steps:
+# DEPLOY.md → "Standalone install".
+#
+# What changes from production:
+#   - Postgres with PostGIS, for the GIS work in S1;
+#   - public sign-up closed (API and web): the tenant comes from a seed
+#     profile such as `npm run seed:tuda`, and users join by invitation;
+#   - nginx serves this install's own host names and certificates.
+# ---------------------------------------------------------------------------
+services:
+  postgres:
+    # amd64 only. On an ARM host, set POSTGIS_IMAGE to a multi-arch build,
+    # e.g. imresamu/postgis:16-3.4.
+    image: ${POSTGIS_IMAGE:-postgis/postgis:16-3.4}
+
+  api:
+    environment:
+      ALLOW_REGISTRATION: "false"
+
+  web:
+    build:
+      args:
+        VITE_ALLOW_REGISTRATION: "false"
+
+  nginx:
+    environment:
+      APP_SERVER_NAME: ${APP_SERVER_NAME:?set APP_SERVER_NAME in .env}
+      ADMIN_SERVER_NAME: ${ADMIN_SERVER_NAME:?set ADMIN_SERVER_NAME in .env}
+      TLS_CERT: ${TLS_CERT:?set TLS_CERT in .env}
+      TLS_KEY: ${TLS_KEY:?set TLS_KEY in .env}
+    volumes:
+      # Same container path as prod.conf's mount, so this replaces it.
+      - ./nginx/standalone-default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/standalone.conf.template:/etc/nginx/templates/vairiot.conf.template:ro
+      # Certificates supplied by the organisation (when not Let's Encrypt).
+      - /etc/vairiot/tls:/etc/vairiot/tls:ro

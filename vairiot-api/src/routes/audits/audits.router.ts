@@ -81,7 +81,9 @@ auditsRouter.post('/:id/scans', requireAnyPermission('audit:write'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    res.status(201).json(await recordScan(req.user!.tenantId, req.params.id, req.user!.sub, req.body));
+    const event = await recordScan(req.user!.tenantId, req.params.id, req.user!.sub, req.body);
+    // A replayed clientRequestId returns the original event: 200, not 201.
+    res.status('duplicate' in event && event.duplicate ? 200 : 201).json(event);
   }),
 );
 

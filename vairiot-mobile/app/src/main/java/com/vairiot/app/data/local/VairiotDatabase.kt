@@ -7,16 +7,18 @@ import androidx.room.RoomDatabase
     entities = [
         QueuedScan::class,
         QueuedAsset::class,
+        QueuedPhoto::class,
         CachedAsset::class,
         ScanSessionEntity::class,
         SessionTagEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class VairiotDatabase : RoomDatabase() {
     abstract fun queuedScanDao():   QueuedScanDao
     abstract fun queuedAssetDao():  QueuedAssetDao
+    abstract fun queuedPhotoDao():  QueuedPhotoDao
     abstract fun cachedAssetDao():  CachedAssetDao
     abstract fun scanSessionDao():  ScanSessionDao
     abstract fun sessionTagDao():   SessionTagDao

@@ -2,9 +2,12 @@ import { Readable } from 'stream';
 
 import express, { Router, Request, Response } from 'express';
 
+import { parseDeviceAttributes, verifyEnrolmentPayload } from '../../lib/ios-enrolment';
+import { logger } from '../../lib/logger';
 import { minioClient, MOBILE_RELEASES_BUCKET } from '../../lib/minio';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler } from '../../middleware/error-handler';
+import { appDownloadLimiter, enrolmentLimiter } from '../../middleware/rate-limit';
 
 // Public router — Ad Hoc over-the-air install for iOS. Safari on the device
 // hits these endpoints with no auth: the install page, the itms-services
@@ -80,7 +83,7 @@ iosRouter.get('/version', asyncHandler(async (_req: Request, res: Response): Pro
   });
 }));
 
-iosRouter.get('/latest.ipa', asyncHandler(async (_req: Request, res: Response): Promise<void> => {
+iosRouter.get('/latest.ipa', appDownloadLimiter, asyncHandler(async (_req: Request, res: Response): Promise<void> => {
   const release = await currentRelease();
   if (!release) { res.status(404).json({ error: 'No release available' }); return; }
   const stream = await minioClient.getObject(MOBILE_RELEASES_BUCKET, release.storageKey);
@@ -318,29 +321,42 @@ iosRouter.get('/udid/profile', (req: Request, res: Response): void => {
   res.send(profile);
 });
 
-// iOS POSTs a PKCS#7-signed plist (Content-Type application/pkcs7-signature).
-// The embedded XML is plain enough to extract the attributes without verifying
-// the signature — we only use the UDID to queue the device for authorisation.
+// iOS POSTs its attributes as a PKCS#7-signed plist. This endpoint is public,
+// so the payload is attacker-controlled unless the signature verifies — see
+// lib/ios-enrolment.ts. Until IOS_UDID_CA_FILE is configured, enrolments are
+// stored with signatureVerified = false and must be checked by an admin.
 iosRouter.post(
   '/udid/callback',
-  express.raw({ type: () => true, limit: '2mb' }),
+  enrolmentLimiter,
+  // A real payload (plist + device certificate chain) is a few KB.
+  express.raw({ type: () => true, limit: '128kb' }),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const body = Buffer.isBuffer(req.body) ? req.body.toString('latin1') : String(req.body ?? '');
-    const attr = (key: string): string | null => {
-      const m = body.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`));
-      return m ? m[1] : null;
-    };
-    const udid = attr('UDID');
-    if (!udid) { res.status(400).json({ error: 'No UDID in payload' }); return; }
+    const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from(String(req.body ?? ''), 'latin1');
+    const check = await verifyEnrolmentPayload(body);
+    if (!check.verified && check.enforced) {
+      logger.warn('iOS enrolment refused: signature did not verify', { reason: check.reason, ip: req.ip });
+      res.status(400).json({ error: 'Enrolment payload could not be verified' });
+      return;
+    }
 
-    await prisma.iosDevice.upsert({
-      where:  { udid },
-      update: { product: attr('PRODUCT'), osVersion: attr('VERSION'), serial: attr('SERIAL') },
-      create: { udid, product: attr('PRODUCT'), osVersion: attr('VERSION'), serial: attr('SERIAL') },
-    });
+    const device = parseDeviceAttributes(check.content);
+    if (!device) { res.status(400).json({ error: 'No valid UDID in payload' }); return; }
+
+    const existing = await prisma.iosDevice.findUnique({ where: { udid: device.udid } });
+    const attributes = { product: device.product, osVersion: device.osVersion, serial: device.serial };
+    if (!existing) {
+      await prisma.iosDevice.create({ data: { udid: device.udid, ...attributes, signatureVerified: check.verified } });
+    } else if (check.verified || (!existing.registered && !existing.signatureVerified)) {
+      // Never let an unverified payload rewrite a device an admin has already
+      // registered with Apple, or one whose details were signature-verified.
+      await prisma.iosDevice.update({
+        where: { udid: device.udid },
+        data: { ...attributes, signatureVerified: check.verified || existing.signatureVerified },
+      });
+    }
 
     // The profile-service flow expects a 301 — Safari opens the Location URL.
-    res.redirect(301, `${baseUrl(req)}/api/v1/ios/udid/done?udid=${encodeURIComponent(udid)}`);
+    res.redirect(301, `${baseUrl(req)}/api/v1/ios/udid/done?udid=${encodeURIComponent(device.udid)}`);
   }),
 );
 

@@ -7,6 +7,10 @@ enum APIError: LocalizedError {
     case unauthorized
     case forbidden
     case notFound
+    /// Any other 4xx. Carries the API's `{"error": ..., "code": ...}` body so
+    /// callers can show why, and offline sync can tell a rejection from a
+    /// duplicate.
+    case rejected(status: Int, message: String?, code: String?)
     case serverError(Int)
     case networkError(Error)
     case decodingError(Error)
@@ -22,6 +26,8 @@ enum APIError: LocalizedError {
         case .unauthorized:          return "Session expired. Please log in again."
         case .forbidden:             return "You do not have permission to perform this action."
         case .notFound:              return "The requested resource was not found."
+        case .rejected(let status, let message, _):
+                                     return message ?? "Request rejected (\(status))."
         case .serverError(let code): return "Server error (\(code)). Please try again later."
         case .networkError(let err): return "Network error: \(err.localizedDescription)"
         case .decodingError(let err):return "Data error: \(err.localizedDescription)"
@@ -80,6 +86,15 @@ final class APIClient: Sendable {
         imageData: Data,
         thumbData: Data?
     ) async throws -> T {
+        try await upload(path: path, imageData: imageData, thumbData: thumbData, attemptRefresh: true)
+    }
+
+    private func upload<T: Decodable>(
+        path: String,
+        imageData: Data,
+        thumbData: Data?,
+        attemptRefresh: Bool
+    ) async throws -> T {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw APIError.invalidURL
         }
@@ -117,14 +132,26 @@ final class APIClient: Sendable {
 
         logDebug("UPLOAD \(url.absoluteString) (\(body.count) bytes)")
 
+        let data: Data
+        let response: URLResponse
         do {
-            let (data, response) = try await session.data(for: request)
-            try validateResponse(response, data: data)
-            return try decoder.decode(T.self, from: data)
-        } catch let error as APIError {
-            throw error
+            (data, response) = try await session.data(for: request)
         } catch {
             throw APIError.networkError(error)
+        }
+
+        // An expired access token must not strand queued photos: refresh and
+        // retry once, exactly as performRequest does.
+        if attemptRefresh, (response as? HTTPURLResponse)?.statusCode == 401 {
+            try await refreshAfter401()
+            return try await upload(path: path, imageData: imageData, thumbData: thumbData, attemptRefresh: false)
+        }
+
+        try validateResponse(response, data: data)
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw APIError.decodingError(error)
         }
     }
 
@@ -156,23 +183,8 @@ final class APIClient: Sendable {
            endpoint.path != "api/v1/auth/refresh"
         {
             logDebug("401 received, attempting token refresh")
-            do {
-                try await refreshTokens()
-                return try await performRequest(endpoint, attemptRefresh: false)
-            } catch let urlError as URLError {
-                // Connection dropped mid-refresh — keep the session so offline
-                // mode still works; the refresh retries on the next request.
-                logDebug("Token refresh failed offline: \(urlError)")
-                throw APIError.networkError(urlError)
-            } catch APIError.networkError(let underlying) {
-                logDebug("Token refresh failed offline: \(underlying)")
-                throw APIError.networkError(underlying)
-            } catch {
-                // The server actually rejected the refresh token — sign out.
-                logDebug("Token refresh failed: \(error)")
-                tokenManager.clear()
-                throw APIError.unauthorized
-            }
+            try await refreshAfter401()
+            return try await performRequest(endpoint, attemptRefresh: false)
         }
 
         try validateResponse(response, data: data)
@@ -184,6 +196,29 @@ final class APIClient: Sendable {
         #endif
 
         return data
+    }
+
+    /// Refreshes the session after a 401. Only a 401 from the refresh endpoint
+    /// (expired, revoked or reused token — auth.service.ts) ends the session.
+    /// Offline, 5xx, a proxy 403 or a garbled response keep it: signing the
+    /// user out for those strands their offline queue until they log back in.
+    private func refreshAfter401() async throws {
+        do {
+            try await refreshTokens()
+        } catch let urlError as URLError {
+            logDebug("Token refresh failed offline: \(urlError)")
+            throw APIError.networkError(urlError)
+        } catch APIError.unauthorized {
+            logDebug("Refresh token rejected — signing out")
+            tokenManager.clear()
+            throw APIError.unauthorized
+        } catch let error as APIError {
+            logDebug("Token refresh failed, session kept: \(error)")
+            throw error
+        } catch {
+            logDebug("Token refresh response unreadable, session kept: \(error)")
+            throw APIError.decodingError(error)
+        }
     }
 
     private func refreshTokens() async throws {
@@ -253,6 +288,9 @@ final class APIClient: Sendable {
             throw APIError.forbidden
         case 404:
             throw APIError.notFound
+        case 400...499:
+            let body = try? JSONDecoder().decode(APIErrorBody.self, from: data)
+            throw APIError.rejected(status: httpResponse.statusCode, message: body?.error, code: body?.code)
         default:
             logDebug("HTTP \(httpResponse.statusCode): \(String(data: data.prefix(300), encoding: .utf8) ?? "")")
             throw APIError.serverError(httpResponse.statusCode)
@@ -264,6 +302,12 @@ final class APIClient: Sendable {
         logger.debug("\(message)")
         #endif
     }
+}
+
+/// The API's error shape (vairiot-api error-handler.ts).
+private struct APIErrorBody: Decodable {
+    let error: String?
+    let code: String?
 }
 
 // MARK: - Type Erasure for Encodable

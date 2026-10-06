@@ -51,6 +51,8 @@ interface VairiotApiService {
         @Query("sortOrder") sortOrder: String? = null,
         @Query("page")      page:      Int     = 1,
         @Query("pageSize")  pageSize:  Int     = 25,
+        @Query("changedSince") changedSince: String? = null,
+        @Query("changedUntil") changedUntil: String? = null,
     ): AssetListResponse
 
     @GET("api/v1/assets/{id}")

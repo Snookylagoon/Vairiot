@@ -21,6 +21,17 @@ note so you know it worked. If something doesn't match, jump to
 
 ---
 
+## The environments (where this one fits)
+
+| Environment | Where | Compose files | Who signs up | Used for |
+|---|---|---|---|---|
+| **Dev** | your own computer | `infra/docker-compose.yml` (or `docker-compose.infra.yml` for databases only) | anyone (local) | writing code |
+| **Staging** (this guide) | `test.vairiot.com` | `docker-compose.prod.yml` + `docker-compose.staging-shared.yml` | open | trying every change before production |
+| **Production** (SaaS) | `vai.vairiot.com` | `docker-compose.prod.yml` | open | customers on the shared platform |
+| **Standalone** | the customer's own server (e.g. TUDA, in Georgia) | `docker-compose.prod.yml` + `docker-compose.standalone.yml` | closed: invitation only | one organisation that must host its own data |
+
+Staging, production and standalone all use the same `infra/deploy.sh`, `backup.sh` and `restore-test.sh`. Only the `.env` differs. Standalone setup is in [DEPLOY.md → Standalone install](../DEPLOY.md#standalone-install-one-organisation-own-server).
+
 ## What you're building
 
 ```

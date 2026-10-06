@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { api } from '@/lib/api';
 import { getDeviceCheckIn } from '@/lib/device';
+import { registrationOpen } from '@/lib/registration';
 import { loginSchema, type LoginFormData } from '@/lib/schemas';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -322,10 +323,12 @@ export function LoginPage() {
                   <Button type="submit" size="lg" loading={isSubmitting} className="w-full mt-2">Sign in</Button>
                 </form>
 
-                <p className="text-center text-sm text-gray-500">
-                  Don&apos;t have an account?{' '}
-                  <Link to="/register" className="text-v-violet hover:underline font-medium">New Registration</Link>
-                </p>
+                {registrationOpen() && (
+                  <p className="text-center text-sm text-gray-500">
+                    Don&apos;t have an account?{' '}
+                    <Link to="/register" className="text-v-violet hover:underline font-medium">New Registration</Link>
+                  </p>
+                )}
               </>
             ) : (
               <>

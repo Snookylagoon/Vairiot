@@ -36,7 +36,11 @@ services:
 
   # ─── MinIO (S3-compatible file storage) ─────────────────────────────────────
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z # pinned — keep in step with docker-compose.prod.yml
+    # Built from source (infra/minio/Dockerfile): MinIO no longer publishes
+    # images. Never pulled — the name isn't ours on Docker Hub.
+    build: ./minio
+    image: vairiot-minio:RELEASE.2025-10-15T17-29-55Z
+    pull_policy: build
     container_name: vairiot_minio
     restart: unless-stopped
     command: server /data --console-address ":9001"

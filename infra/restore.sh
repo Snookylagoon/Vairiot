@@ -4,7 +4,9 @@
 #
 #   bash /opt/Vairiot/infra/restore.sh /path/to/vairiot-backup-YYYYMMDD-HHMMSS.tar[.age]
 #
-# Restores Postgres and MinIO from a backup archive. Prints the .env snapshot
+# Restores Postgres and MinIO from a backup archive (and Redis with
+# RESTORE_REDIS=yes — it holds queued jobs and the token blacklist, which are
+# usually better left as they are). Prints the .env snapshot
 # path for manual review — it is NOT auto-applied (you must reconcile secrets
 # by hand so a stale JWT_SECRET/APP_ENCRYPTION_KEY can't silently clobber prod).
 #
@@ -19,10 +21,14 @@ ARCHIVE="${1:-}"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ENV_FILE:-${REPO_DIR}/.env}"
-set -a; source "$ENV_FILE"; set +a
+set -a
+# shellcheck source=/dev/null
+source "$ENV_FILE"
+set +a
 
 PG_CONTAINER="${PG_CONTAINER:-vairiot_postgres}"
 MINIO_CONTAINER="${MINIO_CONTAINER:-vairiot_minio}"
+REDIS_CONTAINER="${REDIS_CONTAINER:-vairiot_redis}"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -58,8 +64,17 @@ docker exec "$MINIO_CONTAINER" sh -c '
     rm -rf /tmp/minio-restore
 '
 
+if [ "${RESTORE_REDIS:-}" = "yes" ]; then
+    [ -f "${WORK}/redis.rdb" ] || { echo "archive has no Redis snapshot" >&2; exit 1; }
+    echo "→ Restoring Redis (container restarts)…"
+    # Stop first: a running Redis would overwrite dump.rdb on shutdown.
+    docker stop "$REDIS_CONTAINER" >/dev/null
+    docker cp "${WORK}/redis.rdb" "${REDIS_CONTAINER}:/data/dump.rdb"
+    docker start "$REDIS_CONTAINER" >/dev/null
+fi
+
 echo
-echo "✅ Postgres + MinIO restored."
+echo "✅ Postgres + MinIO restored$([ "${RESTORE_REDIS:-}" = "yes" ] && echo ' (and Redis)')."
 echo "⚠  Secrets snapshot extracted to: ${WORK}/env.snapshot (copied below, WORK dir is cleaned on exit)"
 cp "${WORK}/env.snapshot" "${REPO_DIR}/.env.restored" 2>/dev/null || true
 echo "   Review ${REPO_DIR}/.env.restored against your live .env — in particular"

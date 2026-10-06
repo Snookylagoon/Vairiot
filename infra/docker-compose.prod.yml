@@ -4,8 +4,8 @@
 x-logging: &default-logging
   driver: json-file
   options:
-    max-size: "10m"
-    max-file: "3"
+    max-size: "20m"
+    max-file: "5"
 
 services:
 
@@ -43,9 +43,11 @@ services:
       retries: 5
 
   minio:
-    # Pinned — was minio/minio:latest (silent breaking upgrades on re-pull).
-    # Verify/bump against https://hub.docker.com/r/minio/minio/tags before deploy.
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    # Built from source (infra/minio/Dockerfile): MinIO no longer publishes
+    # images. Never pulled — the name isn't ours on Docker Hub.
+    build: ./minio
+    image: vairiot-minio:RELEASE.2025-10-15T17-29-55Z
+    pull_policy: build
     container_name: vairiot_minio
     restart: always
     logging: *default-logging
@@ -61,6 +63,27 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+
+  # One-shot: buckets, plus the scoped app user the API connects as (audit
+  # SEC-M3). See infra/minio/init.sh. Runs on every deploy; idempotent.
+  minio-init:
+    image: vairiot-minio:RELEASE.2025-10-15T17-29-55Z
+    pull_policy: build
+    build: ./minio
+    container_name: vairiot_minio_init
+    restart: "no"
+    entrypoint: ["sh", "/init.sh"]
+    depends_on:
+      minio: { condition: service_healthy }
+    volumes:
+      - ./minio/init.sh:/init.sh:ro
+    environment:
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ACCESS_KEY:    ${MINIO_ACCESS_KEY:-}
+      MINIO_SECRET_KEY:    ${MINIO_SECRET_KEY:-}
+      MINIO_PHOTOS_BUCKET:    vairiot-photos
+      MINIO_DOCUMENTS_BUCKET: vairiot-documents
 
   # One-shot: applies pending Prisma migrations, then exits. The api waits for it
   # to complete successfully, so a deploy that ships schema-dependent code can no
@@ -98,6 +121,7 @@ services:
       redis:    { condition: service_healthy }
       reports:  { condition: service_healthy }
       migrate:  { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
     environment:
       NODE_ENV:      production
       DATABASE_URL:  "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
@@ -111,13 +135,21 @@ services:
       WEB_ORIGIN:    ${WEB_ORIGIN}
       LOG_LEVEL:     info
       SENTRY_DSN:    ${SENTRY_DSN:-}
+      # Per-user budget for offline-sync routes (S0.4). Default 600/min.
+      RATE_LIMIT_SYNC_PER_MIN: ${RATE_LIMIT_SYNC_PER_MIN:-}
+      # Apple CA bundle for iOS enrolment signature checks (DEPLOY.md). Unset =
+      # enrolments accepted but stored with signatureVerified = false.
+      IOS_UDID_CA_FILE: ${IOS_UDID_CA_FILE:-}
       MINIO_ENDPOINT:         minio
       MINIO_PORT:             9000
       MINIO_USE_SSL:          "false"
-      MINIO_ACCESS_KEY:       ${MINIO_ACCESS_KEY:-}
-      MINIO_SECRET_KEY:       ${MINIO_SECRET_KEY:-}
-      MINIO_ROOT_USER:        ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD:    ${MINIO_ROOT_PASSWORD}
+      # Only the credentials the API uses: the scoped app user created by
+      # minio-init when MINIO_ACCESS_KEY is set, the root user otherwise (with
+      # a startup warning). The root password never reaches this container
+      # once the app user exists.
+      MINIO_ACCESS_KEY:       ${MINIO_ACCESS_KEY:-${MINIO_ROOT_USER}}
+      MINIO_SECRET_KEY:       ${MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
+      MINIO_CREDENTIALS:      ${MINIO_ACCESS_KEY:+scoped}
       MINIO_PHOTOS_BUCKET:    vairiot-photos
       MINIO_DOCUMENTS_BUCKET: vairiot-documents
       REPORT_SERVICE_URL:     http://reports:8100
@@ -152,6 +184,9 @@ services:
       dockerfile: vairiot-web/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL}
+        # Optional browser error tracking (Sentry/GlitchTip). Build-time: set
+        # in .env, then redeploy. Empty = disabled.
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     container_name: vairiot_web
     restart: always
     logging: *default-logging
@@ -160,6 +195,11 @@ services:
       - api
     expose:
       - "80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   admin:
     build:
@@ -175,6 +215,11 @@ services:
       - api
     expose:
       - "80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   worker:
     build:
@@ -194,6 +239,9 @@ services:
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
       LOG_LEVEL:    info
       SENTRY_DSN:   ${SENTRY_DSN:-}
+      # Where to email when a background job fails for good (all retries
+      # used). Unset = Sentry/logs only. See vairiot-worker/src/monitoring.ts.
+      OPS_ALERT_EMAIL: ${OPS_ALERT_EMAIL:-}
       APP_URL:      ${APP_URL:-}
       # SMTP for outbound mail when not configured via the admin panel (DB) — the
       # mailer falls back to these env vars, then to logging-only. See mailer.ts.

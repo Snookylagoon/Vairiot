@@ -8,11 +8,20 @@ let cachedKey: Buffer | null = null;
 function getKey(): Buffer {
   if (cachedKey) return cachedKey;
   const secret = process.env.APP_ENCRYPTION_KEY;
-  if (!secret || secret.length < 16) {
-    throw new Error('APP_ENCRYPTION_KEY must be set (>=16 chars) for SMTP secret decryption.');
+  if (!secret || secret.length < 32) {
+    throw new Error('APP_ENCRYPTION_KEY must be set (>=32 chars) for SMTP secret decryption.');
   }
   cachedKey = scryptSync(secret, SALT, 32);
   return cachedKey;
+}
+
+/**
+ * Checks APP_ENCRYPTION_KEY now rather than at the first encrypt/decrypt, so
+ * a missing or short key stops the process at startup (and so fails the
+ * deploy's health wait) instead of breaking a later 2FA set-up or mail send.
+ */
+export function assertEncryptionKey(): void {
+  getKey();
 }
 
 export function decryptSecret(payload: string): string {

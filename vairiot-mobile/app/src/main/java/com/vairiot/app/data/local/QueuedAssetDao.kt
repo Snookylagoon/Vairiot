@@ -11,33 +11,37 @@ interface QueuedAssetDao {
     @Insert
     suspend fun insert(asset: QueuedAsset): Long
 
-    @Query("SELECT * FROM queued_assets WHERE state = 'pending' ORDER BY id ASC LIMIT :limit")
+    /** Rows the sync worker should try: never-tried and transiently-failed. */
+    @Query("SELECT * FROM queued_assets WHERE state IN ('pending', 'failed') ORDER BY id ASC LIMIT :limit")
     suspend fun takeBatch(limit: Int = 50): List<QueuedAsset>
 
+    /** Success only — the server has the asset. */
     @Query("DELETE FROM queued_assets WHERE id = :id")
     suspend fun deleteById(id: Long)
 
-    @Query("UPDATE queued_assets SET attempts = attempts + 1, lastError = :error WHERE id = :id")
-    suspend fun markFailure(id: Long, error: String)
+    /** Transient failure: retried automatically, does not count as an attempt. */
+    @Query("UPDATE queued_assets SET state = 'failed', lastError = :error WHERE id = :id")
+    suspend fun markFailed(id: Long, error: String)
 
-    /** Exhausted retries — park it for the user instead of deleting. */
+    /** The server rejected it — park it for the user instead of deleting. */
     @Query("UPDATE queued_assets SET state = 'dead', attempts = attempts + 1, lastError = :error WHERE id = :id")
     suspend fun markDead(id: Long, error: String)
 
-    @Query("SELECT COUNT(*) FROM queued_assets WHERE state = 'pending'")
-    fun pendingCount(): Flow<Int>
-
-    @Query("SELECT COUNT(*) FROM queued_assets WHERE state = 'pending'")
-    suspend fun totalPending(): Int
+    @Query("SELECT state, COUNT(*) AS count FROM queued_assets GROUP BY state")
+    fun countsByState(): Flow<List<StateCount>>
 
     @Query("SELECT * FROM queued_assets WHERE state = 'dead' ORDER BY id ASC")
     fun deadItems(): Flow<List<QueuedAsset>>
 
-    @Query("SELECT COUNT(*) FROM queued_assets WHERE state = 'dead'")
-    fun deadCount(): Flow<Int>
+    @Query("UPDATE queued_assets SET state = 'pending', lastError = NULL WHERE id = :id AND state = 'dead'")
+    suspend fun retryDead(id: Long)
 
-    @Query("UPDATE queued_assets SET state = 'pending', attempts = 0, lastError = NULL WHERE state = 'dead'")
+    @Query("UPDATE queued_assets SET state = 'pending', lastError = NULL WHERE state = 'dead'")
     suspend fun retryAllDead()
+
+    /** User-confirmed discard. Guarded on state so it can never remove a live row. */
+    @Query("DELETE FROM queued_assets WHERE id = :id AND state = 'dead'")
+    suspend fun discardDead(id: Long)
 
     @Query("DELETE FROM queued_assets WHERE state = 'dead'")
     suspend fun discardAllDead()

@@ -1,5 +1,6 @@
 import type { Readable } from 'stream';
 
+import compression from 'compression';
 import cors from 'cors';
 import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
@@ -9,7 +10,7 @@ import { openApiSpec } from './lib/openapi';
 import { authenticate } from './middleware/authenticate';
 import { errorHandler } from './middleware/error-handler';
 import { requireOnboardingComplete } from './middleware/onboarding-guard';
-import { globalLimiter } from './middleware/rate-limit';
+import { globalLimiter, syncLimiter } from './middleware/rate-limit';
 import { requestId } from './middleware/request-id';
 import { requestLogger } from './middleware/request-logger';
 import { apiKeysRouter }    from './routes/admin/api-keys.router';
@@ -54,6 +55,10 @@ export function createApp(): Application {
   app.use(helmet());
   const allowedOrigins = (process.env.WEB_ORIGIN ?? 'http://localhost:3000,http://localhost:3002').split(',').map(o => o.trim());
   app.use(cors({ origin: allowedOrigins, credentials: true }));
+  // gzip JSON for scanners on cellular. Production nginx also gzips, but a
+  // standalone install or a direct API call has no proxy in front. Image and
+  // APK streams are not compressible types and pass through untouched.
+  app.use(compression({ threshold: 1024 }));
   app.use(globalLimiter);
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
@@ -106,6 +111,8 @@ export function createApp(): Application {
   // ── Gated routes: require authentication + completed onboarding ──
   const gated = express.Router();
   gated.use(authenticate);
+  // Per-user budget for offline-queue flushes (the global limiter skips these).
+  gated.use(syncLimiter);
   gated.use(requireOnboardingComplete());
 
   gated.use('/assets',       assetsRouter);

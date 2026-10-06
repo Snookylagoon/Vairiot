@@ -1,12 +1,21 @@
-# Vairiot off-host backup — install on the prod host with:
+# Vairiot backups — install on the prod host with:
 #   crontab -l | cat - /opt/Vairiot/infra/backup.crontab | crontab -
-# or edit `crontab -e` and paste the line below.
+# or edit `crontab -e` and paste the lines below.
 #
-# Runs daily at 02:30 UTC. Output is appended to a log; a non-zero exit
-# (backup.sh fails hard) leaves a [BACKUP-FAILED] line for log-based alerting.
+# All settings come from /opt/Vairiot/.env (see DEPLOY.md → Backups):
+#   BACKUP_AGE_RECIPIENT, BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET,
+#   BACKUP_S3_ACCESS_KEY, BACKUP_S3_SECRET_KEY (EU region for GDPR).
+# Nothing secret belongs in this file. (It used to pass a placeholder age key
+# here, which made encryption fail and left an unencrypted archive behind.)
 #
-# Required env for real off-host protection (set in /opt/Vairiot/.env or here):
-#   BACKUP_REMOTE_TARGET   rclone remote:path, e.g. s3eu:vairiot-backups  (EU region for GDPR)
-#   BACKUP_AGE_RECIPIENT   age public key so the archive (which includes .env) is encrypted at rest
-#
-30 2 * * * BACKUP_REMOTE_TARGET=s3eu:vairiot-backups BACKUP_AGE_RECIPIENT=age1REPLACE_ME bash /opt/Vairiot/infra/backup.sh >> /var/log/vairiot-backup.log 2>&1
+# A failed or incomplete run writes a [BACKUP-FAILED] / [BACKUP-INCOMPLETE]
+# line to the log and exits non-zero; alert on either.
+
+# Daily backup at 02:30 UTC: 30 daily + 12 monthly copies off-host.
+30 2 * * * bash /opt/Vairiot/infra/backup.sh >> /var/log/vairiot-backup.log 2>&1
+
+# Monthly restore test on the 2nd at 04:00 UTC: restores the newest off-host
+# backup into a throwaway stack and checks it. Needs the age *private* key on
+# this host (BACKUP_AGE_IDENTITY in .env); if you keep that key elsewhere, run
+# the test from that machine instead and leave this line commented out.
+# 0 4 2 * * bash /opt/Vairiot/infra/restore-test.sh >> /var/log/vairiot-restore-test.log 2>&1
