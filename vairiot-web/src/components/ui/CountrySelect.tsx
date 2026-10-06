@@ -65,7 +65,7 @@ export function CountrySelect({ value, onChange, label, placeholder = 'Select co
         onClick={() => setOpen(!open)}
         className={clsx(
           'flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm text-left',
-          'focus:outline-none focus:ring-2 focus:ring-v-pink focus:border-transparent transition-colors',
+          'focus:outline-hidden focus:ring-2 focus:ring-v-pink focus:border-transparent transition-colors',
           'border-gray-200 bg-white hover:border-gray-300',
           !value && 'text-gray-400',
         )}
@@ -83,7 +83,7 @@ export function CountrySelect({ value, onChange, label, placeholder = 'Select co
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search countries…"
-              className="w-full text-sm text-v-charcoal placeholder-gray-400 outline-none"
+              className="w-full text-sm text-v-charcoal placeholder-gray-400 outline-hidden"
             />
           </div>
 

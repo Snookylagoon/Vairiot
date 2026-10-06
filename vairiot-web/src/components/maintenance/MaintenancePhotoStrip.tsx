@@ -40,6 +40,6 @@ function Thumb({ id, hasThumb }: { id: string; hasThumb?: boolean }) {
     },
     staleTime: 60 * 1000,
   });
-  if (!src) return <div className="w-8 h-8 rounded bg-gray-100 animate-pulse" />;
-  return <img src={src} alt="" className="w-8 h-8 rounded object-cover border border-gray-100" />;
+  if (!src) return <div className="w-8 h-8 rounded-sm bg-gray-100 animate-pulse" />;
+  return <img src={src} alt="" className="w-8 h-8 rounded-sm object-cover border border-gray-100" />;
 }

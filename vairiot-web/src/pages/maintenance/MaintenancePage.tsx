@@ -121,7 +121,7 @@ export function MaintenancePage() {
     <select
       value={statusFilter}
       onChange={e => setExtra('status', e.target.value)}
-      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink">
+      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink">
       <option value="">All statuses</option>
       <option value="scheduled">Scheduled</option>
       <option value="in_progress">In Progress</option>
@@ -151,7 +151,7 @@ export function MaintenancePage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-v-charcoal mb-1">Asset *</label>
-                <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+                <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink"
                   {...register('assetId')}>
                   <option value="">-- Select asset --</option>
                   {assetsData?.assets.map(a => <option key={a.id} value={a.id}>{a.assetNumber} — {a.name}</option>)}
@@ -160,7 +160,7 @@ export function MaintenancePage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-v-charcoal mb-1">Type *</label>
-                <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-v-pink"
+                <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-v-pink"
                   {...register('maintenanceType')}>
                   <option value="">-- Select --</option>
                   <option value="preventive">Preventive</option>

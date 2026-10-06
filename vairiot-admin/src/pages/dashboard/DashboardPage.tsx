@@ -44,7 +44,7 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {statCards.map(({ label, value, icon: Icon, colour, to }) => (
-          <Link key={label} to={to} className="block transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-v-violet rounded-xl">
+          <Link key={label} to={to} className="block transition hover:-translate-y-0.5 hover:shadow-md focus:outline-hidden focus:ring-2 focus:ring-v-violet rounded-xl">
             <Card>
               <CardBody className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg bg-gray-50 ${colour}`}>
@@ -105,7 +105,7 @@ export function DashboardPage() {
                 <Link
                   key={t.id}
                   to={t.onboardingComplete ? `/tenants/${t.id}` : `/tenants/${t.id}/onboarding`}
-                  className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 -mx-2 px-2 rounded hover:bg-gray-50 transition"
+                  className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 -mx-2 px-2 rounded-sm hover:bg-gray-50 transition"
                 >
                   <div>
                     <p className="text-sm font-medium text-v-charcoal">{t.name}</p>

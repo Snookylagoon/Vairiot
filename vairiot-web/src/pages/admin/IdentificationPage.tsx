@@ -19,7 +19,7 @@ import {
 } from '@/hooks/useIdentification';
 
 const inputCls =
-  'w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-v-pink';
+  'w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-v-pink';
 
 function prefixBadge(status: Gs1Prefix['status']) {
   switch (status) {
@@ -174,7 +174,7 @@ export function IdentificationPage() {
                 type="checkbox"
                 checked={ident.allowInternalPermalock}
                 onChange={(e) => updateIdent.mutate({ allowInternalPermalock: e.target.checked })}
-                className="rounded border-gray-300 text-v-pink focus:ring-v-pink"
+                className="rounded-sm border-gray-300 text-v-pink focus:ring-v-pink"
               />
               Allow permalock in internal mode
               <span title="Permalock is irreversible. Leave off unless tags will never be migrated to GS1.">
@@ -186,7 +186,7 @@ export function IdentificationPage() {
                 type="checkbox"
                 checked={ident.allowGiai202}
                 onChange={(e) => updateIdent.mutate({ allowGiai202: e.target.checked })}
-                className="rounded border-gray-300 text-v-pink focus:ring-v-pink"
+                className="rounded-sm border-gray-300 text-v-pink focus:ring-v-pink"
               />
               Allow GIAI-202 encoding (exception path)
             </label>

@@ -146,7 +146,7 @@ export function AppShell() {
         'lg:sticky lg:top-0 lg:h-screen lg:translate-x-0',
       )}>
         {/* Logo band — gradient */}
-        <div className="h-16 flex items-center px-4 bg-gradient-to-r from-v-pink via-v-mauve to-v-violet">
+        <div className="h-16 flex items-center px-4 bg-linear-to-r from-v-pink via-v-mauve to-v-violet">
           <span className="text-white font-bold text-xl tracking-wide font-sans">VAIRIOT</span>
         </div>
 
@@ -198,7 +198,7 @@ export function AppShell() {
             <select
               value={currencyCode}
               onChange={e => { void setCurrencyPersist(e.target.value); }}
-              className="w-full text-xs rounded-lg border border-white/10 bg-white/5 text-gray-300 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-v-pink appearance-none cursor-pointer"
+              className="w-full text-xs rounded-lg border border-white/10 bg-white/5 text-gray-300 px-2 py-1.5 focus:outline-hidden focus:ring-1 focus:ring-v-pink appearance-none cursor-pointer"
             >
               {CURRENCIES.map(c => (
                 <option key={c.code} value={c.code} className="bg-v-charcoal text-gray-300">

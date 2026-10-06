@@ -78,7 +78,7 @@ function DisposalDialog({ open, assetId, onClose, currencySymbol }: { open: bool
             <Input label="Disposal Date *" type="date" error={errors.disposalDate?.message} {...register('disposalDate')} />
             <div>
               <label className="block text-sm font-medium text-v-charcoal mb-1">Method *</label>
-              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink bg-white"
+              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white"
                 {...register('disposalMethod')}>
                 <option value="">— Select —</option>
                 <option value="sale">Sale</option>
@@ -182,7 +182,7 @@ export function AssetDetailPage() {
                 <img
                   src={asset.labelImage}
                   alt="Asset label"
-                  className="border border-gray-200 rounded"
+                  className="border border-gray-200 rounded-sm"
                   style={{ maxWidth: 220, height: 'auto' }}
                 />
               </div>

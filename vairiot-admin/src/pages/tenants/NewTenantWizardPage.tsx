@@ -236,7 +236,7 @@ function Stepper({ active }: { active: (typeof STEPS)[number]['key'] }) {
           <div key={s.key} className="flex items-center gap-2">
             <div
               className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                isActive ? 'bg-v-violet text-white shadow-sm'
+                isActive ? 'bg-v-violet text-white shadow-xs'
                 : isDone ? 'bg-green-100 text-green-700'
                          : 'bg-gray-100 text-gray-500'
               }`}

@@ -66,7 +66,7 @@ function CheckoutForm({ onDone }: { onDone: () => void }) {
           value={assetId}
           onChange={(e) => setAssetId(e.target.value)}
           required
-          className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink">
+          className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink">
           <option value="">— Select an active asset —</option>
           {assets.map(a => (
             <option key={a.id} value={a.id}>{a.assetNumber} — {a.name}</option>
@@ -74,7 +74,7 @@ function CheckoutForm({ onDone }: { onDone: () => void }) {
         </select>
       </div>
       <Input label="Custodian"      value={custodianId}    onChange={(e) => setCustodianId(e.target.value)} placeholder="Name or employee ID" required />
-      <Input label="Expected return" type="date" value={expectedReturn} onChange={(e) => setExp(e.target.value)} className="max-w-[12rem]" />
+      <Input label="Expected return" type="date" value={expectedReturn} onChange={(e) => setExp(e.target.value)} className="max-w-48" />
       <Input label="Notes"          value={notes}          onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex justify-end gap-2 pt-2">

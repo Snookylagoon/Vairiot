@@ -65,25 +65,25 @@ export function CustomFieldsPage() {
                 <input value={label}
                   onChange={e => { setLabel(e.target.value); if (!name) setName(e.target.value); }}
                   placeholder="e.g. Department"
-                  className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-v-pink" />
+                  className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-v-pink" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-v-charcoal mb-1">Field Name (slug) *</label>
                 <input value={name} onChange={e => setName(e.target.value)}
                   placeholder="e.g. department"
-                  className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-v-pink font-mono" />
+                  className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-v-pink font-mono" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-v-charcoal mb-1">Type</label>
                 <select value={fieldType} onChange={e => setFieldType(e.target.value)}
-                  className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-v-pink bg-white">
+                  className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white">
                   {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </div>
               <div className="flex items-end gap-4 pb-1">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={required} onChange={e => setRequired(e.target.checked)}
-                    className="rounded border-gray-300 text-v-violet focus:ring-v-pink" />
+                    className="rounded-sm border-gray-300 text-v-violet focus:ring-v-pink" />
                   <span className="text-sm text-v-charcoal">Required</span>
                 </label>
               </div>
@@ -132,7 +132,7 @@ export function CustomFieldsPage() {
                   {f.options.length > 0 && (
                     <div className="flex gap-1 mt-1">
                       {f.options.map(o => (
-                        <span key={o} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{o}</span>
+                        <span key={o} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-sm">{o}</span>
                       ))}
                     </div>
                   )}

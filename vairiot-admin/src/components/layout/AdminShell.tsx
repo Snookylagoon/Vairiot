@@ -33,7 +33,7 @@ export function AdminShell() {
         open ? 'translate-x-0' : '-translate-x-full',
         'lg:sticky lg:top-0 lg:h-screen lg:translate-x-0',
       )}>
-        <div className="h-16 flex items-center px-4 bg-gradient-to-r from-v-pink via-v-mauve to-v-violet">
+        <div className="h-16 flex items-center px-4 bg-linear-to-r from-v-pink via-v-mauve to-v-violet">
           <span className="text-white font-bold text-xl tracking-wide font-sans">VAIRIOT</span>
           <span className="ml-2 text-white/80 text-xs font-medium tracking-widest uppercase">Admin</span>
         </div>

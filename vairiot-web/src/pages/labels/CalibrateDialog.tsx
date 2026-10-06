@@ -73,7 +73,7 @@ export function CalibrateDialog({ open, widthMm, heightMm, onClose }: CalibrateD
               <input
                 value={queue}
                 onChange={e => setQueue(e.target.value)}
-                className="flex-1 text-xs rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-v-pink"
+                className="flex-1 text-xs rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-v-pink"
               />
             </div>
             <div className="flex items-start gap-2">

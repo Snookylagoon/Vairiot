@@ -19,10 +19,10 @@ export function SubTenantsPage() {
             <img
               src={`/api/v1/public/tenants/${t.id}/logo?t=${Date.now()}`}
               alt=""
-              className="w-8 h-8 rounded object-contain border border-gray-200 bg-white"
+              className="w-8 h-8 rounded-sm object-contain border border-gray-200 bg-white"
             />
           ) : (
-            <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-sm bg-gray-100 flex items-center justify-center">
               <Building2 size={14} className="text-gray-400" />
             </div>
           )}

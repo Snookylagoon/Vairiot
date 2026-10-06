@@ -316,7 +316,7 @@ function ScopeSelect({ label, value, onChange, options, disabled, disabledHint }
     <div>
       <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
       <select value={value} onChange={e => onChange(e.target.value)} disabled={disabled}
-        className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink disabled:bg-gray-50">
+        className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink disabled:bg-gray-50">
         <option value="">{disabled && disabledHint ? disabledHint : 'All'}</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>

@@ -360,7 +360,7 @@ export function TemplateLayoutEditor({
               const v = Number(e.target.value);
               if (v >= 3 && v <= 40) patchSelectedStyles({ font: v });
             }}
-            className="w-14 text-xs rounded border border-gray-200 px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-v-pink disabled:opacity-35"
+            className="w-14 text-xs rounded-sm border border-gray-200 px-1.5 py-1 focus:outline-hidden focus:ring-2 focus:ring-v-pink disabled:opacity-35"
           />
           <span className="text-[11px] text-gray-400">px</span>
         </div>
@@ -376,7 +376,7 @@ export function TemplateLayoutEditor({
         ref={canvasRef}
         tabIndex={0}
         onKeyDown={onKeyDown}
-        className="relative bg-white border border-gray-300 rounded shadow-sm overflow-hidden focus:outline-none focus:ring-2 focus:ring-v-pink/40"
+        className="relative bg-white border border-gray-300 rounded-sm shadow-xs overflow-hidden focus:outline-hidden focus:ring-2 focus:ring-v-pink/40"
         style={{ width: widthPx * zoom, height: heightPx * zoom, maxWidth: '100%' }}
         onPointerDown={clearSelection}
       >

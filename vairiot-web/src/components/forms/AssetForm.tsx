@@ -99,7 +99,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
             </div>
             <div>
               <label className="block text-sm font-medium text-v-charcoal mb-1">Category</label>
-              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink bg-white"
+              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white"
                 {...register('categoryId', { onChange: handleCategoryChange })}>
                 <option value="">— Select category —</option>
                 {categories.map((c: { id: string; name: string }) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -108,7 +108,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
             </div>
             <div>
               <label className="block text-sm font-medium text-v-charcoal mb-1">Site</label>
-              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink bg-white"
+              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white"
                 {...register('siteId', { onChange: handleSiteChange })}>
                 <option value="">— Select site —</option>
                 {sites.map((s: { id: string; name: string }) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -117,7 +117,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
             </div>
             <div>
               <label className="block text-sm font-medium text-v-charcoal mb-1">Location</label>
-              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink bg-white"
+              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white"
                 disabled={!selectedSiteId}
                 {...register('locationId', { onChange: handleLocationChange })}>
                 <option value="">{selectedSiteId ? '— Select location —' : '— Select a site first —'}</option>
@@ -127,7 +127,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
             </div>
             <div>
               <label className="block text-sm font-medium text-v-charcoal mb-1">Condition</label>
-              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink bg-white"
+              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white"
                 {...register('condition')}>
                 <option value="good">Good</option>
                 <option value="excellent">Excellent</option>
@@ -186,7 +186,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-v-charcoal mb-1">Method</label>
-              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-v-pink bg-white"
+              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white"
                 {...register('depreciationMethod')}>
                 <option value="straight_line">Straight Line</option>
                 <option value="none">None</option>

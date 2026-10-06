@@ -32,7 +32,7 @@ function CopyLink({ label, url }: { label: string; url: string }) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <span className="text-gray-600 w-36 shrink-0">{label}</span>
-      <code className="text-xs bg-gray-100 rounded px-2 py-1 truncate">{url}</code>
+      <code className="text-xs bg-gray-100 rounded-sm px-2 py-1 truncate">{url}</code>
       <button
         type="button"
         className="p-1 text-gray-400 hover:text-v-violet"
@@ -264,7 +264,7 @@ export function IosReleasesPage() {
                   type="file"
                   accept=".ipa"
                   onChange={(e) => setIpa(e.target.files?.[0] ?? null)}
-                  className="block mt-1 w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-v-violet file:text-white hover:file:bg-v-violet/90"
+                  className="block mt-1 w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:bg-v-violet file:text-white hover:file:bg-v-violet/90"
                 />
                 {ipa && (
                   <p className="mt-1 text-xs text-gray-500">
@@ -295,7 +295,7 @@ export function IosReleasesPage() {
                   value={releaseNotes}
                   onChange={(e) => setReleaseNotes(e.target.value)}
                   rows={3}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-v-violet focus:outline-none focus:ring-1 focus:ring-v-violet"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-v-violet focus:outline-hidden focus:ring-1 focus:ring-v-violet"
                   placeholder="Bug fixes and improvements"
                 />
               </div>

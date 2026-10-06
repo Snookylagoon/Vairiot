@@ -48,12 +48,12 @@ export function WebhooksPage() {
               <div>
                 <label className="block text-sm font-medium text-v-charcoal mb-1">Name</label>
                 <input value={name} onChange={e => setName(e.target.value)} placeholder="My webhook"
-                  className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-v-pink" />
+                  className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-v-pink" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-v-charcoal mb-1">URL</label>
                 <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/webhook"
-                  className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-v-pink" />
+                  className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-v-pink" />
               </div>
             </div>
             <div>
@@ -96,7 +96,7 @@ export function WebhooksPage() {
                 <p className="text-xs text-gray-500 mt-0.5 font-mono truncate">{wh.url}</p>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {wh.events.map(ev => (
-                    <span key={ev} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{ev}</span>
+                    <span key={ev} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-sm">{ev}</span>
                   ))}
                 </div>
               </div>

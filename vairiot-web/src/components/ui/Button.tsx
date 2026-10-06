@@ -12,9 +12,9 @@ export function Button({ variant = 'primary', size = 'md', loading, className, c
     <button
       disabled={disabled || loading}
       className={clsx(
-        'inline-flex items-center justify-center font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-v-pink focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center font-semibold rounded-lg transition-all focus:outline-hidden focus:ring-2 focus:ring-v-pink focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
         {
-          'bg-v-gradient text-white hover:opacity-90 shadow-sm':                         variant === 'primary',
+          'bg-v-gradient text-white hover:opacity-90 shadow-xs':                         variant === 'primary',
           'bg-white text-v-charcoal border border-gray-200 hover:bg-gray-50':            variant === 'secondary',
           'bg-red-600 text-white hover:bg-red-700':                                      variant === 'danger',
           'text-v-violet hover:bg-v-wash':                                               variant === 'ghost',

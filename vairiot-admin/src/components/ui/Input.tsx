@@ -24,7 +24,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             type={isPassword && show ? 'text' : type}
             className={clsx(
               'block w-full rounded-lg border px-3 py-2 text-sm text-v-charcoal placeholder-gray-400',
-              'focus:outline-none focus:ring-2 focus:ring-v-pink focus:border-transparent',
+              'focus:outline-hidden focus:ring-2 focus:ring-v-pink focus:border-transparent',
               'transition-colors',
               error
                 ? 'border-red-400 bg-red-50'

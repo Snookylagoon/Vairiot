@@ -153,7 +153,7 @@ export function SmtpPage() {
                   <label className="text-xs font-medium text-gray-600">Password / API key</label>
                   {data?.hasPassword && !form.changePassword ? (
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 px-3 py-2 bg-gray-100 rounded text-xs text-gray-500">•••••••• (stored, encrypted)</code>
+                      <code className="flex-1 px-3 py-2 bg-gray-100 rounded-sm text-xs text-gray-500">•••••••• (stored, encrypted)</code>
                       <Button size="sm" variant="ghost" onClick={() => setForm(f => ({ ...f, changePassword: true }))}>Change</Button>
                     </div>
                   ) : (
@@ -180,7 +180,7 @@ export function SmtpPage() {
               <label className="text-xs font-medium text-gray-600">API key</label>
               {data?.hasPassword && !form.changePassword && data.provider === 'resend' ? (
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 px-3 py-2 bg-gray-100 rounded text-xs text-gray-500">•••••••• (stored, encrypted)</code>
+                  <code className="flex-1 px-3 py-2 bg-gray-100 rounded-sm text-xs text-gray-500">•••••••• (stored, encrypted)</code>
                   <Button size="sm" variant="ghost" onClick={() => setForm(f => ({ ...f, changePassword: true }))}>Change</Button>
                 </div>
               ) : (

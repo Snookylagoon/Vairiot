@@ -62,7 +62,7 @@ export function ApiKeysPage() {
             <p className="text-xs font-semibold text-v-charcoal mb-2">Scopes *</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
               {AVAILABLE_SCOPES.map(s => (
-                <label key={s.value} className="flex items-start gap-2 text-xs cursor-pointer hover:bg-gray-50 rounded px-1 py-1">
+                <label key={s.value} className="flex items-start gap-2 text-xs cursor-pointer hover:bg-gray-50 rounded-sm px-1 py-1">
                   <input type="checkbox" className="mt-0.5"
                     checked={scopes.includes(s.value)}
                     onChange={() => toggleScope(s.value)} />
@@ -88,7 +88,7 @@ export function ApiKeysPage() {
                 Copy this key now — it will not be shown again.
               </p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-white border border-amber-200 rounded px-2 py-1 break-all">{newToken}</code>
+                <code className="flex-1 text-xs bg-white border border-amber-200 rounded-sm px-2 py-1 break-all">{newToken}</code>
                 <Button size="sm" variant="secondary"
                   onClick={() => { navigator.clipboard.writeText(newToken); }}>
                   <Copy size={12} className="mr-1" /> Copy

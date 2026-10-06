@@ -74,7 +74,7 @@ export function AuditLogPage() {
       <select
         value={entityType}
         onChange={e => setExtra('entityType', e.target.value)}
-        className="text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-v-pink"
+        className="text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-v-pink"
       >
         <option value="">All entities</option>
         {ENTITY_TYPES.filter(Boolean).map(t => (
@@ -85,13 +85,13 @@ export function AuditLogPage() {
         type="date"
         value={from}
         onChange={e => setExtra('from', e.target.value)}
-        className="text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-v-pink"
+        className="text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-v-pink"
       />
       <input
         type="date"
         value={to}
         onChange={e => setExtra('to', e.target.value)}
-        className="text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-v-pink"
+        className="text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-v-pink"
       />
     </>
   );

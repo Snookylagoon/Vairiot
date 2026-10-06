@@ -103,7 +103,7 @@ export function RoleMatrixDialog({ open, onClose, plane }: Props) {
                 <th className="sticky left-[160px] z-10 bg-gray-50 px-3 py-2 text-left font-medium text-gray-500 border border-gray-200 w-[140px] min-w-[140px]">Capability</th>
                 {roles.map(r => (
                   <th key={r.name} className="px-2 py-2 font-medium text-gray-500 border border-gray-200 align-bottom min-w-[80px] max-w-[80px]">
-                    <div className="text-[11px] leading-tight text-center break-words">{r.name}</div>
+                    <div className="text-[11px] leading-tight text-center wrap-break-word">{r.name}</div>
                   </th>
                 ))}
               </tr>
