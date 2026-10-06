@@ -81,7 +81,7 @@
 ### S0.5 follow-up (after the first PR review)
 - **SEC-M3:** a one-shot `minio-init` gives the API its own MinIO user, limited to the three app buckets. The root password no longer reaches the API container.
 - **COM-3:** nginx and API timeouts. A report taking 65 s used to return 504 at 60 s; now it completes.
-- **SEC-M6 (partly):** `APP_ENCRYPTION_KEY` is documented and checked at startup in production. Adding it to the env templates is still to do.
+- **SEC-M6 (partly):** `APP_ENCRYPTION_KEY` is documented (DEPLOY.md and both env templates) and checked at startup in production. The prod template also lists the scoped MinIO user and backup variables. The static salt stays (needs a re-encryption migration).
 
 ### Bugs found and fixed while doing the above
 Every one is recorded in `docs/known-fix-registry.md` (**KFR-006 to KFR-035**). The notable ones:
@@ -117,7 +117,7 @@ Every one is recorded in `docs/known-fix-registry.md` (**KFR-006 to KFR-035**). 
 
 | Item | Why it's open | Where |
 |---|---|---|
-| SEC-M6 `APP_ENCRYPTION_KEY` in `.env.example` / `infra/.env.prod.example` | Env files not accessible in this session; documented in DEPLOY.md and checked at startup instead (KFR-035) | triage |
+| SEC-M6 static scrypt salt and 16-char key minimum | Changing them needs a re-encryption migration of stored secrets (KFR-035) | triage |
 | iOS enrolment signature enforcement | Needs `IOS_UDID_CA_FILE` and a check with a real iPhone | DEPLOY.md |
 | Maintenance photos offline; server-side photo dedupe | Out of S0 scope | OFF-4 |
 | `postgres`, `redis`, `nginx` images not pinned | Tags on the server unknown; a wrong pin breaks deploys | INF-9 |
@@ -126,10 +126,14 @@ Every one is recorded in `docs/known-fix-registry.md` (**KFR-006 to KFR-035**). 
 | Blind-audit scan responses include `assetId` | Noticed in S0.4; may reveal matches blind mode should hide | to triage in S3 |
 | TUDA licence renewal | Enterprise licence runs 12 months; no platform admin on a standalone server | DEPLOY.md |
 
-## Files changed (157)
+## Files changed (159)
 
 Relative to `16df41e`.
 
+
+### .env.example
+
+- `.env.example` (modified)
 
 ### .github
 
@@ -168,6 +172,7 @@ Relative to `16df41e`.
 - `infra/nginx/standalone-default.conf` (added)
 - `infra/nginx/standalone.conf.template` (added)
 - `infra/restore-test.sh` (added)
+- `infra/.env.prod.example` (modified)
 - `infra/backup.crontab` (modified)
 - `infra/backup.sh` (modified)
 - `infra/deploy.sh` (modified)

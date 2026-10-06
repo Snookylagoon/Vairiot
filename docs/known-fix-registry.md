@@ -335,7 +335,7 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 |---|---|
 | **Module** | `vairiot-api/src/lib/crypto.ts` + `index.ts`, `vairiot-worker/src/crypto.ts` + `index.ts`, `DEPLOY.md` |
 | **Root Cause** | The key was read lazily, so a server deployed without it started normally and then failed on the first 2FA set-up or mail send. It was also undocumented. |
-| **Fix Applied** | In production the API and worker check the key at startup (`assertEncryptionKey()`), so `deploy.sh`'s health wait fails the deploy. DEPLOY.md documents it: required, 32+ characters, how to generate it, never change it. **Still open:** adding it to `.env.example` / `infra/.env.prod.example` (env files were not accessible in this session). The static scrypt salt stays: changing it needs a re-encryption migration. |
+| **Fix Applied** | In production the API and worker check the key at startup (`assertEncryptionKey()`), so `deploy.sh`'s health wait fails the deploy. DEPLOY.md, `.env.example` and `infra/.env.prod.example` document it: required, 32+ characters, how to generate it, never change it. The prod template also gained `MINIO_ACCESS_KEY`/`MINIO_SECRET_KEY` and the backup variables. **Still open:** the static scrypt salt and 16-character minimum stay; changing them needs a re-encryption migration. |
 | **Test Added** | `assertEncryptionKey` refuses an empty or 9-character key and accepts a 48-character one. |
 
 *Last updated: S0.5 follow-up, October 2026*
