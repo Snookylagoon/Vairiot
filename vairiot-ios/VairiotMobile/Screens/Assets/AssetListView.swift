@@ -3,6 +3,7 @@ import SwiftUI
 struct AssetListView: View {
     @State private var viewModel: AssetListViewModel
     @State private var showCreateSheet: Bool = false
+    @State private var lastSynced: Date? = DefaultsAssetSyncCursorStore().lastSyncedAt
 
     private let apiClient: APIClient
 
@@ -17,6 +18,7 @@ struct AssetListView: View {
                 if viewModel.isOffline {
                     offlineBanner
                 }
+                syncAgeLabel
                 searchBar
                 filterBar
                 assetList
@@ -38,6 +40,26 @@ struct AssetListView: View {
                     Task { await viewModel.refresh() }
                 }
             }
+        }
+    }
+
+    // MARK: - Last synced
+
+    /// "Last synced X minutes ago" for the offline cache; ticks every 30s.
+    @ViewBuilder
+    private var syncAgeLabel: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+            if let text = formatSyncAge(lastSynced, now: context.date) {
+                Text(text)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .vairiotAssetCacheSynced)) { _ in
+            lastSynced = DefaultsAssetSyncCursorStore().lastSyncedAt
         }
     }
 

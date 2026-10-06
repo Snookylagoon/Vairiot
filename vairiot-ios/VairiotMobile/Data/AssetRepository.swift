@@ -11,12 +11,18 @@ final class AssetRepository: ObservableObject {
 
     private let apiClient: APIClient
     private let modelContext: ModelContext
+    private let syncStore: AssetSyncCursorStore
 
     private static let pageSize = 200
 
-    init(apiClient: APIClient = .shared, modelContext: ModelContext) {
+    init(
+        apiClient: APIClient = .shared,
+        modelContext: ModelContext,
+        syncStore: AssetSyncCursorStore = DefaultsAssetSyncCursorStore()
+    ) {
         self.apiClient = apiClient
         self.modelContext = modelContext
+        self.syncStore = syncStore
     }
 
     // MARK: - Local query
@@ -54,11 +60,12 @@ final class AssetRepository: ObservableObject {
 
     // MARK: - Full refresh from API
 
-    /// Pull every page from the API and replace/upsert the local cache.
+    /// Brings the local cache up to date. Unfiltered refreshes use delta sync
+    /// (`AssetDeltaSync`): only assets changed since the last sync are fetched.
+    /// Filtered refreshes pull the matching pages and upsert them.
     ///
-    /// Returns the total reported by the server, or `nil` if any page failed
-    /// (the cache stays intact — a partial sync would leave the user staring
-    /// at half a register).
+    /// Returns the total, or `nil` if anything failed (the cache stays intact —
+    /// a partial sync would leave the user staring at half a register).
     @discardableResult
     func refresh(
         query: String? = nil,
@@ -71,6 +78,22 @@ final class AssetRepository: ObservableObject {
             .isEmpty == false ? query : nil
         let statusParam = status?.isEmpty == false ? status : nil
         let conditionParam = condition?.isEmpty == false ? condition : nil
+
+        if search == nil && statusParam == nil && conditionParam == nil {
+            let apiClient = self.apiClient
+            let delta = AssetDeltaSync(context: modelContext, store: syncStore) { since, until, page in
+                try await apiClient.request(.listAssets(
+                    page: page, pageSize: Self.pageSize, changedSince: since, changedUntil: until
+                ))
+            }
+            do {
+                let count = try await delta.sync(tenantId: TokenManager.shared.tenantId ?? "")
+                NotificationCenter.default.post(name: .vairiotAssetCacheSynced, object: nil)
+                return count
+            } catch {
+                return nil
+            }
+        }
 
         do {
             let firstPage: AssetListResponse = try await apiClient.request(
@@ -85,12 +108,7 @@ final class AssetRepository: ObservableObject {
                 )
             )
 
-            let isFullSync = search == nil && statusParam == nil && conditionParam == nil
-            if isFullSync {
-                replaceAll(with: firstPage.assets)
-            } else {
-                upsertAll(firstPage.assets)
-            }
+            upsertAll(firstPage.assets)
 
             var page = 2
             while page <= firstPage.totalPages {
@@ -161,18 +179,6 @@ final class AssetRepository: ObservableObject {
     }
 
     // MARK: - Private persistence helpers
-
-    private func replaceAll(with assets: [AssetResponse]) {
-        // Delete all existing cached assets
-        do {
-            try modelContext.delete(model: CachedAsset.self)
-        } catch {
-            // If bulk delete fails, continue with upsert
-        }
-        for asset in assets {
-            modelContext.insert(CachedAsset(from: asset))
-        }
-    }
 
     private func upsertAll(_ assets: [AssetResponse]) {
         for asset in assets {

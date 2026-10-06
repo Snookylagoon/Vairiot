@@ -128,6 +128,10 @@ data class AssetListResponse(
     val page:       Int,
     val pageSize:   Int,
     val totalPages: Int,
+    // Delta sync only (GET /assets?changedSince=). Null from a plain list, or
+    // from a server that predates delta sync.
+    val deletedIds: List<String>? = null,
+    val serverTime: String? = null,
 )
 
 // ─── Audits ────────────────────────────────────────────────────────────────

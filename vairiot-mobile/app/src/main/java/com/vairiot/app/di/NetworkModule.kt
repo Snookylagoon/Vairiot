@@ -60,9 +60,11 @@ object NetworkModule {
                     return null
                 }
                 if (!refreshResponse.isSuccessful) {
-                    // Only a genuine rejection (expired/revoked/reused token)
-                    // ends the session. A 5xx is a server problem, not ours.
-                    if (refreshResponse.code == 401 || refreshResponse.code == 403) {
+                    // Only a genuine rejection ends the session. The refresh
+                    // endpoint answers expired/revoked/reused tokens with 401
+                    // (auth.service.ts); anything else — 5xx, a proxy 403,
+                    // a 429 — is not proof the session is dead.
+                    if (refreshResponse.code == 401) {
                         runBlocking { tokenStore.clear() }
                     }
                     return null

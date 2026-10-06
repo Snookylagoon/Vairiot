@@ -4,18 +4,25 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.api.UserProfileResponse
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.data.local.QueueState
 import com.vairiot.app.data.local.QueuedAssetDao
+import com.vairiot.app.data.local.QueuedPhotoDao
 import com.vairiot.app.data.local.QueuedScanDao
+import com.vairiot.app.data.local.StateCount
 import com.vairiot.app.data.local.TokenStore
 import com.vairiot.app.sync.AssetSyncScheduler
+import com.vairiot.app.sync.PhotoSyncScheduler
 import com.vairiot.app.sync.ScanSyncScheduler
+import com.vairiot.app.sync.deletePhotoFiles
 import com.vairiot.app.update.MobileVersionResponse
 import com.vairiot.app.update.UpdateCheckResult
 import com.vairiot.app.update.UpdateChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -32,8 +39,31 @@ data class ProfileUiState(
     val offline:         Boolean = false,
     val error:           String? = null,
     val update:          UpdateUiState = UpdateUiState.Idle,
-    /** Offline queue items that exhausted their sync attempts (scans + assets). */
-    val failedSyncCount: Int = 0,
+)
+
+enum class QueueKind { SCAN, ASSET, PHOTO }
+
+/** Rows of one offline queue by state. */
+data class QueueCounts(val pending: Int = 0, val failed: Int = 0, val dead: Int = 0) {
+    val total get() = pending + failed + dead
+}
+
+/** A row the server rejected, shown with its reason so the user can retry or discard it. */
+data class DeadUpload(val kind: QueueKind, val id: Long, val label: String, val error: String?)
+
+data class PendingUploads(
+    val scans:  QueueCounts = QueueCounts(),
+    val assets: QueueCounts = QueueCounts(),
+    val photos: QueueCounts = QueueCounts(),
+    val dead:   List<DeadUpload> = emptyList(),
+) {
+    val total get() = scans.total + assets.total + photos.total
+}
+
+private fun List<StateCount>.toCounts() = QueueCounts(
+    pending = firstOrNull { it.state == QueueState.PENDING }?.count ?: 0,
+    failed  = firstOrNull { it.state == QueueState.FAILED }?.count ?: 0,
+    dead    = firstOrNull { it.state == QueueState.DEAD }?.count ?: 0,
 )
 
 /** State machine for the "Check for updates" control in the App version card. */
@@ -62,37 +92,96 @@ class ProfileViewModel @Inject constructor(
     private val updateChecker: UpdateChecker,
     private val queuedScanDao:  QueuedScanDao,
     private val queuedAssetDao: QueuedAssetDao,
+    private val queuedPhotoDao: QueuedPhotoDao,
     private val scanSyncScheduler:  ScanSyncScheduler,
     private val assetSyncScheduler: AssetSyncScheduler,
+    private val photoSyncScheduler: PhotoSyncScheduler,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileUiState())
     val state: StateFlow<ProfileUiState> = _state
 
+    /**
+     * Everything still on the device's offline queues. Kept apart from
+     * [ProfileUiState] so profile loads can never overwrite it.
+     */
+    val pendingUploads: StateFlow<PendingUploads> = combine(
+        combine(
+            queuedScanDao.countsByState(),
+            queuedAssetDao.countsByState(),
+            queuedPhotoDao.countsByState(),
+        ) { s, a, p -> Triple(s.toCounts(), a.toCounts(), p.toCounts()) },
+        combine(
+            queuedScanDao.deadItems(),
+            queuedAssetDao.deadItems(),
+            queuedPhotoDao.deadItems(),
+        ) { s, a, p ->
+            s.map { DeadUpload(QueueKind.SCAN, it.id, "Audit scan ${it.tagValue}", it.lastError) } +
+                a.map { DeadUpload(QueueKind.ASSET, it.id, "New asset \"${it.name}\"", it.lastError) } +
+                p.map { DeadUpload(QueueKind.PHOTO, it.id, "Asset photo", it.lastError) }
+        },
+    ) { (scans, assets, photos), dead -> PendingUploads(scans, assets, photos, dead) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PendingUploads())
+
     init {
         load()
+    }
+
+    private fun triggerSync() {
+        assetSyncScheduler.triggerNow()
+        scanSyncScheduler.triggerNow()
+        photoSyncScheduler.triggerNow()
+    }
+
+    /** Send a rejected row again (e.g. after the cause was fixed on the server). */
+    fun retryUpload(item: DeadUpload) {
         viewModelScope.launch {
-            combine(queuedScanDao.deadCount(), queuedAssetDao.deadCount()) { s, a -> s + a }
-                .collect { total -> _state.value = _state.value.copy(failedSyncCount = total) }
+            when (item.kind) {
+                QueueKind.SCAN  -> queuedScanDao.retryDead(item.id)
+                QueueKind.ASSET -> queuedAssetDao.retryDead(item.id)
+                QueueKind.PHOTO -> queuedPhotoDao.retryDead(item.id)
+            }
+            triggerSync()
         }
     }
 
-    /** Re-queue all failed offline items and kick a sync immediately. */
-    fun retryFailedSync() {
+    fun retryAllRejected() {
         viewModelScope.launch {
             queuedScanDao.retryAllDead()
             queuedAssetDao.retryAllDead()
-            scanSyncScheduler.triggerNow()
-            assetSyncScheduler.triggerNow()
+            queuedPhotoDao.retryAllDead()
+            triggerSync()
         }
     }
 
-    /** Permanently discard all failed offline items (user-confirmed in the UI). */
-    fun discardFailedSync() {
+    /** Also kicks rows waiting on a transient failure, instead of waiting for backoff. */
+    fun syncNow() = triggerSync()
+
+    /** Permanently delete one rejected row. The UI confirms before calling this. */
+    fun discardUpload(item: DeadUpload) {
+        viewModelScope.launch {
+            when (item.kind) {
+                QueueKind.SCAN  -> queuedScanDao.discardDead(item.id)
+                QueueKind.ASSET -> queuedAssetDao.discardDead(item.id)
+                QueueKind.PHOTO -> discardPhoto(item.id)
+            }
+        }
+    }
+
+    /** Permanently delete every rejected row. The UI confirms before calling this. */
+    fun discardAllRejected() {
         viewModelScope.launch {
             queuedScanDao.discardAllDead()
             queuedAssetDao.discardAllDead()
+            queuedPhotoDao.deadItemsOnce().forEach { discardPhoto(it.id) }
         }
+    }
+
+    private suspend fun discardPhoto(id: Long) {
+        val photo = queuedPhotoDao.getById(id) ?: return
+        if (photo.state != QueueState.DEAD) return
+        queuedPhotoDao.discardDead(id)
+        deletePhotoFiles(photo)
     }
 
     /** Triggered by the "Check for updates" button. */
@@ -151,10 +240,8 @@ class ProfileViewModel @Inject constructor(
                 val licence = api.getLicenceStatus()
                 tokenStore.saveLicence(licence.licenceNumber, licence.tierDisplayName, licence.status, licence.activatedAt)
                 // copy() — NOT a fresh ProfileUiState — so fields owned by other
-                // flows (failedSyncCount from deadCount(), update state) survive.
-                // A fresh object reset failedSyncCount to 0, and since deadCount()
-                // doesn't re-emit an unchanged value, the "Failed sync items" card
-                // vanished the moment the profile finished loading.
+                // flows (update state) survive. A fresh object once wiped the
+                // failed-sync count; pending uploads now live in their own flow.
                 _state.value = _state.value.copy(
                     isLoading     = false,
                     email         = me.email,

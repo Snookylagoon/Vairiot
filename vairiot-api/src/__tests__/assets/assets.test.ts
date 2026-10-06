@@ -95,7 +95,7 @@ describe('Assets', () => {
     const first = await request(app).post('/api/v1/assets').set('Authorization', `Bearer ${token}`).send(payload);
     expect(first.status).toBe(201);
     const replay = await request(app).post('/api/v1/assets').set('Authorization', `Bearer ${token}`).send(payload);
-    expect(replay.status).toBe(201);
+    expect(replay.status).toBe(200); // replay: the original asset, not a new one
     expect(replay.body.id).toBe(first.body.id);
     expect(replay.body.assetNumber).toBe(first.body.assetNumber);
     extraAssetIds.push(first.body.id);

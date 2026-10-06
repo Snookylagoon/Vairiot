@@ -12,7 +12,9 @@ updates:
         update-types: ["minor", "patch"]
 
   - package-ecosystem: pip
-    directory: "/vairiot-reports"
+    directories:
+      - "/vairiot-reports"
+      - "/scripts"
     schedule:
       interval: weekly
       day: monday
@@ -31,7 +33,15 @@ updates:
       interval: monthly
     open-pull-requests-limit: 3
 
+  # Base images of every service. (Images named only in the compose files —
+  # postgres, redis, nginx, minio — are not covered: bump those by hand.)
   - package-ecosystem: docker
-    directory: "/vairiot-api"
+    directories:
+      - "/vairiot-api"
+      - "/vairiot-worker"
+      - "/vairiot-web"
+      - "/vairiot-admin"
+      - "/vairiot-reports"
     schedule:
       interval: monthly
+    open-pull-requests-limit: 5

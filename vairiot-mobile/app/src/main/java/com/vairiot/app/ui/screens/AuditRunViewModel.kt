@@ -6,13 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.api.AuditCampaignResponse
 import com.vairiot.app.data.api.AuditReportResponse
 import com.vairiot.app.data.api.AuditScanEventResponse
-import com.vairiot.app.data.api.RecordScanRequest
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.data.api.ZoneSubmissionResponse
 import com.vairiot.app.data.local.QueuedScan
 import com.vairiot.app.data.local.QueuedScanDao
 import com.vairiot.app.scanner.ScannerService
+import com.vairiot.app.sync.AuditScanRecorder
 import com.vairiot.app.sync.ScanSyncScheduler
+import com.vairiot.app.sync.scanSender
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -52,6 +53,10 @@ class AuditRunViewModel @Inject constructor(
     private val campaignId: String = savedStateHandle["campaignId"] ?: ""
 
     private val _state = MutableStateFlow(AuditRunUiState(campaignId = campaignId))
+
+    private val recorder = AuditScanRecorder(queuedScanDao, api.scanSender()) {
+        syncScheduler.triggerNow()
+    }
     val state: StateFlow<AuditRunUiState> = _state
 
     val pendingCount: StateFlow<Int> = queuedScanDao
@@ -160,47 +165,48 @@ class AuditRunViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.value = _state.value.copy(isSubmitting = true, error = null)
-            // Persist the SAME fields the online request sends, so an offline replay
-            // isn't rejected for a missing locationId (blind campaigns require it) or
-            // silently stripped of its condition assessment.
-            val scanLocationId = if (currentState.isBlind) currentState.selectedLocationId else null
-            val scanCondition  = currentState.condition.ifBlank { null }
-            val queueId = queuedScanDao.insert(
-                QueuedScan(
-                    campaignId = campaignId,
-                    tagValue = trimmed,
-                    locationId = scanLocationId,
-                    condition = scanCondition,
-                ),
+            // Blind campaigns require locationId; condition is optional. The
+            // recorder queues these same fields, so an offline replay is
+            // identical to the online request (including its clientRequestId).
+            val outcome = recorder.record(
+                campaignId = campaignId,
+                tagValue   = trimmed,
+                locationId = if (currentState.isBlind) currentState.selectedLocationId else null,
+                condition  = currentState.condition.ifBlank { null },
             )
-            try {
-                val request = RecordScanRequest(
-                    tagValue = trimmed,
-                    locationId = scanLocationId,
-                    condition = scanCondition,
-                )
-                val ev = api.recordAuditScan(campaignId, request)
-                queuedScanDao.deleteById(queueId)
-                val recents = (listOf(ev) + _state.value.recentScans).take(20)
-                val foundDelta    = if (ev.result == "found")    1 else 0
-                val unknownDelta  = if (ev.result == "unknown")  1 else 0
-                val recordedDelta = if (ev.result == "recorded") 1 else 0
-                _state.value = _state.value.copy(
-                    isSubmitting  = false,
-                    recentScans   = recents,
-                    foundCount    = _state.value.foundCount   + foundDelta,
-                    unknownCount  = _state.value.unknownCount + unknownDelta,
-                    recordedCount = _state.value.recordedCount + recordedDelta,
-                    condition     = "",
-                    lastMessage   = if (ev.result == "recorded") "Recorded: $trimmed"
-                                    else if (ev.result == "found") "Recorded: $trimmed"
-                                    else "Unknown tag: $trimmed",
-                )
-            } catch (e: Exception) {
-                syncScheduler.triggerNow()
-                _state.value = _state.value.copy(
+            _state.value = when (outcome) {
+                is AuditScanRecorder.Outcome.Recorded -> {
+                    val ev = outcome.event
+                    val recents = (listOf(ev) + _state.value.recentScans).take(20)
+                    val foundDelta    = if (ev.result == "found")    1 else 0
+                    val unknownDelta  = if (ev.result == "unknown")  1 else 0
+                    val recordedDelta = if (ev.result == "recorded") 1 else 0
+                    _state.value.copy(
+                        isSubmitting  = false,
+                        recentScans   = recents,
+                        foundCount    = _state.value.foundCount   + foundDelta,
+                        unknownCount  = _state.value.unknownCount + unknownDelta,
+                        recordedCount = _state.value.recordedCount + recordedDelta,
+                        condition     = "",
+                        lastMessage   = if (ev.result == "unknown") "Unknown tag: $trimmed"
+                                        else "Recorded: $trimmed",
+                    )
+                }
+                AuditScanRecorder.Outcome.AlreadyRecorded -> _state.value.copy(
                     isSubmitting = false,
+                    condition    = "",
+                    lastMessage  = "Already recorded: $trimmed",
+                )
+                AuditScanRecorder.Outcome.Queued -> _state.value.copy(
+                    isSubmitting = false,
+                    condition    = "",
                     lastMessage  = "Queued offline: $trimmed",
+                )
+                // Previously every failure read "Queued offline", so a scan the
+                // server refused (e.g. campaign already completed) looked saved.
+                is AuditScanRecorder.Outcome.Rejected -> _state.value.copy(
+                    isSubmitting = false,
+                    error        = "Scan not accepted: ${outcome.message}. It is kept under Profile → Pending uploads.",
                 )
             }
         }

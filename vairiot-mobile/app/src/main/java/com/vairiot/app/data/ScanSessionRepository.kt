@@ -1,6 +1,5 @@
 package com.vairiot.app.data
 
-import com.vairiot.app.data.api.AssetCreateRequest
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.AssetUpdateRequest
 import com.vairiot.app.data.api.CategoryRefResponse
@@ -23,6 +22,7 @@ import com.vairiot.app.domain.model.SessionTag
 import com.vairiot.app.domain.model.SessionTagStatus
 import com.vairiot.app.scanner.RfidSessionClassifier
 import com.vairiot.app.sync.AssetSyncScheduler
+import com.vairiot.app.sync.toRequest
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -222,10 +222,12 @@ class ScanSessionRepository @Inject constructor(
         epc: String,
         name: String,
     ): AssetResponse? {
+        // Same key for the online try and the queued retry (see AssetScanViewModel).
+        val queued = QueuedAsset(name = name, rfidTag = epc)
         val asset = try {
-            api.createAsset(AssetCreateRequest(name = name, rfidTag = epc))
+            api.createAsset(queued.toRequest())
         } catch (e: java.io.IOException) {
-            queuedAssetDao.insert(QueuedAsset(name = name, rfidTag = epc))
+            queuedAssetDao.insert(queued)
             assetSyncScheduler.triggerNow()
             return null
         }

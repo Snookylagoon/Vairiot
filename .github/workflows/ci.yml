@@ -19,8 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Node 22 LTS — matches the prod engines floor (Prisma 6 fixed the
-      # generate panic that previously forced CI onto Node 24).
+      # Node 24 LTS — the same version as every Dockerfile and the engines floor.
       - name: Set up Node.js 24 LTS
         uses: actions/setup-node@v4
         with:
@@ -59,6 +58,11 @@ jobs:
       - name: Type-check Shared
         working-directory: vairiot-shared
         run: npx tsc --noEmit
+
+      # The database-free suites. (The API suite needs Postgres and Redis and
+      # runs in its own job below.) Until S0.5 nothing ran these in CI.
+      - name: Unit tests (worker, shared, web)
+        run: npm test --workspace=vairiot-worker --workspace=vairiot-shared --workspace=vairiot-web
 
   # ── API tests ────────────────────────────────────────────────────────────────
   test-api:
@@ -143,12 +147,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, worker, web, admin, reports]
+        service: [api, worker, web, admin, reports, minio]
         include:
           - service: reports
             context: vairiot-reports
+          # MinIO built from source (no upstream images any more). Publishing
+          # it to GHCR keeps a copy we control for new servers and restores.
+          - service: minio
+            context: infra/minio
+            file: infra/minio/Dockerfile
     env:
       BUILD_CONTEXT: ${{ matrix.context || '.' }}
+      DOCKERFILE: ${{ matrix.file || format('vairiot-{0}/Dockerfile', matrix.service) }}
 
     steps:
       - uses: actions/checkout@v7
@@ -173,12 +183,28 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: ${{ env.BUILD_CONTEXT }}
-          file: vairiot-${{ matrix.service }}/Dockerfile
+          file: ${{ env.DOCKERFILE }}
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
             ghcr.io/${{ steps.owner.outputs.value }}/vairiot-${{ matrix.service }}:latest
             ghcr.io/${{ steps.owner.outputs.value }}/vairiot-${{ matrix.service }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,scope=${{ matrix.service }},mode=max
+
+  # ── Register profiling tool (scripts/profile-register.py) ───────────────────
+  scripts:
+    name: Scripts (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+      - name: Install
+        run: pip install -r scripts/requirements.txt
+      - name: Unit tests
+        run: python -m unittest discover -s scripts/tests -v
 
   # ── Android build + lint ─────────────────────────────────────────────────────

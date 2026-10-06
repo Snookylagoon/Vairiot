@@ -16,6 +16,8 @@ struct VairiotApp: App {
             // SwiftData container for offline caching (owned by VairiotStore
             // so view models and SyncManager can reach the context directly)
             SyncManager.shared.start()
+            // Background drains must be registered before launch completes.
+            BackgroundSync.register()
             return (VairiotStore.shared.container, TokenManager.shared, APIClient.shared)
         }
     }
@@ -30,8 +32,13 @@ struct VairiotApp: App {
         }
         .modelContainer(modelContainer)
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
+            switch phase {
+            case .active:
                 Task { await SyncManager.shared.syncNow() }
+            case .background:
+                BackgroundSync.scheduleIfNeeded()
+            default:
+                break
             }
         }
     }
@@ -79,6 +86,11 @@ private struct RootView: View {
                 isAuthenticated = loggedIn
             } else {
                 isAuthenticated = tokenManager.isLoggedIn
+            }
+            // Sync pauses on a rejected session instead of retrying, so drain
+            // whatever queued up while signed out as soon as a session exists.
+            if isAuthenticated {
+                Task { await SyncManager.shared.syncNow() }
             }
         }
     }

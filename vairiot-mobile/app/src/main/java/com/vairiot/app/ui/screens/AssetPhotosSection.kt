@@ -47,6 +47,7 @@ fun AssetPhotosSection(
     viewModel: AssetPhotosViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val pendingPhotos by viewModel.pendingPhotoCount.collectAsState()
     val context = LocalContext.current
     val imageLoader = remember {
         EntryPointAccessors.fromApplication(
@@ -106,7 +107,8 @@ fun AssetPhotosSection(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold, color = VairiotCharcoal)
 
-            if (state.photos.size < 2) {
+            // Photos waiting to upload count toward the two-photo limit.
+            if (state.photos.size + pendingPhotos < 2) {
                 if (hasCamera) {
                     OutlinedButton(
                         onClick = {
@@ -147,6 +149,16 @@ fun AssetPhotosSection(
             }
             state.error?.let {
                 Text(it, color = ErrorRed, style = MaterialTheme.typography.bodySmall)
+            }
+            state.notice?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = VairiotCharcoal)
+            }
+            if (pendingPhotos > 0) {
+                Text(
+                    "$pendingPhotos photo${if (pendingPhotos == 1) "" else "s"} waiting to upload",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
             }
 
             when {

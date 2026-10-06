@@ -2,8 +2,10 @@ import { writeFileSync } from 'node:fs';
 
 import { Worker, Queue, ConnectionOptions, Job } from 'bullmq';
 
+import { assertEncryptionKey } from './crypto';
+import { JobFailureAlerter } from './job-alerts';
 import { logger } from './logger';
-import { verifyMailer } from './mailer';
+import { sendMail, verifyMailer } from './mailer';
 import { initMonitoring, captureException } from './monitoring';
 import { handleAlertDigest } from './processors/alert-digest';
 import { handleAuditComplete } from './processors/audit-complete';
@@ -14,14 +16,19 @@ import { handleWebhookDeliver } from './processors/webhook-deliver';
 import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, UserInviteJob, SchedulerTickJob, WebhookDeliverJob } from './queues';
 
 initMonitoring();
+if (process.env.NODE_ENV === 'production') assertEncryptionKey();
 
-// Report a job to Sentry only once it has exhausted its retries (dead-letter),
-// so transient failures that later succeed don't page anyone.
+const jobAlerts = new JobFailureAlerter(sendMail);
+
+// Report a job only once it has exhausted its retries (dead-letter), so
+// transient failures that later succeed don't page anyone: to Sentry (if
+// SENTRY_DSN is set) and by email (if OPS_ALERT_EMAIL is set, throttled).
 function reportIfExhausted(queue: string, job: Job | undefined, err: Error): void {
   const attemptsMade = job?.attemptsMade ?? 0;
   const maxAttempts = job?.opts?.attempts ?? 1;
   if (attemptsMade >= maxAttempts) {
     captureException(err, { queue, jobId: job?.id, attemptsMade, maxAttempts, data: job?.data });
+    void jobAlerts.notify({ queue, jobId: job?.id, attemptsMade, error: err });
   }
 }
 

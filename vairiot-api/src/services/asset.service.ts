@@ -138,6 +138,61 @@ export async function listAssets(tenantId: string, params: AssetListParams) {
   return { assets: assets.map(enrichAssetWithDepreciation), total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
 
+export interface AssetChangesParams extends Pick<AssetListParams, 'categoryId' | 'siteId' | 'status' | 'condition'> {
+  /** Only assets updated strictly after this instant. */
+  since: Date;
+  /**
+   * Upper bound, inclusive. Defaults to now. Clients send back page 1's
+   * `serverTime` on later pages so the result set can't shift while they page:
+   * an asset edited mid-sync falls outside the window (and arrives in the next
+   * delta) instead of pushing another asset off a page boundary.
+   */
+  until?: Date;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * Delta sync for mobile caches (`GET /assets?changedSince=`): assets changed in
+ * (since, until], oldest change first, plus the ids of assets soft-deleted in
+ * the same window. Clients should start their next delta a couple of minutes
+ * before the previous `serverTime`, so rows written by transactions still in
+ * flight at that moment are not missed; upserting a row twice is harmless.
+ */
+export async function listAssetChanges(tenantId: string, params: AssetChangesParams) {
+  const { since, page = 1, pageSize = 50 } = params;
+  const until = params.until ?? new Date();
+  const window = { gt: since, lte: until };
+  const where: Prisma.AssetWhereInput = {
+    ...buildAssetWhere(tenantId, params),
+    updatedAt: window,
+  };
+  const [assets, total, deleted] = await Promise.all([
+    prisma.asset.findMany({
+      where,
+      include: assetInclude,
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.asset.count({ where }),
+    prisma.asset.findMany({
+      where: { tenantId, deletedAt: window },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    }),
+  ]);
+  return {
+    assets: assets.map(enrichAssetWithDepreciation),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+    deletedIds: deleted.map((d) => d.id),
+    serverTime: until.toISOString(),
+  };
+}
+
 export async function getAssetStats(tenantId: string) {
   const notDeleted = { tenantId, deletedAt: null };
   const [byStatus, byCondition, total, allAssets, byCategory, bySite] = await Promise.all([
@@ -229,15 +284,31 @@ export async function getAsset(tenantId: string, id: string) {
   return enrichAssetWithDepreciation(asset);
 }
 
+/** The asset an earlier request with this idempotency key created, if any. */
+export async function findAssetByClientRequestId(tenantId: string, clientRequestId: string) {
+  const existing = await prisma.asset.findUnique({
+    where: { tenantId_clientRequestId: { tenantId, clientRequestId } },
+    include: assetInclude,
+  });
+  return existing ? enrichAssetWithDepreciation(existing) : null;
+}
+
 export async function createAsset(tenantId: string, actorId: string, input: AssetCreateInput) {
+  return (await createAssetIdempotent(tenantId, actorId, input)).asset;
+}
+
+/**
+ * Creates an asset, or — when `clientRequestId` was already used — returns the
+ * asset that request created, with `created: false` (the route answers 200
+ * instead of 201). Covers both a replay that arrives later and one that races
+ * the original.
+ */
+export async function createAssetIdempotent(tenantId: string, actorId: string, input: AssetCreateInput) {
   // Idempotent replay: a queued offline create that already succeeded (crash
   // between API response and queue-delete on the device) returns the original.
   if (input.clientRequestId) {
-    const existing = await prisma.asset.findUnique({
-      where: { tenantId_clientRequestId: { tenantId, clientRequestId: input.clientRequestId } },
-      include: assetInclude,
-    });
-    if (existing) return enrichAssetWithDepreciation(existing);
+    const existing = await findAssetByClientRequestId(tenantId, input.clientRequestId);
+    if (existing) return { asset: existing, created: false };
   }
 
   // nextAssetNumber is read-then-increment; two concurrent creates can pick the
@@ -248,17 +319,14 @@ export async function createAsset(tenantId: string, actorId: string, input: Asse
       // Fire the asset.created webhook (durable dispatch via the delivery queue).
       // Non-blocking and isolated: a webhook problem must never fail the create.
       void dispatchWebhookEvent(tenantId, 'asset.created', asset).catch(() => {});
-      return asset;
+      return { asset, created: true };
     } catch (e: unknown) {
       const err = e as { code?: string; meta?: { target?: string[] } };
       if (err.code !== 'P2002') throw e;
       const target = err.meta?.target ?? [];
       if (input.clientRequestId && target.includes('clientRequestId')) {
-        const existing = await prisma.asset.findUnique({
-          where: { tenantId_clientRequestId: { tenantId, clientRequestId: input.clientRequestId } },
-          include: assetInclude,
-        });
-        if (existing) return enrichAssetWithDepreciation(existing);
+        const existing = await findAssetByClientRequestId(tenantId, input.clientRequestId);
+        if (existing) return { asset: existing, created: false };
       }
       if (target.includes('assetNumber') && attempt < 3) continue;
       throw e;

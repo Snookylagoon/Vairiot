@@ -1,0 +1,144 @@
+# ---------------------------------------------------------------------------
+# Standalone install (one organisation per server, e.g. TUDA). Rendered at
+# container start by the nginx image's template step (see
+# docker-compose.standalone.yml); only the variables below are substituted:
+#   ${APP_SERVER_NAME}    web app + API, e.g. assets.tuda.gov.ge
+#   ${ADMIN_SERVER_NAME}  admin console, e.g. assets-admin.tuda.gov.ge
+#   ${TLS_CERT} ${TLS_KEY}  certificate + key paths inside the container
+# Everything else ($host, $remote_addr…) is nginx's own and left alone.
+# Mirrors prod.conf; keep the two in step.
+# ---------------------------------------------------------------------------
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+# Timeouts (audit COM-3). nginx defaults left the API with 60 s to answer,
+# exactly as long as report export may wait on the reports service, so a slow
+# report could 504 while still running. Fail fast if the API container is
+# down; give slow clients short header/body timeouts (slow-request attacks).
+# (keepalive_timeout 65s comes from the image's nginx.conf.)
+client_header_timeout 15s;
+client_body_timeout   60s;   # between reads, not the whole upload
+send_timeout          60s;
+proxy_connect_timeout 5s;
+proxy_send_timeout    120s;
+proxy_read_timeout    120s;
+
+gzip              on;
+gzip_vary         on;
+gzip_proxied      any;
+gzip_comp_level   5;
+gzip_min_length   1024;
+gzip_types        application/json application/javascript text/css text/plain
+                  application/xml image/svg+xml application/vnd.api+json;
+
+map $host $https_target {
+    default                 "${APP_SERVER_NAME}";
+    ${APP_SERVER_NAME}      "${APP_SERVER_NAME}";
+    ${ADMIN_SERVER_NAME}    "${ADMIN_SERVER_NAME}";
+}
+
+server {
+    listen 80 default_server;
+    server_name _;
+    client_max_body_size 200m;
+
+    location = /nginx-health {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+    }
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$https_target$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${APP_SERVER_NAME};
+    client_max_body_size 200m;
+
+    ssl_certificate     ${TLS_CERT};
+    ssl_certificate_key ${TLS_KEY};
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options           "SAMEORIGIN" always;
+    add_header X-Content-Type-Options    "nosniff" always;
+
+    location /api/ {
+        set $api_upstream http://api:3001;
+        proxy_pass         $api_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+
+    location /health {
+        set $api_upstream http://api:3001;
+        proxy_pass $api_upstream;
+    }
+
+    location / {
+        set $web_upstream http://web:80;
+        proxy_pass       $web_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${ADMIN_SERVER_NAME};
+    client_max_body_size 200m;
+
+    ssl_certificate     ${TLS_CERT};
+    ssl_certificate_key ${TLS_KEY};
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options           "SAMEORIGIN" always;
+    add_header X-Content-Type-Options    "nosniff" always;
+
+    location /api/ {
+        # Admin actions can run long: deleting a tenant (up to 120 s in the
+        # database plus storage clean-up) and uploading app releases.
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        set $api_upstream http://api:3001;
+        proxy_pass         $api_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        set $admin_upstream http://admin:80;
+        proxy_pass       $admin_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# Unknown host names (e.g. the bare IP): drop the connection.
+server {
+    listen 443 ssl default_server;
+    http2 on;
+    server_name _;
+    ssl_certificate     ${TLS_CERT};
+    ssl_certificate_key ${TLS_KEY};
+    return 444;
+}

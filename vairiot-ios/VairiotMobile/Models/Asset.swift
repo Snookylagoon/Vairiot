@@ -96,6 +96,10 @@ struct AssetListResponse: Codable {
     let page: Int
     let pageSize: Int
     let totalPages: Int
+    // Delta sync only (GET /assets?changedSince=). Nil from a plain list, or
+    // from a server that predates delta sync.
+    var deletedIds: [String]? = nil
+    var serverTime: String? = nil
 }
 
 // MARK: - Asset Create / Update

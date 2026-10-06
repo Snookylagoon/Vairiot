@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 import UIKit
 
@@ -5,8 +6,12 @@ struct ProfileView: View {
 
     @State private var viewModel: ProfileViewModel
     @State private var showSignOutConfirmation = false
-    @State private var failedSyncCount = 0
-    @State private var showDiscardConfirmation = false
+    // Live views of the offline queues (SwiftData updates these on change).
+    @Query(sort: \QueuedScan.createdAt) private var queuedScans: [QueuedScan]
+    @Query(sort: \QueuedAssetCreate.createdAt) private var queuedAssets: [QueuedAssetCreate]
+    @Query(sort: \QueuedPhoto.createdAt) private var queuedPhotos: [QueuedPhoto]
+    @State private var pendingDiscard: PendingUpload?
+    @State private var showDiscardAllConfirmation = false
     @State private var showUDIDEntry = false
     @State private var udidEntryText = ""
     @State private var showUDIDInvalid = false
@@ -46,7 +51,6 @@ struct ProfileView: View {
         .task {
             viewModel.refreshDeviceUDID()
             await viewModel.loadAll()
-            failedSyncCount = SyncManager.shared.failedCount
         }
         .onReceive(NotificationCenter.default.publisher(for: .vairiotDeviceUDIDSaved)) { _ in
             viewModel.refreshDeviceUDID()
@@ -60,40 +64,122 @@ struct ProfileView: View {
             userInfoSection
             licenceSection
             deviceSection
-            if failedSyncCount > 0 { failedSyncSection }
+            if pendingTotal > 0 { pendingUploadsSection }
             appInfoSection
             signOutSection
         }
         .listStyle(.insetGrouped)
     }
 
-    // MARK: - Failed offline sync items
+    // MARK: - Pending uploads
 
-    private var failedSyncSection: some View {
-        Section("Failed sync items") {
-            Text("\(failedSyncCount) offline item\(failedSyncCount == 1 ? "" : "s") could not be uploaded after several tries.")
-                .font(.subheadline)
-            Button("Retry all") {
-                Task {
-                    await SyncManager.shared.retryAllFailed()
-                    failedSyncCount = SyncManager.shared.failedCount
+    /// Rejected rows listed individually; the rest are summarised.
+    private static let maxRejectedShown = 5
+
+    private var pendingTotal: Int { queuedScans.count + queuedAssets.count + queuedPhotos.count }
+
+    private var rejected: [(item: PendingUpload, label: String, error: String?)] {
+        let dead = QueueState.dead
+        return queuedScans.filter { $0.state == dead }.map { (.scan($0), "Audit scan \($0.tagValue)", $0.lastError) }
+            + queuedAssets.filter { $0.state == dead }.map { (.asset($0), "New asset \"\($0.name)\"", $0.lastError) }
+            + queuedPhotos.filter { $0.state == dead }.map { (.photo($0), "Asset photo", $0.lastError) }
+    }
+
+    /// Work saved on this device that the server doesn't have yet. Nothing here
+    /// is deleted automatically: waiting and retrying rows sync on their own,
+    /// rejected rows stay until the user retries or discards them.
+    private var pendingUploadsSection: some View {
+        Section("Pending uploads") {
+            queueRow("Audit scans", states: queuedScans.map(\.state))
+            queueRow("New assets", states: queuedAssets.map(\.state))
+            queueRow("Photos", states: queuedPhotos.map(\.state))
+
+            ForEach(Array(rejected.prefix(Self.maxRejectedShown).enumerated()), id: \.offset) { _, entry in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(entry.label)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    if let error = entry.error {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(Color.errorRed)
+                    }
+                    HStack(spacing: 16) {
+                        Button("Retry") {
+                            Task { await SyncManager.shared.retry(entry.item) }
+                        }
+                        Button("Discard", role: .destructive) {
+                            pendingDiscard = entry.item
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.subheadline)
+                }
+                .padding(.vertical, 2)
+            }
+            if rejected.count > Self.maxRejectedShown {
+                let hidden = rejected.count - Self.maxRejectedShown
+                Text("…and \(hidden) more rejected item\(hidden == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if rejected.isEmpty {
+                Button("Sync now") {
+                    Task { await SyncManager.shared.syncNow() }
+                }
+            } else {
+                Button("Retry all rejected") {
+                    Task { await SyncManager.shared.retryAllRejected() }
+                }
+                Button("Discard all rejected", role: .destructive) {
+                    showDiscardAllConfirmation = true
                 }
             }
+        }
+        .confirmationDialog(
+            "Discard this item?",
+            isPresented: Binding(get: { pendingDiscard != nil }, set: { if !$0 { pendingDiscard = nil } }),
+            titleVisibility: .visible
+        ) {
             Button("Discard", role: .destructive) {
-                showDiscardConfirmation = true
+                if let item = pendingDiscard { SyncManager.shared.discard(item) }
+                pendingDiscard = nil
             }
-            .confirmationDialog(
-                "Discard failed items?",
-                isPresented: $showDiscardConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Discard \(failedSyncCount) item\(failedSyncCount == 1 ? "" : "s")", role: .destructive) {
-                    SyncManager.shared.discardAllFailed()
-                    failedSyncCount = SyncManager.shared.failedCount
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("These offline items will be permanently deleted and will never reach the server.")
+            Button("Cancel", role: .cancel) { pendingDiscard = nil }
+        } message: {
+            Text("It will be permanently deleted from this device and will never reach the server.")
+        }
+        .confirmationDialog(
+            "Discard all rejected items?",
+            isPresented: $showDiscardAllConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Discard \(rejected.count) item\(rejected.count == 1 ? "" : "s")", role: .destructive) {
+                SyncManager.shared.discardAllRejected()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("They will be permanently deleted from this device and will never reach the server.")
+        }
+    }
+
+    @ViewBuilder
+    private func queueRow(_ label: String, states: [String]) -> some View {
+        let waiting = states.filter { $0 == QueueState.pending }.count
+        let retrying = states.filter { $0 == QueueState.failed }.count
+        let rejectedCount = states.filter { $0 == QueueState.dead }.count
+        if !states.isEmpty {
+            HStack {
+                Text(label)
+                Spacer()
+                Text([
+                    waiting > 0 ? "\(waiting) waiting" : nil,
+                    retrying > 0 ? "\(retrying) retrying" : nil,
+                    rejectedCount > 0 ? "\(rejectedCount) rejected" : nil,
+                ].compactMap { $0 }.joined(separator: " · "))
+                .font(.subheadline)
+                .foregroundStyle(rejectedCount > 0 ? Color.errorRed : .secondary)
             }
         }
     }

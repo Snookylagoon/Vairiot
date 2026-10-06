@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 
 import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { registrationOpen } from '@/lib/registration';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { RegisterPage } from '@/pages/auth/RegisterPage';
 import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
@@ -97,7 +98,7 @@ export default function App() {
         <Suspense fallback={<PageSpinner />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/register" element={registrationOpen() ? <RegisterPage /> : <Navigate to="/login" replace />} />
           <Route path="/accept-invite" element={<AcceptInvitePage />} />
           <Route path="/onboarding" element={<RequireAuthOnly><OnboardingPage /></RequireAuthOnly>} />
           <Route path="/" element={<RequireAuth><AppShell /></RequireAuth>}>

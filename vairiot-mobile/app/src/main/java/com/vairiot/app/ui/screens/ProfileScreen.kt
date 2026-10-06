@@ -28,6 +28,7 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val uploads by viewModel.pendingUploads.collectAsState()
     val context = LocalContext.current
     val sideRail = LocalUseSideRail.current
 
@@ -90,11 +91,14 @@ fun ProfileScreen(
                 Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
             }
 
-            if (state.failedSyncCount > 0) {
-                FailedSyncCard(
-                    count     = state.failedSyncCount,
-                    onRetry   = viewModel::retryFailedSync,
-                    onDiscard = viewModel::discardFailedSync,
+            if (uploads.total > 0) {
+                PendingUploadsCard(
+                    uploads      = uploads,
+                    onSyncNow    = viewModel::syncNow,
+                    onRetry      = viewModel::retryUpload,
+                    onRetryAll   = viewModel::retryAllRejected,
+                    onDiscard    = viewModel::discardUpload,
+                    onDiscardAll = viewModel::discardAllRejected,
                 )
             }
 
@@ -129,52 +133,107 @@ fun ProfileScreen(
     }
 }
 
+/** Rejected rows listed individually; the rest are summarised to keep the card short. */
+private const val MAX_DEAD_ROWS_SHOWN = 3
+
 /**
- * Offline scans/assets that exhausted their sync attempts. They are never
- * silently deleted — the user decides to retry (after fixing the cause) or
- * discard them.
+ * Work saved on this device that the server doesn't have yet. Nothing here is
+ * ever deleted automatically: waiting and retrying rows sync on their own, and
+ * rejected rows stay until the user retries or discards them.
  */
 @Composable
-private fun FailedSyncCard(
-    count: Int,
-    onRetry: () -> Unit,
-    onDiscard: () -> Unit,
+private fun PendingUploadsCard(
+    uploads:      PendingUploads,
+    onSyncNow:    () -> Unit,
+    onRetry:      (DeadUpload) -> Unit,
+    onRetryAll:   () -> Unit,
+    onDiscard:    (DeadUpload) -> Unit,
+    onDiscardAll: () -> Unit,
 ) {
-    var confirmDiscard by remember { mutableStateOf(false) }
+    // null = no dialog; empty list = "discard all"; one item = that row.
+    var confirmDiscard by remember { mutableStateOf<List<DeadUpload>?>(null) }
+    val hasRejected = uploads.dead.isNotEmpty()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        colors = if (hasRejected) {
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+        } else {
+            CardDefaults.cardColors()
+        },
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Text("Failed sync items", fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onErrorContainer)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "$count item${if (count == 1) "" else "s"} could not be uploaded after several tries.",
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-            Spacer(Modifier.height(8.dp))
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Pending uploads", fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            QueueCountRow("Audit scans", uploads.scans)
+            QueueCountRow("New assets", uploads.assets)
+            QueueCountRow("Photos", uploads.photos)
+
+            uploads.dead.take(MAX_DEAD_ROWS_SHOWN).forEach { item ->
+                HorizontalDivider()
+                Text(item.label, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                item.error?.let {
+                    Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { onRetry(item) }) { Text("Retry") }
+                    TextButton(onClick = { confirmDiscard = listOf(item) }) { Text("Discard") }
+                }
+            }
+            val hidden = uploads.dead.size - MAX_DEAD_ROWS_SHOWN
+            if (hidden > 0) {
+                Text("…and $hidden more rejected item${if (hidden == 1) "" else "s"}", fontSize = 12.sp)
+            }
+
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onRetry) { Text("Retry all") }
-                OutlinedButton(onClick = { confirmDiscard = true }) { Text("Discard") }
+                if (hasRejected) {
+                    Button(onClick = onRetryAll) { Text("Retry all") }
+                    OutlinedButton(onClick = { confirmDiscard = emptyList() }) { Text("Discard all") }
+                } else {
+                    OutlinedButton(onClick = onSyncNow) { Text("Sync now") }
+                }
             }
         }
     }
 
-    if (confirmDiscard) {
+    confirmDiscard?.let { target ->
+        val count = if (target.isEmpty()) uploads.dead.size else 1
         AlertDialog(
-            onDismissRequest = { confirmDiscard = false },
-            title = { Text("Discard failed items?") },
-            text = { Text("These $count offline item${if (count == 1) "" else "s"} will be permanently deleted and will never reach the server.") },
+            onDismissRequest = { confirmDiscard = null },
+            title = { Text(if (count == 1) "Discard this item?" else "Discard $count items?") },
+            text = {
+                Text("${if (count == 1) "It" else "They"} will be permanently deleted from this device " +
+                    "and will never reach the server.")
+            },
             confirmButton = {
-                TextButton(onClick = { confirmDiscard = false; onDiscard() }) { Text("Discard") }
+                TextButton(onClick = {
+                    confirmDiscard = null
+                    if (target.isEmpty()) onDiscardAll() else onDiscard(target.first())
+                }) { Text("Discard") }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDiscard = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmDiscard = null }) { Text("Cancel") }
             },
+        )
+    }
+}
+
+@Composable
+private fun QueueCountRow(label: String, counts: QueueCounts) {
+    if (counts.total == 0) return
+    val parts = buildList {
+        if (counts.pending > 0) add("${counts.pending} waiting")
+        if (counts.failed > 0) add("${counts.failed} retrying")
+        if (counts.dead > 0) add("${counts.dead} rejected")
+    }
+    Row(Modifier.fillMaxWidth()) {
+        Text(label, modifier = Modifier.weight(1f), fontSize = 14.sp)
+        Text(
+            parts.joinToString(" · "),
+            fontSize = 14.sp,
+            color = if (counts.dead > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
         )
     }
 }

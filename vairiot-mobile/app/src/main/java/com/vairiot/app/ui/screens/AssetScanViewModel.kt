@@ -5,12 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.AssetRepository
 import com.vairiot.app.data.EpcLookup
 import com.vairiot.app.data.TagLookup
-import com.vairiot.app.data.api.AssetCreateRequest
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.data.local.QueuedAsset
 import com.vairiot.app.data.local.QueuedAssetDao
 import com.vairiot.app.sync.AssetSyncScheduler
+import com.vairiot.app.sync.toRequest
 import com.vairiot.app.scanner.ScanResult
 import com.vairiot.app.scanner.ScanType
 import com.vairiot.app.scanner.ScannerHealth
@@ -192,15 +192,17 @@ class AssetScanViewModel @Inject constructor(
             _state.value = ScanUiState.Registering
             val rfidTag = if (isRfid) value else secondaryValue
             val barcode = if (isRfid) secondaryValue else value
+            // One key for the online try AND any queued retry: if the server
+            // created the asset but the response timed out, the replay returns
+            // that asset instead of creating a duplicate.
+            val queued = QueuedAsset(name = name, rfidTag = rfidTag, barcode = barcode)
             try {
-                val asset = api.createAsset(
-                    AssetCreateRequest(name = name, rfidTag = rfidTag, barcode = barcode),
-                )
+                val asset = api.createAsset(queued.toRequest())
                 _state.value = ScanUiState.Registered(asset)
             } catch (e: java.io.IOException) {
-                // Offline: queue the create and let AssetSyncWorker send it
-                // once connectivity returns.
-                queuedAssetDao.insert(QueuedAsset(name = name, rfidTag = rfidTag, barcode = barcode))
+                // Offline or timed out: queue the create and let AssetSyncWorker
+                // send it once connectivity returns.
+                queuedAssetDao.insert(queued)
                 assetSyncScheduler.triggerNow()
                 _state.value = ScanUiState.RegisteredOffline(name)
             } catch (e: Exception) {
