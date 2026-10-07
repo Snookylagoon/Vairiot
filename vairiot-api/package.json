@@ -48,7 +48,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
+    "@types/bcryptjs": "^3.0.0",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.6",
