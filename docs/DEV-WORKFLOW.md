@@ -52,9 +52,13 @@ a clean merge, never a copy-paste between projects.
    ```
    ./scripts/go-live.sh
    ```
-7. It shows a warning and asks you to type `live` to confirm. It then merges
-   `dev` into `main`, pushes to GitHub, rebuilds the production server, and
-   checks the live site is up.
+7. It shows a warning and asks you to type `live` to confirm. It then opens a
+   pull request `dev` → `main` on GitHub, waits for the CI checks (5–10
+   minutes), merges it, rebuilds the production server, and checks the live
+   site is up. `main` is protected: if a check fails, the script stops before
+   anything is merged or deployed, and the live site is unchanged. Fix the
+   problem on `dev` and run `go-live.sh` again — it reuses the same pull
+   request. Needs the GitHub CLI logged in (`gh auth status`).
 8. Open **https://vai.vairiot.com** and confirm your change is there.
 
 ## If something goes wrong
@@ -69,7 +73,7 @@ a clean merge, never a copy-paste between projects.
   cd /Volumes/DRSssd/Projects/GitHub/Vairiot
   git checkout main && git pull
   git revert --no-edit -m 1 HEAD
-  git push origin main
+  git push origin main     # allowed for you as repo admin (ruleset bypass)
   ssh vairiot 'bash /opt/Vairiot/infra/deploy.sh'
   ```
   Then fix properly on the dev branch and go live again.
