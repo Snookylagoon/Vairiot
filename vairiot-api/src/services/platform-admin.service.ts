@@ -11,6 +11,7 @@ import { prisma } from '../lib/prisma';
 import { buildOrderBy } from '../lib/sort';
 
 
+import { recordAuditEvent } from './audit-event.service';
 import { activateLicence } from './licence.service';
 import { validatePasswordPolicy } from './password-policy.service';
 import { sendMail } from './smtp.service';
@@ -252,16 +253,14 @@ export async function adminResetPassword(userId: string, actorId: string) {
     },
   });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: user.tenantId,
-      actorId,
-      entityType: 'user',
-      entityId: userId,
-      action: 'admin_password_reset',
-      metadata: { resetBy: actorId },
-    },
-  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+  recordAuditEvent({
+    tenantId: user.tenantId,
+    actor: actorId,
+    entityType: 'user',
+    entityId: userId,
+    action: 'admin_password_reset',
+    metadata: { resetBy: actorId },
+  });
 
   return { temporaryPassword: tempPassword };
 }
@@ -278,15 +277,13 @@ export async function unlockUser(userId: string, actorId: string) {
     },
   });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: user.tenantId,
-      actorId,
-      entityType: 'user',
-      entityId: userId,
-      action: 'admin_user_unlocked',
-    },
-  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+  recordAuditEvent({
+    tenantId: user.tenantId,
+    actor: actorId,
+    entityType: 'user',
+    entityId: userId,
+    action: 'admin_user_unlocked',
+  });
 }
 
 /**
@@ -303,16 +300,14 @@ export async function requirePasswordChange(userId: string, actorId: string) {
     data: { mustChangePassword: true },
   });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: user.tenantId,
-      actorId,
-      entityType: 'user',
-      entityId: userId,
-      action: 'admin_force_password_change',
-      metadata: { email: user.email },
-    },
-  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+  recordAuditEvent({
+    tenantId: user.tenantId,
+    actor: actorId,
+    entityType: 'user',
+    entityId: userId,
+    action: 'admin_force_password_change',
+    metadata: { email: user.email },
+  });
 
   return { mustChangePassword: true };
 }
@@ -329,16 +324,14 @@ export async function clearForcePasswordChange(userId: string, actorId: string) 
     data: { mustChangePassword: false },
   });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: user.tenantId,
-      actorId,
-      entityType: 'user',
-      entityId: userId,
-      action: 'admin_clear_force_password_change',
-      metadata: { email: user.email },
-    },
-  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+  recordAuditEvent({
+    tenantId: user.tenantId,
+    actor: actorId,
+    entityType: 'user',
+    entityId: userId,
+    action: 'admin_clear_force_password_change',
+    metadata: { email: user.email },
+  });
 
   return { mustChangePassword: false };
 }
@@ -358,16 +351,14 @@ export async function disableUserTwoFactor(userId: string, actorId: string) {
     data: { twoFactorEnabled: false },
   });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: user.tenantId,
-      actorId,
-      entityType: 'user',
-      entityId: userId,
-      action: 'admin_two_factor_disabled',
-      metadata: { email: user.email },
-    },
-  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+  recordAuditEvent({
+    tenantId: user.tenantId,
+    actor: actorId,
+    entityType: 'user',
+    entityId: userId,
+    action: 'admin_two_factor_disabled',
+    metadata: { email: user.email },
+  });
 
   return { twoFactorEnabled: false };
 }
@@ -381,15 +372,13 @@ export async function setUserActiveStatus(userId: string, active: boolean, actor
     data: { active },
   });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: user.tenantId,
-      actorId,
-      entityType: 'user',
-      entityId: userId,
-      action: active ? 'admin_user_enabled' : 'admin_user_disabled',
-    },
-  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+  recordAuditEvent({
+    tenantId: user.tenantId,
+    actor: actorId,
+    entityType: 'user',
+    entityId: userId,
+    action: active ? 'admin_user_enabled' : 'admin_user_disabled',
+  });
 }
 
 export async function softDeleteUser(userId: string, actorId: string) {
@@ -415,16 +404,14 @@ export async function softDeleteUser(userId: string, actorId: string) {
     }),
   ]);
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: user.tenantId,
-      actorId,
-      entityType: 'user',
-      entityId: userId,
-      action: 'admin_user_deleted',
-      metadata: { originalEmail: user.email, originalName: user.name },
-    },
-  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+  recordAuditEvent({
+    tenantId: user.tenantId,
+    actor: actorId,
+    entityType: 'user',
+    entityId: userId,
+    action: 'admin_user_deleted',
+    metadata: { originalEmail: user.email, originalName: user.name },
+  });
 }
 
 // ─── Tenant deletion ────────────────────────────────────────────────────────
@@ -555,19 +542,17 @@ export async function deleteTenant(tenantId: string, actorId: string) {
   for (const id of familyIds) await purgeTenantStorage(id);
 
   if (actor?.tenantId) {
-    prisma.auditEvent.create({
-      data: {
-        tenantId: actor.tenantId,
-        actorId,
-        entityType: 'tenant',
-        entityId: tenantId,
-        action: 'admin_tenant_deleted',
-        metadata: {
-          name: tenant.name,
-          subTenantsDeleted: tenant.childTenants.map(c => c.name),
-        },
+    recordAuditEvent({
+      tenantId: actor.tenantId,
+      actor: actorId,
+      entityType: 'tenant',
+      entityId: tenantId,
+      action: 'admin_tenant_deleted',
+      metadata: {
+        name: tenant.name,
+        subTenantsDeleted: tenant.childTenants.map(c => c.name),
       },
-    }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+    });
   }
 
   logger.info('tenant_deleted', { tenantId, name: tenant.name, subTenants: tenant.childTenants.length, actorId });
@@ -717,16 +702,14 @@ export async function adminCreateTenant(
     },
   });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: tenant.id,
-      actorId,
-      entityType: 'tenant',
-      entityId: tenant.id,
-      action: 'admin_tenant_created',
-      metadata: { organisationName: tenantName, adminEmail: email, adminMode: input.adminMode },
-    },
-  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+  recordAuditEvent({
+    tenantId: tenant.id,
+    actor: actorId,
+    entityType: 'tenant',
+    entityId: tenant.id,
+    action: 'admin_tenant_created',
+    metadata: { organisationName: tenantName, adminEmail: email, adminMode: input.adminMode },
+  });
 
   const result: AdminCreateTenantResult = {
     tenantId: tenant.id,

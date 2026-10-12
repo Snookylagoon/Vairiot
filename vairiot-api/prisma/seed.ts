@@ -1,8 +1,7 @@
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { ROLE_PERMISSION_MATRIX, ALL_ROLE_NAMES , LICENCE_TIER_CONFIG } from 'vairiot-shared';
 
-const prisma = new PrismaClient();
+import { prisma } from '../src/lib/prisma';
 
 const TENANT_ID   = 'demo';
 const TENANT_NAME = 'Vairiot Demo Co.';

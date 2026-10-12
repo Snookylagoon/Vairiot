@@ -12,6 +12,8 @@ import { logger } from '../lib/logger';
 import { prisma } from '../lib/prisma';
 import { buildOrderBy } from '../lib/sort';
 
+import { recordAuditEvent } from './audit-event.service';
+
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -862,15 +864,13 @@ async function auditLicenceEvent(
   before: unknown,
   after: unknown,
 ): Promise<void> {
-  prisma.auditEvent.create({
-    data: {
-      tenantId,
-      actorId,
-      entityType: 'licence',
-      entityId,
-      action,
-      before: before as never,
-      after: after as never,
-    },
-  }).catch((e) => logger.error('Audit event write failed', { error: e.message }));
+  recordAuditEvent({
+    tenantId,
+    actor: actorId,
+    entityType: 'licence',
+    entityId,
+    action,
+    before: before as never,
+    after: after as never,
+  });
 }

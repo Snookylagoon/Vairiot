@@ -1,7 +1,7 @@
 import { AppError, ValidationError } from '../lib/errors';
-import { logger } from '../lib/logger';
 import { prisma } from '../lib/prisma';
 
+import { recordAuditEvent } from './audit-event.service';
 import { activateLicence } from './licence.service';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -282,14 +282,12 @@ async function auditOnboarding(
   action: string,
   metadata?: unknown,
 ): Promise<void> {
-  prisma.auditEvent.create({
-    data: {
-      tenantId,
-      actorId,
-      entityType: 'onboarding',
-      entityId: tenantId,
-      action,
-      metadata: metadata as never,
-    },
-  }).catch((e) => logger.error('Audit event write failed', { error: e.message }));
+  recordAuditEvent({
+    tenantId,
+    actor: actorId,
+    entityType: 'onboarding',
+    entityId: tenantId,
+    action,
+    metadata: metadata as never,
+  });
 }
