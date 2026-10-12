@@ -11,6 +11,18 @@ import { prisma } from '../lib/prisma';
 import { recordAuditEvent } from './audit-event.service';
 
 const BACKUP_CODE_COUNT = 8;
+
+/**
+ * A wrong TOTP or backup code at login. Same 400 response as the
+ * ValidationError it replaces; the subclass lets the login flow tell a wrong
+ * code (which counts towards the lockout) from 2FA not being set up.
+ */
+export class InvalidTwoFactorCodeError extends ValidationError {
+  constructor() {
+    super('Invalid two-factor code');
+    this.name = 'InvalidTwoFactorCodeError';
+  }
+}
 const ISSUER = 'Vairiot';
 
 // The TOTP secret is stored encrypted (prefix `v1:`). Rows written before this
@@ -128,7 +140,7 @@ export async function validateTwoFactorToken(userId: string, token: string): Pro
     return true;
   }
 
-  throw new ValidationError('Invalid two-factor code');
+  throw new InvalidTwoFactorCodeError();
 }
 
 // ─── Disable 2FA ─────────────────────────────────────────────────────────────
