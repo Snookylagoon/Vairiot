@@ -1,3 +1,4 @@
+import { GeoError, validateGeoPosition } from 'vairiot-shared';
 import { z } from 'zod';
 
 export const loginSchema = z.object({
@@ -53,6 +54,26 @@ export const assetSchema = z.object({
   usefulLifeMonths: z.string().optional(),
   depreciationStartDate: z.string().optional(),
   notes:          z.string().optional(),
+  // GIS position — strings while in the form; see geoPayload()
+  latitude:       z.string().optional(),
+  longitude:      z.string().optional(),
+  geoAccuracyMeters: z.string().optional(),
+  geoSource:      z.string().optional(),
+  geoCapturedAt:  z.string().optional(),
+}).superRefine((d, ctx) => {
+  const lat = d.latitude?.trim() ?? '';
+  const lng = d.longitude?.trim() ?? '';
+  if (!lat && !lng) return;
+  if (!lat || !lng) {
+    ctx.addIssue({ code: 'custom', path: [lat ? 'longitude' : 'latitude'], message: 'Enter both latitude and longitude' });
+    return;
+  }
+  try {
+    validateGeoPosition(lat, lng);
+  } catch (e) {
+    if (!(e instanceof GeoError)) throw e;
+    ctx.addIssue({ code: 'custom', path: [e.code === 'GEO_LONGITUDE_RANGE' ? 'longitude' : 'latitude'], message: e.message });
+  }
 });
 export type AssetFormData = z.infer<typeof assetSchema>;
 

@@ -25,6 +25,8 @@ export interface ImportRow {
   usefulLifeMonths?: string;
   depreciationMethod?: string;
   depreciationStartDate?: string;
+  latitude?: string;
+  longitude?: string;
   [key: string]: string | undefined;
 }
 
@@ -97,6 +99,11 @@ export async function bulkImportAssets(
       if (row.purchaseDate) input.purchaseDate = row.purchaseDate;
       if (row.warrantyExpiry) input.warrantyExpiry = row.warrantyExpiry;
       if (row.depreciationStartDate) input.depreciationStartDate = row.depreciationStartDate;
+      if (row.latitude?.trim() || row.longitude?.trim()) {
+        input.latitude = row.latitude?.trim();
+        input.longitude = row.longitude?.trim();
+        input.geoSource = 'import';
+      }
 
       await createAsset(tenantId, actorId, input);
       result.created++;

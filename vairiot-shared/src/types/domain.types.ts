@@ -39,6 +39,12 @@ export interface Asset {
   category?:    { id: string; name: string };
   site?:        { id: string; name: string };
   location?:    { id: string; name: string };
+  // GIS position (WGS 84 decimal degrees) — complements site / location
+  latitude?:    number | null;
+  longitude?:   number | null;
+  geoAccuracyMeters?: number | null;
+  geoSource?:   'manual' | 'device' | 'import' | null;
+  geoCapturedAt?: string | null;
   purchaseCost?: string;
   purchaseDate?: string;
   supplier?:     string;
