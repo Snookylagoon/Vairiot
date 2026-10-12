@@ -30,14 +30,17 @@ export async function recordLoginAttempt(
   userId?: string,
   reason?: string,
 ): Promise<void> {
-  // Fire-and-forget: write the attempt record
-  prisma.loginAttempt.create({
+  // Awaited, but a failed write is only logged: it must never fail the login.
+  // These used to be fire-and-forget, which left them in flight after the
+  // response. Every caller awaits this function anyway, and test teardown that
+  // deletes the user would otherwise race the insert.
+  await prisma.loginAttempt.create({
     data: { userId, email, ipAddress, success, reason },
   }).catch((e) => logger.error('Login attempt write failed', { error: e.message }));
 
   if (success && userId) {
     // Reset counter on successful login
-    prisma.user.update({
+    await prisma.user.update({
       where: { id: userId },
       data: { failedLoginCount: 0, lockedUntil: null },
     }).catch((e) => logger.error('Failed to reset login counter', { error: e.message }));
