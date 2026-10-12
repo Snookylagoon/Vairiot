@@ -103,7 +103,7 @@ export async function login(
   const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
   const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
   await recordLoginAttempt(tenantId, email, ipAddress, true, user.id);
-  prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
   recordAuditEvent({ tenantId, actor: user.id, entityType: 'user', entityId: user.id, action: 'login', metadata: { email } });
   if (device) await touchDeviceOnLogin(tenantId, user.id, device);
   return { accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' };
@@ -131,7 +131,7 @@ export async function loginWithTwoFactor(
   const permissions = await effectivePermissionsForUser(user.id, user);
   const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
   const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
-  prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
   recordAuditEvent({ tenantId: user.tenantId, actor: user.id, entityType: 'user', entityId: user.id, action: 'login_2fa', metadata: { email: user.email } });
   if (device) await touchDeviceOnLogin(user.tenantId, user.id, device);
   return { accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' };
