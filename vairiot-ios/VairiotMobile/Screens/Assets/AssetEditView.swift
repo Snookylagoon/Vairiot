@@ -3,6 +3,7 @@ import SwiftUI
 struct AssetEditView: View {
     @State private var viewModel: AssetEditViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     var onSaved: (() -> Void)?
 
     @State private var showAddSite = false
@@ -39,6 +40,7 @@ struct AssetEditView: View {
                 identifiersSection
                 classificationSection
                 locationSection
+                positionSection
                 notesSection
             }
 
@@ -237,6 +239,68 @@ struct AssetEditView: View {
                     .foregroundStyle(Color.vairiotViolet)
             }
             .disabled(viewModel.selectedSiteId == nil)
+        }
+    }
+
+    // MARK: - GPS Position
+
+    private var positionSection: some View {
+        Section {
+            if let position = viewModel.position {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(position.coordinateText)
+                        .font(.system(.subheadline, design: .monospaced))
+                        .textSelection(.enabled)
+                    if let detail = position.detailText {
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    AssetMapPreview(position: position, title: viewModel.name.isEmpty ? "Asset" : viewModel.name, height: 150)
+                }
+                .padding(.vertical, 4)
+            }
+
+            Button {
+                Task { await viewModel.capturePosition() }
+            } label: {
+                HStack {
+                    Label(viewModel.position == nil ? "Capture GPS Position" : "Recapture GPS Position",
+                          systemImage: "location.fill")
+                    Spacer()
+                    if viewModel.isCapturingPosition {
+                        ProgressView()
+                    }
+                }
+                .foregroundStyle(Color.vairiotViolet)
+            }
+            .disabled(viewModel.isCapturingPosition)
+
+            if viewModel.position != nil {
+                Button(role: .destructive) {
+                    viewModel.removePosition()
+                } label: {
+                    Label("Remove GPS Position", systemImage: "location.slash")
+                }
+                .disabled(viewModel.isCapturingPosition)
+            }
+
+            if let error = viewModel.positionError {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(Color.errorRed)
+                    if viewModel.positionAccessDenied,
+                       let settings = URL(string: UIApplication.openSettingsURLString) {
+                        Button("Open Settings") { openURL(settings) }
+                            .font(.caption)
+                    }
+                }
+            }
+        } header: {
+            Text("GPS Position")
+        } footer: {
+            Text("Stand at the asset and capture its map position. It's stored alongside the site and location.")
         }
     }
 

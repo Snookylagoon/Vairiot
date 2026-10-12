@@ -9,6 +9,9 @@ import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.data.local.QueuedAsset
 import com.vairiot.app.data.local.QueuedAssetDao
+import com.vairiot.app.location.GpsCaptureState
+import com.vairiot.app.location.PositionCaptureException
+import com.vairiot.app.location.PositionProvider
 import com.vairiot.app.sync.AssetSyncScheduler
 import com.vairiot.app.sync.toRequest
 import com.vairiot.app.scanner.ScanResult
@@ -17,6 +20,7 @@ import com.vairiot.app.scanner.ScannerHealth
 import com.vairiot.app.scanner.ScannerHealthMonitor
 import com.vairiot.app.scanner.ScannerService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +52,7 @@ class AssetScanViewModel @Inject constructor(
     private val healthMonitor: ScannerHealthMonitor,
     private val queuedAssetDao: QueuedAssetDao,
     private val assetSyncScheduler: AssetSyncScheduler,
+    private val positions: PositionProvider,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
@@ -187,7 +192,36 @@ class AssetScanViewModel @Inject constructor(
         }
     }
 
+    /** GPS position for the asset being registered from a "Not Registered" scan. */
+    private val _registrationGps = MutableStateFlow(GpsCaptureState())
+    val registrationGps: StateFlow<GpsCaptureState> = _registrationGps
+
+    fun captureRegistrationPosition() {
+        if (_registrationGps.value.isCapturing) return
+        _registrationGps.value = _registrationGps.value.capturing()
+        viewModelScope.launch {
+            _registrationGps.value = try {
+                _registrationGps.value.captured(positions.currentFix())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _registrationGps.value.failed(e)
+            }
+        }
+    }
+
+    fun removeRegistrationPosition() {
+        _registrationGps.value = _registrationGps.value.removed()
+    }
+
+    fun registrationPositionDenied() {
+        _registrationGps.value = _registrationGps.value
+            .failed(PositionCaptureException(PositionCaptureException.Reason.DENIED))
+    }
+
     fun registerAsset(name: String, value: String, isRfid: Boolean, secondaryValue: String? = null) {
+        val fix = _registrationGps.value.fix
+        _registrationGps.value = GpsCaptureState()
         viewModelScope.launch {
             _state.value = ScanUiState.Registering
             val rfidTag = if (isRfid) value else secondaryValue
@@ -195,7 +229,11 @@ class AssetScanViewModel @Inject constructor(
             // One key for the online try AND any queued retry: if the server
             // created the asset but the response timed out, the replay returns
             // that asset instead of creating a duplicate.
-            val queued = QueuedAsset(name = name, rfidTag = rfidTag, barcode = barcode)
+            val queued = QueuedAsset(
+                name = name, rfidTag = rfidTag, barcode = barcode,
+                latitude = fix?.latitude, longitude = fix?.longitude,
+                geoAccuracyMeters = fix?.accuracyMeters, geoCapturedAtMs = fix?.capturedAtMs,
+            )
             try {
                 val asset = api.createAsset(queued.toRequest())
                 _state.value = ScanUiState.Registered(asset)
@@ -215,6 +253,7 @@ class AssetScanViewModel @Inject constructor(
 
     fun reset() {
         scanTimeoutJob?.cancel()
+        _registrationGps.value = GpsCaptureState()
         _state.value = ScanUiState.Idle
     }
 

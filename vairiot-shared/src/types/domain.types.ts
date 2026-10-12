@@ -39,6 +39,12 @@ export interface Asset {
   category?:    { id: string; name: string };
   site?:        { id: string; name: string };
   location?:    { id: string; name: string };
+  // GIS position (WGS 84 decimal degrees) — complements site / location
+  latitude?:    number | null;
+  longitude?:   number | null;
+  geoAccuracyMeters?: number | null;
+  geoSource?:   'manual' | 'device' | 'import' | null;
+  geoCapturedAt?: string | null;
   purchaseCost?: string;
   purchaseDate?: string;
   supplier?:     string;
@@ -62,6 +68,30 @@ export interface Asset {
   deletedAt?:   string | null;
   createdAt:    string;
   updatedAt:    string;
+}
+
+/** One marker on the all-assets map (GET /assets/map). */
+export interface AssetMapPoint {
+  id:          string;
+  assetNumber: string;
+  name:        string;
+  status:      string;
+  condition:   string;
+  latitude:    number;
+  longitude:   number;
+  geoAccuracyMeters: number | null;
+  category:    { id: string; name: string } | null;
+  site:        { id: string; name: string } | null;
+  location:    { id: string; name: string } | null;
+}
+
+export interface AssetMapResponse {
+  assets:    AssetMapPoint[];
+  /** Positioned assets matching the filters (may exceed `assets.length`). */
+  total:     number;
+  truncated: boolean;
+  /** Matching assets with no position yet. */
+  unplaced:  number;
 }
 
 export interface PaginatedResponse<T> {

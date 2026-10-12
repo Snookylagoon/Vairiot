@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown, Building2, Barcode, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown, Building2, Barcode, Map, type LucideIcon } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 
@@ -21,6 +21,7 @@ const nav: readonly NavEntry[] = [
     heading: 'Asset Management',
     items: [
       { to: '/assets',     label: 'Assets',     icon: Package },
+      { to: '/assets/map', label: 'Asset Map',  icon: Map },
       { to: '/categories', label: 'Categories', icon: Tag },
       { to: '/sites',      label: 'Sites',      icon: MapPin },
       { to: '/labels',     label: 'Labels',     icon: QrCode },
@@ -123,11 +124,14 @@ export function AppShell() {
 
   const renderLink = (item: NavItem) => {
     const Icon = item.icon;
+    // A more specific link (e.g. /assets/map under /assets) takes the highlight.
+    const shadowed = nav.flatMap(e => isGroup(e) ? e.items : [e]).some(other =>
+      other.to.startsWith(`${item.to}/`) && location.pathname.startsWith(other.to));
     return (
       <NavLink key={item.to} to={item.to} onClick={() => setOpen(false)}
         className={({ isActive }) => clsx(
           'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-          isActive
+          isActive && !shadowed
             ? 'bg-v-violet text-white'
             : 'text-gray-400 hover:bg-white/10 hover:text-white',
         )}>

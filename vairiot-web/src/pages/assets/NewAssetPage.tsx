@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { AssetForm, AssetFormData } from '@/components/forms/AssetForm';
 import { useCreateAsset } from '@/hooks/useAssets';
+import { geoPayload } from '@/lib/geo';
 
 export function NewAssetPage() {
   const navigate    = useNavigate();
@@ -20,6 +21,7 @@ export function NewAssetPage() {
       otherCapitalizedCosts: toNum(data.otherCapitalizedCosts),
       residualValue: toNum(data.residualValue),
       usefulLifeMonths: data.usefulLifeMonths ? Number(data.usefulLifeMonths) : undefined,
+      ...geoPayload(data),
     });
     navigate('/assets');
   };

@@ -70,6 +70,12 @@ fun QueuedAsset.toRequest() = AssetCreateRequest(
     siteId = siteId,
     locationId = locationId,
     clientRequestId = clientRequestId,
+    latitude = latitude?.takeIf { longitude != null },
+    longitude = longitude?.takeIf { latitude != null },
+    geoAccuracyMeters = geoAccuracyMeters?.takeIf { latitude != null && longitude != null },
+    geoSource = "device".takeIf { latitude != null && longitude != null },
+    geoCapturedAt = geoCapturedAtMs?.takeIf { latitude != null && longitude != null }
+        ?.let { Instant.ofEpochMilli(it).toString() },
 )
 
 class ScanSyncQueue(

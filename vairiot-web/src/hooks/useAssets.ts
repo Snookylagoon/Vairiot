@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { api } from '@/lib/api';
-import type { AssetListResponse, Asset } from '@/types';
+import type { AssetListResponse, AssetMapResponse, Asset } from '@/types';
 
 export interface AssetListParams {
   search?: string; page?: number; pageSize?: number;
@@ -14,6 +14,17 @@ export function useAssets(params: AssetListParams = {}) {
   return useQuery<AssetListResponse>({
     queryKey: ['assets', params],
     queryFn:  () => api.get('/api/v1/assets', { params }).then(r => r.data),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export type AssetMapParams = Pick<AssetListParams, 'search' | 'categoryId' | 'siteId' | 'status' | 'condition'>;
+
+/** Positioned assets for the all-assets map, with the list's filters. */
+export function useAssetPositions(params: AssetMapParams = {}) {
+  return useQuery<AssetMapResponse>({
+    queryKey: ['assets', 'map', params],
+    queryFn:  () => api.get('/api/v1/assets/map', { params }).then(r => r.data),
     placeholderData: (prev) => prev,
   });
 }

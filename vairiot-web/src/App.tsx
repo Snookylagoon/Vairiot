@@ -15,6 +15,7 @@ const DashboardPage       = lazy(() => import('@/pages/dashboard/DashboardPage')
 const AssetsPage           = lazy(() => import('@/pages/assets/AssetsPage').then(m => ({ default: m.AssetsPage })));
 const AssetDetailPage      = lazy(() => import('@/pages/assets/AssetDetailPage').then(m => ({ default: m.AssetDetailPage })));
 const NewAssetPage         = lazy(() => import('@/pages/assets/NewAssetPage').then(m => ({ default: m.NewAssetPage })));
+const AssetMapPage         = lazy(() => import('@/pages/assets/AssetMapPage').then(m => ({ default: m.AssetMapPage })));
 const EditAssetPage        = lazy(() => import('@/pages/assets/EditAssetPage').then(m => ({ default: m.EditAssetPage })));
 const CategoriesPage       = lazy(() => import('@/pages/categories/CategoriesPage').then(m => ({ default: m.CategoriesPage })));
 const SitesPage            = lazy(() => import('@/pages/sites/SitesPage').then(m => ({ default: m.SitesPage })));
@@ -106,6 +107,7 @@ export default function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="assets"       element={<AssetsPage />} />
             <Route path="assets/new"   element={<NewAssetPage />} />
+            <Route path="assets/map"   element={<AssetMapPage />} />
             <Route path="assets/:id"   element={<AssetDetailPage />} />
             <Route path="assets/:id/edit" element={<EditAssetPage />} />
             <Route path="categories"   element={<CategoriesPage />} />

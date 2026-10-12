@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Wifi
@@ -17,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,6 +27,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.Gs1EncodingResponse
+import com.vairiot.app.location.AssetPosition
 import com.vairiot.app.ui.theme.*
 
 @Composable
@@ -191,6 +194,7 @@ private fun AssetBody(
                 asset.category?.let { DetailRow("Category", it.name) }
                 asset.site?.let      { DetailRow("Site",     it.name) }
                 asset.location?.let  { DetailRow("Location", it.name) }
+                AssetPosition.of(asset)?.let { GpsPositionRow(it, asset.name) }
                 asset.serialNumber?.let { DetailRow("Serial number", it) }
                 asset.barcode?.let      { DetailRow("Manufacturer EAN", it) }
                 asset.rfidTag?.let      { DetailRow("RFID tag", it) }
@@ -280,3 +284,36 @@ private fun Gs1Row(label: String, value: String) {
             modifier = Modifier.padding(start = 12.dp))
     }
 }
+
+/** GPS position with a button that opens it in the device's maps app. */
+@Composable
+private fun GpsPositionRow(position: AssetPosition, assetName: String) {
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        DetailRow("GPS position", position.coordinateText)
+        position.detailText?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.align(Alignment.End))
+        }
+        TextButton(
+            onClick = {
+                val geo = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse(position.geoUri(assetName)))
+                try {
+                    context.startActivity(geo)
+                } catch (_: android.content.ActivityNotFoundException) {
+                    // No maps app on the handheld: fall back to the browser.
+                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(position.webUrl)))
+                }
+            },
+            modifier = Modifier.align(Alignment.End),
+        ) {
+            Icon(Icons.Default.Map, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("Open in Maps", color = VairiotViolet)
+        }
+    }
+}
+

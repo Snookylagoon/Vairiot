@@ -107,6 +107,9 @@ struct AssetDetailView: View {
             VStack(spacing: 16) {
                 headerCard(asset)
                 infoSection(asset)
+                if let position = AssetPosition(asset) {
+                    positionSection(position, assetName: asset.name)
+                }
                 if let gs1 = viewModel.gs1 {
                     gs1Section(gs1)
                 }
@@ -160,6 +163,8 @@ struct AssetDetailView: View {
                 Divider().padding(.leading, 44)
                 infoRow(icon: "mappin.and.ellipse", label: "Location", value: asset.location?.name)
                 Divider().padding(.leading, 44)
+                infoRow(icon: "location", label: "GPS Position", value: AssetPosition(asset)?.coordinateText)
+                Divider().padding(.leading, 44)
                 infoRow(icon: "number", label: "Serial Number", value: asset.serialNumber)
                 Divider().padding(.leading, 44)
                 infoRow(icon: "barcode", label: "Barcode", value: asset.barcode)
@@ -169,6 +174,36 @@ struct AssetDetailView: View {
                 infoRow(icon: "wrench.and.screwdriver", label: "Condition",
                         value: asset.assetCondition?.displayName)
             }
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    // MARK: - GPS Position
+
+    private func positionSection(_ position: AssetPosition, assetName: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Map")
+
+            VStack(alignment: .leading, spacing: 8) {
+                AssetMapPreview(position: position, title: assetName)
+                HStack {
+                    if let detail = position.detailText {
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if let url = position.appleMapsURL {
+                        Link(destination: url) {
+                            Label("Open in Maps", systemImage: "arrow.up.right.square")
+                                .font(.caption)
+                                .foregroundStyle(Color.vairiotViolet)
+                        }
+                    }
+                }
+            }
+            .padding(12)
             .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }

@@ -5,10 +5,11 @@ import { NotFoundError, ConflictError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
 
 import { recordAssetEvent } from './asset-event.service';
+import { resolveAssetGeo, type AssetGeoInput } from './asset-geo.service';
 import { allocateIar } from './gs1-identifier.service';
 import { dispatchWebhookEvent } from './webhook.service';
 
-export interface AssetCreateInput {
+export interface AssetCreateInput extends AssetGeoInput {
   name: string; description?: string; categoryId?: string; siteId?: string;
   locationId?: string; serialNumber?: string; modelNumber?: string;
   manufacturer?: string; barcode?: string; rfidTag?: string; labelImage?: string;
@@ -335,6 +336,8 @@ export async function createAssetIdempotent(tenantId: string, actorId: string, i
 }
 
 async function createAssetOnce(tenantId: string, actorId: string, input: AssetCreateInput) {
+  // Validate before allocating an IAR, so a bad position doesn't burn a number.
+  const geo = resolveAssetGeo(input);
   const assetNumber = await nextAssetNumber(tenantId);
   // Every new asset gets a server-allocated Individual Asset Reference
   // (GS1 spec invariant 2 — never caller-supplied). A rolled-back create
@@ -371,6 +374,7 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
       categoryId: input.categoryId,
       siteId:     input.siteId,
       locationId: input.locationId,
+      ...geo,
       clientRequestId: input.clientRequestId,
     },
     include: assetInclude,
@@ -415,6 +419,7 @@ export async function updateAsset(tenantId: string, id: string, actorId: string,
   for (const f of DATE_FIELDS) if (input[f] !== undefined) data[f] = input[f] ? new Date(input[f]!) : null;
   for (const f of REF_FIELDS) if (input[f] !== undefined) data[f] = input[f] ?? null;
   if (input.usefulLifeMonths !== undefined) data.usefulLifeMonths = input.usefulLifeMonths;
+  Object.assign(data, resolveAssetGeo(input, existing));
 
   const updated = await prisma.asset.update({
     where: { id },
@@ -493,6 +498,40 @@ export async function listAssetsForExport(tenantId: string, params: Omit<AssetLi
     take: 10_000,
   });
   return assets.map(enrichAssetWithDepreciation);
+}
+
+/** Most markers the map endpoint returns in one response. */
+export const ASSET_MAP_LIMIT = 5_000;
+
+/**
+ * Assets with a GIS position, for the all-assets map: just what a marker and
+ * its popup need. Takes the same filters as the asset list. `unplaced` counts
+ * the matching assets that have no position yet.
+ */
+export async function listAssetPositions(
+  tenantId: string,
+  params: Pick<AssetListParams, 'search' | 'categoryId' | 'siteId' | 'status' | 'condition'> = {},
+) {
+  const where = buildAssetWhere(tenantId, params);
+  // The pair CHECK constraint means latitude set ⇔ longitude set.
+  const placed: Prisma.AssetWhereInput = { AND: [where, { latitude: { not: null } }] };
+  const [assets, total, unplaced] = await Promise.all([
+    prisma.asset.findMany({
+      where: placed,
+      select: {
+        id: true, assetNumber: true, name: true, status: true, condition: true,
+        latitude: true, longitude: true, geoAccuracyMeters: true,
+        category: { select: { id: true, name: true } },
+        site:     { select: { id: true, name: true } },
+        location: { select: { id: true, name: true } },
+      },
+      orderBy: { assetNumber: 'asc' },
+      take: ASSET_MAP_LIMIT,
+    }),
+    prisma.asset.count({ where: placed }),
+    prisma.asset.count({ where: { AND: [where, { latitude: null }] } }),
+  ]);
+  return { assets, total, truncated: total > assets.length, unplaced };
 }
 
 export async function getAssetByTag(tenantId: string, tag: string) {

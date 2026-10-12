@@ -8,9 +8,14 @@ import com.vairiot.app.data.api.AssetUpdateRequest
 import com.vairiot.app.data.api.LocationRefResponse
 import com.vairiot.app.data.api.SiteRefResponse
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.location.AssetPosition
+import com.vairiot.app.location.GpsCaptureState
+import com.vairiot.app.location.PositionCaptureException
+import com.vairiot.app.location.PositionProvider
 import com.vairiot.app.scanner.ScanType
 import com.vairiot.app.scanner.ScannerService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -36,12 +41,15 @@ data class AssetEditUiState(
     val locations:    List<LocationRefResponse> = emptyList(),
     val siteId:       String = "",
     val locationId:   String = "",
+
+    val gps:          GpsCaptureState = GpsCaptureState(),
 )
 
 @HiltViewModel
 class AssetEditViewModel @Inject constructor(
     private val api: VairiotApiService,
     private val scanner: ScannerService,
+    private val positions: PositionProvider,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -113,6 +121,7 @@ class AssetEditViewModel @Inject constructor(
                     locations    = locs,
                     siteId       = sId,
                     locationId   = a.location?.id ?: "",
+                    gps          = GpsCaptureState(position = AssetPosition.of(a)),
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isLoading = false, error = e.message)
@@ -138,6 +147,31 @@ class AssetEditViewModel @Inject constructor(
         }
     }
 
+    fun capturePosition() {
+        if (_state.value.gps.isCapturing) return
+        _state.value = _state.value.copy(gps = _state.value.gps.capturing())
+        viewModelScope.launch {
+            val gps = try {
+                _state.value.gps.captured(positions.currentFix())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.value.gps.failed(e)
+            }
+            _state.value = _state.value.copy(gps = gps)
+        }
+    }
+
+    fun removePosition() {
+        _state.value = _state.value.copy(gps = _state.value.gps.removed())
+    }
+
+    fun positionPermissionDenied() {
+        _state.value = _state.value.copy(
+            gps = _state.value.gps.failed(PositionCaptureException(PositionCaptureException.Reason.DENIED)),
+        )
+    }
+
     private fun loadLocations(siteId: String) {
         viewModelScope.launch {
             try {
@@ -152,7 +186,7 @@ class AssetEditViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = s.copy(isSaving = true, error = null)
             try {
-                val updated = api.updateAsset(assetId, AssetUpdateRequest(
+                val updated = api.updateAsset(assetId, s.gps.applyTo(AssetUpdateRequest(
                     name         = s.name.takeIf { it.isNotBlank() },
                     description  = s.description.takeIf { it.isNotBlank() },
                     status       = s.status.takeIf { it.isNotBlank() },
@@ -162,7 +196,7 @@ class AssetEditViewModel @Inject constructor(
                     rfidTag      = s.rfidTag.takeIf { it.isNotBlank() },
                     siteId       = s.siteId.takeIf { it.isNotBlank() },
                     locationId   = s.locationId.takeIf { it.isNotBlank() },
-                ))
+                )))
                 _state.value = _state.value.copy(isSaving = false, savedAsset = updated)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isSaving = false, error = "Save failed: ${e.message}")

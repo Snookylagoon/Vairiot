@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { GeoPositionFields } from '@/components/forms/GeoPositionFields';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
@@ -137,6 +138,8 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
             </div>
           </div>
         </div>
+
+        <GeoPositionFields register={register} setValue={setValue} watch={watch} errors={errors} />
 
         {/* Identification */}
         <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">

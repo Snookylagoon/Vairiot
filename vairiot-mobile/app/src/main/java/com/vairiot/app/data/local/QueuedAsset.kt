@@ -22,6 +22,11 @@ data class QueuedAsset(
     val categoryId: String? = null,
     val siteId: String? = null,
     val locationId: String? = null,
+    /** GPS fix taken on the device when the asset was registered. */
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val geoAccuracyMeters: Double? = null,
+    val geoCapturedAtMs: Long? = null,
     val createdAtMs: Long = System.currentTimeMillis(),
     val attempts: Int = 0,
     val lastError: String? = null,
