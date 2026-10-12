@@ -1,5 +1,14 @@
 package com.vairiot.app.data.api
 
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonNull
+import com.google.gson.JsonObject
+import com.google.gson.TypeAdapter
+import com.google.gson.annotations.JsonAdapter
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonWriter
+
 data class LoginRequest(
     val email:    String,
     val password: String,
@@ -116,6 +125,12 @@ data class AssetResponse(
     val category:     CategoryRefResponse?,
     val site:         SiteRefResponse?,
     val location:     LocationRefResponse?,
+    // GIS position (WGS 84) — complements site / location
+    val latitude:          Double? = null,
+    val longitude:         Double? = null,
+    val geoAccuracyMeters: Double? = null,
+    val geoSource:         String? = null,
+    val geoCapturedAt:     String? = null,
 )
 
 data class CategoryRefResponse(val id: String, val name: String)
@@ -321,6 +336,11 @@ data class AssetCreateRequest(
     val locationId:   String?  = null,
     /** Idempotency key so offline replays can't create duplicate assets. */
     val clientRequestId: String? = null,
+    val latitude:          Double? = null,
+    val longitude:         Double? = null,
+    val geoAccuracyMeters: Double? = null,
+    val geoSource:         String? = null,
+    val geoCapturedAt:     String? = null,
 )
 
 // ─── GS1 identification ────────────────────────────────────────────────────
@@ -452,6 +472,7 @@ data class PrinterSettingsDto(
 )
 
 // ─── Asset update ──────────────────────────────────────────────────────────
+@JsonAdapter(AssetUpdateRequestAdapter::class)
 data class AssetUpdateRequest(
     val name:         String?  = null,
     val description:  String?  = null,
@@ -463,4 +484,56 @@ data class AssetUpdateRequest(
     val notes:        String?  = null,
     val siteId:       String?  = null,
     val locationId:   String?  = null,
+    val latitude:          Double? = null,
+    val longitude:         Double? = null,
+    val geoAccuracyMeters: Double? = null,
+    val geoSource:         String? = null,
+    val geoCapturedAt:     String? = null,
+    /**
+     * Sends `latitude` / `longitude` as explicit nulls, which the API reads as
+     * "remove the position". Gson otherwise drops null fields.
+     */
+    val clearGeoPosition: Boolean = false,
 )
+
+/**
+ * PATCH body writer: unset fields are omitted (so they stay unchanged on the
+ * server), except the position pair when [AssetUpdateRequest.clearGeoPosition].
+ */
+class AssetUpdateRequestAdapter : TypeAdapter<AssetUpdateRequest>() {
+    override fun write(out: JsonWriter, value: AssetUpdateRequest?) {
+        if (value == null) { out.nullValue(); return }
+        val json = JsonObject()
+        fun put(key: String, v: String?) { if (v != null) json.addProperty(key, v) }
+        fun put(key: String, v: Double?) { if (v != null) json.addProperty(key, v) }
+        put("name", value.name)
+        put("description", value.description)
+        put("status", value.status)
+        put("condition", value.condition)
+        put("serialNumber", value.serialNumber)
+        put("barcode", value.barcode)
+        put("rfidTag", value.rfidTag)
+        put("notes", value.notes)
+        put("siteId", value.siteId)
+        put("locationId", value.locationId)
+        if (value.clearGeoPosition) {
+            json.add("latitude", JsonNull.INSTANCE)
+            json.add("longitude", JsonNull.INSTANCE)
+        } else {
+            put("latitude", value.latitude)
+            put("longitude", value.longitude)
+            put("geoAccuracyMeters", value.geoAccuracyMeters)
+            put("geoSource", value.geoSource)
+            put("geoCapturedAt", value.geoCapturedAt)
+        }
+        // Only the nulls added above exist in the tree, so writing nulls is safe.
+        NULL_WRITER.toJson(json, out)
+    }
+
+    override fun read(reader: JsonReader): AssetUpdateRequest =
+        throw UnsupportedOperationException("AssetUpdateRequest is write-only")
+
+    private companion object {
+        val NULL_WRITER: Gson = GsonBuilder().serializeNulls().create()
+    }
+}

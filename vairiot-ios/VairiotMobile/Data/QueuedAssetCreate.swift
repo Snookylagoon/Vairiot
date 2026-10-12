@@ -22,6 +22,11 @@ final class QueuedAssetCreate {
     var categoryId: String?
     var siteId: String?
     var locationId: String?
+    /// GPS fix taken on the device (optional, for lightweight migration).
+    var latitude: Double?
+    var longitude: Double?
+    var geoAccuracyMeters: Double?
+    var geoCapturedAt: Date?
     var createdAt: Date
     var attempts: Int
     var lastError: String?
@@ -42,6 +47,7 @@ final class QueuedAssetCreate {
         categoryId: String? = nil,
         siteId: String? = nil,
         locationId: String? = nil,
+        geoFix: GeoFix? = nil,
         createdAt: Date = .now,
         attempts: Int = 0,
         lastError: String? = nil
@@ -57,6 +63,10 @@ final class QueuedAssetCreate {
         self.categoryId = categoryId
         self.siteId = siteId
         self.locationId = locationId
+        self.latitude = geoFix?.latitude
+        self.longitude = geoFix?.longitude
+        self.geoAccuracyMeters = geoFix?.accuracyMeters
+        self.geoCapturedAt = geoFix?.capturedAt
         self.createdAt = createdAt
         self.attempts = attempts
         self.lastError = lastError
@@ -77,7 +87,12 @@ final class QueuedAssetCreate {
             categoryId: categoryId,
             siteId: siteId,
             locationId: locationId,
-            clientRequestId: localId.uuidString
+            clientRequestId: localId.uuidString,
+            latitude: latitude,
+            longitude: longitude,
+            geoAccuracyMeters: latitude == nil ? nil : geoAccuracyMeters,
+            geoSource: latitude == nil ? nil : "device",
+            geoCapturedAt: latitude == nil ? nil : geoCapturedAt.map { ISO8601DateFormatter().string(from: $0) }
         )
     }
 }

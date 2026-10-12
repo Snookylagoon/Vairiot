@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.vairiot.app.ui.components.ClearableTextField
+import com.vairiot.app.ui.components.GpsPositionSection
 import com.vairiot.app.ui.theme.*
 
 private val STATUSES   = listOf("active", "in_maintenance", "retired", "lost")
@@ -95,6 +96,13 @@ fun AssetEditScreen(
                 options = state.locations.map { it.id to it.name },
                 enabled = state.siteId.isNotBlank(),
                 onChange = { viewModel.update("locationId", it) })
+
+            GpsPositionSection(
+                state = state.gps,
+                onCapture = { viewModel.capturePosition() },
+                onRemove = { viewModel.removePosition() },
+                onPermissionDenied = { viewModel.positionPermissionDenied() },
+            )
 
             ClearableTextField(value = state.serialNumber,
                 onValueChange = { viewModel.update("serialNumber", it) },

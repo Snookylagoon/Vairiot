@@ -37,8 +37,20 @@ final class AssetEditViewModel {
     var isSaved: Bool = false
     var savedOffline: Bool = false
 
+    // GIS position
+    var position: AssetPosition?
+    var isCapturingPosition: Bool = false
+    var positionError: String?
+    var positionAccessDenied: Bool = false
+    /// The fix taken in this form, if any. Nil when the position shown came
+    /// from the server, or was removed.
+    private(set) var capturedFix: GeoFix?
+    /// Whether the user captured or removed a position; only then is it sent.
+    private(set) var positionChanged: Bool = false
+
     let mode: Mode
     private let apiClient: APIClient
+    private let positionProvider: PositionProviding
 
     // MARK: - Computed
 
@@ -57,8 +69,14 @@ final class AssetEditViewModel {
 
     // MARK: - Init
 
-    init(apiClient: APIClient, existingAsset: AssetResponse? = nil, prefillBarcode: String? = nil) {
+    init(
+        apiClient: APIClient,
+        existingAsset: AssetResponse? = nil,
+        prefillBarcode: String? = nil,
+        positionProvider: PositionProviding? = nil
+    ) {
         self.apiClient = apiClient
+        self.positionProvider = positionProvider ?? DevicePositionProvider()
 
         if let asset = existingAsset {
             mode = .edit(asset)
@@ -72,6 +90,7 @@ final class AssetEditViewModel {
             selectedCategoryId = asset.category?.id
             selectedSiteId = asset.site?.id
             selectedLocationId = asset.location?.id
+            position = AssetPosition(asset)
         } else {
             mode = .create
             barcode = prefillBarcode ?? ""
@@ -173,6 +192,34 @@ final class AssetEditViewModel {
         }
     }
 
+    // MARK: - GIS Position
+
+    func capturePosition() async {
+        guard !isCapturingPosition else { return }
+        isCapturingPosition = true
+        positionError = nil
+        positionAccessDenied = false
+        do {
+            let fix = try await positionProvider.currentFix()
+            capturedFix = fix
+            position = AssetPosition(fix)
+            positionChanged = true
+        } catch let error as PositionCaptureError {
+            positionError = error.errorDescription
+            positionAccessDenied = error == .denied
+        } catch {
+            positionError = error.localizedDescription
+        }
+        isCapturingPosition = false
+    }
+
+    func removePosition() {
+        capturedFix = nil
+        position = nil
+        positionChanged = true
+        positionError = nil
+    }
+
     // MARK: - Save
 
     /// One idempotency key for this form, sent on every online try and reused
@@ -226,7 +273,8 @@ final class AssetEditViewModel {
             condition: selectedCondition.rawValue,
             categoryId: selectedCategoryId,
             siteId: selectedSiteId,
-            locationId: selectedLocationId
+            locationId: selectedLocationId,
+            geoFix: capturedFix
         )
 
         let context = VairiotStore.shared.context
@@ -243,13 +291,17 @@ final class AssetEditViewModel {
             rfidTag: queued.rfidTag,
             categoryName: categories.first(where: { $0.id == queued.categoryId })?.name,
             siteName: sites.first(where: { $0.id == queued.siteId })?.name,
-            locationName: locations.first(where: { $0.id == queued.locationId })?.name
+            locationName: locations.first(where: { $0.id == queued.locationId })?.name,
+            latitude: queued.latitude,
+            longitude: queued.longitude,
+            geoAccuracyMeters: queued.geoAccuracyMeters,
+            geoSource: queued.latitude == nil ? nil : "device"
         ))
         try? context.save()
     }
 
     private func createAsset() async throws {
-        let request = AssetCreateRequest(
+        var request = AssetCreateRequest(
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             rfidTag: rfidTag.isEmpty ? nil : rfidTag,
             barcode: barcode.isEmpty ? nil : barcode,
@@ -262,12 +314,25 @@ final class AssetEditViewModel {
             locationId: selectedLocationId,
             clientRequestId: createRequestId.uuidString
         )
+        if let fix = capturedFix {
+            request.latitude = fix.latitude
+            request.longitude = fix.longitude
+            request.geoAccuracyMeters = fix.accuracyMeters
+            request.geoSource = "device"
+            request.geoCapturedAt = ISO8601DateFormatter().string(from: fix.capturedAt)
+        }
 
         let _: AssetResponse = try await apiClient.request(.createAsset(request))
     }
 
     private func updateAsset(id: String) async throws {
-        let request = AssetUpdateRequest(
+        let _: AssetResponse = try await apiClient.request(.updateAsset(id: id, updateRequest()))
+    }
+
+    /// The PATCH body for an edit. The position is only sent when the user
+    /// captured or removed one, so a save never restamps the server's copy.
+    func updateRequest() -> AssetUpdateRequest {
+        var request = AssetUpdateRequest(
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             description: description.isEmpty ? nil : description,
             status: selectedStatus.rawValue,
@@ -279,7 +344,17 @@ final class AssetEditViewModel {
             siteId: selectedSiteId,
             locationId: selectedLocationId
         )
-
-        let _: AssetResponse = try await apiClient.request(.updateAsset(id: id, request))
+        if positionChanged {
+            if let fix = capturedFix {
+                request.latitude = fix.latitude
+                request.longitude = fix.longitude
+                request.geoAccuracyMeters = fix.accuracyMeters
+                request.geoSource = "device"
+                request.geoCapturedAt = ISO8601DateFormatter().string(from: fix.capturedAt)
+            } else {
+                request.clearGeoPosition = true
+            }
+        }
+        return request
     }
 }

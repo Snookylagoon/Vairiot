@@ -19,5 +19,9 @@ data class CachedAsset(
     val categoryName: String?,
     val siteName:     String?,
     val locationName: String?,
+    val latitude:          Double? = null,
+    val longitude:         Double? = null,
+    val geoAccuracyMeters: Double? = null,
+    val geoSource:         String? = null,
     val cachedAtMs:   Long = System.currentTimeMillis(),
 )

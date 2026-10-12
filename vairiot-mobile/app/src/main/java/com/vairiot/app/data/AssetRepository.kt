@@ -194,6 +194,10 @@ private fun CachedAsset.toApiResponse(): AssetResponse = AssetResponse(
     category     = categoryName?.let { CategoryRefResponse(id = "", name = it) },
     site         = siteName?.let { SiteRefResponse(id = "", name = it) },
     location     = locationName?.let { LocationRefResponse(id = "", name = it) },
+    latitude     = latitude,
+    longitude    = longitude,
+    geoAccuracyMeters = geoAccuracyMeters,
+    geoSource    = geoSource,
 )
 
 private fun AssetResponse.toCached(): CachedAsset = CachedAsset(
@@ -211,4 +215,8 @@ private fun AssetResponse.toCached(): CachedAsset = CachedAsset(
     categoryName = category?.name,
     siteName     = site?.name,
     locationName = location?.name,
+    latitude     = latitude,
+    longitude    = longitude,
+    geoAccuracyMeters = geoAccuracyMeters,
+    geoSource    = geoSource,
 )

@@ -66,11 +66,26 @@ object DatabaseModule {
         }
     }
 
+    // v8: GIS position on the asset cache, and the device fix on queued
+    // offline creates. Nullable columns, so existing rows are untouched.
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE cached_assets ADD COLUMN latitude REAL")
+            db.execSQL("ALTER TABLE cached_assets ADD COLUMN longitude REAL")
+            db.execSQL("ALTER TABLE cached_assets ADD COLUMN geoAccuracyMeters REAL")
+            db.execSQL("ALTER TABLE cached_assets ADD COLUMN geoSource TEXT")
+            db.execSQL("ALTER TABLE queued_assets ADD COLUMN latitude REAL")
+            db.execSQL("ALTER TABLE queued_assets ADD COLUMN longitude REAL")
+            db.execSQL("ALTER TABLE queued_assets ADD COLUMN geoAccuracyMeters REAL")
+            db.execSQL("ALTER TABLE queued_assets ADD COLUMN geoCapturedAtMs INTEGER")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): VairiotDatabase =
         Room.databaseBuilder(context, VairiotDatabase::class.java, "vairiot.db")
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             // No blanket destructive fallback: a version bump without a
             // migration must crash in testing, not silently wipe every offline
             // queue on a field device. Only pre-v4 builds (before the queues
