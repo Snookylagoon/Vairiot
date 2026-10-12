@@ -6,10 +6,16 @@
 #
 # What it does:
 #   1. Asks you to confirm (type: live)
-#   2. Merges the dev branch into main and pushes to GitHub
-#   3. Tells the PRODUCTION server to pull + rebuild (infra/deploy.sh)
-#   4. Checks the live site is answering
+#   2. Opens (or reuses) a pull request dev → main on GitHub
+#   3. Waits for the required CI checks, then merges it. main is protected
+#      (ruleset "Protect main"): it only takes merged pull requests whose
+#      checks passed, so a failing check stops the release here, before
+#      anything reaches the server. The pull request stays open to fix.
+#   4. Brings dev up to date with main
+#   5. Tells the PRODUCTION server to pull + rebuild (infra/deploy.sh)
+#   6. Checks the live site is answering
 #
+# Needs the GitHub CLI, logged in (`gh auth status`).
 # Only run this after you have tested your changes on https://test.vairiot.com.
 
 set -euo pipefail
@@ -32,21 +38,64 @@ if [ "$ANSWER" != "live" ]; then
   exit 0
 fi
 
+gh auth status >/dev/null 2>&1 || {
+  echo "ERROR: the GitHub CLI is not logged in. Run: gh auth login" >&2
+  exit 1
+}
+
 START_BRANCH="$(git branch --show-current)"
 
 echo "→ Fetching latest from GitHub…"
 git fetch origin
 
-echo "→ Merging dev into main…"
-git checkout main
-git pull --ff-only origin main
-git merge --no-ff origin/dev -m "release: promote dev to production"
-git push origin main
+if [ -z "$(git rev-list origin/main..origin/dev)" ]; then
+  echo "Nothing to release: main already has everything on dev."
+  exit 0
+fi
+
+PR="$(gh pr list --base main --head dev --state open --json number -q '.[0].number')"
+if [ -n "$PR" ]; then
+  echo "→ Using the open release pull request #${PR}…"
+else
+  echo "→ Opening a pull request dev → main…"
+  gh pr create --base main --head dev \
+    --title "release: promote dev to production" \
+    --body "$(printf 'Opened by scripts/go-live.sh.\n\nCommits:\n\n'; git log --no-merges --format='- %s' origin/main..origin/dev)" >/dev/null
+  PR="$(gh pr list --base main --head dev --state open --json number -q '.[0].number')"
+fi
+PR_URL="$(gh pr view "$PR" --json url -q .url)"
+echo "  ${PR_URL}"
+
+# The commit whose checks we wait for; the merge below refuses anything else,
+# so a push to dev during the wait can't reach main unchecked.
+HEAD_SHA="$(gh pr view "$PR" --json headRefOid -q .headRefOid)"
+
+# Checks take a moment to register on a new pull request.
+echo "→ Waiting for the CI checks (usually 5–10 minutes)…"
+for _ in $(seq 1 30); do
+  [ "$(gh pr view "$PR" --json statusCheckRollup -q '.statusCheckRollup | length')" -gt 0 ] && break
+  sleep 10
+done
+if ! gh pr checks "$PR" --required --watch --fail-fast --interval 20; then
+  echo >&2
+  echo "❌ A required check failed — nothing was merged or deployed; the live site is unchanged." >&2
+  echo "   Fix it on dev; the pull request picks up new commits. Details: ${PR_URL}" >&2
+  exit 1
+fi
+
+echo "→ Merging pull request #${PR} into main…"
+gh pr merge "$PR" --merge --match-head-commit "$HEAD_SHA" \
+  --subject "release: promote dev to production (#${PR})" || {
+  echo "❌ Merge refused (dev changed while the checks ran?) — nothing deployed. Run go-live.sh again." >&2
+  exit 1
+}
+git fetch origin
 
 echo "→ Bringing dev up to date with main…"
 git checkout dev
 git pull --ff-only origin dev
-git merge --ff main -m "chore: sync dev with main after release" || git merge main -m "chore: sync dev with main after release"
+git merge --ff-only origin/main 2>/dev/null \
+  || git merge --no-edit -m "chore: sync dev with main after release" origin/main
 git push origin dev
 
 # go back to whatever branch you started on
