@@ -150,7 +150,7 @@ authRouter.post('/2fa-setup/verify', loginLimiter,
     const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
     const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
     await recordLoginAttempt(user.tenantId, user.email, ipAddress, true, user.id, '2fa_setup_complete');
-    prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
+    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
     if (req.body.device) await touchDeviceOnLogin(user.tenantId, user.id, req.body.device);
     res.json({ accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' });
   }),

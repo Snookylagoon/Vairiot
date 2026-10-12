@@ -5,6 +5,7 @@ import { signAccessToken, signRefreshToken } from '../lib/jwt';
 import { logger } from '../lib/logger';
 import { prisma } from '../lib/prisma';
 
+import { recordAuditEvent } from './audit-event.service';
 import { hashPassword } from './auth.service';
 import { activateLicence } from './licence.service';
 import { validatePasswordPolicy } from './password-policy.service';
@@ -135,16 +136,14 @@ export async function registerNewTenant(input: RegistrationInput): Promise<Regis
 
   logger.info('New tenant registered', { tenantId: tenant.id, name: tenant.name, email: user.email });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: tenant.id,
-      actorId: user.id,
-      entityType: 'tenant',
-      entityId: tenant.id,
-      action: 'tenant_registered',
-      metadata: { organisationName: input.organisationName, email: input.email },
-    },
-  }).catch((e) => logger.error('Audit event write failed', { error: e.message }));
+  recordAuditEvent({
+    tenantId: tenant.id,
+    actor: user.id,
+    entityType: 'tenant',
+    entityId: tenant.id,
+    action: 'tenant_registered',
+    metadata: { organisationName: input.organisationName, email: input.email },
+  });
 
   return {
     accessToken,

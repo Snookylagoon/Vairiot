@@ -267,6 +267,70 @@ describe('Two-factor authentication', () => {
     expect(use2.status).not.toBe(200);
   });
 
+  describe('lockout', () => {
+    const resetCounter = () => prisma.user.updateMany({
+      where: { tenantId: TID, email: 'tfa@sec.test' },
+      data: { failedLoginCount: 0, lockedUntil: null },
+    });
+    const counter = async () => (await prisma.user.findFirstOrThrow({
+      where: { tenantId: TID, email: 'tfa@sec.test' },
+      select: { failedLoginCount: true },
+    })).failedLoginCount;
+    const passwordStep = async () => (await request(app).post('/api/v1/auth/login')
+      .send({ email: 'tfa@sec.test', password: 'TwoFactorTest1!', tenantId: TID }));
+
+    beforeEach(resetCounter);
+    afterAll(resetCounter);
+
+    it('counts a wrong code, and the password step does not reset the count', async () => {
+      const login1 = await passwordStep();
+      await request(app).post('/api/v1/auth/login/2fa')
+        .send({ challengeToken: login1.body.twoFactorChallengeToken, token: '000000' });
+      expect(await counter()).toBe(1);
+
+      const login2 = await passwordStep();
+      expect(login2.body.requiresTwoFactor).toBe(true);
+      expect(await counter()).toBe(1);
+    });
+
+    // Re-entering the password between guesses used to reset the counter, so
+    // someone holding the password could guess 2FA codes without limit.
+    it('locks after 5 wrong codes, even when the password is re-entered between guesses', async () => {
+      let challengeToken = '';
+      for (let i = 0; i < 5; i++) {
+        const login = await passwordStep();
+        expect(login.status).toBe(200);
+        challengeToken = login.body.twoFactorChallengeToken;
+        const res = await request(app).post('/api/v1/auth/login/2fa')
+          .send({ challengeToken, token: '000000' });
+        expect(res.status).toBe(400);
+      }
+
+      const login = await passwordStep();
+      expect(login.status).toBe(401);
+      expect(login.body.code).toBe('ACCOUNT_LOCKED');
+
+      // A challenge token issued before the lock can't be used to keep guessing,
+      // or to get in with a valid code.
+      const res = await request(app).post('/api/v1/auth/login/2fa')
+        .send({ challengeToken, token: '123456' });
+      expect(res.status).toBe(401);
+      expect(res.body.code).toBe('ACCOUNT_LOCKED');
+    });
+
+    it('resets the count once a 2FA login completes', async () => {
+      await prisma.user.updateMany({
+        where: { tenantId: TID, email: 'tfa@sec.test' },
+        data: { failedLoginCount: 3 },
+      });
+      const login = await passwordStep();
+      const res = await request(app).post('/api/v1/auth/login/2fa')
+        .send({ challengeToken: login.body.twoFactorChallengeToken, token: '123456' });
+      expect(res.status).toBe(200);
+      expect(await counter()).toBe(0);
+    });
+  });
+
   it('can disable 2FA (non-mandatory role)', async () => {
     const res = await request(app).post('/api/v1/2fa/disable')
       .set('Authorization', `Bearer ${userToken}`);
