@@ -5,7 +5,7 @@ import { toCsv } from '../../lib/csv';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { listAssetEvents } from '../../services/asset-event.service';
-import { listAssets, listAssetChanges, getAsset, createAssetIdempotent, findAssetByClientRequestId, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
+import { listAssets, listAssetChanges, listAssetPositions, getAsset, createAssetIdempotent, findAssetByClientRequestId, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
 import { encodeIdentifier } from '../../services/gs1-identifier.service';
 import { listLabelPrints } from '../../services/gs1-label.service';
 import { getAssetByEpc, listTagsForAsset } from '../../services/gs1-tag.service';
@@ -145,6 +145,19 @@ assetsRouter.post('/import', requireAnyPermission('asset:write'),
 assetsRouter.get('/stats', requireAnyPermission('asset:read'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     res.json(await getAssetStats(req.user!.tenantId));
+  }),
+);
+
+// Positions for the all-assets map. Same filters as the list.
+assetsRouter.get('/map', requireAnyPermission('asset:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listAssetPositions(req.user!.tenantId, {
+      search:     req.query.search as string,
+      categoryId: req.query.categoryId as string,
+      siteId:     req.query.siteId as string,
+      status:     req.query.status as string,
+      condition:  req.query.condition as string,
+    }));
   }),
 );
 

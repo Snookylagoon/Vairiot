@@ -500,6 +500,40 @@ export async function listAssetsForExport(tenantId: string, params: Omit<AssetLi
   return assets.map(enrichAssetWithDepreciation);
 }
 
+/** Most markers the map endpoint returns in one response. */
+export const ASSET_MAP_LIMIT = 5_000;
+
+/**
+ * Assets with a GIS position, for the all-assets map: just what a marker and
+ * its popup need. Takes the same filters as the asset list. `unplaced` counts
+ * the matching assets that have no position yet.
+ */
+export async function listAssetPositions(
+  tenantId: string,
+  params: Pick<AssetListParams, 'search' | 'categoryId' | 'siteId' | 'status' | 'condition'> = {},
+) {
+  const where = buildAssetWhere(tenantId, params);
+  // The pair CHECK constraint means latitude set ⇔ longitude set.
+  const placed: Prisma.AssetWhereInput = { AND: [where, { latitude: { not: null } }] };
+  const [assets, total, unplaced] = await Promise.all([
+    prisma.asset.findMany({
+      where: placed,
+      select: {
+        id: true, assetNumber: true, name: true, status: true, condition: true,
+        latitude: true, longitude: true, geoAccuracyMeters: true,
+        category: { select: { id: true, name: true } },
+        site:     { select: { id: true, name: true } },
+        location: { select: { id: true, name: true } },
+      },
+      orderBy: { assetNumber: 'asc' },
+      take: ASSET_MAP_LIMIT,
+    }),
+    prisma.asset.count({ where: placed }),
+    prisma.asset.count({ where: { AND: [where, { latitude: null }] } }),
+  ]);
+  return { assets, total, truncated: total > assets.length, unplaced };
+}
+
 export async function getAssetByTag(tenantId: string, tag: string) {
   // GS1 Digital Link URI, raw IAR, or grouped HRI — resolved locally, never
   // via the network (spec §9.3).
