@@ -12,10 +12,10 @@
 import { Readable } from 'stream';
 
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
-import { logger } from '../lib/logger';
 import { minioClient, PHOTO_BUCKET } from '../lib/minio';
 import { prisma } from '../lib/prisma';
 
+import { recordAuditEvent } from './audit-event.service';
 import { slugifyLoginId } from './platform-admin.service';
 
 const LOGIN_ID_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/;
@@ -140,16 +140,14 @@ export async function createSubTenant(
     include: { company: true },
   });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: parent.id,
-      actorId,
-      entityType: 'tenant',
-      entityId: subTenant.id,
-      action: 'sub_tenant_created',
-      metadata: { loginId, organisationName: orgName },
-    },
-  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+  recordAuditEvent({
+    tenantId: parent.id,
+    actor: actorId,
+    entityType: 'tenant',
+    entityId: subTenant.id,
+    action: 'sub_tenant_created',
+    metadata: { loginId, organisationName: orgName },
+  });
 
   return subTenant;
 }
@@ -191,15 +189,13 @@ export async function updateSubTenantCompany(
         },
       });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: parentTenantId,
-      actorId,
-      entityType: 'tenant',
-      entityId: subTenantId,
-      action: 'sub_tenant_updated',
-    },
-  }).catch((e) => logger.error('audit_event_write_failed', { error: e?.message }));
+  recordAuditEvent({
+    tenantId: parentTenantId,
+    actor: actorId,
+    entityType: 'tenant',
+    entityId: subTenantId,
+    action: 'sub_tenant_updated',
+  });
 
   return company;
 }
@@ -232,15 +228,13 @@ export async function uploadSubTenantLogo(
     data: { logoStorageKey: storageKey },
   });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: parentTenantId,
-      actorId,
-      entityType: 'tenant',
-      entityId: subTenantId,
-      action: 'sub_tenant_logo_uploaded',
-    },
-  }).catch(() => {});
+  recordAuditEvent({
+    tenantId: parentTenantId,
+    actor: actorId,
+    entityType: 'tenant',
+    entityId: subTenantId,
+    action: 'sub_tenant_logo_uploaded',
+  });
 
   return { logoStorageKey: storageKey };
 }
@@ -259,15 +253,13 @@ export async function deleteSubTenantLogo(
     data: { logoStorageKey: null },
   });
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: parentTenantId,
-      actorId,
-      entityType: 'tenant',
-      entityId: subTenantId,
-      action: 'sub_tenant_logo_removed',
-    },
-  }).catch(() => {});
+  recordAuditEvent({
+    tenantId: parentTenantId,
+    actor: actorId,
+    entityType: 'tenant',
+    entityId: subTenantId,
+    action: 'sub_tenant_logo_removed',
+  });
 
   return { removed: true };
 }

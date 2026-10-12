@@ -6,10 +6,23 @@ import { ROLES_REQUIRING_2FA, type RoleName } from 'vairiot-shared';
 
 import { encryptSecret, decryptSecret } from '../lib/crypto';
 import { ValidationError, NotFoundError, AppError } from '../lib/errors';
-import { logger } from '../lib/logger';
 import { prisma } from '../lib/prisma';
 
+import { recordAuditEvent } from './audit-event.service';
+
 const BACKUP_CODE_COUNT = 8;
+
+/**
+ * A wrong TOTP or backup code at login. Same 400 response as the
+ * ValidationError it replaces; the subclass lets the login flow tell a wrong
+ * code (which counts towards the lockout) from 2FA not being set up.
+ */
+export class InvalidTwoFactorCodeError extends ValidationError {
+  constructor() {
+    super('Invalid two-factor code');
+    this.name = 'InvalidTwoFactorCodeError';
+  }
+}
 const ISSUER = 'Vairiot';
 
 // The TOTP secret is stored encrypted (prefix `v1:`). Rows written before this
@@ -127,7 +140,7 @@ export async function validateTwoFactorToken(userId: string, token: string): Pro
     return true;
   }
 
-  throw new ValidationError('Invalid two-factor code');
+  throw new InvalidTwoFactorCodeError();
 }
 
 // ─── Disable 2FA ─────────────────────────────────────────────────────────────
@@ -192,14 +205,12 @@ async function auditTwoFactor(userId: string, action: string, metadata?: unknown
   });
   if (!user) return;
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: user.tenantId,
-      actorId: userId,
-      entityType: 'user',
-      entityId: userId,
-      action,
-      metadata: metadata as never,
-    },
-  }).catch((e) => logger.error('Audit event write failed', { error: e.message }));
+  recordAuditEvent({
+    tenantId: user.tenantId,
+    actor: userId,
+    entityType: 'user',
+    entityId: userId,
+    action,
+    metadata: metadata as never,
+  });
 }

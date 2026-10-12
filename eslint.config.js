@@ -113,6 +113,28 @@ module.exports = [
     },
   },
 
+  // Fire-and-forget audit writes must go through recordAuditEvent(), which
+  // tracks them so flushAuditEvents() can wait for them. A bare, un-awaited
+  // prisma.auditEvent.create() is invisible to the flush, and the integration
+  // tests' tenant teardown then races it (audit_events_tenantId_fkey). Awaited
+  // creates are fine and are not matched here.
+  {
+    files: ['vairiot-api/src/**/*.ts'],
+    ignores: ['vairiot-api/src/services/audit-event.service.ts'],
+    rules: {
+      'no-restricted-syntax': ['error',
+        {
+          selector: "ExpressionStatement > CallExpression[callee.property.name='create'][callee.object.property.name='auditEvent']",
+          message: 'Un-awaited auditEvent.create() is not tracked by flushAuditEvents(). Use recordAuditEvent() or await it.',
+        },
+        {
+          selector: "ExpressionStatement > CallExpression > MemberExpression.callee > CallExpression.object[callee.property.name='create'][callee.object.property.name='auditEvent']",
+          message: 'Un-awaited auditEvent.create() is not tracked by flushAuditEvents(). Use recordAuditEvent() or await it.',
+        },
+      ],
+    },
+  },
+
   // Must stay last: turns off everything that fights Prettier.
   prettier,
 ];
