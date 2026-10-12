@@ -7,6 +7,7 @@ import { logger } from '../lib/logger';
 import { prisma } from '../lib/prisma';
 import { blacklistToken, isTokenBlacklisted } from '../lib/redis';
 
+import { recordAuditEvent } from './audit-event.service';
 import { touchDeviceOnLogin } from './licence.service';
 import { checkAccountLock, recordLoginAttempt } from './login-protection.service';
 import { validatePasswordPolicy } from './password-policy.service';
@@ -103,7 +104,7 @@ export async function login(
   const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
   await recordLoginAttempt(tenantId, email, ipAddress, true, user.id);
   prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
-  prisma.auditEvent.create({ data: { tenantId, actorId: user.id, entityType: 'user', entityId: user.id, action: 'login', metadata: { email } } }).catch((e) => logger.error('audit', { error: e }));
+  recordAuditEvent({ tenantId, actor: user.id, entityType: 'user', entityId: user.id, action: 'login', metadata: { email } });
   if (device) await touchDeviceOnLogin(tenantId, user.id, device);
   return { accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' };
 }
@@ -131,7 +132,7 @@ export async function loginWithTwoFactor(
   const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
   const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
   prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
-  prisma.auditEvent.create({ data: { tenantId: user.tenantId, actorId: user.id, entityType: 'user', entityId: user.id, action: 'login_2fa', metadata: { email: user.email } } }).catch((e) => logger.error('audit', { error: e }));
+  recordAuditEvent({ tenantId: user.tenantId, actor: user.id, entityType: 'user', entityId: user.id, action: 'login_2fa', metadata: { email: user.email } });
   if (device) await touchDeviceOnLogin(user.tenantId, user.id, device);
   return { accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' };
 }
@@ -187,16 +188,14 @@ export async function changeOwnPassword(
     where: { id: user.id },
     data: { passwordHash, mustChangePassword: false },
   });
-  prisma.auditEvent.create({
-    data: {
-      tenantId: user.tenantId,
-      actorId: user.id,
-      entityType: 'user',
-      entityId: user.id,
-      action: 'password_change',
-      metadata: { email: user.email },
-    },
-  }).catch((e) => logger.error('audit', { error: e }));
+  recordAuditEvent({
+    tenantId: user.tenantId,
+    actor: user.id,
+    entityType: 'user',
+    entityId: user.id,
+    action: 'password_change',
+    metadata: { email: user.email },
+  });
   return { message: 'Password updated' };
 }
 
@@ -251,16 +250,14 @@ export async function completeForcedPasswordChange(
   const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
   const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
   await recordLoginAttempt(user.tenantId, user.email, ipAddress, true, user.id, 'password_change_complete');
-  prisma.auditEvent.create({
-    data: {
-      tenantId: user.tenantId,
-      actorId: user.id,
-      entityType: 'user',
-      entityId: user.id,
-      action: 'password_change_forced',
-      metadata: { email: user.email },
-    },
-  }).catch((e) => logger.error('audit', { error: e }));
+  recordAuditEvent({
+    tenantId: user.tenantId,
+    actor: user.id,
+    entityType: 'user',
+    entityId: user.id,
+    action: 'password_change_forced',
+    metadata: { email: user.email },
+  });
   if (device) await touchDeviceOnLogin(user.tenantId, user.id, device);
   return { accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' };
 }

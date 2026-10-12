@@ -6,8 +6,9 @@ import { ROLES_REQUIRING_2FA, type RoleName } from 'vairiot-shared';
 
 import { encryptSecret, decryptSecret } from '../lib/crypto';
 import { ValidationError, NotFoundError, AppError } from '../lib/errors';
-import { logger } from '../lib/logger';
 import { prisma } from '../lib/prisma';
+
+import { recordAuditEvent } from './audit-event.service';
 
 const BACKUP_CODE_COUNT = 8;
 const ISSUER = 'Vairiot';
@@ -192,14 +193,12 @@ async function auditTwoFactor(userId: string, action: string, metadata?: unknown
   });
   if (!user) return;
 
-  prisma.auditEvent.create({
-    data: {
-      tenantId: user.tenantId,
-      actorId: userId,
-      entityType: 'user',
-      entityId: userId,
-      action,
-      metadata: metadata as never,
-    },
-  }).catch((e) => logger.error('Audit event write failed', { error: e.message }));
+  recordAuditEvent({
+    tenantId: user.tenantId,
+    actor: userId,
+    entityType: 'user',
+    entityId: userId,
+    action,
+    metadata: metadata as never,
+  });
 }
