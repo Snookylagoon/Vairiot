@@ -38,12 +38,18 @@ export async function recordLoginAttempt(
     data: { userId, email, ipAddress, success, reason },
   }).catch((e) => logger.error('Login attempt write failed', { error: e.message }));
 
-  if (success && userId) {
-    // Reset counter on successful login
-    await prisma.user.update({
-      where: { id: userId },
-      data: { failedLoginCount: 0, lockedUntil: null },
-    }).catch((e) => logger.error('Failed to reset login counter', { error: e.message }));
+  if (success) {
+    // Reset the counter only once the login is complete. A correct password
+    // that still has a challenge ahead (awaiting_2fa, awaiting_2fa_setup,
+    // awaiting_password_change) is not: resetting there would let someone
+    // holding the password guess 2FA codes forever, re-entering the password
+    // after every few wrong ones.
+    if (userId && !reason?.startsWith('awaiting_')) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { failedLoginCount: 0, lockedUntil: null },
+      }).catch((e) => logger.error('Failed to reset login counter', { error: e.message }));
+    }
     return;
   }
 

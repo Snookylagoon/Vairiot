@@ -111,15 +111,12 @@ export async function login(
 export async function loginWithTwoFactor(
   challengeToken: string,
   twoFactorCode: string,
-  _ipAddress = '0.0.0.0',
+  ipAddress = '0.0.0.0',
   device?: DeviceCheckIn,
 ): Promise<LoginResult> {
   let payload;
   try { payload = verifyChallengeToken(challengeToken, '2fa_challenge'); }
   catch { throw new UnauthorizedError('2FA session expired — please sign in again'); }
-
-  const { validateTwoFactorToken } = await import('./two-factor.service');
-  await validateTwoFactorToken(payload.sub, twoFactorCode);
 
   const user = await prisma.user.findUnique({
     where: { id: payload.sub },
@@ -127,10 +124,25 @@ export async function loginWithTwoFactor(
   });
   if (!user || !user.active) throw new UnauthorizedError('User not found or inactive');
 
+  // A wrong code counts towards the same lockout as a wrong password, and a
+  // locked account can't keep guessing with a challenge token it already holds.
+  await checkAccountLock(user.tenantId, user.email);
+
+  const { validateTwoFactorToken, InvalidTwoFactorCodeError } = await import('./two-factor.service');
+  try {
+    await validateTwoFactorToken(user.id, twoFactorCode);
+  } catch (e) {
+    if (e instanceof InvalidTwoFactorCodeError) {
+      await recordLoginAttempt(user.tenantId, user.email, ipAddress, false, user.id, 'wrong_2fa_code');
+    }
+    throw e;
+  }
+
   const roles       = user.roles.map((ur) => ur.role.name);
   const permissions = await effectivePermissionsForUser(user.id, user);
   const accessToken  = signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions });
   const refreshToken = signRefreshToken({ sub: user.id, tenantId: user.tenantId, type: 'refresh' });
+  await recordLoginAttempt(user.tenantId, user.email, ipAddress, true, user.id, '2fa_complete');
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
   recordAuditEvent({ tenantId: user.tenantId, actor: user.id, entityType: 'user', entityId: user.id, action: 'login_2fa', metadata: { email: user.email } });
   if (device) await touchDeviceOnLogin(user.tenantId, user.id, device);
