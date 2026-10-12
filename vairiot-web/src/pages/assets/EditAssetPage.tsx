@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { AssetForm, AssetFormData } from '@/components/forms/AssetForm';
 import { useAsset, useUpdateAsset } from '@/hooks/useAssets';
+import { geoPayload } from '@/lib/geo';
 
 function fmtDate(d?: string | null) {
   return d ? d.slice(0, 10) : '';
@@ -28,6 +29,7 @@ export function EditAssetPage() {
       otherCapitalizedCosts: toNum(data.otherCapitalizedCosts),
       residualValue: toNum(data.residualValue),
       usefulLifeMonths: data.usefulLifeMonths ? Number(data.usefulLifeMonths) : undefined,
+      ...geoPayload(data),
     });
     navigate(`/assets/${id}`);
   };
@@ -52,6 +54,11 @@ export function EditAssetPage() {
           categoryId:    asset.category?.id ?? '',
           siteId:        asset.site?.id ?? '',
           locationId:    asset.location?.id ?? '',
+          latitude:      asset.latitude?.toString() ?? '',
+          longitude:     asset.longitude?.toString() ?? '',
+          geoAccuracyMeters: asset.geoAccuracyMeters?.toString() ?? '',
+          geoSource:     asset.geoSource ?? '',
+          geoCapturedAt: asset.geoCapturedAt ?? '',
           condition:     asset.condition ?? 'good',
           serialNumber:  asset.serialNumber ?? '',
           modelNumber:   asset.modelNumber ?? '',

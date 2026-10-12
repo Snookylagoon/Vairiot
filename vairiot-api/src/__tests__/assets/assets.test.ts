@@ -246,3 +246,92 @@ describe('Assets', () => {
     }
   });
 });
+
+describe('Asset GIS position', () => {
+  let geoAssetId: string;
+  const auth = () => ({ Authorization: `Bearer ${token}` });
+
+  it('creates an asset with a position alongside its site', async () => {
+    const r = await request(app).post('/api/v1/assets').set(auth()).send({
+      name: 'Rooftop Antenna', siteId, latitude: 41.7151, longitude: 44.8271,
+      geoAccuracyMeters: 6, geoSource: 'device',
+    });
+    expect(r.status).toBe(201);
+    expect(r.body).toMatchObject({ latitude: 41.7151, longitude: 44.8271, geoAccuracyMeters: 6, geoSource: 'device' });
+    expect(r.body.site.id).toBe(siteId);
+    expect(r.body.geoCapturedAt).toBeTruthy();
+    geoAssetId = r.body.id;
+  });
+
+  it('creates an asset without a position', async () => {
+    const r = await request(app).post('/api/v1/assets').set(auth()).send({ name: 'Unplaced Chair' });
+    expect(r.status).toBe(201);
+    expect(r.body.latitude).toBeNull();
+    expect(r.body.longitude).toBeNull();
+  });
+
+  it('rejects an out-of-range or half-supplied position', async () => {
+    const bad = await request(app).post('/api/v1/assets').set(auth()).send({ name: 'Bad', latitude: 91, longitude: 0 });
+    expect(bad.status).toBe(400);
+    const half = await request(app).patch(`/api/v1/assets/${geoAssetId}`).set(auth()).send({ latitude: 10.5 });
+    expect(half.status).toBe(400);
+  });
+
+  it('keeps capture metadata when a form re-sends the same position', async () => {
+    const r = await request(app).patch(`/api/v1/assets/${geoAssetId}`).set(auth())
+      .send({ name: 'Rooftop Antenna (North)', latitude: '41.7151', longitude: '44.8271' });
+    expect(r.status).toBe(200);
+    expect(r.body.geoSource).toBe('device');
+    expect(r.body.geoAccuracyMeters).toBe(6);
+  });
+
+  it('moves the asset', async () => {
+    const r = await request(app).patch(`/api/v1/assets/${geoAssetId}`).set(auth()).send({ latitude: 41.72, longitude: 44.83 });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ latitude: 41.72, longitude: 44.83, geoSource: 'manual', geoAccuracyMeters: null });
+  });
+
+  it('exports the position in the CSV', async () => {
+    const r = await request(app).get('/api/v1/assets/export.csv?search=Rooftop').set(auth());
+    expect(r.status).toBe(200);
+    const [header, row] = r.text.trim().split('\n');
+    expect(header).toContain('Latitude,Longitude');
+    expect(row).toContain('41.72,44.83');
+  });
+
+  it('imports positions, rejecting bad rows', async () => {
+    const r = await request(app).post('/api/v1/assets/import').set(auth()).send({ rows: [
+      { name: 'Imported Pump', latitude: '41.70', longitude: '44.80' },
+      { name: 'Imported Valve', latitude: '41.70' },
+    ] });
+    expect(r.status).toBe(200);
+    expect(r.body.created).toBe(1);
+    expect(r.body.errors).toEqual([{ row: 2, message: 'Latitude and longitude must be provided together' }]);
+    const pump = await prisma.asset.findFirst({ where: { tenantId: TID, name: 'Imported Pump' } });
+    expect(pump).toMatchObject({ latitude: 41.7, longitude: 44.8, geoSource: 'import' });
+  });
+
+  it('lists positioned assets for the map, with the list filters', async () => {
+    const r = await request(app).get('/api/v1/assets/map').set(auth());
+    expect(r.status).toBe(200);
+    const names = r.body.assets.map((a: { name: string }) => a.name);
+    expect(names).toEqual(expect.arrayContaining(['Rooftop Antenna (North)', 'Imported Pump']));
+    expect(names).not.toContain('Unplaced Chair');
+    expect(r.body.unplaced).toBeGreaterThanOrEqual(1);
+    expect(r.body.truncated).toBe(false);
+    const antenna = r.body.assets.find((a: { name: string }) => a.name === 'Rooftop Antenna (North)');
+    expect(antenna).toMatchObject({ latitude: 41.72, longitude: 44.83, site: { id: siteId } });
+    expect(antenna).not.toHaveProperty('purchaseCost');
+
+    const bySite = await request(app).get(`/api/v1/assets/map?siteId=${siteId}`).set(auth());
+    expect(bySite.body.assets.map((a: { name: string }) => a.name)).toEqual(['Rooftop Antenna (North)']);
+    const bySearch = await request(app).get('/api/v1/assets/map?search=pump').set(auth());
+    expect(bySearch.body.assets.map((a: { name: string }) => a.name)).toEqual(['Imported Pump']);
+  });
+
+  it('clears the position', async () => {
+    const r = await request(app).patch(`/api/v1/assets/${geoAssetId}`).set(auth()).send({ latitude: null, longitude: null });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ latitude: null, longitude: null, geoSource: null, geoCapturedAt: null });
+  });
+});

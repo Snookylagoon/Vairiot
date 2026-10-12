@@ -18,3 +18,6 @@ export * from './constants/licence.constants.js';
 
 // GS1 asset identification (isomorphic — server, browser, WebView)
 export * from './gs1/index.js';
+
+// GIS position for assets (isomorphic)
+export * from './geo/index.js';

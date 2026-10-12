@@ -11,6 +11,8 @@ const ASSET_FIELDS = [
   { key: 'description', label: 'Description' },
   { key: 'categoryName', label: 'Category' },
   { key: 'siteName', label: 'Site' },
+  { key: 'latitude', label: 'Latitude' },
+  { key: 'longitude', label: 'Longitude' },
   { key: 'serialNumber', label: 'Serial Number' },
   { key: 'modelNumber', label: 'Model Number' },
   { key: 'manufacturer', label: 'Manufacturer' },

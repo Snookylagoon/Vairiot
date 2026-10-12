@@ -1,4 +1,4 @@
-import { Search, Plus, Package, Download, Filter, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Plus, Package, Download, Filter, ArrowUpDown, ArrowUp, ArrowDown, Map } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
@@ -56,6 +56,13 @@ export function AssetsPage() {
 
   const [searchInput, setSearchInput] = useState(search);
   const debouncedSearch = useDebounce(searchInput, 300);
+
+  // The map shares the list's filters; paging and sorting don't apply there.
+  function openMap() {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries({ search, categoryId, siteId, status, condition })) if (v) params.set(k, v);
+    navigate(`/assets/map${params.size ? `?${params}` : ''}`);
+  }
 
   const setPage = (p: number) => set({ page: p > 1 ? String(p) : '' });
 
@@ -134,6 +141,9 @@ export function AssetsPage() {
           <p className="text-sm text-gray-500 mt-1">{total} total assets</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={openMap}>
+            <Map size={16} className="mr-1.5" /> Map view
+          </Button>
           <Button variant="secondary" onClick={exportCsv}>
             <Download size={16} className="mr-1.5" /> Export CSV
           </Button>

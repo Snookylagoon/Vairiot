@@ -22,6 +22,11 @@ final class CachedAsset {
     var categoryName: String?
     var siteName: String?
     var locationName: String?
+    // GIS position — optional, so lightweight migration adds the columns.
+    var latitude: Double?
+    var longitude: Double?
+    var geoAccuracyMeters: Double?
+    var geoSource: String?
     var updatedAt: Date
 
     init(
@@ -39,6 +44,10 @@ final class CachedAsset {
         categoryName: String? = nil,
         siteName: String? = nil,
         locationName: String? = nil,
+        latitude: Double? = nil,
+        longitude: Double? = nil,
+        geoAccuracyMeters: Double? = nil,
+        geoSource: String? = nil,
         updatedAt: Date = .now
     ) {
         self.id = id
@@ -55,6 +64,10 @@ final class CachedAsset {
         self.categoryName = categoryName
         self.siteName = siteName
         self.locationName = locationName
+        self.latitude = latitude
+        self.longitude = longitude
+        self.geoAccuracyMeters = geoAccuracyMeters
+        self.geoSource = geoSource
         self.updatedAt = updatedAt
     }
 }
@@ -80,6 +93,10 @@ extension CachedAsset {
             categoryName: response.category?.name,
             siteName: response.site?.name,
             locationName: response.location?.name,
+            latitude: response.latitude,
+            longitude: response.longitude,
+            geoAccuracyMeters: response.geoAccuracyMeters,
+            geoSource: response.geoSource,
             updatedAt: .now
         )
     }
@@ -100,7 +117,11 @@ extension CachedAsset {
             giai: giai,
             category: categoryName.map { CategoryRefResponse(id: "", name: $0) },
             site: siteName.map { SiteRefResponse(id: "", name: $0) },
-            location: locationName.map { LocationRefResponse(id: "", name: $0) }
+            location: locationName.map { LocationRefResponse(id: "", name: $0) },
+            latitude: latitude,
+            longitude: longitude,
+            geoAccuracyMeters: geoAccuracyMeters,
+            geoSource: geoSource
         )
     }
 
@@ -119,6 +140,10 @@ extension CachedAsset {
         categoryName = response.category?.name
         siteName = response.site?.name
         locationName = response.location?.name
+        latitude = response.latitude
+        longitude = response.longitude
+        geoAccuracyMeters = response.geoAccuracyMeters
+        geoSource = response.geoSource
         updatedAt = .now
     }
 }

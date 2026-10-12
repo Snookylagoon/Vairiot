@@ -265,14 +265,23 @@ model Location {
 
 // ─── Assets ───────────────────────────────────────────────────────────────────
 model Asset {
-  id           String  @id @default(cuid())
-  tenantId     String
-  assetNumber  String
-  name         String
-  description  String?
-  categoryId   String?
-  siteId       String?
-  locationId   String?
+  id          String  @id @default(cuid())
+  tenantId    String
+  assetNumber String
+  name        String
+  description String?
+  categoryId  String?
+  siteId      String?
+  locationId  String?
+
+  // ── GIS position (WGS 84 decimal degrees) — complements site/location ──
+  // Set and cleared as a pair (CHECK constraint in the migration).
+  latitude          Float?
+  longitude         Float?
+  geoAccuracyMeters Float?
+  geoSource         String? // manual | device | import
+  geoCapturedAt     DateTime?
+
   status       String  @default("active")
   condition    String  @default("good")
   serialNumber String?

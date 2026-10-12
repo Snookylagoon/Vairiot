@@ -22,6 +22,8 @@ import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.scanner.CameraBarcodeScannerScreen
 import com.vairiot.app.scanner.ScannerHealth
 import com.vairiot.app.ui.components.ClearableTextField
+import com.vairiot.app.ui.components.GpsPositionSection
+import com.vairiot.app.location.GpsCaptureState
 import com.vairiot.app.ui.components.PressableButton
 import com.vairiot.app.ui.theme.*
 
@@ -33,6 +35,7 @@ fun AssetScanScreen(
     val state by viewModel.state.collectAsState()
     val health by viewModel.scannerHealth.collectAsState()
     val showCamera by viewModel.showCameraFallback.collectAsState()
+    val registrationGps by viewModel.registrationGps.collectAsState()
     var manualQuery by remember { mutableStateOf("") }
     val sideRail = LocalUseSideRail.current
 
@@ -163,6 +166,10 @@ fun AssetScanScreen(
                     },
                     onScanSecondary = { viewModel.scanSecondary() },
                     onClearSecondary = { viewModel.clearSecondary() },
+                    gps = registrationGps,
+                    onCapturePosition = { viewModel.captureRegistrationPosition() },
+                    onRemovePosition = { viewModel.removeRegistrationPosition() },
+                    onPositionDenied = { viewModel.registrationPositionDenied() },
                 )
                 is ScanUiState.Registering -> LoadingCard()
                 is ScanUiState.Registered  -> AssetResultCard(s.asset, onReset = { viewModel.reset() }, isNew = true)
@@ -342,6 +349,10 @@ fun NotFoundCard(
     onRegister: (String, String?) -> Unit,
     onScanSecondary: () -> Unit = {},
     onClearSecondary: () -> Unit = {},
+    gps: GpsCaptureState = GpsCaptureState(),
+    onCapturePosition: () -> Unit = {},
+    onRemovePosition: () -> Unit = {},
+    onPositionDenied: () -> Unit = {},
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var assetName by remember { mutableStateOf("") }
@@ -429,12 +440,21 @@ fun NotFoundCard(
                             Text("Scan $secondaryLabel")
                         }
                     }
+
+                    HorizontalDivider()
+
+                    GpsPositionSection(
+                        state = gps,
+                        onCapture = onCapturePosition,
+                        onRemove = onRemovePosition,
+                        onPermissionDenied = onPositionDenied,
+                    )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = { showDialog = false; onRegister(assetName, secondaryFinal) },
-                    enabled = assetName.isNotBlank(),
+                    enabled = assetName.isNotBlank() && !gps.isCapturing,
                     colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
                 ) { Text("Register") }
             },

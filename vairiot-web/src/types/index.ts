@@ -3,6 +3,8 @@ export type {
   Disposal,
   Asset,
   AssetListResponse,
+  AssetMapPoint,
+  AssetMapResponse,
   Category,
   Site,
   DocumentRecord as Document,

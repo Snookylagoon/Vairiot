@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import { AssetDocuments } from '@/components/assets/AssetDocuments';
+import { AssetGeoPosition } from '@/components/assets/AssetGeoPosition';
 import { AssetGs1Identity } from '@/components/assets/AssetGs1Identity';
 import { AssetPhotos } from '@/components/assets/AssetPhotos';
 import { AssetTimeline } from '@/components/assets/AssetTimeline';
@@ -202,6 +203,8 @@ export function AssetDetailPage() {
             <Field label="Location" value={asset.location?.name} />
           </CardBody>
         </Card>
+
+        <AssetGeoPosition asset={asset} />
 
         {/* Financial: Procurement */}
         <Card>

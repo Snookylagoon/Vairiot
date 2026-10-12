@@ -39,6 +39,7 @@ targets:
       properties:
         NSCameraUsageDescription: "Vairiot needs the camera to scan barcodes and QR codes on assets."
         NSBluetoothAlwaysUsageDescription: "Vairiot uses Bluetooth to connect to label printers."
+        NSLocationWhenInUseUsageDescription: "Vairiot records an asset's GPS position when you capture it, so it can be found on a map."
         UILaunchScreen: {}
         CFBundleURLTypes:
           - CFBundleURLName: com.vairiot.mobile
