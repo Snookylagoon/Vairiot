@@ -3,24 +3,11 @@ import { ROLE_PERMISSION_MATRIX, ALL_ROLE_NAMES , LICENCE_TIER_CONFIG } from 'va
 
 import { prisma } from '../src/lib/prisma';
 
+import { SEED_USERS, requirePassword } from './demo-accounts';
+
 const TENANT_ID   = 'demo';
 const TENANT_NAME = 'Vairiot Demo Co.';
-const DEFAULT_PASS = 'DemoPassword1!';
-
-// One user per role — 11 users total + the original demo admin
-const SEED_USERS: { email: string; name: string; roleName: string }[] = [
-  { email: 'superadmin@vairiot.com',  name: 'Platform Super Admin',   roleName: 'Platform Super Admin' },
-  { email: 'licensing@vairiot.com',   name: 'Licensing Authority',    roleName: 'Licensing Authority' },
-  { email: 'admin@demo.vairiot.com',  name: 'Company Administrator',  roleName: 'Company Admin' },
-  { email: 'assets@demo.vairiot.com', name: 'Asset Manager',          roleName: 'Asset Manager' },
-  { email: 'maint-mgr@demo.vairiot.com', name: 'Maintenance Manager', roleName: 'Maintenance Manager' },
-  { email: 'tech@demo.vairiot.com',   name: 'Maintenance Technician', roleName: 'Maintenance Technician' },
-  { email: 'collector@demo.vairiot.com', name: 'Data Collector',      roleName: 'Data Collector' },
-  { email: 'auditor@demo.vairiot.com', name: 'Auditor',               roleName: 'Auditor' },
-  { email: 'viewer@demo.vairiot.com',  name: 'Viewer',                roleName: 'Viewer' },
-  { email: 'stakeholder@client.com',   name: 'Client Stakeholder',    roleName: 'Client Stakeholder' },
-  { email: 'authority@client.com',     name: 'Client Authority',      roleName: 'Client Authority' },
-];
+const DEFAULT_PASS = requirePassword('SEED_DEMO_PASSWORD');
 
 const DEMO_ASSETS = [
   { num: 'AST-000001', name: 'Dell Latitude 7440',   desc: '14" business laptop',    status: 'active', condition: 'good',      serial: 'DL7440-001', barcode: '1001-DL7440', rfid: 'E280-1001-DL7440' },
@@ -209,7 +196,7 @@ async function main() {
   console.log('\n✅ Seed complete');
   console.log('───────────────────────────────────────────────────────────');
   console.log(`Organisation ID : ${tenant.id}`);
-  console.log(`Default password: ${DEFAULT_PASS}`);
+  console.log('Password        : the value of SEED_DEMO_PASSWORD (not printed)');
   console.log('');
   console.log('Users:');
   for (const u of SEED_USERS) {

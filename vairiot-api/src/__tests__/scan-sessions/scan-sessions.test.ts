@@ -4,6 +4,7 @@ import request from 'supertest';
 import { createApp } from '../../app';
 import { prisma } from '../../lib/prisma';
 import { flushAuditEvents } from '../../services/audit-event.service';
+import { ensureTestLicence, removeTestLicence } from '../helpers/test-licence';
 
 const app = createApp();
 const TID = 'test-scan-session-tenant-001';
@@ -14,6 +15,7 @@ let assetId: string;
 
 beforeAll(async () => {
   await prisma.tenant.upsert({ where: { id: TID }, update: { onboardingComplete: true }, create: { id: TID, name: 'Scan Session Test Tenant', onboardingComplete: true } });
+  await ensureTestLicence(TID);
   const PERMS = ['asset:read', 'asset:write', 'scan:execute'];
   const role = await prisma.role.upsert({ where: { tenantId_name: { tenantId: TID, name: 'Administrator' } }, update: { permissions: PERMS }, create: { tenantId: TID, name: 'Administrator', permissions: PERMS } });
   const hash = await bcrypt.hash(PASS, 12);
@@ -34,6 +36,7 @@ afterAll(async () => {
   await prisma.userRole.deleteMany({ where: { user: { tenantId: TID } } });
   await prisma.user.deleteMany({ where: { tenantId: TID } });
   await prisma.role.deleteMany({ where: { tenantId: TID } });
+  await removeTestLicence(TID);
   await prisma.tenant.deleteMany({ where: { id: TID } });
   await prisma.$disconnect();
 });

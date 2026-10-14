@@ -39,7 +39,7 @@ export function useVerifyTwoFactor() {
 export function useDisableTwoFactor() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post('/api/v1/2fa/disable').then(r => r.data),
+    mutationFn: (token: string) => api.post('/api/v1/2fa/disable', { token }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['2fa'] }),
   });
 }

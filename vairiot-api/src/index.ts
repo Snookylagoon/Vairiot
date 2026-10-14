@@ -1,7 +1,7 @@
 import { createApp } from './app';
 import { assertEncryptionKey } from './lib/crypto';
 import { logger } from './lib/logger';
-import { ensurePhotosBucket, ensureDocumentsBucket, ensureMobileReleasesBucket } from './lib/minio';
+import { assertScopedMinioCredentials, ensurePhotosBucket, ensureDocumentsBucket, ensureMobileReleasesBucket } from './lib/minio';
 import { initMonitoring } from './lib/monitoring';
 import { prisma } from './lib/prisma';
 import { getRedis } from './lib/redis';
@@ -12,15 +12,16 @@ const PORT = Number(process.env.API_PORT) || 3001;
 async function main() {
   initMonitoring();
   if (process.env.NODE_ENV === 'production') assertEncryptionKey();
+  assertScopedMinioCredentials();
   await prisma.$connect();
   logger.info('Database connected');
   try { await getRedis().connect(); logger.info('Redis connected'); } catch (e) {
     logger.warn(`Redis connection skipped: ${(e as Error).message}`);
   }
-  // MINIO_CREDENTIALS=scoped is set by docker-compose.prod.yml when the API
-  // connects as the bucket-limited app user created by minio-init (SEC-M3).
-  if (process.env.NODE_ENV === 'production' && process.env.MINIO_CREDENTIALS !== 'scoped') {
-    logger.warn('MinIO: connected with the ROOT credentials. Set MINIO_ACCESS_KEY / MINIO_SECRET_KEY in .env and redeploy.');
+  // Production must connect as the bucket-limited app user created by
+  // minio-init (SEC-M3, KFR-042); the root user is refused unless allowed.
+  if (process.env.MINIO_ALLOW_ROOT === 'true' && process.env.MINIO_CREDENTIALS !== 'scoped') {
+    logger.warn('MinIO: running with the ROOT credentials because MINIO_ALLOW_ROOT=true.');
   }
   try { await ensurePhotosBucket(); await ensureDocumentsBucket(); await ensureMobileReleasesBucket(); } catch (e) {
     logger.warn(`MinIO bucket bootstrap skipped: ${(e as Error).message}`);

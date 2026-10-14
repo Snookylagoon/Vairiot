@@ -145,7 +145,7 @@ export async function validateTwoFactorToken(userId: string, token: string): Pro
 
 // ─── Disable 2FA ─────────────────────────────────────────────────────────────
 
-export async function disableTwoFactor(userId: string, roles: string[]): Promise<void> {
+export async function disableTwoFactor(userId: string, roles: string[], token = ''): Promise<void> {
   // Block disabling for roles that require 2FA
   const requiresMandatory = roles.some((r) =>
     ROLES_REQUIRING_2FA.includes(r as RoleName),
@@ -156,6 +156,16 @@ export async function disableTwoFactor(userId: string, roles: string[]): Promise
       'Two-factor authentication is mandatory for your role and cannot be disabled',
       'TWO_FA_MANDATORY',
     );
+  }
+
+  // Switching off active 2FA needs proof of the second factor, not just a
+  // session (KFR-041). A set-up that was never verified can be cancelled freely.
+  const record = await prisma.userTwoFactor.findUnique({ where: { userId } });
+  if (record?.verifiedAt) {
+    if (!token) {
+      throw new ValidationError('Enter a current authenticator or backup code to disable two-factor authentication');
+    }
+    await validateTwoFactorToken(userId, token);
   }
 
   await prisma.userTwoFactor.delete({ where: { userId } }).catch(() => {});

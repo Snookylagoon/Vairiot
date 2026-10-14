@@ -1,5 +1,3 @@
-import type { Readable } from 'stream';
-
 import compression from 'compression';
 import cors from 'cors';
 import express, { Application, Request, Response } from 'express';
@@ -8,11 +6,13 @@ import swaggerUi from 'swagger-ui-express';
 
 import { openApiSpec } from './lib/openapi';
 import { authenticate } from './middleware/authenticate';
+import { requireClientScope, requireTenantScope } from './middleware/authorise';
 import { errorHandler } from './middleware/error-handler';
 import { requireOnboardingComplete } from './middleware/onboarding-guard';
 import { globalLimiter, syncLimiter } from './middleware/rate-limit';
 import { requestId } from './middleware/request-id';
 import { requestLogger } from './middleware/request-logger';
+import { requireActiveLicence } from './middleware/require-active-licence';
 import { apiKeysRouter }    from './routes/admin/api-keys.router';
 import { auditEventsRouter } from './routes/admin/audit-events.router';
 import { iosReleasesRouter } from './routes/admin/ios-releases.router';
@@ -90,15 +90,13 @@ export function createApp(): Application {
   app.get('/api/v1/public/tenants/:id/logo', async (req, res) => {
     try {
       const { prisma } = await import('./lib/prisma');
-      const { minioClient, PHOTO_BUCKET } = await import('./lib/minio');
+      const { readCompanyLogo } = await import('./lib/company-logo');
       const company = await prisma.company.findUnique({ where: { tenantId: req.params.id } });
       if (!company?.logoStorageKey) { res.status(404).json({ error: 'No logo' }); return; }
-      const stream = await minioClient.getObject(PHOTO_BUCKET, company.logoStorageKey);
-      const ext = company.logoStorageKey.split('.').pop();
-      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-      res.setHeader('Content-Type', mime);
+      const { body, mimeType } = await readCompanyLogo(company.logoStorageKey);
+      res.setHeader('Content-Type', mimeType);
       res.setHeader('Cache-Control', 'public, max-age=300');
-      (stream as Readable).pipe(res);
+      res.send(body);
     } catch {
       res.status(404).json({ error: 'No logo' });
     }
@@ -114,6 +112,13 @@ export function createApp(): Application {
   // Per-user budget for offline-queue flushes (the global limiter skips these).
   gated.use(syncLimiter);
   gated.use(requireOnboardingComplete());
+  // Tenant users stay in their own tenant; client-plane roles are read-only;
+  // writes need a licence that is neither suspended nor past its grace period.
+  // Licence and device endpoints stay open so an expired tenant can renew, and
+  // switching the viewed sub-tenant is a POST that writes nothing (KFR-040).
+  gated.use(requireTenantScope());
+  gated.use(requireClientScope());
+  gated.use(requireActiveLicence({ exemptPrefixes: ['/licences', '/company/switch-context'] }));
 
   gated.use('/assets',       assetsRouter);
   gated.use('/categories',   categoriesRouter);

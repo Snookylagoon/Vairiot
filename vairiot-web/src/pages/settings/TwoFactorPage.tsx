@@ -22,6 +22,7 @@ export function TwoFactorPage() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [verifyToken, setVerifyToken] = useState('');
   const [showDisable, setShowDisable] = useState(false);
+  const [disableToken, setDisableToken] = useState('');
 
   // Render the QR locally — the otpauth URL contains the TOTP secret, so it
   // must never be sent to an external QR service.
@@ -60,9 +61,10 @@ export function TwoFactorPage() {
 
   const disable = async () => {
     try {
-      await disableMutation.mutateAsync();
+      await disableMutation.mutateAsync(disableToken.trim());
       toast.success('Two-factor authentication disabled');
       setShowDisable(false);
+      setDisableToken('');
     } catch (e: unknown) {
       toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Cannot disable');
     }
@@ -158,10 +160,20 @@ export function TwoFactorPage() {
       <ConfirmDialog
         open={showDisable}
         title="Disable Two-Factor Authentication"
-        description="Are you sure? This will remove 2FA protection from your account."
+        description="This removes 2FA protection from your account. Enter a current code from your authenticator, or a backup code, to confirm."
         onConfirm={disable}
-        onCancel={() => setShowDisable(false)}
-      />
+        onCancel={() => { setShowDisable(false); setDisableToken(''); }}
+      >
+        <Input
+          value={disableToken}
+          onChange={e => setDisableToken(e.target.value)}
+          placeholder="123456"
+          maxLength={8}
+          autoComplete="one-time-code"
+          aria-label="Authenticator or backup code"
+          className="mt-3 max-w-[200px] text-center font-mono text-lg tracking-widest"
+        />
+      </ConfirmDialog>
     </div>
   );
 }

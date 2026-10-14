@@ -332,8 +332,9 @@ describe('Two-factor authentication', () => {
   });
 
   it('can disable 2FA (non-mandatory role)', async () => {
+    // Disabling now needs a current code (KFR-041); the otplib mock accepts 123456.
     const res = await request(app).post('/api/v1/2fa/disable')
-      .set('Authorization', `Bearer ${userToken}`);
+      .set('Authorization', `Bearer ${userToken}`).send({ token: '123456' });
     expect(res.status).toBe(200);
   });
 });
@@ -388,7 +389,7 @@ describe('2FA mandatory for platform roles', () => {
 
   it('platform role can disable 2FA (no mandatory-role block)', async () => {
     const res = await request(app).post('/api/v1/2fa/disable')
-      .set('Authorization', `Bearer ${platformToken}`);
+      .set('Authorization', `Bearer ${platformToken}`).send({ token: '123456' });
     expect(res.status).toBe(200);
   });
 });

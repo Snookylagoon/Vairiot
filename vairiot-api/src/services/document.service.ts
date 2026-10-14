@@ -1,6 +1,7 @@
 import { Readable } from 'stream';
 
 import { NotFoundError } from '../lib/errors';
+import { readStrippedImage } from '../lib/image-metadata';
 import { minioClient, DOCUMENT_BUCKET } from '../lib/minio';
 import { prisma } from '../lib/prisma';
 
@@ -54,7 +55,11 @@ export async function uploadDocument(params: {
 export async function getDocumentStream(tenantId: string, docId: string): Promise<{ stream: Readable; mimeType: string; fileName: string }> {
   const doc = await prisma.document.findFirst({ where: { id: docId, tenantId } });
   if (!doc) throw new NotFoundError('Document not found');
-  const stream = await minioClient.getObject(DOCUMENT_BUCKET, doc.storageKey);
+  const stored = await minioClient.getObject(DOCUMENT_BUCKET, doc.storageKey);
+  // An image attached as a document is stripped of EXIF/GPS like a photo (KFR-043).
+  const stream = doc.mimeType.toLowerCase().startsWith('image/')
+    ? Readable.from([await readStrippedImage(stored, doc.mimeType)])
+    : stored;
   return { stream, mimeType: doc.mimeType, fileName: doc.fileName };
 }
 
