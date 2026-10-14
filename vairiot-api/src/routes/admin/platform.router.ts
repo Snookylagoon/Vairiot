@@ -1,8 +1,7 @@
-import { Readable } from 'stream';
-
 import { Router, Response } from 'express';
 import multer from 'multer';
 
+import { readCompanyLogo } from '../../lib/company-logo';
 import { AppError } from '../../lib/errors';
 import { minioClient, PHOTO_BUCKET } from '../../lib/minio';
 import { prisma } from '../../lib/prisma';
@@ -273,12 +272,10 @@ platformRouter.get('/tenants/:id/logo', async (req: Request, res: Response) => {
   const company = await prisma.company.findUnique({ where: { tenantId: req.params.id } });
   if (!company?.logoStorageKey) { res.status(404).json({ error: 'No logo uploaded' }); return; }
 
-  const stream = await minioClient.getObject(PHOTO_BUCKET, company.logoStorageKey);
-  const ext = company.logoStorageKey.split('.').pop();
-  const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-  res.setHeader('Content-Type', mime);
+  const { body, mimeType } = await readCompanyLogo(company.logoStorageKey);
+  res.setHeader('Content-Type', mimeType);
   res.setHeader('Cache-Control', 'private, max-age=300');
-  (stream as Readable).pipe(res);
+  res.send(body);
 });
 
 platformRouter.delete('/tenants/:id/logo', async (req: Request, res: Response) => {

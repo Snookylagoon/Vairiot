@@ -1,6 +1,7 @@
 import { Readable } from 'stream';
 
 import { NotFoundError, ValidationError } from '../lib/errors';
+import { readStrippedImage } from '../lib/image-metadata';
 import { minioClient, PHOTO_BUCKET } from '../lib/minio';
 import { prisma } from '../lib/prisma';
 
@@ -157,7 +158,9 @@ export async function getPhotoStream(tenantId: string, photoId: string, thumb = 
   const photo = await prisma.photo.findFirst({ where: { id: photoId, tenantId } });
   if (!photo) throw new NotFoundError('Photo not found');
   const key = (thumb && photo.thumbStorageKey) ? photo.thumbStorageKey : photo.storageKey;
-  const stream = await minioClient.getObject(PHOTO_BUCKET, key);
+  // Shared copies never carry the original's EXIF/GPS (KFR-043).
+  const stored = await minioClient.getObject(PHOTO_BUCKET, key);
+  const stream = Readable.from([await readStrippedImage(stored, photo.mimeType)]);
   return { stream, mimeType: photo.mimeType };
 }
 

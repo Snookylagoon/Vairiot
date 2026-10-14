@@ -2,12 +2,14 @@ import { Router, Response } from 'express';
 
 
 import { prisma } from '../../lib/prisma';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import type { Request } from '../../types/http';
 
 export const exceptionsRouter = Router();
 
-exceptionsRouter.get('/',
+// Counts across assets and maintenance: asset read access required (KFR-041).
+exceptionsRouter.get('/', requireAnyPermission('asset:read'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const tenantId = req.user!.tenantId;
 

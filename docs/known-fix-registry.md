@@ -347,4 +347,67 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Fix Applied** | Staging now uses `MINIO_ACCESS_KEY=vairiot-api`. `init.sh` checks for an access key with the chosen name first and exits with a clear message naming the clash. |
 | **Test Added** | `init.sh` against the self-built MinIO: new user, rerun (idempotent) and an existing same-named access key (clear error, exit 1). |
 
-*Last updated: S0 staging deploy, October 2026*
+## KFR-037 — Demo login credentials served publicly (CI Phase 0, finding 1)
+
+| Field | Detail |
+|---|---|
+| **Module** | `vairiot-web/public/auto-login.html` (removed), `vairiot-api/prisma/seed.ts`, new `prisma/demo-accounts.ts`, new `prisma/rotate-demo-password.ts` |
+| **Root Cause** | `auto-login.html` posted the demo Company Admin's email and password to `/auth/login`. Everything in `public/` ships with every web build, so every deployment, production included, served the credentials to anyone. The password was also a constant in `seed.ts`, set on all eleven seed accounts (Platform Super Admin and Licensing Authority included) and printed at the end of every seed run. It is in git history and must be treated as public. |
+| **Fix Applied** | Deleted the page (nothing linked to it). `seed.ts` reads `SEED_DEMO_PASSWORD` (12+ characters, refused otherwise) and no longer prints it. New `npm run rotate:demo-password --workspace=vairiot-api` with `OLD_DEMO_PASSWORD` and `NEW_DEMO_PASSWORD` changes only seed accounts whose password is still the leaked one, so a real account sharing a seed email keeps its own password. **Still to do on each server:** run the rotation (staging, then production), and rotate `JWT_REFRESH_SECRET` if the old password may have been used, since refresh tokens are stateless. |
+| **Test Added** | `src/__tests__/security/demo-credentials.test.ts`: no file in `vairiot-web/public` signs in to the API; missing/short seed password refused; `seed.ts` has no literal password; the rotation changes a leaked seed account, leaves a changed seed account and a non-seed account alone, and refuses old = new. |
+
+## KFR-038 — Enterprise tier (maxAssets = -1) refused every asset (finding 2)
+
+| Field | Detail |
+|---|---|
+| **Module** | `enforceAssetCap`, moved from `licence.service.ts` to new `vairiot-api/src/services/asset-cap.service.ts` |
+| **Root Cause** | Registration and platform-admin create `TIER_3` with `maxAssets: -1` meaning unlimited, but the check was `count >= maxAssets`, which is always true for -1. Every Enterprise tenant got `ASSET_CAP_REACHED` on its first asset. (The shared constant and tests used 2147483647, so the tests never saw -1.) |
+| **Fix Applied** | `isUnlimitedCap()` treats any negative cap as unlimited; `getAssetHeadroom()` returns `remaining: Infinity` for it. `getRootTenantId`/`getTenantFamily` are now exported from `licence.service.ts` for reuse. |
+| **Test Added** | `src/__tests__/licensing/asset-cap.test.ts`: a `TIER_3` tenant at -1 creates assets singly and by import; a capped tier still refuses at the cap. |
+
+## KFR-039 — Bulk import bypassed the asset cap (finding 3)
+
+| Field | Detail |
+|---|---|
+| **Module** | `vairiot-api/src/services/import.service.ts` |
+| **Root Cause** | `bulkImportAssets` called `createAsset` directly; only `POST /assets` called `enforceAssetCap`. One CSV upload could take a tenant any distance past its tier. |
+| **Fix Applied** | Before creating anything, the import counts its rows that have a name and calls `enforceAssetCap(tenantId, count)`. An import that would exceed the cap is refused whole (403 `ASSET_CAP_REACHED`, with how many are left) instead of stopping part-way. |
+| **Test Added** | `asset-cap.test.ts`: an import past the cap returns 403 and creates nothing; one that fits succeeds, and nameless rows don't count. |
+
+## KFR-040 — Licence and scope middleware defined but never mounted (finding 4)
+
+| Field | Detail |
+|---|---|
+| **Module** | `vairiot-api/src/middleware/require-active-licence.ts`, `middleware/authorise.ts`, `src/app.ts` |
+| **Root Cause** | `requireActiveLicence`, `requireTenantScope` and `requireClientScope` were never used. An expired or suspended tenant kept full write access, and client-plane roles could write anything a router allowed. They were also wrong: `requireActiveLicence` blocked reads despite its comment, and looked for the licence on the sub-tenant (licences sit on the root tenant), so mounting it as written would have locked sub-tenants out. `requireClientScope` took the client company from a request parameter that the caller controls, so it scoped nothing. |
+| **Fix Applied** | All three are mounted on the gated router after onboarding. `requireActiveLicence` only checks writes, uses the root tenant's latest non-revoked licence, judges expiry by `expiresAt` + grace period (the stored status can be stale), lets platform roles through and exempts `/licences` (renewal, device heartbeat) and `/company/switch-context`. `requireTenantScope` refuses a non-platform user who names another tenant in `?tenantId` (403 `TENANT_SCOPE`). `requireClientScope` makes client-plane-only users read-only (403 `CLIENT_READ_ONLY`). **Not done:** narrowing a client user's reads to one client company. Assets have no client-company link, so that needs a schema change first. **Behaviour change:** tenants past their grace period become read-only. |
+| **Test Added** | `src/__tests__/security/scope-middleware.test.ts`: client reads pass and writes fail even with write permissions; foreign `?tenantId` refused; writes pass on an active licence (also from a sub-tenant) and within grace; refused past grace even with a stale `active` status, and on suspension; reads still pass; licence endpoints and platform roles not blocked. |
+
+## KFR-041 — Alerts, exceptions, onboarding and two-factor had no guard (finding 5)
+
+| Field | Detail |
+|---|---|
+| **Module** | `routes/alerts`, `routes/exceptions`, `routes/onboarding`, `routes/two-factor`, `services/two-factor.service.ts`, web `TwoFactorPage.tsx` + `useTwoFactor.ts` |
+| **Root Cause** | These routers checked only that the caller was signed in. Any user, a Viewer or a client account included, could rewrite the company record and logo, register a client, choose a licence tier or mark onboarding complete. A stolen access token was enough to switch two-factor authentication off. |
+| **Fix Applied** | Alerts and exceptions need `asset:read`. Onboarding reads stay open (the web app routes on progress; both mobile apps read the company), and every write needs `company:manage`. Two-factor routes only act on the caller, so no permission applies, but `/2fa/disable` now needs a current authenticator or backup code (unless the set-up was never verified) and has the login rate limit. The web confirm dialog asks for the code. |
+| **Test Added** | `src/__tests__/security/route-guards.test.ts`: exceptions and alerts refuse a user without `asset:read`; all five onboarding POSTs and the logo delete refuse a user without `company:manage`; progress and company stay readable; 2FA disable refused with no code or a wrong code, accepted with a valid one, and an unverified set-up can be cancelled. |
+
+## KFR-042 — Production still fell back to the MinIO root credentials (finding 6)
+
+| Field | Detail |
+|---|---|
+| **Module** | `vairiot-api/src/lib/minio.ts`, `src/index.ts`, `infra/deploy.sh`, `infra/docker-compose.prod.yml`, `DEPLOY.md` |
+| **Root Cause** | The scoped service account already exists (KFR-033), but a server without `MINIO_ACCESS_KEY` still ran the API as root, with only a warning. |
+| **Fix Applied** | `assertScopedMinioCredentials()` makes the production API refuse to start unless compose marked the credentials `scoped`, or `MINIO_ALLOW_ROOT=true` is set deliberately. `deploy.sh` makes the same check **before pulling or building**, so a server without the key keeps its running version. **Before go-live:** confirm production's `.env` has `MINIO_ACCESS_KEY`/`MINIO_SECRET_KEY`. The `deploy.sh` that runs is the copy on the server, so the first deploy of this change is not covered by its own pre-check. |
+| **Test Added** | `src/__tests__/security/minio-credentials.test.ts`: production refuses root, accepts scoped, accepts only the exact `MINIO_ALLOW_ROOT=true` override; development and test are unaffected. |
+
+## KFR-043 — Images were shared with their EXIF/GPS data (finding 7)
+
+| Field | Detail |
+|---|---|
+| **Module** | New `vairiot-api/src/lib/image-metadata/` (`jpeg.ts`, `png-webp.ts`, `heic.ts`, `index.ts`), new `lib/company-logo.ts`, `photo.service.ts`, `document.service.ts`, logo routes in `app.ts`, `onboarding.router.ts`, `platform.router.ts` |
+| **Root Cause** | No server-side image processing (AUDIT-2026-07-19 §5). The web upload sends the camera file as-is, so photos kept GPS position, camera and timestamps, and every download handed them on. |
+| **Fix Applied** | Originals stay untouched in storage (evidence), and every image that leaves the API is stripped: photo downloads and thumbnails, image documents, and company logos (one is public). It runs in pure TypeScript with no native dependency and no re-encoding. JPEG drops APP1 (EXIF/XMP), APP3–13/15, comments, the MPF index and images after EOI, keeps JFIF/ICC/Adobe, and writes back a one-tag EXIF orientation. PNG drops `eXIf`/`tEXt`/`zTXt`/`iTXt`/`tIME`. WebP drops `EXIF`/`XMP ` and clears their VP8X flags. HEIC/HEIF zero-fills the Exif/XMP items in place (rewriting `iloc` offsets would be riskier). The format is detected from the file's own bytes. An image that can't be parsed is refused rather than sent with its metadata. PNG loses its EXIF orientation. |
+| **Test Added** | `src/__tests__/photos/image-metadata.test.ts` (planted metadata in JPEG/PNG/WebP/HEIC fixtures from `image-fixtures.ts`; orientation kept; scan data byte-identical; broken JPEG refused) and `download-strip.test.ts` (end to end with an in-memory store: stored original keeps GPS; the photo download, image document download and public logo don't). Manually checked with real JPEG/PNG/HEIC files written by macOS ImageIO with GPS and camera tags: after stripping, all three decode, ImageIO finds no GPS or camera model, and JPEG and HEIC keep orientation 6. |
+
+*Last updated: CI Phase 0 security fixes, October 2026*

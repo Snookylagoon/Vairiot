@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 
 
 import { asyncHandler } from '../../middleware/error-handler';
+import { loginLimiter } from '../../middleware/rate-limit';
 import {
   generateTwoFactorSetup,
   verifyAndEnableTwoFactor,
@@ -29,7 +30,12 @@ twoFactorRouter.post('/verify', asyncHandler(async (req: Request, res: Response)
   res.json({ message: 'Two-factor authentication enabled' });
 }));
 
-twoFactorRouter.post('/disable', asyncHandler(async (req: Request, res: Response) => {
-  await disableTwoFactor(req.user!.sub, req.user!.roles);
+// Every route here acts only on the signed-in user, so no permission applies.
+// Disabling, though, used to need nothing but an access token: anyone holding a
+// stolen token could switch 2FA off. It now needs a current authenticator or
+// backup code, and is rate-limited like login (KFR-041).
+twoFactorRouter.post('/disable', loginLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const token = typeof req.body.token === 'string' ? req.body.token.trim() : '';
+  await disableTwoFactor(req.user!.sub, req.user!.roles, token);
   res.json({ message: 'Two-factor authentication disabled' });
 }));

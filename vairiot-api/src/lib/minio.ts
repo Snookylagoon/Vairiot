@@ -16,6 +16,22 @@ export const minioClient = new Client({
   secretKey: process.env.MINIO_SECRET_KEY || process.env.MINIO_ROOT_PASSWORD || 'changeme-minio',
 });
 
+/**
+ * Refuses to run a production API on the MinIO root credentials (KFR-042).
+ * docker-compose.prod.yml sets MINIO_CREDENTIALS=scoped when the API gets the
+ * bucket-limited user that minio-init creates (KFR-033). That used to be only a
+ * warning, so a server without MINIO_ACCESS_KEY kept running as root unnoticed.
+ * MINIO_ALLOW_ROOT=true is the deliberate escape hatch for a one-box install.
+ */
+export function assertScopedMinioCredentials(env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV !== 'production') return;
+  if (env.MINIO_CREDENTIALS === 'scoped' || env.MINIO_ALLOW_ROOT === 'true') return;
+  throw new Error(
+    'MinIO: refusing to start with the ROOT credentials. Set MINIO_ACCESS_KEY / MINIO_SECRET_KEY ' +
+    'in .env and redeploy (DEPLOY.md → Operational env vars), or set MINIO_ALLOW_ROOT=true to accept the risk.',
+  );
+}
+
 export async function ensurePhotosBucket(): Promise<void> {
   const exists = await minioClient.bucketExists(PHOTO_BUCKET).catch(() => false);
   if (!exists) {

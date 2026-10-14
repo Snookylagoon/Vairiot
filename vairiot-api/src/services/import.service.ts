@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 
+import { enforceAssetCap } from './asset-cap.service';
 import { createAsset, type AssetCreateInput } from './asset.service';
 
 export interface ImportRow {
@@ -41,6 +42,13 @@ export async function bulkImportAssets(
   actorId: string,
   rows: ImportRow[],
 ): Promise<ImportResult> {
+  // The import used to call createAsset directly and skip the licence cap that
+  // POST /assets enforces, so one upload could take a tenant past its tier.
+  // Check the whole batch first: an import that would exceed the cap creates
+  // nothing, rather than stopping part-way (KFR-039).
+  const importable = rows.filter((r) => r.name?.trim()).length;
+  if (importable > 0) await enforceAssetCap(tenantId, importable);
+
   const categories = await prisma.category.findMany({ where: { tenantId } });
   const sites = await prisma.site.findMany({ where: { tenantId } });
   const catMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));

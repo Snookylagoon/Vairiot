@@ -13,7 +13,8 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "postinstall": "prisma generate",
-    "seed:tuda": "tsx prisma/seed-tuda.ts"
+    "seed:tuda": "tsx prisma/seed-tuda.ts",
+    "rotate:demo-password": "tsx prisma/rotate-demo-password.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

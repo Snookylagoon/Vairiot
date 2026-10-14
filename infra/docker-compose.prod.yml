@@ -150,6 +150,7 @@ services:
       MINIO_ACCESS_KEY:       ${MINIO_ACCESS_KEY:-${MINIO_ROOT_USER}}
       MINIO_SECRET_KEY:       ${MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
       MINIO_CREDENTIALS:      ${MINIO_ACCESS_KEY:+scoped}
+      MINIO_ALLOW_ROOT:       ${MINIO_ALLOW_ROOT:-}
       MINIO_PHOTOS_BUCKET:    vairiot-photos
       MINIO_DOCUMENTS_BUCKET: vairiot-documents
       REPORT_SERVICE_URL:     http://reports:8100
