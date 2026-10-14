@@ -4,6 +4,7 @@ import { createApp } from '../../app';
 import { encryptSecret } from '../../lib/crypto';
 import { signAccessToken } from '../../lib/jwt';
 import { prisma } from '../../lib/prisma';
+import { flushAuditEvents } from '../../services/audit-event.service';
 
 // KFR-041: alerts, exceptions, onboarding and two-factor had no guard beyond
 // "signed in". Any user (a Viewer, a client account) could rewrite the company,
@@ -43,6 +44,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Onboarding and two-factor changes write audit events without awaiting them,
+  // so one can land after the deleteMany below and block the tenant delete.
+  await flushAuditEvents(); // let in-flight audit writes land before deleting the tenant
   await prisma.alertSubscription.deleteMany({ where: { tenantId: TID } });
   await prisma.userTwoFactor.deleteMany({ where: { userId } });
   await prisma.auditEvent.deleteMany({ where: { tenantId: TID } });
