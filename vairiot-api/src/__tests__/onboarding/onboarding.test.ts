@@ -30,8 +30,8 @@ beforeAll(async () => {
 
   const role = await prisma.role.upsert({
     where: { tenantId_name: { tenantId: TID, name: 'Company Admin' } },
-    update: { permissions: ['asset:read', 'asset:write', 'user:read', 'user:write'], isSystem: true },
-    create: { tenantId: TID, name: 'Company Admin', permissions: ['asset:read', 'asset:write', 'user:read', 'user:write'], isSystem: true },
+    update: { permissions: ['asset:read', 'asset:write', 'user:read', 'user:write', 'company:manage'], isSystem: true },
+    create: { tenantId: TID, name: 'Company Admin', permissions: ['asset:read', 'asset:write', 'user:read', 'user:write', 'company:manage'], isSystem: true },
   });
 
   const user = await prisma.user.upsert({

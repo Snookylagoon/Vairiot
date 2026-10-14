@@ -4,6 +4,7 @@ import request from 'supertest';
 import { createApp } from '../../app';
 import { prisma } from '../../lib/prisma';
 import { flushAuditEvents } from '../../services/audit-event.service';
+import { ensureTestLicence, removeTestLicence } from '../helpers/test-licence';
 
 const app = createApp();
 const TID = 'test-tenant-users';
@@ -21,6 +22,7 @@ beforeAll(async () => {
     where: { id: TID }, update: { onboardingComplete: true },
     create: { id: TID, name: 'Users Test Tenant', onboardingComplete: true },
   });
+  await ensureTestLicence(TID);
 
   const adminRole = await prisma.role.upsert({
     where: { tenantId_name: { tenantId: TID, name: 'Administrator' } },
@@ -68,6 +70,7 @@ afterAll(async () => {
   await prisma.userRole.deleteMany({ where: { user: { tenantId: TID } } });
   await prisma.user.deleteMany({ where: { tenantId: TID } });
   await prisma.role.deleteMany({ where: { tenantId: TID } });
+  await removeTestLicence(TID);
   await prisma.tenant.deleteMany({ where: { id: TID } });
   await prisma.$disconnect();
 });

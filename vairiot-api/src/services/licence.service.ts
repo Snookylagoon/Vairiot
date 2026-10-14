@@ -720,31 +720,6 @@ export async function listDevices(tenantId: string) {
   }));
 }
 
-// ─── Asset cap enforcement ───────────────────────────────────────────────────
-
-export async function enforceAssetCap(tenantId: string): Promise<void> {
-  const rootTenantId = await getRootTenantId(tenantId);
-
-  const licence = await prisma.licence.findFirst({
-    where: { tenantId: rootTenantId, status: { in: ['active', 'expiring'] } },
-    include: { tier: true },
-  });
-
-  if (!licence) {
-    throw new ForbiddenError('No active licence — cannot create assets');
-  }
-
-  const tenantIds = await getTenantFamily(rootTenantId);
-  const count = await prisma.asset.count({ where: { tenantId: { in: tenantIds }, deletedAt: null } });
-  if (count >= licence.tier.maxAssets) {
-    throw new AppError(
-      403,
-      `Asset limit reached (${count}/${licence.tier.maxAssets}). Upgrade your licence to add more assets.`,
-      'ASSET_CAP_REACHED',
-    );
-  }
-}
-
 // ─── Licence validation (deployment-mode aware) ──────────────────────────────
 
 export async function validateLicence(tenantId: string): Promise<boolean> {
@@ -834,7 +809,7 @@ export async function listLicences(filters?: {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-async function getTenantFamily(parentTenantId: string): Promise<string[]> {
+export async function getTenantFamily(parentTenantId: string): Promise<string[]> {
   const children = await prisma.tenant.findMany({
     where: { parentTenantId },
     select: { id: true },
@@ -842,7 +817,7 @@ async function getTenantFamily(parentTenantId: string): Promise<string[]> {
   return [parentTenantId, ...children.map(c => c.id)];
 }
 
-async function getRootTenantId(tenantId: string): Promise<string> {
+export async function getRootTenantId(tenantId: string): Promise<string> {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
     select: { parentTenantId: true },

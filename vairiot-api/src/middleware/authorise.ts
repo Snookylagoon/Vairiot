@@ -51,7 +51,10 @@ export function requireAnyPermission(...perms: string[]) {
 // ─── requireTenantScope ──────────────────────────────────────────────────────
 // Ensures a non-platform user can only access their own tenant's data.
 // Platform roles (Platform Super Admin, Licensing Authority) may access any
-// tenant when a ?tenantId query param is supplied.
+// tenant when a ?tenantId query param is supplied. A tenant or client user who
+// names another tenant is refused outright rather than silently re-scoped, so
+// a handler that ever reads ?tenantId can't be pointed at someone else's data.
+// Mounted on the gated router in app.ts (KFR-040).
 export function requireTenantScope() {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) { res.status(401).json({ error: 'Authorisation required' }); return; }
@@ -59,45 +62,48 @@ export function requireTenantScope() {
     const isPlatform = req.user.roles.some((r) =>
       PLATFORM_ROLES.includes(r as RoleName),
     );
+    const requested = typeof req.query.tenantId === 'string' ? req.query.tenantId : undefined;
 
     if (isPlatform) {
-      // Platform users may optionally scope to a tenant via query param
-      if (req.query.tenantId) {
-        req.scopedTenantId = req.query.tenantId as string;
-      }
+      if (requested) req.scopedTenantId = requested;
       next();
       return;
     }
 
-    // Tenant/client users are locked to their own tenant
+    if (requested && requested !== req.user.tenantId) {
+      res.status(403).json({ error: 'You can only access your own organisation', code: 'TENANT_SCOPE' });
+      return;
+    }
     req.scopedTenantId = req.user.tenantId;
     next();
   };
 }
 
 // ─── requireClientScope ──────────────────────────────────────────────────────
-// For client-plane roles, restricts data access to assets linked to their
-// client company. Expects :clientCompanyId route param or clientCompanyId in
-// the JWT metadata. Non-client roles pass through unchanged.
+// Client-plane roles (Client Stakeholder, Client Authority) are read-only
+// observers of the tenant that engaged them: any write is refused here, whatever
+// a router's own permission check says. Users holding a tenant- or
+// platform-plane role as well pass through unchanged.
+//
+// The previous version took the client company from a request parameter, which
+// the caller controls, so it scoped nothing; it was also never mounted. Assets
+// carry no client-company link yet, so narrowing reads to one client's assets
+// needs a schema change first (KFR-040).
+const CLIENT_READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
 export function requireClientScope() {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) { res.status(401).json({ error: 'Authorisation required' }); return; }
 
-    const isClientRole = req.user.roles.some((r) =>
+    const clientOnly = req.user.roles.length > 0 && req.user.roles.every((r) =>
       CLIENT_ROLES.includes(r as RoleName),
     );
-    if (!isClientRole) { next(); return; }
+    if (!clientOnly || CLIENT_READ_METHODS.has(req.method)) { next(); return; }
 
-    const clientCompanyId = req.params.clientCompanyId ?? req.query.clientCompanyId;
-    if (!clientCompanyId) {
-      res.status(403).json({
-        error: 'Client-scoped users must specify a client company',
-        code: 'CLIENT_SCOPE_REQUIRED',
-      });
-      return;
-    }
-    req.scopedClientCompanyId = clientCompanyId as string;
-    next();
+    res.status(403).json({
+      error: 'Client accounts have read-only access',
+      code: 'CLIENT_READ_ONLY',
+    });
   };
 }
 
@@ -106,7 +112,6 @@ declare global {
   namespace Express {
     interface Request {
       scopedTenantId?: string;
-      scopedClientCompanyId?: string;
     }
   }
 }

@@ -42,9 +42,13 @@ if [ -n "$EXTRA_FILE" ]; then
   echo "→ Using extra compose file: $EXTRA_FILE"
   COMPOSE+=(-f "$REPO_DIR/$EXTRA_FILE")
 fi
-if [ -z "$(env_value MINIO_ACCESS_KEY)" ]; then
-  echo "⚠  MINIO_ACCESS_KEY is not set: the API uses the MinIO root credentials."
-  echo "   Set MINIO_ACCESS_KEY and MINIO_SECRET_KEY in .env (DEPLOY.md → Operational env vars)."
+# The API refuses to start on the MinIO root credentials (KFR-042). Stop here,
+# before anything is pulled or rebuilt, so the running version keeps serving.
+if [ -z "$(env_value MINIO_ACCESS_KEY)" ] && [ "$(env_value MINIO_ALLOW_ROOT)" != "true" ]; then
+  echo "❌ MINIO_ACCESS_KEY is not set, and the API no longer runs on the MinIO root credentials." >&2
+  echo "   Set MINIO_ACCESS_KEY and MINIO_SECRET_KEY in .env (DEPLOY.md → Operational env vars)," >&2
+  echo "   or MINIO_ALLOW_ROOT=true to accept the risk. Nothing was changed." >&2
+  exit 1
 fi
 WAIT_SECONDS="$(env_value DEPLOY_WAIT_SECONDS)"
 WAIT_SECONDS="${WAIT_SECONDS:-300}"

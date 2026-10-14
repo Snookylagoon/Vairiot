@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import {
   listSubscriptions, upsertSubscription, deleteSubscription, toggleSubscription,
@@ -8,6 +9,11 @@ import {
 import type { Request } from '../../types/http';
 
 export const alertsRouter = Router();
+
+// Alert subscriptions are about asset exceptions (overdue maintenance, expired
+// warranties…), so they need asset read access. The router had no guard at all
+// (KFR-041); client-plane writes are refused by requireClientScope in app.ts.
+alertsRouter.use(requireAnyPermission('asset:read'));
 
 alertsRouter.get('/subscriptions',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {

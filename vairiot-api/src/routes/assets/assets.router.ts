@@ -4,13 +4,13 @@ import { body, query, validationResult } from 'express-validator';
 import { toCsv } from '../../lib/csv';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
+import { enforceAssetCap } from '../../services/asset-cap.service';
 import { listAssetEvents } from '../../services/asset-event.service';
 import { listAssets, listAssetChanges, listAssetPositions, getAsset, createAssetIdempotent, findAssetByClientRequestId, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
 import { encodeIdentifier } from '../../services/gs1-identifier.service';
 import { listLabelPrints } from '../../services/gs1-label.service';
 import { getAssetByEpc, listTagsForAsset } from '../../services/gs1-tag.service';
 import { bulkImportAssets } from '../../services/import.service';
-import { enforceAssetCap } from '../../services/licence.service';
 import type { Request } from '../../types/http';
 
 export const assetsRouter = Router();

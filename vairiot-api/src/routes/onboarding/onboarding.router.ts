@@ -1,8 +1,10 @@
-import { Router, Response } from 'express';
+import { NextFunction, Router, Response } from 'express';
 import multer from 'multer';
 
+import { readCompanyLogo } from '../../lib/company-logo';
 import { minioClient, PHOTO_BUCKET } from '../../lib/minio';
 import { prisma } from '../../lib/prisma';
+import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import {
   getOnboardingProgress,
@@ -15,6 +17,17 @@ import {
 import type { Request } from '../../types/http';
 
 export const onboardingRouter = Router();
+
+// Any signed-in user may read onboarding progress and the company record (the
+// web app routes on it; the mobile app shows the company). Every write changes
+// the organisation itself (company details, client, licence tier, logo,
+// completion), so it needs company:manage. Without this, any user of a tenant,
+// a Viewer or a client account included, could rewrite the company or pick a
+// licence tier (KFR-041).
+const ONBOARDING_READS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const requireCompanyManage = requireAnyPermission('company:manage');
+onboardingRouter.use((req: Request, res: Response, next: NextFunction) =>
+  ONBOARDING_READS.has(req.method) ? next() : requireCompanyManage(req, res, next));
 
 onboardingRouter.get('/progress', asyncHandler(async (req: Request, res: Response) => {
   const status = await getOnboardingProgress(req.user!.tenantId);
@@ -76,11 +89,10 @@ onboardingRouter.get('/company/logo', asyncHandler(async (req: Request, res: Res
   const company = await prisma.company.findUnique({ where: { tenantId: req.user!.tenantId } });
   if (!company?.logoStorageKey) { res.status(404).json({ error: 'No logo uploaded' }); return; }
   try {
-    const stream = await minioClient.getObject(PHOTO_BUCKET, company.logoStorageKey);
-    const ext = company.logoStorageKey.split('.').pop();
-    res.setHeader('Content-Type', ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg');
+    const { body, mimeType } = await readCompanyLogo(company.logoStorageKey);
+    res.setHeader('Content-Type', mimeType);
     res.setHeader('Cache-Control', 'private, max-age=300');
-    stream.pipe(res);
+    res.send(body);
   } catch {
     res.status(404).json({ error: 'No logo uploaded' });
   }
