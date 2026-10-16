@@ -196,7 +196,7 @@ G20 is closed: merged branches and stale worktrees removed (stage 1.6). Dependab
 | G31 | No Content-Security-Policy on the web console or API                                                      | Add a CSP in W6 (security); it must allow the tenant's tile host from `mapSettings`                |
 | G32 | MinIO still runs as root: existing servers keep its data in root-owned host directories                  | A one-off `chown` of `infra/data/minio` per server, then `USER` in `infra/minio/Dockerfile`; until then it is skipped by Trivy and annotated for Semgrep |
 | G33 | The register export (`/assets/export.csv`) has Latitude and Longitude but not the condition grade, accuracy or position source; `scripts/profile-register.py` leaves Latitude and Longitude unmapped | S2 import and export work: add the columns and the profiler synonyms together |
-| G34 | Form labels in the web console (`components/ui/Input`) are not tied to their inputs, so screen readers do not announce them and tests cannot find fields by label | S3 accessibility work, with axe in Playwright |
+| G34 | Form labels in the web console (`components/ui/Input`) are not tied to their inputs, so screen readers do not announce them and tests cannot find fields by label | **Partly closed** — stage 2.3: the web console's `Input` ties its label to its input (`useId`). The admin console's `Input` and plain `<label>`s elsewhere remain, for the S3 accessibility work |
 
 Status after stage 1.17: G27 closed (Semgrep clean on the OWASP Top Ten rules); G16 closed except MinIO (G32).
 
