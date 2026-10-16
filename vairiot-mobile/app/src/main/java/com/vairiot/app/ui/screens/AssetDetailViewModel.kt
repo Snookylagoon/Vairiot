@@ -68,6 +68,10 @@ class AssetDetailViewModel @Inject constructor(
     val gisEnabled: StateFlow<Boolean> = featureFlags.isEnabled(FeatureFlags.GIS)
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
+    /** IPSAS ledger on (stage 2.4): the asset class row shows. */
+    val ipsasEnabled: StateFlow<Boolean> = featureFlags.isEnabled(FeatureFlags.IPSAS)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     init {
         load()
         viewModelScope.launch { featureFlags.refresh() }

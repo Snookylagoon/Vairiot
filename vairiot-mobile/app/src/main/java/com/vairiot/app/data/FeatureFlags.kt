@@ -38,5 +38,6 @@ class FeatureFlags @Inject constructor(
 
     companion object {
         const val GIS = "gis"
+        const val IPSAS = "ipsas"
     }
 }

@@ -158,6 +158,10 @@ struct AssetDetailView: View {
 
             VStack(spacing: 0) {
                 infoRow(icon: "folder", label: "Category", value: asset.category?.name)
+                if FeatureFlags.shared.ipsasEnabled, let label = asset.assetClassLabel {
+                    Divider().padding(.leading, 44)
+                    infoRow(icon: "building.columns", label: "Asset Class", value: label)
+                }
                 Divider().padding(.leading, 44)
                 infoRow(icon: "building.2", label: "Site", value: asset.site?.name)
                 Divider().padding(.leading, 44)
