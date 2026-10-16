@@ -3,6 +3,8 @@ import { LayoutDashboard, Building2, BadgeCheck, Users, ScrollText, Mail, Smartp
 import { useState, useCallback } from 'react';
 import { Outlet, NavLink, useOutletContext } from 'react-router-dom';
 
+import { TwoFactorDueBanner } from './TwoFactorDueBanner';
+
 import { useAuthStore } from '@/stores/auth.store';
 
 
@@ -91,6 +93,7 @@ export function AdminShell() {
           </div>
         </header>
 
+        <TwoFactorDueBanner />
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
           <Outlet context={{ setHeaderSubtitle: setSubtitle }} />
         </main>

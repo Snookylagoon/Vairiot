@@ -377,19 +377,19 @@ describe('2FA mandatory for platform roles', () => {
     platformToken = tfaRes.body.accessToken;
   });
 
-  // Since fcb5a27, 2FA is opt-in for every role (ROLES_REQUIRING_2FA is empty);
-  // platform roles are no longer forced.
-  it('2FA status shows required=false for platform role (opt-in policy)', async () => {
+  // Decision D6 (stage 1.18): two-factor is mandatory for platform roles.
+  it('2FA status shows required=true for a platform role (D6)', async () => {
     const res = await request(app).get('/api/v1/2fa/status')
       .set('Authorization', `Bearer ${platformToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.required).toBe(false);
+    expect(res.body.required).toBe(true);
     expect(res.body.enabled).toBe(true);
   });
 
-  it('platform role can disable 2FA (no mandatory-role block)', async () => {
+  it('a platform role cannot disable 2FA (D6)', async () => {
     const res = await request(app).post('/api/v1/2fa/disable')
       .set('Authorization', `Bearer ${platformToken}`).send({ token: '123456' });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
+    expect(res.body.code ?? res.body.error).toBeDefined();
   });
 });

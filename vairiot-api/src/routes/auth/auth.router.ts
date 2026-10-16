@@ -13,6 +13,7 @@ import { login, loginWithTwoFactor, refreshTokens, changeOwnPassword, completeFo
 import { touchDeviceOnLogin } from '../../services/licence.service';
 import { recordLoginAttempt } from '../../services/login-protection.service';
 import { registerNewTenant } from '../../services/registration.service';
+import { twoFactorSetupDueBy } from '../../services/two-factor-grace.service';
 import { generateTwoFactorSetup, verifyAndEnableTwoFactor } from '../../services/two-factor.service';
 import { effectivePermissionsForUser } from '../../services/user-permissions.service';
 import { acceptInvite } from '../../services/user.service';
@@ -197,6 +198,8 @@ authRouter.get('/me', authenticate, asyncHandler(async (req: Request, res: Respo
     roles: req.user!.roles,
     permissions: req.user!.permissions,
     featureFlags: flags,
+    // D6: when an administrator without two-factor must have enrolled by.
+    twoFactorSetupDueBy: await twoFactorSetupDueBy(req.user!.sub, req.user!.roles),
   });
 }));
 

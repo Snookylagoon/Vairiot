@@ -5,6 +5,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 
 import { ImpersonationBanner } from './ImpersonationBanner';
 import { TenantSwitcher } from './TenantSwitcher';
+import { TwoFactorDueBanner } from './TwoFactorDueBanner';
 
 import { useDeviceHeartbeat } from '@/hooks/useLicensing';
 import { useAuthStore, hasAnyPermission, hasFeature } from '@/stores/auth.store';
@@ -248,6 +249,7 @@ export function AppShell() {
         </header>
 
         <ImpersonationBanner />
+        <TwoFactorDueBanner />
 
         {/* Page content */}
         <main className="flex-1 p-4 lg:p-6 overflow-auto">

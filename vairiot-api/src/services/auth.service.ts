@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { ROLES_REQUIRING_2FA, type RoleName , LoginRequest as LoginInput, AuthTokens } from 'vairiot-shared';
+import { type LoginRequest as LoginInput, AuthTokens } from 'vairiot-shared';
 
 import { UnauthorizedError, ValidationError, NotFoundError } from '../lib/errors';
 import { signAccessToken, signRefreshToken, signSetupToken, signChallengeToken, verifyChallengeToken, verifyRefreshToken } from '../lib/jwt';
@@ -11,13 +11,11 @@ import { recordAuditEvent } from './audit-event.service';
 import { touchDeviceOnLogin } from './licence.service';
 import { checkAccountLock, recordLoginAttempt } from './login-protection.service';
 import { validatePasswordPolicy } from './password-policy.service';
+import { rolesRequireTwoFactor, startOrReadGrace } from './two-factor-grace.service';
 import { effectivePermissionsForUser } from './user-permissions.service';
 
 export type { LoginInput, AuthTokens };
 
-function rolesRequire2FA(roles: string[]): boolean {
-  return roles.some((r) => ROLES_REQUIRING_2FA.includes(r as RoleName));
-}
 
 export interface DeviceCheckIn {
   fingerprint: string;
@@ -35,6 +33,8 @@ export interface LoginResult {
   passwordChangeToken?: string;
   requiresTwoFactorSetup?: boolean;
   twoFactorSetupToken?: string;
+  /** D6: an administrator without two-factor may sign in until this time, then must enrol. */
+  twoFactorSetupDueBy?: string;
   /** @deprecated use twoFactorChallengeToken */
   twoFactorUserId?: string;
 }
@@ -92,11 +92,16 @@ export async function login(
 
   const roles       = user.roles.map((ur) => ur.role.name);
 
-  // Force 2FA enrolment if the user's role mandates it and they haven't set it up.
-  if (rolesRequire2FA(roles)) {
-    await recordLoginAttempt(tenantId, email, ipAddress, true, user.id, 'awaiting_2fa_setup');
-    const setupToken = signSetupToken({ sub: user.id, tenantId: user.tenantId, email: user.email });
-    return { requiresTwoFactorSetup: true, twoFactorSetupToken: setupToken };
+  // Roles that must use 2FA (D6): sign in during the grace period, then enrol.
+  let twoFactorSetupDueBy: string | undefined;
+  if (rolesRequireTwoFactor(roles)) {
+    const grace = await startOrReadGrace(user);
+    if (grace.expired) {
+      await recordLoginAttempt(tenantId, email, ipAddress, true, user.id, 'awaiting_2fa_setup');
+      const setupToken = signSetupToken({ sub: user.id, tenantId: user.tenantId, email: user.email });
+      return { requiresTwoFactorSetup: true, twoFactorSetupToken: setupToken };
+    }
+    twoFactorSetupDueBy = grace.dueBy.toISOString();
   }
 
   const permissions = await effectivePermissionsForUser(user.id, user);
@@ -106,7 +111,7 @@ export async function login(
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch((e) => logger.error('lastLoginAt', { error: e }));
   recordAuditEvent({ tenantId, actor: user.id, entityType: 'user', entityId: user.id, action: 'login', metadata: { email } });
   if (device) await touchDeviceOnLogin(tenantId, user.id, device);
-  return { accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h' };
+  return { accessToken, refreshToken, expiresIn: process.env.JWT_EXPIRY ?? '8h', ...(twoFactorSetupDueBy && { twoFactorSetupDueBy }) };
 }
 export async function loginWithTwoFactor(
   challengeToken: string,
@@ -167,6 +172,10 @@ export async function refreshTokens(token: string): Promise<AuthTokens> {
   const user = await prisma.user.findUnique({ where: { id: p.sub }, include: { roles: { include: { role: true } } } });
   if (!user || !user.active) throw new UnauthorizedError('Invalid or expired refresh token');
   const roles       = user.roles.map((ur) => ur.role.name);
+  // Past the grace period an administrator without 2FA signs in again to enrol (D6).
+  if (rolesRequireTwoFactor(roles) && !user.twoFactorEnabled && (await startOrReadGrace(user)).expired) {
+    throw new UnauthorizedError('Two-factor authentication is now required: sign in again to set it up', 'TWO_FA_SETUP_REQUIRED');
+  }
   const permissions = await effectivePermissionsForUser(user.id, user);
   return {
     accessToken:  signAccessToken({ sub: user.id, tenantId: user.tenantId, email: user.email, roles, permissions }),
