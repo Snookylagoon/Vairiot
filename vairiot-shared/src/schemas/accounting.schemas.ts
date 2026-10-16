@@ -46,3 +46,52 @@ export const recognitionOverrideSchema = z.union([
   z.object({ status: z.null() }),
 ]);
 export type RecognitionOverrideInput = z.infer<typeof recognitionOverrideSchema>;
+
+// ── Components (stage 2.5, S2.2) ───────────────────────────────────────────
+
+const role = z.string().trim().min(1).max(40);
+
+/** One part a template creates. Cost shares are of the total cost entered. */
+export const componentTemplateLineSchema = z.object({
+  role,
+  name: z.string().trim().min(1).max(120),
+  assetClassId: z.string().min(1).nullable().optional(),
+  lifeMonths: z.coerce.number().int().min(1).max(1200).nullable().optional(),
+  costSharePct: z.coerce.number().min(0).max(100),
+});
+
+export const componentTemplateSchema = z.object({
+  code: z.string().trim().min(1).max(20).regex(/^[A-Z0-9_-]+$/, 'Code: capital letters, digits, - and _'),
+  name: z.string().trim().min(1).max(120),
+  assetClassId: z.string().min(1).nullable().optional(),
+  lines: z.array(componentTemplateLineSchema).min(1).max(20)
+    .refine((lines) => lines.reduce((t, l) => t + l.costSharePct, 0) <= 100.0001, 'Cost shares add up to more than 100 %'),
+  toBeConfirmed: z.boolean().default(false),
+  active: z.boolean().default(true),
+});
+export type ComponentTemplateInput = z.infer<typeof componentTemplateSchema>;
+export const componentTemplateUpdateSchema = componentTemplateSchema.partial();
+export type ComponentTemplateUpdateInput = z.infer<typeof componentTemplateUpdateSchema>;
+
+/** Create a parent and its components from a template. */
+export const instantiateTemplateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  totalCost: amount.nullable().optional(),
+  categoryId: z.string().min(1).nullable().optional(),
+  siteId: z.string().min(1).nullable().optional(),
+  locationId: z.string().min(1).nullable().optional(),
+  purchaseDate: z.coerce.date().nullable().optional(),
+  depreciationStartDate: z.coerce.date().nullable().optional(),
+});
+export type InstantiateTemplateInput = z.infer<typeof instantiateTemplateSchema>;
+
+/** Attach an asset to a parent as a component, move it, or (`parentAssetId: null`) detach it. */
+export const componentLinkSchema = z.object({
+  parentAssetId: z.string().min(1).nullable(),
+  componentRole: role.nullable().optional(),
+});
+export type ComponentLinkInput = z.infer<typeof componentLinkSchema>;
+
+/** What to do with a parent's components when it is disposed. */
+export const parentDisposalChoice = z.enum(['dispose', 'detach']);
+export type ParentDisposalChoice = z.infer<typeof parentDisposalChoice>;

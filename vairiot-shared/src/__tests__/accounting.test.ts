@@ -1,5 +1,8 @@
 import { FAIR_VALUE_ACQUISITIONS } from '../constants/accounting.constants.js';
-import { assetAccountingSchema, assetClassSchema, assetClassUpdateSchema, recognitionOverrideSchema } from '../schemas/accounting.schemas.js';
+import {
+  assetAccountingSchema, assetClassSchema, assetClassUpdateSchema, componentLinkSchema, componentTemplateSchema,
+  instantiateTemplateSchema, parentDisposalChoice, recognitionOverrideSchema,
+} from '../schemas/accounting.schemas.js';
 
 describe('accounting contracts', () => {
   const base = { code: 'SGN', name: 'Road signs', ipsasClass: 'INFRASTRUCTURE', capitalisationThreshold: '500' };
@@ -34,5 +37,23 @@ describe('accounting contracts', () => {
     expect(recognitionOverrideSchema.safeParse({ status: 'EXPENSED' }).success).toBe(false);
     expect(recognitionOverrideSchema.safeParse({ status: 'PENDING_REVIEW', reason: 'Not allowed' }).success).toBe(false);
     expect(recognitionOverrideSchema.safeParse({ status: null }).success).toBe(true);
+  });
+});
+
+describe('component contracts', () => {
+  const line = { role: 'controller', name: 'Controller', costSharePct: 60 };
+
+  it('accept a template whose shares stay within 100 %', () => {
+    expect(componentTemplateSchema.parse({ code: 'JUNCTION', name: 'Junction', lines: [line, { ...line, costSharePct: 40 }] }).active).toBe(true);
+    expect(componentTemplateSchema.safeParse({ code: 'JUNCTION', name: 'Junction', lines: [line, line] }).success).toBe(false);
+    expect(componentTemplateSchema.safeParse({ code: 'JUNCTION', name: 'Junction', lines: [] }).success).toBe(false);
+  });
+
+  it('read an instantiation, a link and a disposal choice', () => {
+    expect(instantiateTemplateSchema.parse({ name: 'J1', totalCost: '20000' }).totalCost).toBe(20000);
+    expect(componentLinkSchema.parse({ parentAssetId: null })).toEqual({ parentAssetId: null });
+    expect(componentLinkSchema.safeParse({ parentAssetId: 'p', componentRole: '' }).success).toBe(false);
+    expect(parentDisposalChoice.safeParse('detach').success).toBe(true);
+    expect(parentDisposalChoice.safeParse('sell').success).toBe(false);
   });
 });
