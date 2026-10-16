@@ -214,3 +214,14 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Tests    | Android unit tests pass (new `ScanPhotoQueueTest`: waits for its scan, sends fields, asset photos unchanged, offline stays queued); iOS 60/60 (new `ScanPhotoQueueTests`)                                                                                    |
 | Notes    | Not tried on a device camera. Baseline tightened: `AuditRunScreen.kt` 551, `AuditRunView.swift` 528                                                                                                                                                             |
 
+### Stage 1.9 — Scan photos on the web; W3 released (W3, S1.3 step 7)
+
+| Item     | Detail                                                                                                                                                                                                   |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date     | 16 October 2026                                                                                                                                                                                          |
+| Version  | 2.3.0                                                                                                                                                                                                    |
+| Activity | `ScanPhotoGallery` on the audit run and reconciliation pages: thumbnails, a lightbox with tag, capture time (en-GB) and position with accuracy, and an OpenStreetMap link; hidden when a campaign has no photos |
+| Output   | `vairiot-web/src/components/audits/ScanPhotoGallery.tsx`                                                                                                                                                  |
+| Tests    | Web 32/32 (new `ScanPhotoGallery.test.tsx`); API 352/352 in 38 suites; Android and iOS as in stage 1.8                                                                                                             |
+| Notes    | `PhotoRule` moved to W5 with the condition scale. Burned-in stamp and server thumbnails not built (plan §2.2). D13 still proposed                                                                         |
+
