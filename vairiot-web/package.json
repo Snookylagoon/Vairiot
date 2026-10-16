@@ -1,6 +1,6 @@
 {
   "name": "vairiot-web",
-  "version": "2.6.1",
+  "version": "2.7.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:stack": "playwright test -c playwright.stack.config.ts"
+    "test:e2e:stack": "playwright test -c playwright.stack.config.ts",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -46,6 +47,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.5",
+    "@vitest/coverage-v8": "^4.1.11",
     "jsdom": "^30.0.1",
     "postcss": "^8.4.0",
     "tailwindcss": "^4.3.3",

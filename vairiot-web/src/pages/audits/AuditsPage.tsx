@@ -12,7 +12,7 @@ import { useAssets } from '@/hooks/useAssets';
 import { useCategories } from '@/hooks/useCategories';
 import { useSites } from '@/hooks/useSites';
 import { api } from '@/lib/api';
-import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
+import { hasAnyPermission, hasFeature, useAuthStore } from '@/stores/auth.store';
 
 const statusVariant: Record<string, 'active'|'inactive'|'default'> = {
   draft:       'inactive',
@@ -36,7 +36,7 @@ export function AuditsPage() {
     queryFn:  () => api.get('/api/v1/audits').then(r => r.data),
   });
 
-  const blindAuditEnabled = user?.featureFlags?.blindAudit === true;
+  const blindAuditEnabled = hasFeature(user, 'blindAudit');
 
   const createCampaign = useMutation({
     mutationFn: (data: {

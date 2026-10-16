@@ -17,7 +17,8 @@ module.exports = {
   // The previous 70% was never enforced (the API Tests job never ran to
   // completion in CI), so it just kept the pipeline red. This acts as a
   // regression ratchet — raise it as real coverage improves.
-  coverageThreshold: { global: { lines: 50 } },
+  // D8 ratchet, never lowered: 50 % at stage 0.10, 65 % at stage 2.1 (measured 65.5 %).
+  coverageThreshold: { global: { lines: 65 } },
   // vairiot-shared ships an ESM build (dist/*.js with `export *`), which ts-jest's
   // CommonJS runtime can't load. Resolve it from TypeScript source instead and
   // let ts-jest transpile it like the rest of the suite (tsconfig has

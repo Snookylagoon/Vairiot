@@ -84,8 +84,10 @@ jobs:
 
       # The database-free suites. (The API suite needs Postgres and Redis and
       # runs in its own job below.) Until S0.5 nothing ran these in CI.
-      - name: Unit tests (worker, shared, web)
-        run: npm test --workspace=vairiot-worker --workspace=vairiot-shared --workspace=vairiot-web
+      # With coverage gates (D8 ratchet, stages 2.1-2.2): each package fails below
+      # its measured floor.
+      - name: Unit tests with coverage (worker, shared, web, admin)
+        run: npm run test:coverage --workspace=vairiot-worker --workspace=vairiot-shared --workspace=vairiot-web --workspace=vairiot-admin
 
   # ── API tests ────────────────────────────────────────────────────────────────
   test-api:

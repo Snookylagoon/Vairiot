@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
@@ -24,6 +24,18 @@ export default defineConfig({
     port: process.env.PORT ? Number(process.env.PORT) : 3002,
     proxy: {
       '/api': { target: 'http://localhost:3001', changeOrigin: true },
+    },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test-setup.ts',
+    // D8 ratchet (stage 2.2): first tests; the gate is the measured value.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**'],
+      exclude: ['src/**/__tests__/**', 'src/test-setup.ts'],
+      thresholds: { lines: 2 },
     },
   },
 });

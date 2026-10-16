@@ -1,42 +1,10 @@
 import { Queue, ConnectionOptions } from 'bullmq';
+import { QUEUE_NAMES, type AuditCompleteJob, type UserInviteJob, type WebhookDeliverJob } from 'vairiot-shared';
 
 import { logger } from './logger';
 
-export const QUEUE_NAMES = {
-  auditComplete: 'audit-complete',
-  userInvite: 'user-invite',
-  webhookDeliver: 'webhook-deliver',
-} as const;
-
-export interface WebhookDeliverJob {
-  /** WebhookDelivery row id — the worker loads hook + payload from it. */
-  deliveryId: string;
-}
-
-export interface AuditCompleteJob {
-  tenantId:       string;
-  campaignId:     string;
-  campaignName:   string;
-  recipientEmail: string;
-  recipientName?: string;
-  summary: {
-    totalExpected: number;
-    totalScanned:  number;
-    found:         number;
-    missingCount:  number;
-    unknownCount:  number;
-  };
-  csv: string;
-  completedAt: string;
-}
-
-export interface UserInviteJob {
-  tenantId:       string;
-  recipientEmail: string;
-  recipientName:  string;
-  inviteToken:    string;
-  inviterName?:   string;
-}
+export { QUEUE_NAMES };
+export type { AuditCompleteJob, UserInviteJob, WebhookDeliverJob };
 
 let cachedAuditQueue: Queue<AuditCompleteJob> | null = null;
 let cachedInviteQueue: Queue<UserInviteJob> | null = null;

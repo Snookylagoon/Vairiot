@@ -62,10 +62,10 @@ Counts of tests are from `docs/sprints/S0-summary.md` (6 October 2026); file cou
 | Module           | Off means                                                                                          | Suite                                                       | Status                         |
 | ---------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------ |
 | `blindAudit`     | Blind campaigns refused by the API; option hidden on web and Android                               | `audits/blind-audit.test.ts`                                | Exists (on and off not paired) |
-| `gis`            | Position writes and `/assets/map` answer 404; web, Android and iOS hide GIS; stored positions kept | `assets/asset-gis-toggle.test.ts`; web `hasFeature.test.ts` | In progress (W1a)              |
-| `ipsas`          | Ledger, periods and policies refused and hidden                                                    | `toggle-matrix.test.ts`                                     | Planned (S2, W5)               |
+| `gis`            | Position writes and `/assets/map` answer 404; web, Android and iOS hide GIS; stored positions kept | `assets/asset-gis-toggle.test.ts`; `modules/toggle-matrix.test.ts`; web `hasFeature.test.ts`, `moduleRoutes.test.ts` | Built (stages 0.9, 2.2)        |
+| `ipsas`          | Ledger, periods and policies refused and hidden                                                    | `modules/toggle-matrix.test.ts` (every `/accounting` route in the registry) | Built for `/accounting/settings` (stage 2.2); grows with W2–W5 |
 | `reconciliation` | Three-way engine refused and hidden                                                                | `toggle-matrix.test.ts`                                     | Planned (S4, W5)               |
-| All              | Every module off, on and back off across API, web and mobile; flag changes written to `AuditEvent` | `toggle-matrix.test.ts`, web and mobile equivalents         | Planned (W5, D7)               |
+| All              | Every module off, on and back off across API, web and mobile; flag changes written to `AuditEvent` | `modules/toggle-matrix.test.ts` (API, every registry route, data unchanged, audit); admin `TenantModulesCard.test.tsx`; web `moduleRoutes.test.ts` | API and web built (stage 2.2); mobile equivalents planned |
 
 ### 3.2 Tenancy and access
 
@@ -122,9 +122,9 @@ Decision D8: a **ratchet, never lowered**. A pull request may not lower a packag
 
 | Package                                                            | Today        | End of S1              | End of S2 | End of S3 | End of S4 | Standard end state        |
 | ------------------------------------------------------------------ | ------------ | ---------------------- | --------- | --------- | --------- | ------------------------- |
-| `vairiot-api` (lines)                                              | 50 % (gate)  | 60 %                   | 70 %      | **80 %**  | 80 %      | 80 % lines, 70 % branches |
+| `vairiot-api` (lines)                                              | 65 % gate (stage 2.1; measured 65.5 %) | 60 %                   | 70 %      | **80 %**  | 80 %      | 80 % lines, 70 % branches |
 | API core (auth, tenancy, audit, flags)                             | Not measured | —                      | —         | —         | 90 %      | 90 % lines, 85 % branches |
-| `vairiot-web`, `vairiot-admin`, `vairiot-shared`, `vairiot-worker` | No gate      | Gate at measured value | **60 %**  | 60 %+     | **80 %**  | 80 % / 70 %               |
+| `vairiot-web`, `vairiot-admin`, `vairiot-shared`, `vairiot-worker` | Gates at measured values (stage 2.1): shared 95 %, worker 10 %, web 7 %; admin no tests | Gate at measured value | **60 %**  | 60 %+     | **80 %**  | 80 % / 70 %               |
 | `vairiot-reports`                                                  | No tests     | First tests (W5)       | **60 %**  | 60 %+     | **80 %**  | 80 % / 70 %               |
 | Android, iOS (view models and sync)                                | Not measured | Measured in CI (W3)    | **60 %**  | 60 %+     | **80 %**  | 80 % / 70 %               |
 

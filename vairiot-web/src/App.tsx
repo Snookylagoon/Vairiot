@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import type { ModuleKey } from 'vairiot-shared';
 
 import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
@@ -90,7 +91,7 @@ function RequirePermission({ perms, children }: { perms: string[]; children: Rea
 }
 
 // A page of a switchable module (D7): with the module off, the address goes nowhere.
-function RequireFeature({ flag, fallback, children }: { flag: string; fallback: string; children: React.ReactNode }) {
+function RequireFeature({ flag, fallback, children }: { flag: ModuleKey; fallback: string; children: React.ReactNode }) {
   const user = useAuthStore(s => s.user);
   return hasFeature(user, flag) ? <>{children}</> : <Navigate to={fallback} replace />;
 }

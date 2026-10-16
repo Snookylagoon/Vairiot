@@ -66,7 +66,9 @@ describe('seed:tuda', () => {
   });
 
   it('gives Administrator everything the built-in Company Admin has, plus audits', () => {
-    const companyAdmin = ROLE_PERMISSION_MATRIX.find((r) => r.name === 'Company Admin')!.permissions;
+    // Except posting the ledger: at TUDA that is Finance's alone (D16).
+    const companyAdmin = ROLE_PERMISSION_MATRIX.find((r) => r.name === 'Company Admin')!.permissions
+      .filter((perm) => perm !== 'accounting:approve');
     for (const perm of companyAdmin) expect(TUDA_ROLES.Administrator).toContain(perm);
     expect(TUDA_ROLES.Administrator).toEqual(expect.arrayContaining(['audit:write', 'scan:execute']));
   });

@@ -23,6 +23,13 @@ export const Permission = {
   TagCommission:  'tag:commission',
   DeviceManage:   'device:manage',
 
+  // IPSAS ledger: classes, periods, depreciation, impairment (D16, Phase 2).
+  // Write prepares; approve posts, reverses, locks and overrides recognition.
+  // Preparer and approver must be different users (D17).
+  AccountingRead:    'accounting:read',
+  AccountingWrite:   'accounting:write',
+  AccountingApprove: 'accounting:approve',
+
   // Reports
   ReportRead:     'report:read',
   ReportExport:   'report:export',

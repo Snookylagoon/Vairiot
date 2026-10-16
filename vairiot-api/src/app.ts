@@ -14,11 +14,13 @@ import { globalLimiter, syncLimiter } from './middleware/rate-limit';
 import { requestId } from './middleware/request-id';
 import { requestLogger } from './middleware/request-logger';
 import { requireActiveLicence } from './middleware/require-active-licence';
+import { accountingRouter } from './routes/accounting/accounting.router';
 import { apiKeysRouter }    from './routes/admin/api-keys.router';
 import { auditEventsRouter } from './routes/admin/audit-events.router';
 import { iosReleasesRouter } from './routes/admin/ios-releases.router';
 import { mobileReleasesRouter } from './routes/admin/mobile-releases.router';
 import { platformRouter } from './routes/admin/platform.router';
+import { tenantModulesRouter } from './routes/admin/tenant-modules.router';
 import { usersRouter }      from './routes/admin/users.router';
 import { alertsRouter }       from './routes/alerts/alerts.router';
 import { assetsRouter }     from './routes/assets/assets.router';
@@ -138,6 +140,7 @@ export function createApp(): Application {
   gated.use('/sites',        sitesRouter);
   gated.use('/condition',    conditionRouter);    // /condition/scale, /condition/photo-rules (stage 1.13)
   gated.use('/gis',          gisRouter);          // /gis/map-settings (stage 1.12)
+  gated.use('/accounting',   accountingRouter);   // IPSAS ledger behind `ipsas` (Phase 2)
   gated.use('/audits',       auditPhotosRouter);   // /audits/:id/scans/:scanRef/photos, /audits/:id/photos
   gated.use('/audits',       auditsRouter);
   gated.use('/checkouts',    checkoutsRouter);
@@ -163,6 +166,7 @@ export function createApp(): Application {
   gated.use('/company/sub-tenants', subTenantsRouter);
   gated.use('/company',              tenantContextRouter);
   gated.use('/admin/platform', platformRouter);
+  gated.use('/admin/platform', tenantModulesRouter); // module switches (stage 2.2)
   gated.use('/admin/mobile-releases', mobileReleasesRouter);
   gated.use('/admin/ios-releases', iosReleasesRouter);
 

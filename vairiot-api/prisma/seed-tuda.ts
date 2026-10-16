@@ -43,14 +43,16 @@ export const TUDA_ROLES: Record<string, string[]> = {
     P.AuditRead, P.AuditWrite, P.ScanExecute, P.Gs1Admin, P.TagCommission, P.DeviceManage,
     P.ReportRead, P.ReportExport, P.WorkOrderRead, P.WorkOrderWrite,
     P.UserRead, P.UserWrite, P.ApiKeyRead, P.ApiKeyWrite, P.CompanyManage, P.ClientRead, P.ClientManage,
+    P.AccountingRead, P.AccountingWrite,
   ],
   // Values, depreciation and reports; reads the register, doesn't edit it.
-  Finance: [...READ_REGISTER, P.AuditRead, P.ReportRead, P.ReportExport],
+  // Prepares and approves the ledger (D16); never both on one item (D17).
+  Finance: [...READ_REGISTER, P.AuditRead, P.ReportRead, P.ReportExport, P.AccountingRead, P.AccountingWrite, P.AccountingApprove],
   // Maintains the register and plans counts.
   'Inventory Manager': [
     P.AssetRead, P.AssetWrite, P.AssetDelete, P.SiteRead, P.SiteWrite, P.CategoryRead, P.CategoryWrite,
     P.AuditRead, P.AuditWrite, P.ScanExecute, P.TagCommission, P.DeviceManage,
-    P.ReportRead, P.ReportExport, P.WorkOrderRead,
+    P.ReportRead, P.ReportExport, P.WorkOrderRead, P.AccountingRead,
   ],
   // Counts and tags in the field (scanners); can't change the register.
   'Field Operator': [...READ_REGISTER, P.AuditRead, P.AuditWrite, P.ScanExecute, P.TagCommission],
