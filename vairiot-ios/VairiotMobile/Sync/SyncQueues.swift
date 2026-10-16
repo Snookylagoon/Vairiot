@@ -7,6 +7,9 @@ struct SyncAPI {
     var recordScan: (_ campaignId: String, _ request: RecordScanRequest) async throws -> AuditScanEventResponse
     var createAsset: (_ request: AssetCreateRequest) async throws -> AssetResponse
     var uploadPhoto: (_ assetId: String, _ image: Data, _ thumb: Data?) async throws -> Void
+    /// A photo bound to an audit scan; `scanRef` is the scan's clientRequestId.
+    var uploadScanPhoto: (_ campaignId: String, _ scanRef: String, _ image: Data, _ thumb: Data?,
+                          _ fields: [String: String]) async throws -> Void = { _, _, _, _, _ in }
 
     static func live(_ client: APIClient = .shared) -> SyncAPI {
         SyncAPI(
@@ -21,6 +24,14 @@ struct SyncAPI {
                     path: "\(APIEndpoint.uploadAssetPhotoPath)/\(assetId)/photos",
                     imageData: image,
                     thumbData: thumb
+                )
+            },
+            uploadScanPhoto: { campaignId, scanRef, image, thumb, fields in
+                let _: PhotoResponse = try await client.upload(
+                    path: "api/v1/audits/\(campaignId)/scans/\(scanRef)/photos",
+                    imageData: image,
+                    thumbData: thumb,
+                    fields: fields
                 )
             }
         )
@@ -133,18 +144,28 @@ enum SyncQueues {
         let dead = QueueState.dead
         return SyncQueue(
             nextBatch: {
-                // Photos of an asset still queued offline wait for that asset.
-                (try? context.fetch(FetchDescriptor<QueuedPhoto>(
-                    predicate: #Predicate { $0.state != dead && $0.assetId != nil },
+                // Photos of an asset still queued offline wait for that asset;
+                // scan photos wait until their scan has left the scan queue.
+                let candidates = (try? context.fetch(FetchDescriptor<QueuedPhoto>(
+                    predicate: #Predicate { $0.state != dead && ($0.assetId != nil || $0.scanClientRequestId != nil) },
                     sortBy: [SortDescriptor(\.createdAt)]
                 ))) ?? []
+                let queuedScans = Set(((try? context.fetch(FetchDescriptor<QueuedScan>())) ?? []).map(\.id.uuidString))
+                return candidates.filter { photo in
+                    guard let key = photo.scanClientRequestId else { return true }
+                    return !queuedScans.contains(key)
+                }
             },
             send: { photo in
-                guard let assetId = photo.assetId else { return }
                 guard let image = files.load(photo.fileName) else {
                     throw UnsendableError(message: "Photo file is missing from this device")
                 }
                 let thumb = photo.thumbFileName.flatMap { files.load($0) }
+                if let scanRef = photo.scanClientRequestId, let campaignId = photo.campaignId {
+                    try await api.uploadScanPhoto(campaignId, scanRef, image, thumb, photo.scanPhotoFields)
+                    return
+                }
+                guard let assetId = photo.assetId else { return }
                 try await api.uploadPhoto(assetId, image, thumb)
             },
             onSynced: { photo in

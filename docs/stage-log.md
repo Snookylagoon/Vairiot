@@ -181,3 +181,47 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Decisions | D11 and D12 approved by the owner                                                                                                                                                                                                                                       |
 | Notes     | The line-limit check caught `ApiModels.kt` growing; `RecordScanRequest` moved to its own file. Baseline tightened: `audit.service.ts` 591, `asset.service.ts` 569, `ApiModels.kt` 528. Not checked on a Meferi device outdoors (S1.2 gate needs a field test). `Location.boundary` left for S3 |
 
+### Stage 1.6 — Adoption merged into dev; branches and worktrees cleaned (G20)
+
+| Item     | Detail                                                                                                                                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Date     | 16 October 2026                                                                                                                                                                                              |
+| Version  | 2.2.0 (on `dev`; production unchanged until `go-live.sh`)                                                                                                                                                    |
+| Activity | PRs #85 (2.0.0), #86 (2.0.1), #87 (2.1.0) and #88 (2.2.0) merged into `dev` in order with merge commits, each on a green pipeline. Six stale worktrees removed; 17 local and 18 remote merged branches deleted |
+| Tests    | Every PR: 12/12 checks, including the first runs of the Security and iOS jobs (#86) and the API suite on PostGIS in CI (#87, #88)                                                                           |
+| Notes    | `dev` has no branch protection, so auto-merge was not available; merges were made once each pipeline was green. 20 Dependabot branches remain for adoption W6 (tidy-up). Tags `v2.2.0` and `phase-0-accepted` wait for the promotion to `main`, which first needs the PostGIS switch in DEPLOY.md |
+
+### Stage 1.7 — Photos bound to audit scans: API (W3, S1.3 steps 1–3)
+
+| Item      | Detail                                                                                                                                                                                                                                                                       |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date      | 16 October 2026                                                                                                                                                                                                                                                              |
+| Version   | — (released with W3)                                                                                                                                                                                                                                                         |
+| Activity  | Migration `20261016020000_scan_photos`: `photos.assetId` nullable (a scan of an unknown tag), scan, campaign, position, capture time, device and `photoType`, with checks that every photo has an owner. `POST /audits/:id/scans/:scanRef/photos` (scan id or the device's clientRequestId), `GET /audits/:id/photos?locationId=`. Pure-TypeScript JPEG EXIF reader for capture time (GPS UTC stamp, or DateTimeOriginal with its offset) and GPS. Position: sent value, else EXIF, else the scan's |
+| Output    | `services/scan-photo.service.ts`, `routes/audits/audit-photos.router.ts`, `lib/image-metadata/exif-read.ts`, `lib/openapi-photos.ts`                                                                                                                                         |
+| Tests     | Photo suites 32/32 (new `photos/exif-read.test.ts`, `audits/scan-photos.test.ts`: EXIF in both byte orders, time precedence, fallbacks, cap of 4, unknown tag, blind hiding, zone filter, GIS off, download stripped)                                                       |
+| Decisions | D13 raised (keep KFR-043: originals as evidence, strip on egress)                                                                                                                                                                                                             |
+| Notes     | Server-side thumbnails and the burned-in stamp are not built (Phase 1 plan §2.2). Mobile capture, `PhotoRule` and the web gallery follow                                                                                                                                     |
+
+### Stage 1.8 — Photos bound to audit scans: Android and iOS (W3, S1.3 step 5)
+
+| Item     | Detail                                                                                                                                                                                                                                                         |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date     | 16 October 2026                                                                                                                                                                                                                                                |
+| Version  | — (released with W3)                                                                                                                                                                                                                                           |
+| Activity | "Add photo to <tag>" on the audit run screen of both apps, for the last accepted or queued scan. Photos always go through the photo queue, keyed to the scan's clientRequestId, and upload only once that scan has left the scan queue; the scan's fix and the capture time travel as form fields (compressed or picker images carry no EXIF). Android Room v10; iOS SwiftData lightweight migration; iOS upload sends text fields |
+| Output   | Android `ui/screens/AuditMessages.kt` (message area moved out of `AuditRunScreen.kt`, now 551 lines), `ScanPhotoUploader`, `uploadScanPhoto`; iOS `Screens/Audits/ScanPhotoButton.swift`, `Components/ImageThumbnail.swift`, `SyncAPI.uploadScanPhoto`            |
+| Tests    | Android unit tests pass (new `ScanPhotoQueueTest`: waits for its scan, sends fields, asset photos unchanged, offline stays queued); iOS 60/60 (new `ScanPhotoQueueTests`)                                                                                    |
+| Notes    | Not tried on a device camera. Baseline tightened: `AuditRunScreen.kt` 551, `AuditRunView.swift` 528                                                                                                                                                             |
+
+### Stage 1.9 — Scan photos on the web; W3 released (W3, S1.3 step 7)
+
+| Item     | Detail                                                                                                                                                                                                   |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date     | 16 October 2026                                                                                                                                                                                          |
+| Version  | 2.3.0                                                                                                                                                                                                    |
+| Activity | `ScanPhotoGallery` on the audit run and reconciliation pages: thumbnails, a lightbox with tag, capture time (en-GB) and position with accuracy, and an OpenStreetMap link; hidden when a campaign has no photos |
+| Output   | `vairiot-web/src/components/audits/ScanPhotoGallery.tsx`                                                                                                                                                  |
+| Tests    | Web 32/32 (new `ScanPhotoGallery.test.tsx`); API 352/352 in 38 suites; Android and iOS as in stage 1.8                                                                                                             |
+| Notes    | `PhotoRule` moved to W5 with the condition scale. Burned-in stamp and server thumbnails not built (plan §2.2). D13 approved by the owner the same day; the S1.3 gate reworded to match                                                                         |
+

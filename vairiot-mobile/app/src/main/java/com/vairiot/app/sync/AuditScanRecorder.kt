@@ -4,6 +4,7 @@ import com.vairiot.app.data.api.AuditScanEventResponse
 import com.vairiot.app.data.local.QueuedScan
 import com.vairiot.app.data.local.QueuedScanDao
 import com.vairiot.app.location.GeoFix
+import java.util.UUID
 
 /**
  * Records one audit scan, online if possible, queued if not.
@@ -36,6 +37,8 @@ class AuditScanRecorder(
         deviceId: String? = null,
         /** Recent device fix to attach; queued with the scan so a replay keeps it. */
         fix: GeoFix? = null,
+        /** Idempotency key; the caller keeps it to attach photos to this scan. */
+        clientRequestId: String = UUID.randomUUID().toString(),
     ): Outcome {
         val draft = QueuedScan(
             campaignId = campaignId,
@@ -46,6 +49,7 @@ class AuditScanRecorder(
             latitude = fix?.latitude,
             longitude = fix?.longitude,
             geoAccuracyMeters = fix?.accuracyMeters,
+            clientRequestId = clientRequestId,
         )
         val queued = draft.copy(id = dao.insert(draft))
         return try {

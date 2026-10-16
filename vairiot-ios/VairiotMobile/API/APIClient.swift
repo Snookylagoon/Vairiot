@@ -84,15 +84,17 @@ final class APIClient: Sendable {
     func upload<T: Decodable>(
         path: String,
         imageData: Data,
-        thumbData: Data?
+        thumbData: Data?,
+        fields: [String: String] = [:]
     ) async throws -> T {
-        try await upload(path: path, imageData: imageData, thumbData: thumbData, attemptRefresh: true)
+        try await upload(path: path, imageData: imageData, thumbData: thumbData, fields: fields, attemptRefresh: true)
     }
 
     private func upload<T: Decodable>(
         path: String,
         imageData: Data,
         thumbData: Data?,
+        fields: [String: String],
         attemptRefresh: Bool
     ) async throws -> T {
         guard let url = URL(string: path, relativeTo: baseURL) else {
@@ -127,6 +129,11 @@ final class APIClient: Sendable {
             )
         }
 
+        // Text fields (scan photos: type, position, capture time).
+        for (name, value) in fields.sorted(by: { $0.key < $1.key }) {
+            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
+        }
+
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         request.httpBody = body
 
@@ -144,7 +151,7 @@ final class APIClient: Sendable {
         // retry once, exactly as performRequest does.
         if attemptRefresh, (response as? HTTPURLResponse)?.statusCode == 401 {
             try await refreshAfter401()
-            return try await upload(path: path, imageData: imageData, thumbData: thumbData, attemptRefresh: false)
+            return try await upload(path: path, imageData: imageData, thumbData: thumbData, fields: fields, attemptRefresh: false)
         }
 
         try validateResponse(response, data: data)

@@ -31,4 +31,15 @@ data class QueuedPhoto(
     val lastError: String? = null,
     val state: String = QueueState.PENDING,
     val clientRequestId: String = UUID.randomUUID().toString(),
+    /**
+     * Audit scan evidence (stage 1.8): the campaign and the scan's
+     * [QueuedScan.clientRequestId]. Uploaded only once that scan is on the
+     * server, which the API resolves by this key.
+     */
+    val campaignId: String? = null,
+    val scanClientRequestId: String? = null,
+    val photoType: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val geoAccuracyMeters: Double? = null,
 )

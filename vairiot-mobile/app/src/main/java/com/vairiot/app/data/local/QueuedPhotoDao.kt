@@ -13,9 +13,16 @@ interface QueuedPhotoDao {
 
     /**
      * Rows the sync worker should try. Photos whose asset is itself still queued
-     * offline (no [QueuedPhoto.assetId] yet) wait until that asset syncs.
+     * offline (no [QueuedPhoto.assetId] yet) wait until that asset syncs; scan
+     * photos wait until their scan has left the scan queue (the server has it).
      */
-    @Query("SELECT * FROM queued_photos WHERE state IN ('pending', 'failed') AND assetId IS NOT NULL ORDER BY id ASC LIMIT :limit")
+    @Query(
+        "SELECT * FROM queued_photos WHERE state IN ('pending', 'failed') AND (" +
+            "(scanClientRequestId IS NULL AND assetId IS NOT NULL) OR " +
+            "(scanClientRequestId IS NOT NULL AND NOT EXISTS " +
+            "(SELECT 1 FROM queued_scans s WHERE s.clientRequestId = queued_photos.scanClientRequestId))" +
+            ") ORDER BY id ASC LIMIT :limit",
+    )
     suspend fun takeBatch(limit: Int = 20): List<QueuedPhoto>
 
     @Query("SELECT * FROM queued_photos WHERE id = :id")

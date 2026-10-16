@@ -292,7 +292,7 @@ private fun PhotoViewerDialog(
     }
 }
 
-private fun newCaptureUri(context: android.content.Context): Uri {
+internal fun newCaptureUri(context: android.content.Context): Uri {
     val dir = File(context.cacheDir, "photos").apply { mkdirs() }
     val file = File(dir, "capture-${System.currentTimeMillis()}.jpg")
     return FileProvider.getUriForFile(

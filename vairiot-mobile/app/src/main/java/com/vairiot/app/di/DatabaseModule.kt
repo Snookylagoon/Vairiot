@@ -91,11 +91,21 @@ object DatabaseModule {
         }
     }
 
+    // v10: audit scan evidence on queued photos (stage 1.8). Nullable columns.
+    private val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            for (col in listOf("campaignId TEXT", "scanClientRequestId TEXT", "photoType TEXT",
+                "latitude REAL", "longitude REAL", "geoAccuracyMeters REAL")) {
+                db.execSQL("ALTER TABLE queued_photos ADD COLUMN $col")
+            }
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): VairiotDatabase =
         Room.databaseBuilder(context, VairiotDatabase::class.java, "vairiot.db")
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
             // No blanket destructive fallback: a version bump without a
             // migration must crash in testing, not silently wipe every offline
             // queue on a field device. Only pre-v4 builds (before the queues

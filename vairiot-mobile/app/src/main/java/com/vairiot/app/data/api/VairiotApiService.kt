@@ -1,6 +1,7 @@
 package com.vairiot.app.data.api
 
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -9,6 +10,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.PartMap
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Streaming
@@ -203,6 +205,17 @@ interface VairiotApiService {
 
     @GET("api/v1/maintenance/{id}/photos")
     suspend fun listMaintenancePhotos(@Path("id") id: String): List<PhotoResponse>
+
+    /** A photo bound to an audit scan; [scanRef] is the scan id or its clientRequestId. */
+    @Multipart
+    @POST("api/v1/audits/{id}/scans/{scanRef}/photos")
+    suspend fun uploadScanPhoto(
+        @Path("id") campaignId: String,
+        @Path("scanRef") scanRef: String,
+        @Part photo: MultipartBody.Part,
+        @Part thumb: MultipartBody.Part? = null,
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody> = emptyMap(),
+    ): PhotoResponse
 
     @Multipart
     @POST("api/v1/maintenance/{id}/photos")

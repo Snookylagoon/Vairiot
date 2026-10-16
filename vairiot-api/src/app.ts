@@ -21,6 +21,7 @@ import { platformRouter } from './routes/admin/platform.router';
 import { usersRouter }      from './routes/admin/users.router';
 import { alertsRouter }       from './routes/alerts/alerts.router';
 import { assetsRouter }     from './routes/assets/assets.router';
+import { auditPhotosRouter } from './routes/audits/audit-photos.router';
 import { auditsRouter }     from './routes/audits/audits.router';
 import { authRouter }       from './routes/auth/auth.router';
 import { categoriesRouter } from './routes/categories/categories.router';
@@ -123,6 +124,7 @@ export function createApp(): Application {
   gated.use('/assets',       assetsRouter);
   gated.use('/categories',   categoriesRouter);
   gated.use('/sites',        sitesRouter);
+  gated.use('/audits',       auditPhotosRouter);   // /audits/:id/scans/:scanRef/photos, /audits/:id/photos
   gated.use('/audits',       auditsRouter);
   gated.use('/checkouts',    checkoutsRouter);
   gated.use('/scan-sessions', scanSessionsRouter);

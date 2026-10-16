@@ -142,8 +142,14 @@ class FakeQueuedPhotoDao : QueuedPhotoDao {
         rows.value = rows.value + photo.copy(id = id)
         return id
     }
+    /** Scan keys still in the scan queue; their photos wait, as the Room query makes them. */
+    val queuedScanKeys = mutableSetOf<String>()
     override suspend fun takeBatch(limit: Int) = rows.value
-        .filter { (it.state == QueueState.PENDING || it.state == QueueState.FAILED) && it.assetId != null }
+        .filter { it.state == QueueState.PENDING || it.state == QueueState.FAILED }
+        .filter { p ->
+            val scanKey = p.scanClientRequestId
+            if (scanKey == null) p.assetId != null else scanKey !in queuedScanKeys
+        }
         .take(limit)
     override suspend fun getById(id: Long) = rows.value.firstOrNull { it.id == id }
     override suspend fun deleteById(id: Long) { rows.value = rows.value.filterNot { it.id == id } }

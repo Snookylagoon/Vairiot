@@ -47,6 +47,14 @@ final class AuditRunViewModel {
     /// Scans for this audit saved on the device and not yet on the server.
     var pendingScanCount = 0
 
+    /// The scan photos attach to (stage 1.8); nil after a rejected scan.
+    struct LastScan: Equatable {
+        let clientRequestId: UUID
+        let tagValue: String
+        let fix: GeoFix?
+    }
+    var lastScan: LastScan?
+
     // MARK: - Dependencies
 
     private let apiClient: APIClient
@@ -128,13 +136,21 @@ final class AuditRunViewModel {
             },
             onQueued: { SyncManager.shared.syncSoon() }
         )
+        let scanKey = UUID()
+        let fix = featureFlags.gisEnabled ? positionTracker.latest() : nil
         let outcome = await recorder.record(
             campaignId: audit.id,
             tagValue: tag,
             locationId: zoneId,
             condition: selectedCondition.isEmpty ? nil : selectedCondition,
-            fix: featureFlags.gisEnabled ? positionTracker.latest() : nil
+            fix: fix,
+            id: scanKey
         )
+        if case .rejected = outcome {
+            lastScan = nil
+        } else {
+            lastScan = LastScan(clientRequestId: scanKey, tagValue: tag, fix: fix)
+        }
 
         switch outcome {
         case .recorded(let event):
@@ -165,6 +181,32 @@ final class AuditRunViewModel {
 
         refreshPendingCount()
         isRecording = false
+    }
+
+    /// Queues a photo against the last scan (stage 1.8). It always goes
+    /// through the queue: sync sends it once the scan itself is on the server.
+    /// A picker JPEG has no EXIF, so the scan's fix and capture time travel as fields.
+    func addPhotoToLastScan(_ imageData: Data) {
+        guard let scan = lastScan else { return }
+        let files = PhotoFileStore.shared
+        do {
+            let fileName = try files.save(imageData)
+            let thumbName = try ImageThumbnail.jpeg(from: imageData).map { try files.save($0) }
+            let context = VairiotStore.shared.context
+            context.insert(QueuedPhoto(
+                fileName: fileName,
+                thumbFileName: thumbName,
+                campaignId: audit.id,
+                scanClientRequestId: scan.clientRequestId.uuidString,
+                photoType: "inventory",
+                fix: scan.fix
+            ))
+            try context.save()
+            SyncManager.shared.syncSoon()
+            successMessage = "Photo saved for \(scan.tagValue); it uploads after the scan"
+        } catch {
+            errorMessage = "Could not save photo: \(error.localizedDescription)"
+        }
     }
 
     func refreshPendingCount() {

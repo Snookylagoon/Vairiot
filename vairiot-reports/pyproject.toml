@@ -3,6 +3,6 @@
 # requirements.txt, which the Dockerfile installs.
 [project]
 name = "vairiot-reports"
-version = "2.2.0"
+version = "2.3.0"
 description = "Vairiot Asset Intelligence report service (FastAPI)"
 requires-python = ">=3.12"

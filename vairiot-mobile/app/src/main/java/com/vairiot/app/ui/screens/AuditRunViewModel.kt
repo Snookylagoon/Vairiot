@@ -1,29 +1,40 @@
 package com.vairiot.app.ui.screens
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vairiot.app.ImageCompressor
 import com.vairiot.app.data.FeatureFlags
 import com.vairiot.app.data.api.AuditCampaignResponse
 import com.vairiot.app.data.api.AuditReportResponse
 import com.vairiot.app.data.api.AuditScanEventResponse
 import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.data.api.ZoneSubmissionResponse
+import com.vairiot.app.data.local.QueuedPhoto
+import com.vairiot.app.data.local.QueuedPhotoDao
 import com.vairiot.app.data.local.QueuedScan
 import com.vairiot.app.data.local.QueuedScanDao
+import com.vairiot.app.location.GeoFix
 import com.vairiot.app.location.PositionProvider
 import com.vairiot.app.location.ScanPositionTracker
 import com.vairiot.app.scanner.ScannerService
 import com.vairiot.app.sync.AuditScanRecorder
+import com.vairiot.app.sync.PhotoSyncScheduler
 import com.vairiot.app.sync.ScanSyncScheduler
 import com.vairiot.app.sync.scanSender
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.UUID
+import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
+import kotlinx.coroutines.withContext
 
 data class AuditRunUiState(
     val campaignId: String = "",
@@ -42,7 +53,12 @@ data class AuditRunUiState(
     val lastMessage:  String? = null,
     val error:        String? = null,
     val report:       AuditReportResponse? = null,
+    /** The scan photos attach to (stage 1.8); null after a rejected scan. */
+    val lastScan:     LastScan? = null,
 )
+
+/** Key, tag and device fix of the most recent accepted or queued scan. */
+data class LastScan(val clientRequestId: String, val tagValue: String, val fix: GeoFix?)
 
 @HiltViewModel
 class AuditRunViewModel @Inject constructor(
@@ -52,6 +68,9 @@ class AuditRunViewModel @Inject constructor(
     private val syncScheduler: ScanSyncScheduler,
     positions: PositionProvider,
     private val featureFlags: FeatureFlags,
+    private val photoDao: QueuedPhotoDao,
+    private val photoSyncScheduler: PhotoSyncScheduler,
+    @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -184,12 +203,15 @@ class AuditRunViewModel @Inject constructor(
             // Blind campaigns require locationId; condition is optional. The
             // recorder queues these same fields, so an offline replay is
             // identical to the online request (including its clientRequestId).
+            val scanKey = UUID.randomUUID().toString()
+            val fix = if (gisEnabled.value) positionTracker.latest() else null
             val outcome = recorder.record(
                 campaignId = campaignId,
                 tagValue   = trimmed,
                 locationId = if (currentState.isBlind) currentState.selectedLocationId else null,
                 condition  = currentState.condition.ifBlank { null },
-                fix        = if (gisEnabled.value) positionTracker.latest() else null,
+                fix        = fix,
+                clientRequestId = scanKey,
             )
             _state.value = when (outcome) {
                 is AuditScanRecorder.Outcome.Recorded -> {
@@ -226,6 +248,39 @@ class AuditRunViewModel @Inject constructor(
                     error        = "Scan not accepted: ${outcome.message}. It is kept under Profile → Pending uploads.",
                 )
             }
+            _state.value = _state.value.copy(
+                lastScan = if (outcome is AuditScanRecorder.Outcome.Rejected) null else LastScan(scanKey, trimmed, fix),
+            )
+        }
+    }
+
+    /**
+     * Queues a photo against the last scan (stage 1.8). It always goes through
+     * the queue: the worker sends it once the scan itself is on the server.
+     * The compressed WebP has no EXIF, so the scan's fix and the capture time
+     * travel as fields.
+     */
+    fun addPhotoToLastScan(uri: Uri) {
+        val scan = _state.value.lastScan ?: return
+        viewModelScope.launch {
+            val result = try {
+                withContext(Dispatchers.IO) { ImageCompressor.compress(context, uri, assetRef = "scan") }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(error = "Could not read photo: ${e.message}")
+                return@launch
+            }
+            photoDao.insert(QueuedPhoto(
+                filePath = result.displayFile.absolutePath,
+                thumbPath = result.thumbFile.absolutePath,
+                campaignId = campaignId,
+                scanClientRequestId = scan.clientRequestId,
+                photoType = "inventory",
+                latitude = scan.fix?.latitude,
+                longitude = scan.fix?.longitude,
+                geoAccuracyMeters = scan.fix?.accuracyMeters,
+            ))
+            photoSyncScheduler.triggerNow()
+            _state.value = _state.value.copy(lastMessage = "Photo saved for ${scan.tagValue}; it uploads after the scan")
         }
     }
 

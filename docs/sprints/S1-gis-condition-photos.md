@@ -100,7 +100,7 @@ Output:
 Think before answering (maximum reasoning).
 ```
 
-**Acceptance:** a photo taken during an audit appears against that scan in the web console with time and position; the stored file has no EXIF GPS data.
+**Acceptance:** a photo taken during an audit appears against that scan in the web console with time and position; no copy that leaves the API has EXIF GPS data; the stored original keeps its metadata as evidence (decision D13, KFR-043).
 
 ---
 

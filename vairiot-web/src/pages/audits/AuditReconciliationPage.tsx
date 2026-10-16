@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { ScanPhotoGallery } from '@/components/audits/ScanPhotoGallery';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
@@ -139,6 +140,8 @@ export function AuditReconciliationPage() {
           ))}
         </CardBody>
       </Card>
+
+      <ScanPhotoGallery campaignId={id} />
 
       {adjustments.length > 0 && (
         <Card>

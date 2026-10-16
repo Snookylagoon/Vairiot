@@ -15,13 +15,12 @@ struct AuditRunView: View {
                 headerSection
                 statusSection
 
-                if viewModel.isDraft {
-                    startSection
-                }
+                if viewModel.isDraft { startSection }
 
                 if viewModel.isActive {
                     scanSection
                     lastScanSection
+                    ScanPhotoButton(lastScan: viewModel.lastScan) { viewModel.addPhotoToLastScan($0) }
                     if viewModel.isBlind {
                         zoneSection
                     }

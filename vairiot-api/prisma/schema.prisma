@@ -389,26 +389,40 @@ model Disposal {
 
 // ─── Photos ───────────────────────────────────────────────────────────────────
 model Photo {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   tenantId           String
-  assetId            String
+  // Null only for a scan photo of an unknown tag (CHECK photos_owner_check).
+  assetId            String?
   maintenanceEventId String?
-  storageKey         String   @unique
-  thumbStorageKey    String?  @unique
+  // ── Audit scan evidence (stage 1.7) ──
+  scanEventId        String?
+  campaignId         String?
+  latitude           Float?
+  longitude          Float?
+  geoAccuracyMeters  Float?
+  capturedAt         DateTime?
+  deviceId           String?
+  photoType          String    @default("general") // inventory | condition | label | general
+  storageKey         String    @unique
+  thumbStorageKey    String?   @unique
   mimeType           String
   sizeBytes          Int
   width              Int?
   height             Int?
   caption            String?
   createdBy          String
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  asset       Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  asset       Asset?            @relation(fields: [assetId], references: [id], onDelete: Cascade)
   maintenance MaintenanceEvent? @relation(fields: [maintenanceEventId], references: [id], onDelete: Cascade)
+  scanEvent   AuditScanEvent?   @relation(fields: [scanEventId], references: [id], onDelete: Cascade)
+  campaign    AuditCampaign?    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, assetId])
   @@index([tenantId, maintenanceEventId])
+  @@index([tenantId, campaignId])
+  @@index([scanEventId])
   @@map("photos")
 }
 
@@ -439,6 +453,7 @@ model AuditCampaign {
   zoneSubmissions     AuditZoneSubmission[]
   reconciliationItems AuditReconciliationItem[]
   adjustments         AuditAdjustment[]
+  photos              Photo[]
 
   @@index([tenantId, status])
   @@map("audit_campaigns")
@@ -487,6 +502,7 @@ model AuditScanEvent {
 
   campaign            AuditCampaign             @relation(fields: [campaignId], references: [id])
   reconciliationItems AuditReconciliationItem[]
+  photos              Photo[]
 
   @@index([campaignId])
   @@index([tenantId, tagValue])
@@ -496,24 +512,24 @@ model AuditScanEvent {
 
 // ─── Blind Audit: Register Snapshot ──────────────────────────────────────────
 model AuditSnapshotAsset {
-  id            String   @id @default(cuid())
-  campaignId    String
-  assetId       String
-  assetNumber   String
-  name          String
-  rfidTag       String?
-  barcode       String?
-  siteId        String?
-  locationId    String?
-  categoryId    String?
-  condition     String?
-  purchaseCost  Decimal? @db.Decimal(12, 2)
-  residualValue Decimal? @db.Decimal(12, 2)
+  id                String   @id @default(cuid())
+  campaignId        String
+  assetId           String
+  assetNumber       String
+  name              String
+  rfidTag           String?
+  barcode           String?
+  siteId            String?
+  locationId        String?
+  categoryId        String?
+  condition         String?
+  purchaseCost      Decimal? @db.Decimal(12, 2)
+  residualValue     Decimal? @db.Decimal(12, 2)
   // Register position at snapshot time (stage 1.5).
   latitude          Float?
   longitude         Float?
   geoAccuracyMeters Float?
-  snapshotAt    DateTime @default(now())
+  snapshotAt        DateTime @default(now())
 
   campaign            AuditCampaign             @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   reconciliationItems AuditReconciliationItem[]

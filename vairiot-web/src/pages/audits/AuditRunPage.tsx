@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { ScanPhotoGallery } from '@/components/audits/ScanPhotoGallery';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
@@ -214,6 +215,8 @@ export function AuditRunPage() {
           ))}
         </CardBody>
       </Card>
+
+      <ScanPhotoGallery campaignId={id} />
 
       <Button onClick={() => complete.mutate()} loading={complete.isPending}>
         <Flag size={15} className="mr-1.5" /> Complete audit

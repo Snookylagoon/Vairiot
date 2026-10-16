@@ -239,21 +239,8 @@ fun AuditRunScreen(
                 }
             }
 
-            // Messages
-            item {
-                state.lastMessage?.let {
-                    Surface(color = VairiotWash, shape = RoundedCornerShape(8.dp)) {
-                        Text(it, modifier = Modifier.padding(10.dp),
-                            style = MaterialTheme.typography.bodySmall, color = VairiotCharcoal)
-                    }
-                }
-                state.error?.let {
-                    Surface(color = ErrorRed.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp)) {
-                        Text(it, modifier = Modifier.padding(10.dp),
-                            style = MaterialTheme.typography.bodySmall, color = ErrorRed)
-                    }
-                }
-            }
+            // Messages and scan evidence photos
+            item { AuditMessages(state.lastMessage, state.error, state.lastScan, viewModel::addPhotoToLastScan) }
 
             // Awaiting upload (offline queue) — proves queued scans aren't lost.
             if (pendingScans.isNotEmpty()) {

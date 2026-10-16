@@ -2,6 +2,23 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.3.0] — 2026-10-16
+
+### Added
+
+- Photos bound to audit scans: "Add photo to <tag>" on the Android and iOS audit screens; photos queue offline and upload once their scan is on the server, with the scan's position and capture time (stages 1.7–1.8)
+- `POST /api/v1/audits/:id/scans/:scanRef/photos` (scan id or the device's clientRequestId) and `GET /api/v1/audits/:id/photos?locationId=`; blind campaigns hide matches until completed (stage 1.7)
+- Capture time and GPS read from a photo's EXIF when the device sends none (stage 1.7)
+- Scan photos on the web audit run and reconciliation pages, with time, position and a map link (stage 1.9)
+
+### Changed
+
+- A photo no longer needs an asset: a scan of an unknown tag can carry evidence (stage 1.7)
+
+### Security
+
+- Stored originals keep their metadata as evidence; every download stays stripped of EXIF and GPS (KFR-043, D13) (stage 1.7)
+
 ## [2.2.0] — 2026-10-16
 
 ### Added
@@ -118,6 +135,7 @@ Adoption of the Managed Development Standard (decision D3). The major number mar
 
 Earlier versions (1.4.x–1.6.x, June–July 2026) were Android-only releases recorded in the commit history.
 
+[2.3.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/Snookylagoon/Vairiot/compare/v2.0.0...v2.0.1
