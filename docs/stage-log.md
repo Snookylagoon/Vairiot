@@ -363,3 +363,18 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Output    | `docs/04-phase-1-record.md` §7; `project.md` decision log                                                                                                               |
 | Decisions | Phase 1 acceptance recorded, with P1.1 and P1.2 as follow-ups                                                                                                           |
 | Notes     | Tag `phase-1-accepted` waits for the promotion of `dev` to `main`, with `phase-0-accepted` and the 2.x tags. PR #93 carries stages 1.20–1.22 and the Phase 2 plan (stage 2.0) |
+
+---
+
+## Phase 2 — IPSAS ledger and register import (Sprint S2)
+
+### Stage 2.0 — Phase 2 planned
+
+| Item      | Detail                                                                                                                                                                                                                       |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date      | 16 October 2026                                                                                                                                                                                                              |
+| Version   | 2.6.1                                                                                                                                                                                                                        |
+| Activity  | Surveyed the code S2 builds on (money types, on-the-fly straight-line depreciation, CSV-only import, worker queues, the unread `ipsas` flag, roles, RLS) and wrote the Phase 2 plan: workstreams W0–W8, ledger rules, import design, changes to the sprint file, exit-gate tests. Data model document corrected to 21 event types |
+| Output    | `docs/05-phase-2-plan.md`; `project.md`; `docs/02-data-model-and-module-registry.md`                                                                                                                                         |
+| Decisions | D14–D21 raised as proposed: decimal money arithmetic, period convention, accounting permissions, ledger integrity before S3.1, `exceljs`, Zod contracts for the new routes, asset class on existing assets, units-of-production input |
+| Notes     | API line coverage measured at 65.5 % against a 50 % gate: W1 raises the gate (D8). W2 starts once D14–D21 are decided                                                                                                          |
