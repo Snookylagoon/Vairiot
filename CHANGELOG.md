@@ -2,6 +2,18 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.4.0] — 2026-10-16
+
+### Added
+
+- Campaign layer on the asset map: choose a running or completed campaign to colour its assets verified, misplaced, condition variance, missing or not yet scanned, with surplus tags where they were scanned; a blind count in progress shows only progress (stage 1.10)
+- "Pick on map" in the asset form: click the map or drag the pin to set a position (stage 1.11)
+- Per-tenant base map: tile server, attribution, default centre and zoom under Administration → Map Settings (`GET/PUT /api/v1/gis/map-settings`); TUDA opens on Tbilisi (stage 1.12)
+
+### Security
+
+- Map attribution is plain text only and tile servers must use https, because the map renders attribution as HTML; changes are audited (stage 1.12)
+
 ## [2.3.0] — 2026-10-16
 
 ### Added
@@ -135,6 +147,7 @@ Adoption of the Managed Development Standard (decision D3). The major number mar
 
 Earlier versions (1.4.x–1.6.x, June–July 2026) were Android-only releases recorded in the commit history.
 
+[2.4.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.0.1...v2.1.0
