@@ -181,3 +181,13 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Decisions | D11 and D12 approved by the owner                                                                                                                                                                                                                                       |
 | Notes     | The line-limit check caught `ApiModels.kt` growing; `RecordScanRequest` moved to its own file. Baseline tightened: `audit.service.ts` 591, `asset.service.ts` 569, `ApiModels.kt` 528. Not checked on a Meferi device outdoors (S1.2 gate needs a field test). `Location.boundary` left for S3 |
 
+### Stage 1.6 — Adoption merged into dev; branches and worktrees cleaned (G20)
+
+| Item     | Detail                                                                                                                                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Date     | 16 October 2026                                                                                                                                                                                              |
+| Version  | 2.2.0 (on `dev`; production unchanged until `go-live.sh`)                                                                                                                                                    |
+| Activity | PRs #85 (2.0.0), #86 (2.0.1), #87 (2.1.0) and #88 (2.2.0) merged into `dev` in order with merge commits, each on a green pipeline. Six stale worktrees removed; 17 local and 18 remote merged branches deleted |
+| Tests    | Every PR: 12/12 checks, including the first runs of the Security and iOS jobs (#86) and the API suite on PostGIS in CI (#87, #88)                                                                           |
+| Notes    | `dev` has no branch protection, so auto-merge was not available; merges were made once each pipeline was green. 20 Dependabot branches remain for adoption W6 (tidy-up). Tags `v2.2.0` and `phase-0-accepted` wait for the promotion to `main`, which first needs the PostGIS switch in DEPLOY.md |
+

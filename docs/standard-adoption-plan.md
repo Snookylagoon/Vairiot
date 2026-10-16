@@ -183,3 +183,7 @@ W3 is built: line-limit check with a shrink-only baseline (16 files), British En
 | G27 | Semgrep (OWASP Top Ten) findings that predate stage 0.10: nginx uses `$host` in six places and allows h2c upgrade in two; `res.send` of built bodies in `app.ts`, `platform.router.ts`, `ios.router.ts`, `reports.router.ts`; GCM decryption without `authTagLength` in the API and worker `crypto.ts`; Dockerfiles without `USER` (G16); the exported launcher activity (false positive) | Triage and fix in W4. CI fails only on new findings (`--baseline-commit`)               |
 | G28 | 315 of 334 TypeScript sources are not Prettier-formatted, so the pre-commit hook runs ESLint only; formatting the codebase would touch almost every file                                                                                                    | One formatting-only commit at a quiet point (no open branches), then add Prettier to lint-staged and CI |
 | G29 | The iOS workflow targets the `macos-26` runner image and picks the first available iPhone simulator; not yet run on GitHub                                                                                                                                   | Check the first run; adjust the runner label if the image is not available              |
+
+## 12. Status after stage 1.6
+
+G20 is closed: merged branches and stale worktrees removed (stage 1.6). Dependabot branches (20) are handled in W6.
