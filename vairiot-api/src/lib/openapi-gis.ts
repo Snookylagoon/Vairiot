@@ -52,6 +52,22 @@ export const gisPaths = {
       },
     },
   },
+  '/audits/{id}/map': {
+    get: {
+      tags: ['Audits'],
+      summary: 'Campaign layer for the asset map',
+      description:
+        'Every expected asset with a position, in state verified, misplaced, condition_variance, missing or ' +
+        'not_scanned (live from the scans; a completed blind campaign uses its reconciliation), plus surplus tags ' +
+        'at their scan position. A blind campaign in progress reports only scanned / not_scanned. Assets without ' +
+        'a register position use their scan position.',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        200: { description: 'campaign, points, counts by state, unplaced' },
+        404: { description: 'Campaign not found, or GIS switched off for the tenant' },
+      },
+    },
+  },
   '/audits/{id}/scans/geo': {
     get: {
       tags: ['Audits'],

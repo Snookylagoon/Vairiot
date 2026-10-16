@@ -19,13 +19,15 @@ interface AssetClusterMapProps {
    */
   fitKey:     string | null;
   className?: string;
+  /** Marker colour; defaults to the asset status colour. */
+  colourOf?:  (point: AssetMapPoint) => string;
 }
 
 /** Fallback view before there's anything to fit: the whole world. */
 const WORLD: L.LatLngTuple = [20, 0];
 
 /** All-assets map: status-coloured markers, clustered where they crowd. */
-export function AssetClusterMap({ points, selectedId, onSelect, fitKey, className }: AssetClusterMapProps) {
+export function AssetClusterMap({ points, selectedId, onSelect, fitKey, className, colourOf }: AssetClusterMapProps) {
   return (
     // `isolate` keeps Leaflet's high z-index panes below the app's dialogs.
     <div className={`isolate ${className ?? ''}`}>
@@ -35,7 +37,7 @@ export function AssetClusterMap({ points, selectedId, onSelect, fitKey, classNam
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           maxZoom={19}
         />
-        <ClusterLayer points={points} selectedId={selectedId} onSelect={onSelect} />
+        <ClusterLayer points={points} selectedId={selectedId} onSelect={onSelect} colourOf={colourOf} />
         <FitToPoints points={points} fitKey={fitKey} />
       </MapContainer>
     </div>
@@ -45,7 +47,7 @@ export function AssetClusterMap({ points, selectedId, onSelect, fitKey, classNam
 const BASE_STYLE = { radius: 7, color: '#ffffff', weight: 2 };
 const SELECTED_STYLE = { radius: 10, color: '#1f2937', weight: 3 };
 
-function ClusterLayer({ points, selectedId, onSelect }: Pick<AssetClusterMapProps, 'points' | 'selectedId' | 'onSelect'>) {
+function ClusterLayer({ points, selectedId, onSelect, colourOf = (p) => statusColour(p.status) }: Pick<AssetClusterMapProps, 'points' | 'selectedId' | 'onSelect' | 'colourOf'>) {
   const map = useMap();
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
@@ -59,7 +61,7 @@ function ClusterLayer({ points, selectedId, onSelect }: Pick<AssetClusterMapProp
     cluster.addLayers(points.map((p) => {
       const marker = L.circleMarker([p.latitude, p.longitude], {
         ...BASE_STYLE,
-        fillColor: statusColour(p.status),
+        fillColor: colourOf(p),
         fillOpacity: 0.95,
       });
       marker.bindTooltip(`<strong>${escapeHtml(p.name)}</strong><br>${escapeHtml(p.assetNumber)}`, { direction: 'top', offset: [0, -6] });
@@ -70,6 +72,8 @@ function ClusterLayer({ points, selectedId, onSelect }: Pick<AssetClusterMapProp
     markers.current = byId;
     map.addLayer(cluster);
     return () => { map.removeLayer(cluster); };
+    // colourOf is chosen once per layer; points change with it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, points]);
 
   useEffect(() => {
