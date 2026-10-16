@@ -464,4 +464,13 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Fix Applied** | Originals stay untouched in storage (evidence), and every image that leaves the API is stripped: photo downloads and thumbnails, image documents, and company logos (one is public). It runs in pure TypeScript with no native dependency and no re-encoding. JPEG drops APP1 (EXIF/XMP), APP3–13/15, comments, the MPF index and images after EOI, keeps JFIF/ICC/Adobe, and writes back a one-tag EXIF orientation. PNG drops `eXIf`/`tEXt`/`zTXt`/`iTXt`/`tIME`. WebP drops `EXIF`/`XMP ` and clears their VP8X flags. HEIC/HEIF zero-fills the Exif/XMP items in place (rewriting `iloc` offsets would be riskier). The format is detected from the file's own bytes. An image that can't be parsed is refused rather than sent with its metadata. PNG loses its EXIF orientation. |
 | **Test Added** | `src/__tests__/photos/image-metadata.test.ts` (planted metadata in JPEG/PNG/WebP/HEIC fixtures from `image-fixtures.ts`; orientation kept; scan data byte-identical; broken JPEG refused) and `download-strip.test.ts` (end to end with an in-memory store: stored original keeps GPS; the photo download, image document download and public logo don't). Manually checked with real JPEG/PNG/HEIC files written by macOS ImageIO with GPS and camera tags: after stripping, all three decode, ImageIO finds no GPS or camera model, and JPEG and HEIC keep orientation 6. |
 
-*Last updated: CI Phase 0 security fixes, October 2026*
+## KFR-044 — nginx never became healthy, so deploys timed out (Phase 1 exit gate)
+
+| Field | Detail |
+|---|---|
+| **Module** | `infra/docker-compose.prod.yml` (nginx healthcheck), used by production, staging and standalone installs |
+| **Root Cause** | The healthcheck ran `wget --spider http://localhost/nginx-health`. The current `nginx:alpine` image resolves `localhost` to `::1` first, and every site (`prod.conf`, `staging.conf`, `standalone.conf.template`) listens on IPv4 only, so the check was refused and nginx stayed `unhealthy` while serving normally. `deploy.sh` waits for every container to report healthy, so a deploy that pulled a fresh nginx image would stop at that wait. |
+| **Fix Applied** | The healthcheck fetches `http://127.0.0.1/nginx-health`, the address the sites listen on. Found by the Phase 1 exit gate on the Docker stack (stage 1.21). |
+| **Test Added** | `vairiot-api/src/__tests__/security/compose-healthchecks.test.ts`: the production nginx healthcheck uses `127.0.0.1` and never `localhost`, and every site still listens on IPv4 port 80. |
+
+*Last updated: Phase 1 close, October 2026*

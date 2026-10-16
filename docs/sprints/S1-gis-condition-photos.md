@@ -186,9 +186,9 @@ Think before answering (maximum reasoning).
 
 ## Sprint checklist
 
-- [ ] S1.1 PostGIS and location model
-- [ ] S1.2 Mobile GPS capture (Android and iOS)
-- [ ] S1.3 Photo bound to scan
-- [ ] S1.4 Map view
-- [ ] S1.5 Condition scale
+- [x] S1.1 PostGIS and location model
+- [x] S1.2 Mobile GPS capture (Android and iOS)
+- [x] S1.3 Photo bound to scan
+- [x] S1.4 Map view
+- [x] S1.5 Condition scale
 - [ ] S1.6 Sprint close and PR merged

@@ -10,7 +10,7 @@
 | Source product (read-only) | None — this is the source product for Vairiot Cable Intelligence                                               |
 | Started                    | 17 June 2026 (first commit); standard adopted 16 October 2026                                                  |
 | Current phase              | Phase 1 (S1) in progress; Phase 0 accepted 16 October 2026                                                     |
-| Version                    | 2.6.0                                                                                                          |
+| Version                    | 2.6.1                                                                                                          |
 
 This file is the single source of truth (standard §1.1). If scope, a rule or a decision is not here or in a document linked from §7, it has not been agreed.
 
@@ -87,7 +87,7 @@ Decision D1: Phase N is Sprint SN; sprint files keep their names and serve as th
 | Phase | Sprint | Scope                                                                       | Plan / record                                                                 | Status                                                                                       |
 | ----- | ------ | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | 0     | S0     | Hardening and hosting; standard adoption (stages 0.8–0.10)                  | `docs/sprints/S0-hardening-and-hosting.md` / `S0-summary.md`                  | **Accepted 16 October 2026**                                                                 |
-| 1     | S1     | GIS, condition and photos                                                   | `docs/sprints/S1-gis-condition-photos.md`, [03 plan](docs/03-phase-1-plan.md) | In progress — positions, GPS capture and map built; PostGIS (rest of S1.1), S1.3, S1.5 to do |
+| 1     | S1     | GIS, condition and photos                                                   | `docs/sprints/S1-gis-condition-photos.md`, [03 plan](docs/03-phase-1-plan.md) | Built; exit gate passed on the Docker stack; awaiting owner acceptance ([04 record](docs/04-phase-1-record.md)) |
 | 2     | S2     | IPSAS ledger, policies, depreciation, Excel import                          | `docs/sprints/S2-ipsas-ledger-import.md`                                      | Planned                                                                                      |
 | 3     | S3     | Maker–checker, zones and teams, QA sampling, Georgian i18n, training tenant | `docs/sprints/S3-zones-qa-georgian.md`                                        | Planned                                                                                      |
 | 4     | S4     | Pilot defects, reconciliation engine, data-quality dashboard                | `docs/sprints/S4-reconciliation-and-dq.md`                                    | Planned                                                                                      |
@@ -107,6 +107,8 @@ Adoption workstreams W0–W6 from the [adoption plan](docs/standard-adoption-pla
 | [docs/01-technology-stack.md](docs/01-technology-stack.md)                                                           | Components, versions, upgrade policy                   |
 | [docs/02-data-model-and-module-registry.md](docs/02-data-model-and-module-registry.md)                               | Data model and module switches                         |
 | [docs/03-phase-1-plan.md](docs/03-phase-1-plan.md)                                                                   | Phase 1 plan: workstreams, design, exit gates, D11–D12 |
+| [docs/04-phase-1-record.md](docs/04-phase-1-record.md)                                                               | Phase 1 record: exit gate results, open points, acceptance |
+| [docs/GIS-DATA-MODEL.md](docs/GIS-DATA-MODEL.md)                                                                     | GIS database structure (TOR Deliverable D4)            |
 | [docs/testing/test-plan.md](docs/testing/test-plan.md)                                                               | Test levels, coverage, exit gates, traceability        |
 | [docs/testing/manual-checks.md](docs/testing/manual-checks.md)                                                       | Manual What / Steps / Pass / Fail checks on staging    |
 | [docs/known-fix-registry.md](docs/known-fix-registry.md)                                                             | Lessons from defects (KFR-001 onwards)                 |
