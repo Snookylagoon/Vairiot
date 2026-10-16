@@ -31,9 +31,12 @@ struct AuditScanRecorder {
         locationId: String?,
         condition: String?,
         deviceId: String? = nil,
-        fix: GeoFix? = nil
+        fix: GeoFix? = nil,
+        /// Queue key and clientRequestId; the caller keeps it to attach photos.
+        id: UUID = UUID()
     ) async -> Outcome {
         let scan = QueuedScan(
+            id: id,
             campaignId: campaignId,
             tagValue: tagValue,
             deviceId: deviceId,

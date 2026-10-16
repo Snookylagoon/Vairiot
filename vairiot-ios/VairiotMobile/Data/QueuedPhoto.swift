@@ -24,6 +24,14 @@ final class QueuedPhoto {
     var attempts: Int
     var lastError: String?
     var state: String = "pending"
+    /// Audit scan evidence (stage 1.8): the campaign and the scan's queue key
+    /// (`QueuedScan.id`). Uploaded only once that scan is on the server.
+    var campaignId: String?
+    var scanClientRequestId: String?
+    var photoType: String?
+    var latitude: Double?
+    var longitude: Double?
+    var geoAccuracyMeters: Double?
 
     init(
         id: UUID = UUID(),
@@ -31,7 +39,11 @@ final class QueuedPhoto {
         assetLocalId: UUID? = nil,
         fileName: String,
         thumbFileName: String? = nil,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        campaignId: String? = nil,
+        scanClientRequestId: String? = nil,
+        photoType: String? = nil,
+        fix: GeoFix? = nil
     ) {
         self.id = id
         self.assetId = assetId
@@ -42,6 +54,24 @@ final class QueuedPhoto {
         self.attempts = 0
         self.lastError = nil
         self.state = QueueState.pending
+        self.campaignId = campaignId
+        self.scanClientRequestId = scanClientRequestId
+        self.photoType = photoType
+        self.latitude = fix?.latitude
+        self.longitude = fix?.longitude
+        self.geoAccuracyMeters = fix?.accuracyMeters
+    }
+
+    /// Text fields sent with a scan photo: type, the scan's fix and capture time.
+    var scanPhotoFields: [String: String] {
+        var fields = ["capturedAt": ISO8601DateFormatter().string(from: createdAt)]
+        if let photoType { fields["photoType"] = photoType }
+        if let latitude, let longitude {
+            fields["latitude"] = String(latitude)
+            fields["longitude"] = String(longitude)
+        }
+        if let geoAccuracyMeters { fields["geoAccuracyMeters"] = String(geoAccuracyMeters) }
+        return fields
     }
 }
 

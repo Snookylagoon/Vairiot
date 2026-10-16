@@ -29,7 +29,7 @@ class PhotoSyncWorker @AssistedInject constructor(
             return Result.success()
         }
         // Photos are large; smaller batches keep one run short on a weak signal.
-        val report = drainQueue(PhotoSyncQueue(dao, api.photoUploader()), batchSize = 10)
+        val report = drainQueue(PhotoSyncQueue(dao, api.photoUploader(), api.scanPhotoUploader()), batchSize = 10)
         return report.toWorkResult(TAG)
     }
 }

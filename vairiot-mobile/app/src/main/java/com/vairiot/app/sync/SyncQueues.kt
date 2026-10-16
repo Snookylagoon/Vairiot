@@ -14,6 +14,7 @@ import com.vairiot.app.data.local.QueuedScanDao
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.time.Instant
 
@@ -30,6 +31,30 @@ fun interface AssetSender {
 
 fun interface PhotoUploader {
     suspend fun upload(assetId: String, photo: File, thumb: File?)
+}
+
+/** Uploads a queued audit scan photo with its type, position and capture time. */
+fun interface ScanPhotoUploader {
+    suspend fun upload(item: QueuedPhoto, photo: File, thumb: File?)
+}
+
+fun VairiotApiService.scanPhotoUploader() = ScanPhotoUploader { item, photo, thumb ->
+    val webp = "image/webp".toMediaTypeOrNull()
+    val text = "text/plain".toMediaTypeOrNull()
+    val fields = buildMap {
+        item.photoType?.let { put("photoType", it) }
+        item.latitude?.let { put("latitude", it.toString()) }
+        item.longitude?.let { put("longitude", it.toString()) }
+        item.geoAccuracyMeters?.let { put("geoAccuracyMeters", it.toString()) }
+        put("capturedAt", Instant.ofEpochMilli(item.createdAtMs).toString())
+    }.mapValues { it.value.toRequestBody(text) }
+    uploadScanPhoto(
+        item.campaignId ?: error("Scan photo without a campaign"),
+        item.scanClientRequestId ?: error("Scan photo without a scan"),
+        MultipartBody.Part.createFormData("photo", photo.name, photo.asRequestBody(webp)),
+        thumb?.let { MultipartBody.Part.createFormData("thumb", it.name, it.asRequestBody(webp)) },
+        fields,
+    )
 }
 
 fun VairiotApiService.scanSender() = ScanSender { id, request -> recordAuditScan(id, request) }
@@ -121,14 +146,19 @@ class AssetSyncQueue(
 class PhotoSyncQueue(
     private val dao: QueuedPhotoDao,
     private val uploader: PhotoUploader,
+    private val scanUploader: ScanPhotoUploader? = null,
 ) : SyncQueue<QueuedPhoto> {
     override suspend fun nextBatch(limit: Int) = dao.takeBatch(limit)
     override fun idOf(item: QueuedPhoto) = item.id
     override suspend fun send(item: QueuedPhoto) {
-        val assetId = item.assetId ?: throw IllegalStateException("Photo has no asset yet")
         val photo = File(item.filePath)
         if (!photo.exists()) throw UnsendableException("Photo file is missing from this device")
         val thumb = item.thumbPath?.let(::File)?.takeIf { it.exists() }
+        if (item.scanClientRequestId != null) {
+            (scanUploader ?: throw IllegalStateException("No scan photo uploader")).upload(item, photo, thumb)
+            return
+        }
+        val assetId = item.assetId ?: throw IllegalStateException("Photo has no asset yet")
         uploader.upload(assetId, photo, thumb)
     }
     override suspend fun onSynced(item: QueuedPhoto) {
