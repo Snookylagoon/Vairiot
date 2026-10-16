@@ -257,3 +257,44 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Tests    | API 362/362 in 40 suites (new `gis/map-settings.test.ts`); web 35/35                                                                                                                          |
 | Notes    | Playwright smoke not built (G30). No CSP exists to allow the tile host (G31)                                                                                                                   |
 
+### Stage 1.13 — Condition scale, grades, events and photo rules: API (W5, S1.5 steps 1–3, S1.3 step 6)
+
+| Item     | Detail                                                                                                                                                                                                                                                                                 |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date     | 16 October 2026                                                                                                                                                                                                                                                                        |
+| Version  | — (released with W5)                                                                                                                                                                                                                                                                   |
+| Activity | Migration `20261016040000_condition_scale`: `conditionGrade` on assets and scans, back-filled from the strings; `condition_scale_entries` (tenant scale and category overrides) and `photo_rules`. Grade and string set from each other (`vairiot-shared` `conditionColumns`). `CONDITION_ASSESSED` on the ledger when the grade changes (a default "good" on create is not an assessment). `GET/PUT /condition/scale`, `GET/PUT /condition/photo-rules` (company:manage, audited); `GET /audits/:id/photo-warnings`; zone submission returns `photoWarnings` without blocking |
+| Output   | `vairiot-shared` `constants/condition.constants.ts`; `services/condition.service.ts`, `services/asset-change-events.service.ts`, `routes/condition/condition.router.ts`, `lib/openapi-condition.ts`                                                                                    |
+| Tests    | `condition/condition-scale.test.ts` (default, tenant, category override and removal, bad scales, permissions, grade/string sync, ledger events, 400 for bad grades, warnings, zone submission); shared `condition.test.ts`                                                              |
+
+### Stage 1.14 — Condition scale on the web (W5, S1.5 steps 3–4)
+
+| Item     | Detail                                                                                                                                              |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date     | 16 October 2026                                                                                                                                     |
+| Version  | — (released with W5)                                                                                                                                |
+| Activity | Condition picker in the asset form from the tenant's or category's scale, with criteria; condition history on the asset page; Administration → Condition Scale (scale per category, photo rules) |
+| Output   | `components/forms/ConditionSelect.tsx`, `components/assets/ConditionHistory.tsx`, `pages/admin/ConditionScalePage.tsx`, `hooks/useCondition.ts`       |
+| Tests    | Web `Condition.test.tsx`                                                                                                                            |
+
+### Stage 1.15 — Graded condition in the apps (W5, S1.5 step 5)
+
+| Item     | Detail                                                                                                                                                                   |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Date     | 16 October 2026                                                                                                                                                          |
+| Version  | — (released with W5)                                                                                                                                                     |
+| Activity | Audit screens on Android and iOS: grade 1–5 from the tenant's scale (built-in scale offline) with criteria; grade queued with the scan; a grade needing a photo prompts for one. Android Room v11 |
+| Output   | Android `ui/screens/ConditionGradePicker.kt`, `domain/model/ConditionScale.kt`; iOS `Screens/Audits/ConditionGradePicker.swift`, `Models/ConditionScale.swift`               |
+| Tests    | Android unit tests pass (recorder grade test); iOS 63/63 (new `ConditionGradeTests`)                                                                                     |
+| Notes    | The asset edit screens still offer the condition strings; the API derives the grade. Baseline tightened: `AuditRunScreen.kt` 525, `AuditRunView.swift` 518                |
+
+### Stage 1.16 — Condition report by grade; W5 released (W5, S1.5 step 6)
+
+| Item     | Detail                                                                                                                                 |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Date     | 16 October 2026                                                                                                                        |
+| Version  | 2.5.0                                                                                                                                  |
+| Activity | The condition report counts by grade, so legacy strings such as "excellent" are counted; headers name the grades                       |
+| Tests    | API 371/371 in 42 suites (new `reports/condition-report.test.ts`); web 39/39                                                           |
+| Notes    | Report headers use the default labels, not a tenant's own. `reconciliation_detail.py` unchanged: condition variance compares the strings, which follow the grade |
+
