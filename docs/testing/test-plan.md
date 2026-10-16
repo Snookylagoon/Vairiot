@@ -122,9 +122,9 @@ Decision D8: a **ratchet, never lowered**. A pull request may not lower a packag
 
 | Package                                                            | Today        | End of S1              | End of S2 | End of S3 | End of S4 | Standard end state        |
 | ------------------------------------------------------------------ | ------------ | ---------------------- | --------- | --------- | --------- | ------------------------- |
-| `vairiot-api` (lines)                                              | 50 % (gate)  | 60 %                   | 70 %      | **80 %**  | 80 %      | 80 % lines, 70 % branches |
+| `vairiot-api` (lines)                                              | 65 % gate (stage 2.1; measured 65.5 %) | 60 %                   | 70 %      | **80 %**  | 80 %      | 80 % lines, 70 % branches |
 | API core (auth, tenancy, audit, flags)                             | Not measured | —                      | —         | —         | 90 %      | 90 % lines, 85 % branches |
-| `vairiot-web`, `vairiot-admin`, `vairiot-shared`, `vairiot-worker` | No gate      | Gate at measured value | **60 %**  | 60 %+     | **80 %**  | 80 % / 70 %               |
+| `vairiot-web`, `vairiot-admin`, `vairiot-shared`, `vairiot-worker` | Gates at measured values (stage 2.1): shared 95 %, worker 10 %, web 7 %; admin no tests | Gate at measured value | **60 %**  | 60 %+     | **80 %**  | 80 % / 70 %               |
 | `vairiot-reports`                                                  | No tests     | First tests (W5)       | **60 %**  | 60 %+     | **80 %**  | 80 % / 70 %               |
 | Android, iOS (view models and sync)                                | Not measured | Measured in CI (W3)    | **60 %**  | 60 %+     | **80 %**  | 80 % / 70 %               |
 
