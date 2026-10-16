@@ -251,6 +251,10 @@ describe('Asset GIS position', () => {
   let geoAssetId: string;
   const auth = () => ({ Authorization: `Bearer ${token}` });
 
+  beforeAll(async () => {
+    await prisma.tenant.update({ where: { id: TID }, data: { featureFlags: { gis: true } } });
+  });
+
   it('creates an asset with a position alongside its site', async () => {
     const r = await request(app).post('/api/v1/assets').set(auth()).send({
       name: 'Rooftop Antenna', siteId, latitude: 41.7151, longitude: 44.8271,

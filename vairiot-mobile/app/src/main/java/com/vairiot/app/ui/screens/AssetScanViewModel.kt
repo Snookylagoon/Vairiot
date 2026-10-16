@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vairiot.app.data.AssetRepository
 import com.vairiot.app.data.EpcLookup
+import com.vairiot.app.data.FeatureFlags
 import com.vairiot.app.data.TagLookup
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.VairiotApiService
@@ -24,7 +25,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -53,6 +56,7 @@ class AssetScanViewModel @Inject constructor(
     private val queuedAssetDao: QueuedAssetDao,
     private val assetSyncScheduler: AssetSyncScheduler,
     private val positions: PositionProvider,
+    featureFlags: FeatureFlags,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
@@ -193,6 +197,12 @@ class AssetScanViewModel @Inject constructor(
     }
 
     /** GPS position for the asset being registered from a "Not Registered" scan. */
+    /** GIS switched on for the tenant (D7); registration skips position capture otherwise. */
+    val gisEnabled: StateFlow<Boolean> = featureFlags.isEnabled(FeatureFlags.GIS)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    init { viewModelScope.launch { featureFlags.refresh() } }
+
     private val _registrationGps = MutableStateFlow(GpsCaptureState())
     val registrationGps: StateFlow<GpsCaptureState> = _registrationGps
 
@@ -220,7 +230,7 @@ class AssetScanViewModel @Inject constructor(
     }
 
     fun registerAsset(name: String, value: String, isRfid: Boolean, secondaryValue: String? = null) {
-        val fix = _registrationGps.value.fix
+        val fix = _registrationGps.value.fix.takeIf { gisEnabled.value }
         _registrationGps.value = GpsCaptureState()
         viewModelScope.launch {
             _state.value = ScanUiState.Registering

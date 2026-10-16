@@ -2,6 +2,8 @@ import { GeoError, isGeoSource, validateGeoPosition, type GeoSource } from 'vair
 
 import { ValidationError } from '../lib/errors';
 
+import { tenantFeatureEnabled } from './tenant-features.service';
+
 /** GIS fields a client may send on asset create / update. */
 export interface AssetGeoInput {
   latitude?: number | string | null;
@@ -91,4 +93,20 @@ export function resolveAssetGeo(
     geoSource: (input.geoSource as GeoSource | null | undefined) ?? defaultSource,
     geoCapturedAt: capturedAt,
   };
+}
+
+/**
+ * `resolveAssetGeo` for a tenant: when GIS is switched off (D7), any position
+ * sent is ignored rather than refused, so older app builds and queued offline
+ * work still save. Stored positions are left untouched and reappear when GIS
+ * is switched back on.
+ */
+export async function resolveTenantAssetGeo(
+  tenantId: string,
+  input: AssetGeoInput,
+  existing?: { latitude: number | null; longitude: number | null } | null,
+): Promise<AssetGeoColumns | undefined> {
+  if (input.latitude === undefined && input.longitude === undefined) return undefined;
+  if (!(await tenantFeatureEnabled(tenantId, 'gis'))) return undefined;
+  return resolveAssetGeo(input, existing);
 }

@@ -31,6 +31,7 @@ final class AssetDetailViewModel {
     func load() async {
         isLoading = true
         errorMessage = nil
+        Task { await FeatureFlags.shared.refresh(apiClient: apiClient) }
 
         do {
             asset = try await apiClient.request(.getAsset(id: assetId))

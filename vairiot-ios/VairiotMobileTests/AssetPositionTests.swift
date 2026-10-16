@@ -30,6 +30,15 @@ final class AssetPositionTests: XCTestCase {
         )
     }
 
+    /// A tenant with GIS switched on (D7), isolated from the app's own defaults.
+    private func gisOn() -> FeatureFlags {
+        let defaults = UserDefaults(suiteName: "AssetPositionTests")!
+        defaults.removePersistentDomain(forName: "AssetPositionTests")
+        let flags = FeatureFlags(defaults: defaults)
+        flags.update(from: ["gis": true])
+        return flags
+    }
+
     private func json(_ value: some Encodable) throws -> [String: Any] {
         try JSONSerialization.jsonObject(with: JSONEncoder().encode(value)) as! [String: Any]
     }
@@ -73,7 +82,7 @@ final class AssetPositionTests: XCTestCase {
 
     func testCapturedPositionIsSentAsADeviceFix() async {
         let vm = AssetEditViewModel(apiClient: APIClient(), existingAsset: asset(),
-                                    positionProvider: FakePositionProvider(.success(fix)))
+                                    positionProvider: FakePositionProvider(.success(fix)), featureFlags: gisOn())
         await vm.capturePosition()
 
         XCTAssertEqual(vm.position, AssetPosition(fix))
@@ -87,10 +96,22 @@ final class AssetPositionTests: XCTestCase {
 
     func testRemovingAPositionClearsItOnTheServer() {
         let vm = AssetEditViewModel(apiClient: APIClient(), existingAsset: asset(latitude: 41.7, longitude: 44.8),
-                                    positionProvider: FakePositionProvider())
+                                    positionProvider: FakePositionProvider(), featureFlags: gisOn())
         vm.removePosition()
         XCTAssertNil(vm.position)
         XCTAssertTrue(vm.updateRequest().clearGeoPosition)
+    }
+
+    func testNoPositionIsSentWhileGisIsOff() async {
+        let defaults = UserDefaults(suiteName: "AssetPositionTests.off")!
+        defaults.removePersistentDomain(forName: "AssetPositionTests.off")
+        let vm = AssetEditViewModel(apiClient: APIClient(), existingAsset: asset(latitude: 41.7, longitude: 44.8),
+                                    positionProvider: FakePositionProvider(.success(fix)),
+                                    featureFlags: FeatureFlags(defaults: defaults))
+        await vm.capturePosition()
+        let request = vm.updateRequest()
+        XCTAssertNil(request.latitude)
+        XCTAssertFalse(request.clearGeoPosition)
     }
 
     func testDeniedPermissionExplainsAndKeepsThePosition() async {

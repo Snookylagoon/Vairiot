@@ -10,7 +10,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useSites } from '@/hooks/useSites';
 import { api } from '@/lib/api';
-import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
+import { hasAnyPermission, hasFeature, useAuthStore } from '@/stores/auth.store';
 import type { Asset } from '@/types';
 
 const PAGE_SIZE = 25;
@@ -141,9 +141,11 @@ export function AssetsPage() {
           <p className="text-sm text-gray-500 mt-1">{total} total assets</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={openMap}>
-            <Map size={16} className="mr-1.5" /> Map view
-          </Button>
+          {hasFeature(user, 'gis') && (
+            <Button variant="secondary" onClick={openMap}>
+              <Map size={16} className="mr-1.5" /> Map view
+            </Button>
+          )}
           <Button variant="secondary" onClick={exportCsv}>
             <Download size={16} className="mr-1.5" /> Export CSV
           </Button>

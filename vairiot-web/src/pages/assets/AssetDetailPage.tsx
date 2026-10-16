@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { useAsset, useDeleteAsset, useDisposeAsset } from '@/hooks/useAssets';
 import { useCurrency } from '@/hooks/useCurrency';
 import { disposalSchema, type DisposalFormData } from '@/lib/schemas';
-import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
+import { hasAnyPermission, hasFeature, useAuthStore } from '@/stores/auth.store';
 
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (
@@ -204,7 +204,7 @@ export function AssetDetailPage() {
           </CardBody>
         </Card>
 
-        <AssetGeoPosition asset={asset} />
+        {hasFeature(user, 'gis') && <AssetGeoPosition asset={asset} />}
 
         {/* Financial: Procurement */}
         <Card>

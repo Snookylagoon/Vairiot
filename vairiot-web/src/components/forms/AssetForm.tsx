@@ -10,6 +10,7 @@ import { useCategories, useCreateCategory } from '@/hooks/useCategories';
 import { useLocations, useCreateLocation } from '@/hooks/useLocations';
 import { useSites, useCreateSite } from '@/hooks/useSites';
 import { assetSchema, type AssetFormData } from '@/lib/schemas';
+import { hasFeature, useAuthStore } from '@/stores/auth.store';
 
 export type { AssetFormData } from '@/lib/schemas';
 
@@ -41,6 +42,7 @@ function InlineCreateDialog({ title, label, onSave, onCancel }: {
 }
 
 export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset', isLoading }: AssetFormProps) {
+  const gisEnabled = useAuthStore(s => hasFeature(s.user, 'gis'));
   const { data: categories = [] } = useCategories();
   const { data: sites      = [] } = useSites();
   const createCategory = useCreateCategory();
@@ -139,7 +141,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
           </div>
         </div>
 
-        <GeoPositionFields register={register} setValue={setValue} watch={watch} errors={errors} />
+        {gisEnabled && <GeoPositionFields register={register} setValue={setValue} watch={watch} errors={errors} />}
 
         {/* Identification */}
         <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">

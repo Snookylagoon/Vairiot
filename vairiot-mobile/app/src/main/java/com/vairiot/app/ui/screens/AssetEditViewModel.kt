@@ -8,6 +8,7 @@ import com.vairiot.app.data.api.AssetUpdateRequest
 import com.vairiot.app.data.api.LocationRefResponse
 import com.vairiot.app.data.api.SiteRefResponse
 import com.vairiot.app.data.api.VairiotApiService
+import com.vairiot.app.data.FeatureFlags
 import com.vairiot.app.location.AssetPosition
 import com.vairiot.app.location.GpsCaptureState
 import com.vairiot.app.location.PositionCaptureException
@@ -43,6 +44,8 @@ data class AssetEditUiState(
     val locationId:   String = "",
 
     val gps:          GpsCaptureState = GpsCaptureState(),
+    /** GIS switched on for the tenant (D7); position capture is hidden otherwise. */
+    val gisEnabled:   Boolean = false,
 )
 
 @HiltViewModel
@@ -50,6 +53,7 @@ class AssetEditViewModel @Inject constructor(
     private val api: VairiotApiService,
     private val scanner: ScannerService,
     private val positions: PositionProvider,
+    private val featureFlags: FeatureFlags,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -60,6 +64,10 @@ class AssetEditViewModel @Inject constructor(
 
     init {
         load()
+        viewModelScope.launch {
+            featureFlags.isEnabled(FeatureFlags.GIS).collect { _state.value = _state.value.copy(gisEnabled = it) }
+        }
+        viewModelScope.launch { featureFlags.refresh() }
         viewModelScope.launch {
             scanner.scanResults.collect { result ->
                 val s = _state.value
@@ -186,7 +194,7 @@ class AssetEditViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = s.copy(isSaving = true, error = null)
             try {
-                val updated = api.updateAsset(assetId, s.gps.applyTo(AssetUpdateRequest(
+                val request = AssetUpdateRequest(
                     name         = s.name.takeIf { it.isNotBlank() },
                     description  = s.description.takeIf { it.isNotBlank() },
                     status       = s.status.takeIf { it.isNotBlank() },
@@ -196,7 +204,8 @@ class AssetEditViewModel @Inject constructor(
                     rfidTag      = s.rfidTag.takeIf { it.isNotBlank() },
                     siteId       = s.siteId.takeIf { it.isNotBlank() },
                     locationId   = s.locationId.takeIf { it.isNotBlank() },
-                )))
+                )
+                val updated = api.updateAsset(assetId, if (s.gisEnabled) s.gps.applyTo(request) else request)
                 _state.value = _state.value.copy(isSaving = false, savedAsset = updated)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isSaving = false, error = "Save failed: ${e.message}")

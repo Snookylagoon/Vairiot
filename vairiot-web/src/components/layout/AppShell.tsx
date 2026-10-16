@@ -7,11 +7,11 @@ import { ImpersonationBanner } from './ImpersonationBanner';
 import { TenantSwitcher } from './TenantSwitcher';
 
 import { useDeviceHeartbeat } from '@/hooks/useLicensing';
-import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
+import { useAuthStore, hasAnyPermission, hasFeature } from '@/stores/auth.store';
 import { useCurrencyStore, CURRENCIES } from '@/stores/currency.store';
 
 
-type NavItem = { to: string; label: string; icon: LucideIcon; require?: readonly string[] };
+type NavItem = { to: string; label: string; icon: LucideIcon; require?: readonly string[]; feature?: string };
 type NavGroup = { heading: string; items: readonly NavItem[] };
 type NavEntry = NavItem | NavGroup;
 
@@ -21,7 +21,7 @@ const nav: readonly NavEntry[] = [
     heading: 'Asset Management',
     items: [
       { to: '/assets',     label: 'Assets',     icon: Package },
-      { to: '/assets/map', label: 'Asset Map',  icon: Map },
+      { to: '/assets/map', label: 'Asset Map',  icon: Map, feature: 'gis' },
       { to: '/categories', label: 'Categories', icon: Tag },
       { to: '/sites',      label: 'Sites',      icon: MapPin },
       { to: '/labels',     label: 'Labels',     icon: QrCode },
@@ -120,7 +120,8 @@ export function AppShell() {
   }, [location.pathname]);
 
   const isItemVisible = (item: NavItem) =>
-    !item.require || hasAnyPermission(user, ...item.require);
+    (!item.require || hasAnyPermission(user, ...item.require)) &&
+    (!item.feature || hasFeature(user, item.feature));
 
   const renderLink = (item: NavItem) => {
     const Icon = item.icon;
