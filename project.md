@@ -9,7 +9,7 @@
 | Method                     | Managed Development Standard rev 1.0 (`Vairiot CI/docs/managed-development-standard.md`), adopted in stage 0.8 |
 | Source product (read-only) | None — this is the source product for Vairiot Cable Intelligence                                               |
 | Started                    | 17 June 2026 (first commit); standard adopted 16 October 2026                                                  |
-| Current phase              | Phase 0 (S0) built, awaiting acceptance; Phase 1 (S1) in progress                                              |
+| Current phase              | Phase 1 (S1) in progress; Phase 0 accepted 16 October 2026                                                     |
 | Version                    | 2.0.1                                                                                                          |
 
 This file is the single source of truth (standard §1.1). If scope, a rule or a decision is not here or in a document linked from §7, it has not been agreed.
@@ -84,48 +84,52 @@ Always-on capabilities include audits and scan sessions, checkouts and transfers
 
 Decision D1: Phase N is Sprint SN; sprint files keep their names and serve as the phase plan and record.
 
-| Phase | Sprint | Scope                                                                       | Plan / record                                                | Status                                                                                       |
-| ----- | ------ | --------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| 0     | S0     | Hardening and hosting; standard adoption (stages 0.8–0.10)                  | `docs/sprints/S0-hardening-and-hosting.md` / `S0-summary.md` | Built, adoption stages 0.8–0.10 done; awaiting acceptance                                             |
-| 1     | S1     | GIS, condition and photos                                                   | `docs/sprints/S1-gis-condition-photos.md`                    | In progress — positions, GPS capture and map built; PostGIS (rest of S1.1), S1.3, S1.5 to do |
-| 2     | S2     | IPSAS ledger, policies, depreciation, Excel import                          | `docs/sprints/S2-ipsas-ledger-import.md`                     | Planned                                                                                      |
-| 3     | S3     | Maker–checker, zones and teams, QA sampling, Georgian i18n, training tenant | `docs/sprints/S3-zones-qa-georgian.md`                       | Planned                                                                                      |
-| 4     | S4     | Pilot defects, reconciliation engine, data-quality dashboard                | `docs/sprints/S4-reconciliation-and-dq.md`                   | Planned                                                                                      |
-| 5     | S5     | IPSAS reporting pack, GeoJSON/Shapefile exchange, handover                  | `docs/sprints/S5-reporting-and-handover.md`                  | Planned                                                                                      |
+| Phase | Sprint | Scope                                                                       | Plan / record                                                                 | Status                                                                                       |
+| ----- | ------ | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 0     | S0     | Hardening and hosting; standard adoption (stages 0.8–0.10)                  | `docs/sprints/S0-hardening-and-hosting.md` / `S0-summary.md`                  | **Accepted 16 October 2026**                                                                 |
+| 1     | S1     | GIS, condition and photos                                                   | `docs/sprints/S1-gis-condition-photos.md`, [03 plan](docs/03-phase-1-plan.md) | In progress — positions, GPS capture and map built; PostGIS (rest of S1.1), S1.3, S1.5 to do |
+| 2     | S2     | IPSAS ledger, policies, depreciation, Excel import                          | `docs/sprints/S2-ipsas-ledger-import.md`                                      | Planned                                                                                      |
+| 3     | S3     | Maker–checker, zones and teams, QA sampling, Georgian i18n, training tenant | `docs/sprints/S3-zones-qa-georgian.md`                                        | Planned                                                                                      |
+| 4     | S4     | Pilot defects, reconciliation engine, data-quality dashboard                | `docs/sprints/S4-reconciliation-and-dq.md`                                    | Planned                                                                                      |
+| 5     | S5     | IPSAS reporting pack, GeoJSON/Shapefile exchange, handover                  | `docs/sprints/S5-reporting-and-handover.md`                                   | Planned                                                                                      |
 
 Adoption workstreams W0–W6 from the [adoption plan](docs/standard-adoption-plan.md) §4: W0, W1a, W1 and W2 built in stage 0.9; W3 built in stage 0.10; W4–W6 placed in S1–S3.
 
 ## 7. Documentation set
 
-| Document                                                                                                             | Purpose                                              |
-| -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `project.md`                                                                                                         | This brief — single source of truth                  |
-| [CHANGELOG.md](CHANGELOG.md)                                                                                         | User-facing changes by version                       |
-| [docs/stage-log.md](docs/stage-log.md)                                                                               | Every stage: what was done, produced and decided     |
-| [docs/standard-adoption-plan.md](docs/standard-adoption-plan.md)                                                     | Stage 0.8 audit against the standard (G1–G20), W0–W6 |
-| [docs/00-discovery-and-architecture.md](docs/00-discovery-and-architecture.md)                                       | Findings, architecture, security model, risks        |
-| [docs/01-technology-stack.md](docs/01-technology-stack.md)                                                           | Components, versions, upgrade policy                 |
-| [docs/02-data-model-and-module-registry.md](docs/02-data-model-and-module-registry.md)                               | Data model and module switches                       |
-| [docs/testing/test-plan.md](docs/testing/test-plan.md)                                                               | Test levels, coverage, exit gates, traceability      |
-| [docs/testing/manual-checks.md](docs/testing/manual-checks.md)                                                       | Manual What / Steps / Pass / Fail checks on staging  |
-| [docs/known-fix-registry.md](docs/known-fix-registry.md)                                                             | Lessons from defects (KFR-001 onwards)               |
-| [docs/sprints/](docs/sprints/README.md)                                                                              | Sprint (phase) plans and records S0–S5               |
-| [docs/AUDIT-2026-07-19.md](docs/AUDIT-2026-07-19.md)                                                                 | July 2026 platform audit                             |
-| [DEPLOY.md](DEPLOY.md), [docs/STAGING-SETUP.md](docs/STAGING-SETUP.md), [docs/DEV-WORKFLOW.md](docs/DEV-WORKFLOW.md) | Deployment, staging and branch workflow              |
-| `docs/word/`                                                                                                         | Python generators and branded Word reports           |
-| Package `README.md` files                                                                                            | How to build, run and test each package              |
+| Document                                                                                                             | Purpose                                                |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `project.md`                                                                                                         | This brief — single source of truth                    |
+| [CHANGELOG.md](CHANGELOG.md)                                                                                         | User-facing changes by version                         |
+| [docs/stage-log.md](docs/stage-log.md)                                                                               | Every stage: what was done, produced and decided       |
+| [docs/standard-adoption-plan.md](docs/standard-adoption-plan.md)                                                     | Stage 0.8 audit against the standard (G1–G20), W0–W6   |
+| [docs/00-discovery-and-architecture.md](docs/00-discovery-and-architecture.md)                                       | Findings, architecture, security model, risks          |
+| [docs/01-technology-stack.md](docs/01-technology-stack.md)                                                           | Components, versions, upgrade policy                   |
+| [docs/02-data-model-and-module-registry.md](docs/02-data-model-and-module-registry.md)                               | Data model and module switches                         |
+| [docs/03-phase-1-plan.md](docs/03-phase-1-plan.md)                                                                   | Phase 1 plan: workstreams, design, exit gates, D11–D12 |
+| [docs/testing/test-plan.md](docs/testing/test-plan.md)                                                               | Test levels, coverage, exit gates, traceability        |
+| [docs/testing/manual-checks.md](docs/testing/manual-checks.md)                                                       | Manual What / Steps / Pass / Fail checks on staging    |
+| [docs/known-fix-registry.md](docs/known-fix-registry.md)                                                             | Lessons from defects (KFR-001 onwards)                 |
+| [docs/sprints/](docs/sprints/README.md)                                                                              | Sprint (phase) plans and records S0–S5                 |
+| [docs/AUDIT-2026-07-19.md](docs/AUDIT-2026-07-19.md)                                                                 | July 2026 platform audit                               |
+| [DEPLOY.md](DEPLOY.md), [docs/STAGING-SETUP.md](docs/STAGING-SETUP.md), [docs/DEV-WORKFLOW.md](docs/DEV-WORKFLOW.md) | Deployment, staging and branch workflow                |
+| `docs/word/`                                                                                                         | Python generators and branded Word reports             |
+| Package `README.md` files                                                                                            | How to build, run and test each package                |
 
 ## 8. Decision log
 
-| Date        | Decision                                                                                                                                                  | Status                |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| 16 Oct 2026 | D1: Phase N = Sprint SN; S0 is Phase 0, the standard adoption audit is stage 0.8, S1 is Phase 1                                                           | **Approved**          |
-| 16 Oct 2026 | D2: adoption gaps use the prefix `G` (G1–G20) to avoid clashing with sprint ids                                                                           | **Approved**          |
-| 16 Oct 2026 | D3: reset to one lockstep version `2.0.0` across npm, reports, Android and iOS; `v1.10.1` tagged as the historical baseline; post-1.0 SemVer from then on | **Approved**          |
-| 16 Oct 2026 | D4: `docs/Demo Passwords.xlsx` — no action now; carried as open point G7                                                                                  | **Deferred by owner** |
-| 16 Oct 2026 | D5: row-level security adopted table by table behind a Prisma extension, starting with `Asset`, `AuditEvent`, `Photo`                                     | **Approved**          |
-| 16 Oct 2026 | D6: two-factor mandatory for Administrator and platform-admin with a 14-day grace period; Field Operator excluded (shared scanners)                       | **Approved**          |
-| 16 Oct 2026 | D7: module registry built from `featureFlags`; GIS hidden now behind the `gis` flag                                                                       | **Approved**          |
-| 16 Oct 2026 | D8: coverage ratchet — API 50 → 80 % lines over S1–S3; other packages 60 % by S2, 80 % by S4                                                              | **Approved**          |
-| 16 Oct 2026 | D9: i18n and the language rules folded into S3 (Georgian i18n)                                                                                            | **Approved**          |
-| 16 Oct 2026 | D10: defect severities are named Sev1–Sev4 (not S1–S4, which clash with sprint ids) | **Approved** |
+| Date        | Decision                                                                                                                                                                    | Status                |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| 16 Oct 2026 | D1: Phase N = Sprint SN; S0 is Phase 0, the standard adoption audit is stage 0.8, S1 is Phase 1                                                                             | **Approved**          |
+| 16 Oct 2026 | D2: adoption gaps use the prefix `G` (G1–G20) to avoid clashing with sprint ids                                                                                             | **Approved**          |
+| 16 Oct 2026 | D3: reset to one lockstep version `2.0.0` across npm, reports, Android and iOS; `v1.10.1` tagged as the historical baseline; post-1.0 SemVer from then on                   | **Approved**          |
+| 16 Oct 2026 | D4: `docs/Demo Passwords.xlsx` — no action now; carried as open point G7                                                                                                    | **Deferred by owner** |
+| 16 Oct 2026 | D5: row-level security adopted table by table behind a Prisma extension, starting with `Asset`, `AuditEvent`, `Photo`                                                       | **Approved**          |
+| 16 Oct 2026 | D6: two-factor mandatory for Administrator and platform-admin with a 14-day grace period; Field Operator excluded (shared scanners)                                         | **Approved**          |
+| 16 Oct 2026 | D7: module registry built from `featureFlags`; GIS hidden now behind the `gis` flag                                                                                         | **Approved**          |
+| 16 Oct 2026 | D8: coverage ratchet — API 50 → 80 % lines over S1–S3; other packages 60 % by S2, 80 % by S4                                                                                | **Approved**          |
+| 16 Oct 2026 | D9: i18n and the language rules folded into S3 (Georgian i18n)                                                                                                              | **Approved**          |
+| 16 Oct 2026 | D10: defect severities are named Sev1–Sev4 (not S1–S4, which clash with sprint ids)                                                                                         | **Approved**          |
+| 16 Oct 2026 | Phase 0 accepted by the owner ("Do 1, 2 and 3": merge #85 and #86, accept Phase 0, start Phase 1), with open points G7 and G21–G29 handled as proposed in the adoption plan | **Approved**          |
+| 16 Oct 2026 | D11: database image `postgis/postgis:16-3.5-alpine` everywhere (Phase 1 plan §4)                                                                                            | Proposed              |
+| 16 Oct 2026 | D12: Leaflet as the web map library, with a Leaflet drawing plugin for S3 zones                                                                                             | Proposed              |

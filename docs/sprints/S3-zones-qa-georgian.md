@@ -50,7 +50,7 @@ Context:
 
 Steps:
 1. Add InventoryTeam (tenantId, campaignId, name, leadUserId, members userIds[], deviceIds[]) and ZoneAssignment (campaignId, locationId, teamId, plannedStart, plannedEnd, status NOT_STARTED | IN_PROGRESS | SUBMITTED | VERIFIED | REOPENED, expectedCount, scannedCount, submittedAt, verifiedBy). Migration.
-2. Zone drawing: on MapPage, in campaign set-up, draw or edit a zone polygon (MapLibre Draw) saved to Location.boundary; "assign assets by boundary" sets locationId on positioned assets inside the polygon (preview count first, approval-free but logged); import zones from GeoJSON (full GeoJSON exchange comes in S5.2).
+2. Zone drawing: on MapPage, in campaign set-up, draw or edit a zone polygon (a Leaflet drawing plugin, D12) saved to Location.boundary; "assign assets by boundary" sets locationId on positioned assets inside the polygon (preview count first, approval-free but logged); import zones from GeoJSON (full GeoJSON exchange comes in S5.2).
 3. Route list: for each zone, generate an ordered list of expected assets using a nearest-neighbour pass from the zone centroid (good enough for street walking); export as PDF (vairiot-reports, A4 portrait, QR of each asset number) and show on mobile.
 4. Mobile: Field Operators see only their team's zones; AuditRunScreen shows zone progress (scanned / expected), the route list with "next asset", and a Submit zone action that requires the PhotoRule check from S1.3 (block submission when a hard rule fails; otherwise warn).
 5. Web: campaign dashboard section "Zones" with a progress table and the map coloured by status; reopen a zone (Inventory Manager) with reason.
@@ -163,10 +163,10 @@ Close sprint S3, cut the pilot release and freeze the tools.
 
 Steps:
 1. Run every test suite (api, web, shared, worker, mobile unit tests, iOS build, Playwright smoke) and fix failures.
-2. Bump versions to 2.0.0-pilot across the workspaces, build the Android APK and iOS ad-hoc IPA using the existing scripts (vairiot-mobile/scripts/upload-mobile-release.cjs, vairiot-ios/scripts/build-adhoc.sh), and publish them through the admin release channel pinned to the TUDA tenant only.
+2. Bump to the next minor version with `npm run version:set` (SemVer from 2.0.0, D3), build the Android APK and iOS ad-hoc IPA using the existing scripts (vairiot-mobile/scripts/upload-mobile-release.cjs, vairiot-ios/scripts/build-adhoc.sh), and publish them through the admin release channel pinned to the TUDA tenant only.
 3. Deploy to staging with deploy.sh; run infra/restore-test.sh; run the training seed.
-4. Tag `v2.0.0-pilot` on develop and open the PR to main.
-5. Write docs/sprints/S3-summary.md and docs/RELEASE-NOTES-2.0.0-pilot.md (features by sprint, known limitations, upgrade steps), and a CHANGE-CONTROL.md stating that scope is frozen from this tag and changes go through written change orders.
+4. Open the PR to `dev`, promote with `scripts/go-live.sh`, then tag the version and `pilot-tuda` on `main`.
+5. Write docs/sprints/S3-summary.md and the `CHANGELOG.md` section for the pilot version (features by sprint, known limitations, upgrade steps), and a CHANGE-CONTROL.md stating that scope is frozen from this tag and changes go through written change orders.
 
 Output:
 - Release artefacts, tag, PR, release notes, change-control note
@@ -183,4 +183,4 @@ Think before answering (maximum reasoning).
 - [ ] S3.3 QA sampling, recounts, Verifier
 - [ ] S3.4 Georgian i18n
 - [ ] S3.5 Tagging preset and training tenant
-- [ ] S3.6 Tools freeze release v2.0.0-pilot
+- [ ] S3.6 Tools freeze release (tag `pilot-tuda`)

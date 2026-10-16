@@ -116,7 +116,18 @@ Phase N is Sprint SN (decision D1). Stages 0.1–0.7 and 1.1–1.3 were done bef
 
 ## Phase 1 — GIS, condition and photos (Sprint S1)
 
-Started before Phase 0 was accepted. Stage 1.0 (hand-over) will be written when the owner accepts Phase 0.
+Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-over in time. New work continues from stage 1.4.
+
+### Stage 1.0 — Phase 0 accepted; Phase 1 planned
+
+| Item      | Detail                                                                                                                                                                                         |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date      | 16 October 2026                                                                                                                                                                                |
+| Version   | 2.0.1                                                                                                                                                                                          |
+| Activity  | Owner accepted Phase 0 ("Do 1, 2 and 3"), open points handled as proposed. Sprint files amended: SemVer from 2.0.0 instead of the fixed 2.0.0-pilot / 2.1.0 / 2.2.0 plan, `dev` instead of `develop` (G22), Leaflet instead of MapLibre (G25). Phase 1 plan written |
+| Output    | `docs/03-phase-1-plan.md`; `docs/sprints/README.md`, `S1`–`S5` amended; `project.md` decision log                                                                                             |
+| Decisions | Phase 0 acceptance recorded; D11 (PostGIS image) and D12 (Leaflet) raised as proposed                                                                                                          |
+| Notes     | Tags `phase-0-accepted` and `v2.0.1` wait for the promotion of `dev` to `main`. PRs #85 and #86 await the owner's merge: this session's permissions do not allow merging without review |
 
 ### Stage 1.1 — GIS position module for assets (S1.1, part)
 

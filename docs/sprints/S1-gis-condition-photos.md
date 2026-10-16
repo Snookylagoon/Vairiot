@@ -110,13 +110,13 @@ Think before answering (maximum reasoning).
 Add an interactive map of assets and inventory progress to vairiot-web.
 
 Context:
-- Path: /Volumes/DRSssd/Projects/GitHub/Vairiot-dev/vairiot-web/src (React 18, Vite, Tailwind, React Query hooks in src/hooks, pages in src/pages)
+- Path: /Volumes/DRSssd/Projects/GitHub/Vairiot-dev/vairiot-web/src (React 19, Vite, Tailwind 4, React Router 7, React Query hooks in src/hooks, pages in src/pages)
 - Data: GET /api/v1/assets/geo and /api/v1/audits/:id/scans/geo from S1.1
-- Map library: MapLibre GL JS with OpenStreetMap raster tiles by default; tile URL and attribution configurable per tenant (TUDA may supply its own base map) via tenant settings
+- Map library: Leaflet (decision D12; already used by the asset map) with OpenStreetMap raster tiles by default; tile URL and attribution configurable per tenant (TUDA may supply its own base map) via tenant settings
 - Design system: Montserrat headings, IBM Plex Mono for codes, brand gradient #FF0DCC → #A05B97 → #615AA0, charcoal #2B3132
 
 Steps:
-1. Add src/pages/map/MapPage.tsx at route /map with: a MapLibre map centred on the tenant's default (Tbilisi 41.7151, 44.8271, zoom 12 for TUDA); clustering above 500 points; filters for category, site, status, condition, "no position", "accuracy > 25 m"; a side panel listing assets in view; click a marker to open an asset summary with a link to AssetDetailPage.
+1. Add src/pages/map/MapPage.tsx at route /map with: a Leaflet map centred on the tenant's default (Tbilisi 41.7151, 44.8271, zoom 12 for TUDA); clustering above 500 points; filters for category, site, status, condition, "no position", "accuracy > 25 m"; a side panel listing assets in view; click a marker to open an asset summary with a link to AssetDetailPage.
 2. Add a Campaign layer: when a campaign is selected, colour markers by reconciliation state (verified, misplaced, missing, surplus, condition variance, not yet scanned) and show zone progress.
 3. Add a "Set position" mode on AssetDetailPage and EditAssetPage: drag a marker or click the map to set latitude/longitude, with positionSource = manual and a reason note; this writes POSITION_CORRECTED.
 4. Add a mini-map (static, non-interactive) to AssetDetailPage showing the asset's position and accuracy circle.
@@ -174,7 +174,7 @@ Steps:
 2. Run the register profiler from S0.6 against the seeded TUDA data to confirm new columns appear in exports.
 3. Update docs/known-fix-registry.md and write docs/sprints/S1-summary.md (what changed, how to verify, open items, full file list).
 4. Add docs/GIS-DATA-MODEL.md describing the position fields, CRS handling, events and the geo endpoints, for the consultant's Deliverable D4 (GIS database structure).
-5. Open a pull request from feature/s1-gis-capture to develop.
+5. Open a pull request from feature/s1-gis-capture to dev.
 
 Output:
 - docs/sprints/S1-summary.md, docs/GIS-DATA-MODEL.md, pull request URL
