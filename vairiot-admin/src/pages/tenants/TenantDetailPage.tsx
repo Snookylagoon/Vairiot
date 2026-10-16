@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { useShellContext } from '@/components/layout/AdminShell';
+import { TenantModulesCard } from '@/components/tenants/TenantModulesCard';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
@@ -12,12 +13,8 @@ import { Input } from '@/components/ui/Input';
 import { useTenantDetail, useCreateSubTenant, useUploadTenantLogo, useDeleteTenantLogo, useUpdateTenantCompany, useDeleteTenant } from '@/hooks/useAdmin';
 import { useRenewLicence, useSuspendLicence, useRevokeLicence, useReactivateLicence, useLicenceDevices, useActivateDevice, useDeactivateDevice, useDeleteDevice } from '@/hooks/useLicences';
 
-const statusVariant = (s: string) => {
-  if (s === 'active') return 'green';
-  if (s === 'expiring') return 'yellow';
-  if (s === 'suspended') return 'gray';
-  return 'red';
-};
+const statusVariant = (s: string) =>
+  (s === 'active' ? 'green' : s === 'expiring' ? 'yellow' : s === 'suspended' ? 'gray' : 'red') as 'green' | 'yellow' | 'gray' | 'red';
 
 export function TenantDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -277,6 +274,8 @@ export function TenantDetailPage() {
             )}
           </CardBody>
         </Card>
+
+        <TenantModulesCard tenantId={id!} />
 
         {/* Users */}
         <Card>
