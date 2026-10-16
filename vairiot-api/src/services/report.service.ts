@@ -56,7 +56,7 @@ const assetFinancialSelect = {
   freightCost: true, installationCost: true, customsDuties: true,
   otherCapitalizedCosts: true, residualValue: true,
   depreciationMethod: true, usefulLifeMonths: true, depreciationStartDate: true,
-  warrantyExpiry: true,
+  warrantyExpiry: true, recognitionStatus: true,
   category: { select: { id: true, name: true } },
   site: { select: { id: true, name: true } },
   location: { select: { id: true, name: true } },

@@ -61,6 +61,25 @@ export const TUDA_ROLES: Record<string, string[]> = {
   Viewer: [...READ_REGISTER, P.ReportRead],
 };
 
+/**
+ * TUDA's asset classes (S2.1). Lives are the sprint file's placeholders and the
+ * threshold a placeholder GEL 500: all to be confirmed by the Accounting Policy
+ * Manual (TOR D2), so each is marked `toBeConfirmed`. A re-run adds missing
+ * classes and never overwrites one Finance has edited.
+ */
+export const TUDA_ASSET_CLASSES = [
+  { code: 'SIG', name: 'Traffic signal systems',         ipsasClass: 'INFRASTRUCTURE',   life: 120, components: true },
+  { code: 'SGN', name: 'Road signs',                     ipsasClass: 'INFRASTRUCTURE',   life: 84,  components: false },
+  { code: 'SHL', name: 'Passenger shelters',             ipsasClass: 'INFRASTRUCTURE',   life: 180, components: false },
+  { code: 'ISL', name: 'Safety islands',                 ipsasClass: 'INFRASTRUCTURE',   life: 240, components: false },
+  { code: 'BRD', name: 'Information boards',             ipsasClass: 'INFRASTRUCTURE',   life: 84,  components: false },
+  { code: 'TME', name: 'Traffic management equipment',   ipsasClass: 'OPERATIONAL',      life: 96,  components: false },
+  { code: 'OFF', name: 'Office equipment',               ipsasClass: 'OFFICE_EQUIPMENT', life: 60,  components: false },
+  { code: 'FUR', name: 'Furniture',                      ipsasClass: 'FURNITURE',        life: 120, components: false },
+  { code: 'OTH', name: 'Other',                          ipsasClass: 'OTHER',            life: 60,  components: false },
+] as const;
+export const TUDA_PLACEHOLDER_THRESHOLD_GEL = 500;
+
 export interface TudaSeedOptions {
   adminEmail: string;
   adminName?: string;
@@ -126,6 +145,19 @@ export async function seedTuda(opts: TudaSeedOptions): Promise<TudaSeedResult> {
       create: { tenantId: tenant.id, name, permissions, isSystem: true },
     });
     roleIds[name] = role.id;
+  }
+
+  // ── Asset classes (S2.1), placeholders until the policy manual ──────────
+  for (const c of TUDA_ASSET_CLASSES) {
+    await prisma.assetClass.upsert({
+      where: { tenantId_code: { tenantId: tenant.id, code: c.code } },
+      update: {},
+      create: {
+        tenantId: tenant.id, code: c.code, name: c.name, ipsasClass: c.ipsasClass,
+        capitalisationThreshold: TUDA_PLACEHOLDER_THRESHOLD_GEL, defaultUsefulLifeMonths: c.life,
+        defaultDepreciationMethod: 'straight_line', componentisationRequired: c.components, toBeConfirmed: true,
+      },
+    });
   }
 
   // ── Licence: Enterprise (unlimited assets), confirmed under the contract ─

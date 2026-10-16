@@ -55,6 +55,7 @@ model Tenant {
   roles                     Role[]
   auditEvents               AuditEvent[]
   categories                Category[]
+  assetClasses              AssetClass[]
   sites                     Site[]
   assets                    Asset[]
   auditCampaigns            AuditCampaign[]
@@ -106,22 +107,22 @@ model ApiKey {
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 model User {
-  id                 String    @id @default(cuid())
-  tenantId           String
-  email              String
-  name               String
-  phone              String?
-  passwordHash       String?
-  active             Boolean   @default(true)
-  twoFactorEnabled   Boolean   @default(false)
+  id                      String    @id @default(cuid())
+  tenantId                String
+  email                   String
+  name                    String
+  phone                   String?
+  passwordHash            String?
+  active                  Boolean   @default(true)
+  twoFactorEnabled        Boolean   @default(false)
   twoFactorGraceStartedAt DateTime? // D6: start of the enrolment grace period (stage 1.18)
-  mustChangePassword Boolean   @default(false)
-  failedLoginCount   Int       @default(0)
-  lockedUntil        DateTime?
-  lastLoginAt        DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  deletedAt          DateTime?
+  mustChangePassword      Boolean   @default(false)
+  failedLoginCount        Int       @default(0)
+  lockedUntil             DateTime?
+  lastLoginAt             DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  deletedAt               DateTime?
 
   tenant              Tenant                   @relation(fields: [tenantId], references: [id])
   roles               UserRole[]
@@ -207,18 +208,21 @@ model AuditEvent {
 
 // ─── Asset Categories ─────────────────────────────────────────────────────────
 model Category {
-  id          String   @id @default(cuid())
-  tenantId    String
-  name        String
-  description String?
-  parentId    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  description  String?
+  parentId     String?
+  /// IPSAS asset class its assets fall into by default (stage 2.3, D20).
+  assetClassId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  tenant   Tenant     @relation(fields: [tenantId], references: [id])
-  parent   Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryChildren")
-  assets   Asset[]
+  tenant         Tenant                @relation(fields: [tenantId], references: [id])
+  assetClass     AssetClass?           @relation(fields: [assetClassId], references: [id])
+  parent         Category?             @relation("CategoryChildren", fields: [parentId], references: [id])
+  children       Category[]            @relation("CategoryChildren")
+  assets         Asset[]
   conditionScale ConditionScaleEntry[]
   photoRules     PhotoRule[]
 
@@ -226,6 +230,64 @@ model Category {
   @@index([tenantId])
   @@index([parentId])
   @@map("categories")
+}
+
+// ─── IPSAS asset classes (Phase 2, stage 2.3) ─────────────────────────────────
+// Policies that drive recognition and depreciation defaults. Figures come from
+// the Accounting Policy Manual (TOR D2); `toBeConfirmed` marks placeholders.
+model AssetClass {
+  id                               String     @id @default(cuid())
+  tenantId                         String
+  code                             String
+  name                             String
+  ipsasClass                       IpsasClass
+  capitalisationThreshold          Decimal    @default(0) @db.Decimal(12, 2)
+  defaultUsefulLifeMonths          Int?
+  defaultDepreciationMethod        String     @default("straight_line")
+  defaultResidualPct               Decimal    @default(0) @db.Decimal(5, 2)
+  componentisationRequired         Boolean    @default(false)
+  glAssetAccount                   String?
+  glDepreciationAccount            String?
+  glAccumulatedDepreciationAccount String?
+  glImpairmentAccount              String?
+  toBeConfirmed                    Boolean    @default(false)
+  active                           Boolean    @default(true)
+  createdAt                        DateTime   @default(now())
+  updatedAt                        DateTime   @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  categories Category[]
+  assets     Asset[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("asset_classes")
+}
+
+enum IpsasClass {
+  INFRASTRUCTURE
+  OPERATIONAL
+  OFFICE_EQUIPMENT
+  FURNITURE
+  VEHICLES
+  LAND
+  BUILDINGS
+  OTHER
+}
+
+enum AcquisitionType {
+  PURCHASE
+  DONATION
+  TRANSFER_IN
+  CONSTRUCTION
+  FINANCE_LEASE
+  OTHER
+}
+
+enum RecognitionStatus {
+  RECOGNISED
+  EXPENSED
+  PENDING_REVIEW
 }
 
 // ─── Sites & Locations ────────────────────────────────────────────────────────
@@ -290,15 +352,15 @@ model Asset {
   /// D11). Never written by the app; read through raw SQL in asset-geo-query.
   geom              Unsupported("geography(Point,4326)")?
 
-  status       String  @default("active")
-  condition    String  @default("good")
+  status         String  @default("active")
+  condition      String  @default("good")
   conditionGrade Int? // 1–5 (stage 1.13); kept in step with condition
-  serialNumber String?
-  modelNumber  String?
-  manufacturer String?
-  barcode      String?
-  rfidTag      String?
-  labelImage   String? @db.Text
+  serialNumber   String?
+  modelNumber    String?
+  manufacturer   String?
+  barcode        String?
+  rfidTag        String?
+  labelImage     String? @db.Text
 
   // ── GS1 identity (spec v2.0) — allocated by the server, never authored ──
   individualAssetReference String?
@@ -330,6 +392,21 @@ model Asset {
   usefulLifeMonths      Int?
   depreciationStartDate DateTime?
 
+  // ── IPSAS recognition (stage 2.3; read and written only with `ipsas` on) ──
+  assetClassId              String?
+  acquisitionType           AcquisitionType    @default(PURCHASE)
+  /// Donated or transferred assets are recognised at fair value (IPSAS 23 / 45).
+  fairValueAtRecognition    Decimal?           @db.Decimal(12, 2)
+  /// Donor or transferring entity.
+  sourceEntity              String?
+  recognitionDate           DateTime?
+  /// Purchase cost + cost components, or fair value for non-exchange acquisitions.
+  capitalisedCost           Decimal?           @db.Decimal(12, 2)
+  recognitionStatus         RecognitionStatus?
+  /// Finance set the status by hand (accounting:approve); the threshold rule no longer applies.
+  recognitionOverride       Boolean            @default(false)
+  recognitionOverrideReason String?
+
   warrantyExpiry  DateTime?
   notes           String?
   customFields    Json?
@@ -342,6 +419,7 @@ model Asset {
 
   tenant               Tenant                     @relation(fields: [tenantId], references: [id])
   category             Category?                  @relation(fields: [categoryId], references: [id])
+  assetClass           AssetClass?                @relation(fields: [assetClassId], references: [id])
   site                 Site?                      @relation(fields: [siteId], references: [id])
   location             Location?                  @relation(fields: [locationId], references: [id])
   checkouts            Checkout[]
@@ -362,6 +440,8 @@ model Asset {
   @@unique([giai])
   @@index([tenantId, status])
   @@index([tenantId, categoryId])
+  @@index([tenantId, assetClassId])
+  @@index([tenantId, recognitionStatus])
   @@index([tenantId, siteId])
   @@index([geom], map: "assets_geom_idx", type: Gist)
   @@index([tenantId, deletedAt])
@@ -498,7 +578,7 @@ model AuditScanEvent {
   // (crash between API success and queue-delete) must not double-count.
   clientRequestId String?   @unique
 
-  conditionGrade  Int? // 1–5 (stage 1.13); kept in step with condition
+  conditionGrade    Int? // 1–5 (stage 1.13); kept in step with condition
   // Device position when the tag was scanned (stage 1.5; null with GIS off).
   latitude          Float?
   longitude         Float?
@@ -1525,4 +1605,3 @@ model PhotoRule {
   @@index([tenantId, categoryId])
   @@map("photo_rules")
 }
-

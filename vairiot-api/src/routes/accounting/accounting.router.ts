@@ -1,14 +1,20 @@
 import { Router, type Response } from 'express';
+import { assetClassSchema, assetClassUpdateSchema, recognitionOverrideSchema } from 'vairiot-shared';
+import type { z } from 'zod';
 
+import { ValidationError } from '../../lib/errors';
 import { prisma } from '../../lib/prisma';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { requireFeature } from '../../middleware/require-feature';
+import { createAssetClass, listAssetClasses, updateAssetClass } from '../../services/asset-class.service';
+import { listPendingReview, overrideRecognition, setCategoryClass } from '../../services/recognition.service';
 import type { Request } from '../../types/http';
 
 // The IPSAS ledger (Phase 2), behind the tenant's `ipsas` module: every route
 // here answers 404 while it is off. Classes, periods, runs and impairment
-// arrive in W2–W5; this stage mounts the guard and the ledger's settings.
+// arrive in W2–W5: the guard and settings at stage 2.2, classes and
+// recognition at stage 2.3.
 export const accountingRouter = Router();
 
 accountingRouter.use(requireFeature('ipsas'));
@@ -31,5 +37,54 @@ accountingRouter.get('/settings', requireAnyPermission('accounting:read'),
       rounding: { mode: 'half_up', places: 2, remainder: 'last_month' },
       approval: { separateApprover: true },
     });
+  }),
+);
+
+/** Validates a body against a shared contract (D19); 400 with every issue. */
+function parse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, body: unknown): T {
+  const r = schema.safeParse(body);
+  if (!r.success) throw new ValidationError(r.error.issues.map((i) => `${i.path.join('.') || 'body'}: ${i.message}`).join('; '));
+  return r.data;
+}
+
+// ── Asset classes (S2.1) ──────────────────────────────────────────────────────
+
+accountingRouter.get('/classes', requireAnyPermission('accounting:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listAssetClasses(req.user!.tenantId));
+  }),
+);
+
+accountingRouter.post('/classes', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json(await createAssetClass(req.user!.tenantId, req.user!.sub, parse(assetClassSchema, req.body)));
+  }),
+);
+
+accountingRouter.patch('/classes/:id', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await updateAssetClass(req.user!.tenantId, req.user!.sub, req.params.id, parse(assetClassUpdateSchema, req.body)));
+  }),
+);
+
+accountingRouter.put('/categories/:id/class', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const id = req.body?.assetClassId;
+    if (id !== null && typeof id !== 'string') throw new ValidationError('assetClassId must be a class id or null');
+    res.json(await setCategoryClass(req.user!.tenantId, req.user!.sub, req.params.id, id));
+  }),
+);
+
+// ── Recognition (S2.1, D20) ───────────────────────────────────────────────────
+
+accountingRouter.get('/assets/pending-review', requireAnyPermission('accounting:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listPendingReview(req.user!.tenantId));
+  }),
+);
+
+accountingRouter.put('/assets/:id/recognition', requireAnyPermission('accounting:approve'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await overrideRecognition(req.user!.tenantId, req.user!.sub, req.params.id, parse(recognitionOverrideSchema, req.body)));
   }),
 );

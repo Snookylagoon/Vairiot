@@ -14,6 +14,48 @@ export const accountingPaths = {
       responses: { 200: { description: 'Ledger settings' }, 403: { description: 'No accounting:read' }, 404: notFoundWhenOff },
     },
   },
+  '/accounting/classes': {
+    get: {
+      tags: ['Accounting'], summary: 'Asset classes with their IPSAS policies, GL accounts and usage (accounting:read)',
+      responses: { 200: { description: 'Classes, with assetCount and categoryCount' }, 404: notFoundWhenOff },
+    },
+    post: {
+      tags: ['Accounting'], summary: 'Create an asset class (accounting:write; audited)',
+      description: 'Body: `assetClassSchema` in vairiot-shared (code, name, ipsasClass, capitalisationThreshold, defaults, GL accounts).',
+      responses: { 201: { description: 'Created' }, 400: { description: 'Invalid' }, 409: { description: 'Code already used' }, 404: notFoundWhenOff },
+    },
+  },
+  '/accounting/classes/{id}': {
+    patch: {
+      tags: ['Accounting'], summary: 'Change an asset class (accounting:write; audited). A new threshold is applied to its assets at once',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'Updated' }, 400: { description: 'Invalid' }, 404: { description: 'No such class, or ipsas off' } },
+    },
+  },
+  '/accounting/categories/{id}/class': {
+    put: {
+      tags: ['Accounting'], summary: 'Point a category at an asset class; its unclassified assets take it (accounting:write; audited)',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { assetClassId: { type: 'string', nullable: true } } } } } },
+      responses: { 200: { description: 'Category' }, 400: { description: 'Unknown class' }, 404: { description: 'No such category, or ipsas off' } },
+    },
+  },
+  '/accounting/assets/pending-review': {
+    get: {
+      tags: ['Accounting'], summary: 'Assets without a class or a cost, for Finance to resolve (D20; accounting:read)',
+      responses: { 200: { description: 'Assets with reason no_class or no_cost' }, 404: notFoundWhenOff },
+    },
+  },
+  '/accounting/assets/{id}/recognition': {
+    put: {
+      tags: ['Accounting'], summary: 'Override the threshold rule for an asset, with a reason, or clear the override (accounting:approve; audited)',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: {
+        status: { type: 'string', enum: ['RECOGNISED', 'EXPENSED'], nullable: true }, reason: { type: 'string', minLength: 5 },
+      } } } } },
+      responses: { 200: { description: 'Asset' }, 400: { description: 'Invalid' }, 403: { description: 'No accounting:approve' }, 404: { description: 'No such asset, or ipsas off' } },
+    },
+  },
   '/admin/platform/tenants/{id}/modules': {
     get: {
       tags: ['Platform'],

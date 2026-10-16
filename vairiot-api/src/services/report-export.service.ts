@@ -200,7 +200,7 @@ export async function exportAssetValuationSummary(tenantId: string, opts: Export
       purchaseCost: true, freightCost: true, installationCost: true,
       customsDuties: true, otherCapitalizedCosts: true, residualValue: true,
       depreciationMethod: true, usefulLifeMonths: true, depreciationStartDate: true,
-      purchaseDate: true,
+      purchaseDate: true, recognitionStatus: true,
       category: { select: { name: true } },
       site: { select: { name: true } },
     },
