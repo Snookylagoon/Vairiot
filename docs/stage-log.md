@@ -116,7 +116,18 @@ Phase N is Sprint SN (decision D1). Stages 0.1–0.7 and 1.1–1.3 were done bef
 
 ## Phase 1 — GIS, condition and photos (Sprint S1)
 
-Started before Phase 0 was accepted. Stage 1.0 (hand-over) will be written when the owner accepts Phase 0.
+Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-over in time. New work continues from stage 1.4.
+
+### Stage 1.0 — Phase 0 accepted; Phase 1 planned
+
+| Item      | Detail                                                                                                                                                                                         |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date      | 16 October 2026                                                                                                                                                                                |
+| Version   | 2.0.1                                                                                                                                                                                          |
+| Activity  | Owner accepted Phase 0 ("Do 1, 2 and 3"), open points handled as proposed. Sprint files amended: SemVer from 2.0.0 instead of the fixed 2.0.0-pilot / 2.1.0 / 2.2.0 plan, `dev` instead of `develop` (G22), Leaflet instead of MapLibre (G25). Phase 1 plan written |
+| Output    | `docs/03-phase-1-plan.md`; `docs/sprints/README.md`, `S1`–`S5` amended; `project.md` decision log                                                                                             |
+| Decisions | Phase 0 acceptance recorded; D11 (PostGIS image) and D12 (Leaflet) raised as proposed                                                                                                          |
+| Notes     | Tags `phase-0-accepted` and `v2.0.1` wait for the promotion of `dev` to `main`. PRs #85 and #86 await the owner's merge: this session's permissions do not allow merging without review |
 
 ### Stage 1.1 — GIS position module for assets (S1.1, part)
 
@@ -145,3 +156,16 @@ Started before Phase 0 was accepted. Stage 1.0 (hand-over) will be written when 
 | Version  | —                                                        |
 | Activity | `GET /assets/map`, clustered map page in the web console |
 | Output   | Commit `10ad7ba`; merged through PR #70                  |
+
+### Stage 1.4 — PostGIS foundation (W1, S1.1 rest)
+
+| Item      | Detail                                                                                                                                                                                                                                       |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date      | 16 October 2026                                                                                                                                                                                                                              |
+| Version   | 2.1.0                                                                                                                                                                                                                                        |
+| Activity  | Every Compose stack, the restore test and CI on `postgis/postgis:16-3.5-alpine` (`POSTGIS_IMAGE` override for ARM). Migration `20261016000000_postgis_asset_geom`: extension, `assets.geom geography(Point,4326)` set by trigger from latitude/longitude, back-fill, GIST index. `GET /assets/geo?bbox=` GeoJSON behind `gis`. OpenAPI GIS paths in `lib/openapi-gis.ts`, merged in `lib/api-spec.ts` so the baselined `openapi.ts` does not grow. DEPLOY.md: one-off switch procedure for existing servers |
+| Output    | `services/asset-geo-query.service.ts`, `lib/openapi-gis.ts`, `lib/api-spec.ts`, schema `geom` (`Unsupported`, GIST index)                                                                                                                    |
+| Tests     | API full suite 330/330 in 35 suites on PostGIS (new `asset-geo-bbox.test.ts`: trigger, box, tenancy, truncation, 400s, 404 with `gis` off, OpenAPI)                                                                                         |
+| Decisions | D11 and D12 still proposed: the image switch needs the owner's approval before this version is deployed                                                                                                                                       |
+| Notes     | Not deployed. `prisma migrate diff` shows drift that predates this stage (`asset_events` index and `hash` default), not caused by `geom`; to be reconciled in a later stage. Scan positions and `Location.boundary` move to W2 |
+

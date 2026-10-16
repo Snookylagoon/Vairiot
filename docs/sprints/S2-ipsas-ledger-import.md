@@ -171,7 +171,7 @@ Steps:
 1. Run `npm run lint` and `npm test`; fix failures.
 2. Write docs/IPSAS-LEDGER.md for the consultant's D2 and D4: data model, every configurable policy field, the depreciation and impairment mechanics, the recognition rule, and worked examples with journal lines (Dr Depreciation expense / Cr Accumulated depreciation; Dr Impairment loss / Cr Accumulated impairment; donated asset Dr Asset / Cr Revenue from non-exchange transactions).
 3. Update docs/known-fix-registry.md and write docs/sprints/S2-summary.md.
-4. Open a pull request from feature/s2-ipsas-ledger to develop.
+4. Open a pull request from feature/s2-ipsas-ledger to dev.
 
 Output:
 - docs/IPSAS-LEDGER.md, docs/sprints/S2-summary.md, pull request URL

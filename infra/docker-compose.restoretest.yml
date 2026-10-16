@@ -4,10 +4,9 @@
 # `down -v` removes everything it creates.
 services:
   postgres:
-    # Standalone installs run PostGIS: set RESTORETEST_POSTGRES_IMAGE to the
-    # same image (e.g. postgis/postgis:16-3.4) so a dump with the postgis
-    # extension restores.
-    image: ${RESTORETEST_POSTGRES_IMAGE:-postgres:16-alpine}
+    # Every stack runs PostGIS since D11, and a dump with the postgis
+    # extension only restores into it. Override to match a different install.
+    image: ${RESTORETEST_POSTGRES_IMAGE:-postgis/postgis:16-3.5-alpine}
     environment:
       POSTGRES_USER: restoretest
       POSTGRES_PASSWORD: restoretest

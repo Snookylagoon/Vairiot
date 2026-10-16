@@ -6,7 +6,7 @@
 
 **Branch:** `feature/s4-reconciliation`
 
-**Change control:** the tools are frozen from v2.0.0-pilot. S4.1 covers defects. Anything in S4.2–S4.4 is already in the signed scope; anything else needs a change order before it is built.
+**Change control:** the tools are frozen from the pilot release (tag `pilot-tuda`). S4.1 covers defects. Anything in S4.2–S4.4 is already in the signed scope; anything else needs a change order before it is built.
 
 ---
 
@@ -18,18 +18,18 @@ Triage and fix the defects logged during the TUDA pilot.
 Context:
 - Path: /Volumes/DRSssd/Projects/GitHub/Vairiot-dev
 - Defect log: docs/pilot/defect-log.xlsx (columns: ID, date, reporter, device, screen, steps, expected, actual, severity S1–S4, status) — if the file is missing, create the template and stop
-- Release in the field: v2.0.0-pilot; fixes ship as 2.0.x patch releases through the admin release channel pinned to TUDA
+- Release in the field: the pilot release; fixes ship as patch releases through the admin release channel pinned to TUDA
 
 Steps:
 1. Read the defect log. Group defects by component and root cause; mark duplicates.
 2. For S1 and S2 severities: reproduce with a test first, fix, keep the test. For S3: fix when the change is local to one file; otherwise list for the next patch. For S4: record only.
 3. Treat any request that adds behaviour outside docs/CHANGE-CONTROL.md scope as a change request: add it to docs/pilot/change-requests.md with an effort estimate in days and leave the code alone.
 4. Update docs/known-fix-registry.md for every fix.
-5. Bump to 2.0.1, build and publish Android and iOS patch releases, deploy the API to staging then production using deploy.sh.
+5. Bump the patch version (`npm run version:set`), build and publish Android and iOS patch releases, deploy the API to staging then production using deploy.sh.
 6. Write docs/pilot/defect-report.md: table of defects with status, root cause and fix commit, for Deliverable D5 (Pilot Inventory Assessment Report).
 
 Output:
-- Fixes with tests, updated defect log, change-request list, defect report, 2.0.1 release
+- Fixes with tests, updated defect log, change-request list, defect report, patch release
 - Files changed, with full paths
 
 Think before answering (maximum reasoning).
@@ -140,7 +140,7 @@ Steps:
 1. Run every test suite; fix failures.
 2. Write docs/RECONCILIATION-METHOD.md for Deliverables D6/D7: match keys and priority, classifications with definitions, tolerances, resolution actions and their accounting effects, and how a reconciled database is exported.
 3. Update docs/known-fix-registry.md and write docs/sprints/S4-summary.md.
-4. Release 2.1.0 to staging and production; open the pull request to develop and then main.
+4. Bump the minor version and release to staging and production; open the pull request to `dev`, then promote to `main` with `scripts/go-live.sh`.
 
 Output:
 - docs/RECONCILIATION-METHOD.md, docs/sprints/S4-summary.md, release, pull request URLs
@@ -152,8 +152,8 @@ Think before answering (maximum reasoning).
 
 ## Sprint checklist
 
-- [ ] S4.1 Pilot defects fixed, 2.0.1 released
+- [ ] S4.1 Pilot defects fixed, patch released
 - [ ] S4.2 New reconciliation classes
 - [ ] S4.3 Three-way engine
 - [ ] S4.4 Data-quality dashboard
-- [ ] S4.5 Sprint close, 2.1.0 released
+- [ ] S4.5 Sprint close, minor version released

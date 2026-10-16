@@ -105,11 +105,11 @@ Prepare the final release and the documentation set for Deliverables D7 and D8 a
 
 Steps:
 1. Run every test suite, the restore test and a handover export on staging; fix failures.
-2. Bump to 2.2.0; build and publish Android and iOS releases; deploy to production.
+2. Bump the minor version (`npm run version:set`); build and publish Android and iOS releases; deploy to production.
 3. Write or update: docs/ADMIN-GUIDE.md (tenant settings, users and roles, approvals, periods, imports, exports, backups), docs/FIELD-OPERATOR-GUIDE.md (device set-up, scanning, zones, photos, condition, offline behaviour, pending uploads), docs/FINANCE-GUIDE.md (classes, recognition, depreciation runs, impairment, journal export, movement note), docs/API-REFERENCE.md generated from the OpenAPI spec, and docs/OPERATIONS-RUNBOOK.md (deploy, monitor, back up, restore, rotate secrets, certificate renewal). Each guide is in English with a Georgian section placeholder for the translator.
 4. Generate docs/SOURCE-INVENTORY.md listing every workspace, its purpose, build command and test command, for the "working files" clause of the TOR.
 5. Write docs/sprints/S5-summary.md and a project-level docs/sprints/PROJECT-SUMMARY.md listing all sprints, releases, open items and the full list of files changed across the project (from git log between the S0 start tag and HEAD).
-6. Tag v2.2.0 and open the pull request to main.
+6. Open the pull request to `dev`, promote with `scripts/go-live.sh`, and tag the handover version and `handover-tuda` on `main`.
 
 Output:
 - Release, documentation set, project summary, tag, pull request URL
@@ -124,4 +124,4 @@ Think before answering (maximum reasoning).
 - [ ] S5.1 IPSAS reporting pack and journal export
 - [ ] S5.2 GeoJSON / Shapefile exchange
 - [ ] S5.3 Handover pack
-- [ ] S5.4 Final release v2.2.0 and documentation
+- [ ] S5.4 Final release (tag `handover-tuda`) and documentation

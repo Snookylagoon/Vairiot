@@ -2,6 +2,18 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.1.0] — 2026-10-16
+
+### Added
+
+- `GET /api/v1/assets/geo?bbox=minLon,minLat,maxLon,maxLat` returns the tenant's assets in the box as GeoJSON, with a `truncated` flag; 404 while GIS is off (stage 1.4)
+- PostGIS: every asset's position is kept as a `geography` point with a spatial index, derived from latitude and longitude, and back-filled for assets placed before (stage 1.4)
+- `/assets/map` and `/assets/geo` in the OpenAPI document (stage 1.4)
+
+### Changed
+
+- **Every database runs PostGIS** (`postgis/postgis:16-3.5-alpine`, D11). Existing servers switch once before deploying this version: see DEPLOY.md, "Switching an existing server to PostGIS" (stage 1.4)
+
 ## [2.0.1] — 2026-10-16
 
 ### Added
@@ -92,6 +104,7 @@ Adoption of the Managed Development Standard (decision D3). The major number mar
 
 Earlier versions (1.4.x–1.6.x, June–July 2026) were Android-only releases recorded in the commit history.
 
+[2.1.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/Snookylagoon/Vairiot/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Snookylagoon/Vairiot/compare/v1.10.1...v2.0.0
 [1.10.1]: https://github.com/Snookylagoon/Vairiot/releases/tag/v1.10.1

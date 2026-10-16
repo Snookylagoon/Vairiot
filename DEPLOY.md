@@ -162,11 +162,23 @@ The apps keep an offline copy of the asset register. They fetch changes with
 bulk change that does not touch asset rows (for example renaming a category or
 site), cached names refresh on the next daily full sync.
 
+### Switching an existing server to PostGIS (once, version 2.1.0)
+
+From version 2.1.0 every stack runs `postgis/postgis:16-3.5-alpine` (decision D11), and migration `20261016000000_postgis_asset_geom` needs it. It is the same Postgres 16 on the same C library (musl) as the old `postgres:16-alpine`, so the data directory is reused as it is: no dump, no restore, no reindex. Until the image is switched, that migration fails and `deploy.sh` stops with the old version still serving, so nothing breaks if a server is missed.
+
+1. Take a backup and prove it restores: `bash infra/backup.sh && bash infra/restore-test.sh` (the restore test now uses the PostGIS image too).
+2. Pull the new image ahead of time: `docker pull postgis/postgis:16-3.5-alpine`.
+3. Recreate the database container on the new image, keeping its volume: `docker compose --env-file .env -f infra/docker-compose.prod.yml up -d --wait postgres` (add `-f "$COMPOSE_EXTRA_FILE"` where `.env` sets one) (the API reconnects; expect a few seconds of errors).
+4. Deploy as usual: `bash infra/deploy.sh`. Its migration step creates the extension, the `geom` column and its index, and back-fills placed assets.
+5. Check: `docker compose --env-file .env -f infra/docker-compose.prod.yml exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT postgis_version();"`.
+
+To roll back before step 3, do nothing. After step 4, the old image can still read the data directory, but the `postgis` extension's files are missing there, so roll back by restoring the step 1 backup.
+
 ## Standalone install (one organisation, own server)
 
-For an organisation that hosts Vairiot itself, for example **TUDA** on a server in Georgia. It is the production stack plus `infra/docker-compose.standalone.yml`. That override adds Postgres with PostGIS and closes public sign-up (API and web), and nginx serves the install's own host names and certificates. `deploy.sh`, backups and the restore test work unchanged.
+For an organisation that hosts Vairiot itself, for example **TUDA** on a server in Georgia. It is the production stack plus `infra/docker-compose.standalone.yml`. That override closes public sign-up (every stack runs PostGIS since D11) (API and web), and nginx serves the install's own host names and certificates. `deploy.sh`, backups and the restore test work unchanged.
 
-1. **Server.** Ubuntu 24.04, x86-64, 4 vCPU, 8 GB RAM and 100 GB disk to start. Docker as in `docs/STAGING-SETUP.md` §5, then clone the repo to `/opt/Vairiot`. (`postgis/postgis` is x86-64 only; on ARM set `POSTGIS_IMAGE=imresamu/postgis:16-3.4`.)
+1. **Server.** Ubuntu 24.04, x86-64, 4 vCPU, 8 GB RAM and 100 GB disk to start. Docker as in `docs/STAGING-SETUP.md` §5, then clone the repo to `/opt/Vairiot`. (`postgis/postgis` is x86-64 only; on ARM set `POSTGIS_IMAGE=imresamu/postgis:16-3.5-alpine`.)
 2. **DNS.** Two host names pointing at the server, e.g. `assets.tuda.example` (app + API) and `assets-admin.tuda.example` (admin console).
 3. **Certificates.** Either Let's Encrypt (`docs/STAGING-SETUP.md` §8, for both names), or certificates the organisation supplies copied to `/etc/vairiot/tls/` on the server.
 4. **`.env`** at `/opt/Vairiot/.env`: everything from `infra/.env.prod.example`, plus

@@ -40,7 +40,7 @@ Run these once in Terminal (or ask Claude Code to run them):
 
 ```bash
 cd /Volumes/DRSssd/Projects/GitHub/Vairiot-dev
-git checkout develop
+git checkout dev
 git pull
 npm install
 cp .env.example .env   # only if .env is missing

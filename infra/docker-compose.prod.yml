@@ -10,7 +10,10 @@ x-logging: &default-logging
 services:
 
   postgres:
-    image: postgres:16-alpine
+    # PostGIS on the same Postgres major and C library (musl) as the old
+    # postgres:16-alpine, so existing data directories stay valid (D11).
+    # amd64 only: on an ARM machine set POSTGIS_IMAGE=imresamu/postgis:16-3.5-alpine.
+    image: ${POSTGIS_IMAGE:-postgis/postgis:16-3.5-alpine}
     container_name: vairiot_postgres
     restart: always
     logging: *default-logging
