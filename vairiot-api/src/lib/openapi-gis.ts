@@ -52,4 +52,19 @@ export const gisPaths = {
       },
     },
   },
+  '/audits/{id}/scans/geo': {
+    get: {
+      tags: ['Audits'],
+      summary: 'Positioned scans of a campaign, as GeoJSON',
+      description:
+        'Scans carry the device position when POST /audits/{id}/scans is sent with latitude, longitude and ' +
+        'geoAccuracyMeters (stage 1.5). A bad position is dropped, never the scan. Blind campaigns report ' +
+        'result "recorded" and no assetId until completed.',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        200: { description: 'GeoJSON FeatureCollection of scans with a position' },
+        404: { description: 'Campaign not found, or GIS switched off for the tenant' },
+      },
+    },
+  },
 } as const;

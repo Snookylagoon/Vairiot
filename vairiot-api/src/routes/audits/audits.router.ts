@@ -6,6 +6,8 @@ import { logger } from '../../lib/logger';
 import { enqueueAuditComplete } from '../../lib/queue';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
+import { requireFeature } from '../../middleware/require-feature';
+import { listScanPositions } from '../../services/audit-scan.service';
 import { listCampaigns, createCampaign, startCampaign, recordScan, submitZone, listZoneSubmissions, completeCampaign, getReconciliation, postAdjustment, listAdjustments, getCampaignReport, getCampaignReportRows, getComparison } from '../../services/audit.service';
 import type { Request } from '../../types/http';
 
@@ -77,6 +79,8 @@ auditsRouter.post('/:id/scans', requireAnyPermission('audit:write'),
     body('condition').optional({ nullable: true }).isIn(['good', 'fair', 'poor', 'damaged']),
     body('clientRequestId').optional({ nullable: true }).isString().isLength({ max: 64 }),
     body('capturedAt').optional({ nullable: true }).isISO8601(),
+    // Positions are checked in resolveScanGeo, which drops a bad one rather
+    // than refusing the scan.
   ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
@@ -84,6 +88,13 @@ auditsRouter.post('/:id/scans', requireAnyPermission('audit:write'),
     const event = await recordScan(req.user!.tenantId, req.params.id, req.user!.sub, req.body);
     // A replayed clientRequestId returns the original event: 200, not 201.
     res.status('duplicate' in event && event.duplicate ? 200 : 201).json(event);
+  }),
+);
+
+// Positioned scans of a campaign as GeoJSON (stage 1.5); 404 with GIS off.
+auditsRouter.get('/:id/scans/geo', requireAnyPermission('audit:read', 'audit:write'), requireFeature('gis'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listScanPositions(req.user!.tenantId, req.params.id));
   }),
 );
 

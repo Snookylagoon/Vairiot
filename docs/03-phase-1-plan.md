@@ -16,7 +16,7 @@
 | --- | ---------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
 | W0  | Hand-over                          | docs                                    | Stage 1.0: Phase 0 acceptance recorded, sprint files amended (G22, G25), this plan                                                                                                               | Built       |
 | W1  | PostGIS foundation (S1.1 rest)     | infra, api, CI                          | PostGIS image everywhere (D11); `postgis` extension; `Asset.geom geography(Point,4326)` kept in step by a trigger, GIST index; `GET /assets/geo?bbox=` GeoJSON behind `gis`; OpenAPI; tests      | Built — stage 1.4 |
-| W2  | Scan positions (S1.1 step 3, S1.2) | api, shared, android, ios               | Position fields on `AuditScanEvent` and `AuditSnapshotAsset`; `POSITION_CAPTURED` / `POSITION_CORRECTED` events; background fix per audit scan on both apps; `GET /audits/:id/scans/geo`         | Planned     |
+| W2  | Scan positions (S1.1 step 3, S1.2) | api, shared, android, ios               | Position fields on `AuditScanEvent` and `AuditSnapshotAsset`; `POSITION_CAPTURED` / `POSITION_CORRECTED` events; background fix per audit scan on both apps; `GET /audits/:id/scans/geo`         | Built — stage 1.5 |
 | W3  | Photo bound to scan (S1.3)         | api, worker, android, ios, web          | `Photo.scanEventId`, campaign, position, `photoType`; EXIF read then stripped (KFR-043 already strips on download); server thumbnails; scan photo capture on both apps; `PhotoRule`; web gallery | Planned     |
 | W4  | Map extensions (S1.4 rest)         | web, api                                | Campaign layer coloured by reconciliation state; "Set position" by dragging; per-tenant base map settings; Playwright smoke                                                                      | Planned     |
 | W5  | Condition scale (S1.5)             | api, shared, web, android, ios, reports | `ConditionScale` with default 1–5 seed; `conditionGrade` with backfill; `CONDITION_ASSESSED` events; admin page; mobile selector; report grouping                                                | Planned     |
@@ -62,8 +62,8 @@ Designs for W2–W6 follow the S1 sprint prompts, with these changes agreed so f
 
 | #   | Decision                                                 | Recommendation                                                               | Status       |
 | --- | -------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------ |
-| D11 | Database image for production, staging, dev, test and CI | `postgis/postgis:16-3.5-alpine` (same Postgres major and C library as today) | **Proposed** |
-| D12 | Web map library                                          | Leaflet (in use since stage 1.3); a Leaflet drawing plugin for S3 zones      | **Proposed** |
+| D11 | Database image for production, staging, dev, test and CI | `postgis/postgis:16-3.5-alpine` (same Postgres major and C library as today) | **Approved** |
+| D12 | Web map library                                          | Leaflet (in use since stage 1.3); a Leaflet drawing plugin for S3 zones      | **Approved** |
 
 ## 5. Out of scope for Phase 1
 

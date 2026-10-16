@@ -30,14 +30,16 @@ struct AuditScanRecorder {
         tagValue: String,
         locationId: String?,
         condition: String?,
-        deviceId: String? = nil
+        deviceId: String? = nil,
+        fix: GeoFix? = nil
     ) async -> Outcome {
         let scan = QueuedScan(
             campaignId: campaignId,
             tagValue: tagValue,
             deviceId: deviceId,
             locationId: locationId,
-            condition: condition
+            condition: condition,
+            fix: fix
         )
         context.insert(scan)
         try? context.save()

@@ -11,6 +11,7 @@
 		0279540E9BBA8869F9DBBBEF /* SyncTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6510EA3DAFE569E4F31535F6 /* SyncTestSupport.swift */; };
 		02D722C17444AE1039052D8A /* CameraImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7BF71D61E2AF2D08A25EC7C /* CameraImagePicker.swift */; };
 		045C069F5A8456A377EA9086 /* Audit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A570263D6CCC762BA1288303 /* Audit.swift */; };
+		0770E80A6402F3368BF62182 /* ScanPositionTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F84AA05B58787F874BF029C1 /* ScanPositionTracker.swift */; };
 		0828CEA4D4A74F77C476249C /* SyncFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D51F6AE53994A24FA4CE4B02 /* SyncFailureTests.swift */; };
 		08FA5E4E02E5DFB59553858B /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7AE5DCB8F10FD7CC6D7B797 /* CameraPreview.swift */; };
 		0B3F4841256D9388531EC00F /* MaintenanceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2155CF526A73D45001372BF3 /* MaintenanceListView.swift */; };
@@ -77,6 +78,7 @@
 		C66AE026EA35E866AB7E01D5 /* AssetRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E228F84B58F49D491E3196A /* AssetRepository.swift */; };
 		C8FD559173E25F93F4E6FA45 /* AssetMaintenanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DB9576A912AD03CE88FF0B3 /* AssetMaintenanceView.swift */; };
 		CA894B5BE49E57A9B520A6B5 /* MaintenanceDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CCF4761D003F4FCB8ABF697 /* MaintenanceDetailViewModel.swift */; };
+		CBFFECA4CD95F367AA06595D /* ScanPositionTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 092A9730104BDE6FEFCDE531 /* ScanPositionTrackerTests.swift */; };
 		D27DE1E39FF9C0866986B59F /* VairiotTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5469A308F178DB50E585A3EC /* VairiotTheme.swift */; };
 		D690C5E807E6816EFE2E10EE /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24793E93910BA8FA7E2D00D5 /* SyncManager.swift */; };
 		DED9C4BE1C37A01166536326 /* QueueState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE634A2DEDC3B84524DA367C /* QueueState.swift */; };
@@ -105,6 +107,7 @@
 		058B105CD7DE7499517FA026 /* AssetDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDetailViewModel.swift; sourceTree = "<group>"; };
 		083689B39CDD8F823B2A26A0 /* Auth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Auth.swift; sourceTree = "<group>"; };
 		084B07C6BEE4B50D7EC2D364 /* AssetPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetPosition.swift; sourceTree = "<group>"; };
+		092A9730104BDE6FEFCDE531 /* ScanPositionTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPositionTrackerTests.swift; sourceTree = "<group>"; };
 		13A1D16A4211E50E965760F6 /* APIEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIEndpoint.swift; sourceTree = "<group>"; };
 		18C7C714464C6F9D2C93223C /* VairiotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VairiotStore.swift; sourceTree = "<group>"; };
 		1A733E9B69077EFBDFE50FC8 /* ClearableTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClearableTextField.swift; sourceTree = "<group>"; };
@@ -182,6 +185,7 @@
 		F2ADA391E09B77430AA096DE /* Asset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Asset.swift; sourceTree = "<group>"; };
 		F6505CC8373374B0B7550AE5 /* AssetListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetListViewModel.swift; sourceTree = "<group>"; };
 		F76FED740D4C036BCD307628 /* Company.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Company.swift; sourceTree = "<group>"; };
+		F84AA05B58787F874BF029C1 /* ScanPositionTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPositionTracker.swift; sourceTree = "<group>"; };
 		F962886475BD72CB3255DADC /* AuditRunViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditRunViewModel.swift; sourceTree = "<group>"; };
 		F9E9CF0A05001D7E3EE7465A /* LoadingButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingButton.swift; sourceTree = "<group>"; };
 		FB6A529423121523C9797E84 /* CachedReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedReference.swift; sourceTree = "<group>"; };
@@ -435,6 +439,7 @@
 			isa = PBXGroup;
 			children = (
 				86A45AD9A8EB5B615BB769A9 /* PositionCapture.swift */,
+				F84AA05B58787F874BF029C1 /* ScanPositionTracker.swift */,
 			);
 			path = Location;
 			sourceTree = "<group>";
@@ -448,6 +453,7 @@
 				BEDBFA083EC588D612C825AE /* AuditScanRecorderTests.swift */,
 				C234CF2EB403A3B465328D31 /* FeatureFlagsTests.swift */,
 				9AC33412966F275ADDD637B4 /* QueueDrainerTests.swift */,
+				092A9730104BDE6FEFCDE531 /* ScanPositionTrackerTests.swift */,
 				D51F6AE53994A24FA4CE4B02 /* SyncFailureTests.swift */,
 				6510EA3DAFE569E4F31535F6 /* SyncTestSupport.swift */,
 			);
@@ -554,6 +560,7 @@
 				EA1409893ACBF3B46A327853 /* AuditScanRecorderTests.swift in Sources */,
 				6A9B1A7D575B02BC9E088E56 /* FeatureFlagsTests.swift in Sources */,
 				637E04BE8F13A2C1CE7EEF5E /* QueueDrainerTests.swift in Sources */,
+				CBFFECA4CD95F367AA06595D /* ScanPositionTrackerTests.swift in Sources */,
 				0828CEA4D4A74F77C476249C /* SyncFailureTests.swift in Sources */,
 				0279540E9BBA8869F9DBBBEF /* SyncTestSupport.swift in Sources */,
 			);
@@ -622,6 +629,7 @@
 				2B2CF27D0A2ABFF497341D70 /* QueuedPhoto.swift in Sources */,
 				68F61F0616DEC750EA99460C /* QueuedScan.swift in Sources */,
 				6CEE46F7AB843F954F5FFB4E /* RevealableSecureField.swift in Sources */,
+				0770E80A6402F3368BF62182 /* ScanPositionTracker.swift in Sources */,
 				91387E21107F07C798BB6D4A /* ScannerView.swift in Sources */,
 				EBF347C95F7091F3FCC674FD /* StatusBadge.swift in Sources */,
 				1CC9C18EF2B7E4CC6274BA0A /* SyncFailure.swift in Sources */,
@@ -698,7 +706,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = VairiotMobile/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -784,7 +792,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = VairiotMobile/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

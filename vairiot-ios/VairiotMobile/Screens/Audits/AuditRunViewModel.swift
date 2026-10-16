@@ -50,13 +50,28 @@ final class AuditRunViewModel {
     // MARK: - Dependencies
 
     private let apiClient: APIClient
+    private let featureFlags: FeatureFlags
+    /// Recent device fix for each scan, kept only while GIS is on (D7, stage 1.5).
+    private let positionTracker: ScanPositionTracker
 
     // MARK: - Init
 
-    init(audit: AuditCampaignResponse, apiClient: APIClient = .shared) {
+    init(
+        audit: AuditCampaignResponse,
+        apiClient: APIClient = .shared,
+        featureFlags: FeatureFlags = .shared,
+        positionProvider: PositionProviding? = nil
+    ) {
         self.audit = audit
         self.scanCount = audit.scanCount
         self.apiClient = apiClient
+        self.featureFlags = featureFlags
+        self.positionTracker = ScanPositionTracker(provider: positionProvider ?? DevicePositionProvider())
+        Task { [weak self] in
+            guard let self else { return }
+            await featureFlags.refresh(apiClient: apiClient)
+            if featureFlags.gisEnabled { self.positionTracker.start() }
+        }
     }
 
     // MARK: - Start Audit
@@ -117,7 +132,8 @@ final class AuditRunViewModel {
             campaignId: audit.id,
             tagValue: tag,
             locationId: zoneId,
-            condition: selectedCondition.isEmpty ? nil : selectedCondition
+            condition: selectedCondition.isEmpty ? nil : selectedCondition,
+            fix: featureFlags.gisEnabled ? positionTracker.latest() : nil
         )
 
         switch outcome {

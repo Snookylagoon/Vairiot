@@ -2,6 +2,20 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.2.0] — 2026-10-16
+
+### Added
+
+- Audit scans carry the device position: both apps keep a recent GPS fix while an audit is open and attach it to each scan, including scans queued offline (stage 1.5)
+- `GET /api/v1/audits/:id/scans/geo` returns a campaign's positioned scans as GeoJSON; blind campaigns hide results until completed; 404 while GIS is off (stage 1.5)
+- Asset ledger events `POSITION_CAPTURED` (first position) and `POSITION_CORRECTED` (moved more than 1 m) (stage 1.5)
+- Blind-audit snapshots record each asset's register position (stage 1.5)
+
+### Changed
+
+- A scan is never refused for its position: an unusable GPS reading is dropped and the scan kept, so offline work is not lost (stage 1.5)
+- Scan recording moved to `audit-scan.service.ts`; `audit.service.ts` is 105 lines shorter (stage 1.5)
+
 ## [2.1.0] — 2026-10-16
 
 ### Added
@@ -104,6 +118,7 @@ Adoption of the Managed Development Standard (decision D3). The major number mar
 
 Earlier versions (1.4.x–1.6.x, June–July 2026) were Android-only releases recorded in the commit history.
 
+[2.2.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/Snookylagoon/Vairiot/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Snookylagoon/Vairiot/compare/v1.10.1...v2.0.0

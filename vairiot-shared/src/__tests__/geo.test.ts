@@ -1,4 +1,5 @@
 import {
+  distanceMetres,
   formatCoordinates,
   GeoError,
   googleMapsUrl,
@@ -72,3 +73,19 @@ describe('isGeoSource', () => {
     expect(isGeoSource('satellite')).toBe(false);
   });
 });
+
+describe('distanceMetres', () => {
+  it('is zero for the same point and symmetric', () => {
+    const a = { latitude: 41.7151, longitude: 44.8271 };
+    const b = { latitude: 41.6934, longitude: 44.8015 };
+    expect(distanceMetres(a, a)).toBe(0);
+    expect(distanceMetres(a, b)).toBeCloseTo(distanceMetres(b, a), 6);
+  });
+
+  it('measures about 111 km per degree of latitude and sub-metre moves', () => {
+    expect(distanceMetres({ latitude: 0, longitude: 0 }, { latitude: 1, longitude: 0 })).toBeCloseTo(111_195, -2);
+    // 0.000005° of latitude ≈ 0.56 m: below the 1 m correction threshold.
+    expect(distanceMetres({ latitude: 41.7, longitude: 44.8 }, { latitude: 41.700005, longitude: 44.8 })).toBeLessThan(1);
+  });
+});
+

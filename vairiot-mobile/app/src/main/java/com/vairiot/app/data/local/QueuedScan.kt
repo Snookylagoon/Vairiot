@@ -35,4 +35,8 @@ data class QueuedScan(
     val state: String = QueueState.PENDING,
     /** Generated once when the row is queued and sent unchanged on every attempt. */
     val clientRequestId: String = UUID.randomUUID().toString(),
+    /** Device position when the tag was scanned (stage 1.5); null with GIS off or no fix. */
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val geoAccuracyMeters: Double? = null,
 )
