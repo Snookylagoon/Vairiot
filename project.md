@@ -57,7 +57,7 @@ Full list with versions in [01 Technology stack](docs/01-technology-stack.md).
 
 | Part                    | Stack                                                                        |
 | ----------------------- | ---------------------------------------------------------------------------- |
-| `vairiot-api`           | Node 24, Express 5, Prisma 7, PostgreSQL 16 (PostGIS planned in S1.1), Redis |
+| `vairiot-api`           | Node 24, Express 5, Prisma 7, PostgreSQL 16 with PostGIS 3.5 (D11), Redis |
 | `vairiot-worker`        | BullMQ job schedulers on Redis                                               |
 | `vairiot-web`, `-admin` | React 19, Vite, Tailwind 4, React Router 7, TanStack Query                   |
 | `vairiot-shared`        | TypeScript types, Zod schemas, GS1 and geo helpers                           |

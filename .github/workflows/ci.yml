@@ -98,7 +98,8 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        # Same image as every stack (D11).
+        image: postgis/postgis:16-3.5-alpine
         env:
           POSTGRES_USER: vairiot_test
           POSTGRES_PASSWORD: testpassword

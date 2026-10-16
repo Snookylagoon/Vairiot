@@ -22,9 +22,10 @@
 # ---------------------------------------------------------------------------
 services:
   postgres:
-    # amd64 only. On an ARM host, set POSTGIS_IMAGE to a multi-arch build,
-    # e.g. imresamu/postgis:16-3.4.
-    image: ${POSTGIS_IMAGE:-postgis/postgis:16-3.4}
+    # Same image as every other stack since D11 (the base compose file now
+    # sets it); kept here so a standalone install can pin its own. amd64
+    # only: on an ARM host set POSTGIS_IMAGE=imresamu/postgis:16-3.5-alpine.
+    image: ${POSTGIS_IMAGE:-postgis/postgis:16-3.5-alpine}
 
   api:
     environment:

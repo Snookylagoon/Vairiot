@@ -156,3 +156,16 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Version  | —                                                        |
 | Activity | `GET /assets/map`, clustered map page in the web console |
 | Output   | Commit `10ad7ba`; merged through PR #70                  |
+
+### Stage 1.4 — PostGIS foundation (W1, S1.1 rest)
+
+| Item      | Detail                                                                                                                                                                                                                                       |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date      | 16 October 2026                                                                                                                                                                                                                              |
+| Version   | 2.1.0                                                                                                                                                                                                                                        |
+| Activity  | Every Compose stack, the restore test and CI on `postgis/postgis:16-3.5-alpine` (`POSTGIS_IMAGE` override for ARM). Migration `20261016000000_postgis_asset_geom`: extension, `assets.geom geography(Point,4326)` set by trigger from latitude/longitude, back-fill, GIST index. `GET /assets/geo?bbox=` GeoJSON behind `gis`. OpenAPI GIS paths in `lib/openapi-gis.ts`, merged in `lib/api-spec.ts` so the baselined `openapi.ts` does not grow. DEPLOY.md: one-off switch procedure for existing servers |
+| Output    | `services/asset-geo-query.service.ts`, `lib/openapi-gis.ts`, `lib/api-spec.ts`, schema `geom` (`Unsupported`, GIST index)                                                                                                                    |
+| Tests     | API full suite 330/330 in 35 suites on PostGIS (new `asset-geo-bbox.test.ts`: trigger, box, tenancy, truncation, 400s, 404 with `gis` off, OpenAPI)                                                                                         |
+| Decisions | D11 and D12 still proposed: the image switch needs the owner's approval before this version is deployed                                                                                                                                       |
+| Notes     | Not deployed. `prisma migrate diff` shows drift that predates this stage (`asset_events` index and `hash` default), not caused by `geom`; to be reconciled in a later stage. Scan positions and `Location.boundary` move to W2 |
+

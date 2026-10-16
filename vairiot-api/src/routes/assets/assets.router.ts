@@ -7,6 +7,7 @@ import { asyncHandler } from '../../middleware/error-handler';
 import { requireFeature } from '../../middleware/require-feature';
 import { enforceAssetCap } from '../../services/asset-cap.service';
 import { listAssetEvents } from '../../services/asset-event.service';
+import { listAssetsInBbox, parseBbox, parseGeoLimit } from '../../services/asset-geo-query.service';
 import { listAssets, listAssetChanges, listAssetPositions, getAsset, createAssetIdempotent, findAssetByClientRequestId, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
 import { encodeIdentifier } from '../../services/gs1-identifier.service';
 import { listLabelPrints } from '../../services/gs1-label.service';
@@ -160,6 +161,14 @@ assetsRouter.get('/map', requireAnyPermission('asset:read'), requireFeature('gis
       status:     req.query.status as string,
       condition:  req.query.condition as string,
     }));
+  }),
+);
+
+// GeoJSON of the tenant's assets inside a bounding box (stage 1.4, PostGIS).
+assetsRouter.get('/geo', requireAnyPermission('asset:read'), requireFeature('gis'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const bbox = parseBbox(req.query.bbox);
+    res.json(await listAssetsInBbox(req.user!.tenantId, bbox, parseGeoLimit(req.query.limit)));
   }),
 );
 

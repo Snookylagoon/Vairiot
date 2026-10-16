@@ -281,6 +281,9 @@ model Asset {
   geoAccuracyMeters Float?
   geoSource         String? // manual | device | import
   geoCapturedAt     DateTime?
+  /// PostGIS point derived from latitude/longitude by a trigger (stage 1.4,
+  /// D11). Never written by the app; read through raw SQL in asset-geo-query.
+  geom              Unsupported("geography(Point,4326)")?
 
   status       String  @default("active")
   condition    String  @default("good")
@@ -354,6 +357,7 @@ model Asset {
   @@index([tenantId, status])
   @@index([tenantId, categoryId])
   @@index([tenantId, siteId])
+  @@index([geom], map: "assets_geom_idx", type: Gist)
   @@index([tenantId, deletedAt])
   @@index([tenantId, updatedAt]) // delta sync: GET /assets?changedSince=
   @@index([rfidTag])

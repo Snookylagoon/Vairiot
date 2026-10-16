@@ -4,7 +4,7 @@ import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 
-import { openApiSpec } from './lib/openapi';
+import { apiSpec } from './lib/api-spec';
 import { authenticate } from './middleware/authenticate';
 import { requireClientScope, requireTenantScope } from './middleware/authorise';
 import { errorHandler } from './middleware/error-handler';
@@ -72,8 +72,8 @@ export function createApp(): Application {
   app.use(requestId);
   app.use(requestLogger);
   app.use((_req, res, next) => { res.setHeader('X-API-Version', '1.0.0'); next(); });
-  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, { customSiteTitle: 'Vairiot API Docs' }));
-  app.get('/api/openapi.json', (_req, res) => { res.json(openApiSpec); });
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(apiSpec, { customSiteTitle: 'Vairiot API Docs' }));
+  app.get('/api/openapi.json', (_req, res) => { res.json(apiSpec); });
   app.get('/', (_req, res) => { res.json({ name: 'Vairiot API', version: '1.0.0', docs: '/api/docs' }); });
   // ── Ungated routes (no onboarding requirement) ──
   app.use('/health',              healthRouter);
