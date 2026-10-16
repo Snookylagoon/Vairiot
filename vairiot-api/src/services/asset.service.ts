@@ -81,7 +81,7 @@ function buildAssetWhere(tenantId: string, params: AssetListParams): Prisma.Asse
   };
 }
 
-const assetInclude = { category: true, site: true, location: true, disposal: true } as const;
+const assetInclude = { category: true, site: true, location: true, disposal: true, assetClass: { select: { id: true, code: true, name: true } } } as const;
 
 // Moved to depreciation/projection.ts (stage 2.3); re-exported for its callers.
 export { computeDepreciation };

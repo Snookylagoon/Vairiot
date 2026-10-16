@@ -113,6 +113,8 @@ export async function depreciationRegister(tenantId: string, filters: ReportFilt
   return applyReportSortSearch(rows, filters, ['assetNumber', 'name', 'category', 'site'], DEPRECIATION_SORT_KEYS);
 }
 
+const RECOGNITION_LABELS = { RECOGNISED: 'Recognised', EXPENSED: 'Expensed', PENDING_REVIEW: 'Pending' } as const;
+
 const FIXED_ASSET_SORT_KEYS = [
   'assetNumber', 'name', 'category', 'site', 'status', 'condition',
   'purchaseDate', 'purchaseCost', 'capitalizedCost', 'netBookValue',
@@ -126,6 +128,7 @@ export async function fixedAssetRegister(tenantId: string, filters: ReportFilter
       serialNumber: true, modelNumber: true, manufacturer: true,
       barcode: true, rfidTag: true,
       createdAt: true,
+      assetClass: { select: { code: true } },
     },
     orderBy: { assetNumber: 'asc' },
   });
@@ -140,6 +143,9 @@ export async function fixedAssetRegister(tenantId: string, filters: ReportFilter
       location: a.location?.name ?? null,
       status: a.status,
       condition: a.condition,
+      // IPSAS class and recognition (stage 2.4); empty without the ledger
+      assetClass: a.assetClass?.code ?? null,
+      recognition: a.recognitionStatus ? RECOGNITION_LABELS[a.recognitionStatus] : null,
       serialNumber: a.serialNumber,
       manufacturer: a.manufacturer,
       purchaseDate: a.purchaseDate,

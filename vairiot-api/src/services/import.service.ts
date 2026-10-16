@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 
 import { enforceAssetCap } from './asset-cap.service';
 import { createAsset, type AssetCreateInput } from './asset.service';
+import { tenantFeatureEnabled } from './tenant-features.service';
 
 export interface ImportRow {
   name: string;
@@ -28,6 +29,8 @@ export interface ImportRow {
   depreciationStartDate?: string;
   latitude?: string;
   longitude?: string;
+  /** IPSAS asset class code (stage 2.4); read only with the `ipsas` module on. */
+  classCode?: string;
   [key: string]: string | undefined;
 }
 
@@ -53,6 +56,10 @@ export async function bulkImportAssets(
   const sites = await prisma.site.findMany({ where: { tenantId } });
   const catMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
   const siteMap = new Map(sites.map(s => [s.name.toLowerCase(), s.id]));
+  // Class codes as the policy manual writes them (SGN, sgn), active classes only.
+  const classMap = await tenantFeatureEnabled(tenantId, 'ipsas')
+    ? new Map((await prisma.assetClass.findMany({ where: { tenantId, active: true } })).map(c => [c.code.toUpperCase(), c.id]))
+    : null;
 
   const result: ImportResult = { created: 0, skipped: 0, errors: [] };
 
@@ -87,6 +94,11 @@ export async function bulkImportAssets(
       if (row.categoryName) {
         const cid = catMap.get(row.categoryName.toLowerCase().trim());
         if (cid) input.categoryId = cid;
+      }
+      if (classMap && row.classCode?.trim()) {
+        const classId = classMap.get(row.classCode.trim().toUpperCase());
+        if (!classId) throw new Error(`Unknown asset class code: ${row.classCode.trim()}`);
+        input.assetClassId = classId;
       }
       if (row.siteName) {
         const sid = siteMap.get(row.siteName.toLowerCase().trim());
