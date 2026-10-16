@@ -26,6 +26,7 @@ import { auditsRouter }     from './routes/audits/audits.router';
 import { authRouter }       from './routes/auth/auth.router';
 import { categoriesRouter } from './routes/categories/categories.router';
 import { checkoutsRouter }  from './routes/checkouts/checkouts.router';
+import { conditionRouter }  from './routes/condition/condition.router';
 import { customFieldsRouter } from './routes/custom-fields/custom-fields.router';
 import { documentsRouter }   from './routes/documents/documents.router';
 import { exceptionsRouter }   from './routes/exceptions/exceptions.router';
@@ -125,6 +126,7 @@ export function createApp(): Application {
   gated.use('/assets',       assetsRouter);
   gated.use('/categories',   categoriesRouter);
   gated.use('/sites',        sitesRouter);
+  gated.use('/condition',    conditionRouter);    // /condition/scale, /condition/photo-rules (stage 1.13)
   gated.use('/gis',          gisRouter);          // /gis/map-settings (stage 1.12)
   gated.use('/audits',       auditPhotosRouter);   // /audits/:id/scans/:scanRef/photos, /audits/:id/photos
   gated.use('/audits',       auditsRouter);

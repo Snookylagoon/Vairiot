@@ -217,6 +217,7 @@ assetsRouter.post('/', requireAnyPermission('asset:write'),
   [
     body('name').notEmpty().withMessage('Asset name required'),
     body('clientRequestId').optional({ nullable: true }).isString().isLength({ max: 64 }),
+    body('conditionGrade').optional({ nullable: true }).isInt({ min: 1, max: 5 }).toInt(),
   ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
@@ -237,7 +238,10 @@ assetsRouter.post('/', requireAnyPermission('asset:write'),
 );
 
 assetsRouter.patch('/:id', requireAnyPermission('asset:write'),
+  [body('conditionGrade').optional({ nullable: true }).isInt({ min: 1, max: 5 }).toInt()],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const errs = validationResult(req);
+    if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
     res.json(await updateAsset(req.user!.tenantId, req.params.id, req.user!.sub, req.body));
   }),
 );
