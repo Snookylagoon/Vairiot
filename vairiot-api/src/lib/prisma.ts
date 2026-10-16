@@ -2,6 +2,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
 import { logger } from './logger';
+import { RlsPool } from './rls-pool';
 
 // Prisma 7 no longer takes a connection string of its own: the client is handed
 // a driver adapter, and the Postgres connection is a `pg` pool we own. Same
@@ -15,7 +16,8 @@ const g = globalThis as unknown as { prisma?: PrismaClient };
 // The adapter holds the pool, so it is built alongside the client and cached
 // with it — a fresh adapter per hot reload would leak connections.
 export const prisma: PrismaClient = g.prisma ?? new PrismaClient({
-  adapter: new PrismaPg({ connectionString }),
+  // The pool sets each connection's tenant for row-level security (lib/rls-pool.ts).
+  adapter: new PrismaPg(new RlsPool({ connectionString })),
   log: [
     { level: 'error', emit: 'event' },
     { level: 'warn',  emit: 'event' },

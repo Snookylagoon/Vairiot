@@ -44,6 +44,11 @@ fi
 echo "→ Restoring Postgres…"
 DUMP="$(find "$WORK" -name 'postgres-*.dump' | head -1)"
 [ -n "$DUMP" ] || { echo "no postgres dump in archive" >&2; exit 1; }
+# Roles live in the cluster, not the dump: create the row-level-security role
+# the restored grants refer to first (D5, stage 1.19), or the API cannot start.
+docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:-}" "$PG_CONTAINER" \
+    psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
+    "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'vairiot_rls') THEN CREATE ROLE vairiot_rls NOLOGIN NOBYPASSRLS; END IF; END \$\$; GRANT vairiot_rls TO CURRENT_USER;"
 docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:-}" "$PG_CONTAINER" \
     pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner < "$DUMP"
 

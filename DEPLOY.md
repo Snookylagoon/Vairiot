@@ -174,6 +174,12 @@ From version 2.1.0 every stack runs `postgis/postgis:16-3.5-alpine` (decision D1
 
 To roll back before step 3, do nothing. After step 4, the old image can still read the data directory, but the `postgis` extension's files are missing there, so roll back by restoring the step 1 backup.
 
+### Version 2.6.0: security changes to know before deploying
+
+- **Row-level security (D5).** Migration `20261016060000_row_level_security` creates the database role `vairiot_rls` and grants it to the login role. The standard stacks log in as the Postgres superuser, which may do this. If an install logs in as a role without `CREATEROLE`, a superuser must run that migration once. The API refuses to start if the role is missing or not granted. Roles are not part of a database dump: `infra/restore.sh` creates the role before `pg_restore`; on any other restore, create it first (`CREATE ROLE vairiot_rls NOLOGIN NOBYPASSRLS; GRANT vairiot_rls TO <login role>;`).
+- **Non-root containers.** The web and admin containers now listen on 8080 (unprivileged nginx). The nginx configs in `infra/nginx/` and the shared-host staging ports are updated; a host nginx in front of a standalone install must point at 8080 too.
+- **Mandatory two-factor (D6).** Administrators without two-factor get 14 days from their next sign-in (`TWO_FA_GRACE_DAYS`), then must enrol at sign-in. Tell the tenants' administrators before deploying.
+
 ## Standalone install (one organisation, own server)
 
 For an organisation that hosts Vairiot itself, for example **TUDA** on a server in Georgia. It is the production stack plus `infra/docker-compose.standalone.yml`. That override closes public sign-up (every stack runs PostGIS since D11) (API and web), and nginx serves the install's own host names and certificates. `deploy.sh`, backups and the restore test work unchanged.

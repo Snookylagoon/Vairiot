@@ -5,6 +5,7 @@ import { assertScopedMinioCredentials, ensurePhotosBucket, ensureDocumentsBucket
 import { initMonitoring } from './lib/monitoring';
 import { prisma } from './lib/prisma';
 import { getRedis } from './lib/redis';
+import { assertRlsRole } from './lib/rls-check';
 import { applyServerTimeouts } from './lib/server-timeouts';
 
 const PORT = Number(process.env.API_PORT) || 3001;
@@ -15,6 +16,7 @@ async function main() {
   assertScopedMinioCredentials();
   await prisma.$connect();
   logger.info('Database connected');
+  await assertRlsRole();
   try { await getRedis().connect(); logger.info('Redis connected'); } catch (e) {
     logger.warn(`Redis connection skipped: ${(e as Error).message}`);
   }
