@@ -198,3 +198,5 @@ G20 is closed: merged branches and stale worktrees removed (stage 1.6). Dependab
 
 Status after stage 1.17: G27 closed (Semgrep clean on the OWASP Top Ten rules); G16 closed except MinIO (G32).
 
+Status after stage 1.19: G13 partly closed (row-level security on `assets`, `audit_events` and `photos`; the other tenant tables follow table by table, see G23); G15 closed (two-factor mandatory for administrators, D6); G16 closed except MinIO (G32).
+
