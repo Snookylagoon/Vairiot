@@ -1,3 +1,4 @@
+import type { ModuleKey } from 'vairiot-shared';
 import { z } from 'zod';
 
 // Per-tenant switches (Tenant.featureFlags). Unknown keys pass through, so a
@@ -14,6 +15,11 @@ const FeatureFlagsSchema = z.object({
 
 export type FeatureFlags = z.infer<typeof FeatureFlagsSchema>;
 
+// Every module in the registry (vairiot-shared) must have its flag here: a
+// module added there without one stops the build at this line.
+const everyModuleHasAFlag: ModuleKey extends keyof FeatureFlags ? true : never = true;
+void everyModuleHasAFlag;
+
 export function parseFeatureFlags(raw: unknown): FeatureFlags {
   if (raw === null || raw === undefined) return {};
   const result = FeatureFlagsSchema.safeParse(raw);
@@ -22,7 +28,7 @@ export function parseFeatureFlags(raw: unknown): FeatureFlags {
 
 export function tenantHasFeature(
   tenant: { featureFlags?: unknown },
-  flag: keyof FeatureFlags,
+  flag: ModuleKey,
 ): boolean {
   const flags = parseFeatureFlags(tenant.featureFlags);
   return flags[flag] === true;
