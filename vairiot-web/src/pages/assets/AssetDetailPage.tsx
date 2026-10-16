@@ -9,6 +9,7 @@ import { AssetGeoPosition } from '@/components/assets/AssetGeoPosition';
 import { AssetGs1Identity } from '@/components/assets/AssetGs1Identity';
 import { AssetPhotos } from '@/components/assets/AssetPhotos';
 import { AssetTimeline } from '@/components/assets/AssetTimeline';
+import { ConditionHistory } from '@/components/assets/ConditionHistory';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
@@ -205,6 +206,7 @@ export function AssetDetailPage() {
         </Card>
 
         {hasFeature(user, 'gis') && <AssetGeoPosition asset={asset} />}
+        <ConditionHistory assetId={asset.id} categoryId={asset.category?.id} />
 
         {/* Financial: Procurement */}
         <Card>
