@@ -66,6 +66,13 @@ class Mapping(unittest.TestCase):
         fields = [m["field"] for m in mapping]
         self.assertEqual(fields, ["legacyAssetNumber", "name", "purchaseCost", "purchaseDate", "serialNumber", None])
 
+    def test_class_code_and_position(self):
+        mapping = pr.suggest_mapping(["Asset class", "Category", "Latitude", "Долгота", "კლასი"])
+        fields = [m["field"] for m in mapping]
+        self.assertEqual(fields[:4], ["classCode", "categoryName", "latitude", "longitude"])
+        self.assertIsNone(fields[4])  # classCode is taken; each field is used once
+        self.assertTrue(all(m["importable"] for m in mapping[:4]))
+
     def test_each_field_used_once(self):
         mapping = pr.suggest_mapping(["Name", "Asset name"])
         self.assertEqual(sorted(str(m["field"]) for m in mapping), ["None", "name"])
