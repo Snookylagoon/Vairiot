@@ -18,7 +18,8 @@ export type AssetCondition = (typeof AssetCondition)[keyof typeof AssetCondition
 
 export const DepreciationMethod = {
   StraightLine:     'straight_line',
-  DecliningBalance: 'declining_balance',
+  DecliningBalance: 'declining_balance',   // reducing balance (IPSAS 45)
+  UnitsOfProduction: 'units_of_production', // units entered per period (D21)
   None:             'none',
 } as const;
 export type DepreciationMethod = (typeof DepreciationMethod)[keyof typeof DepreciationMethod];

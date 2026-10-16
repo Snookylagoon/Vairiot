@@ -10,6 +10,7 @@ final class FeatureFlags {
 
     static let shared = FeatureFlags()
     static let gis = "gis"
+    static let ipsas = "ipsas"
 
     private static let storageKey = "vairiot.featureFlags.enabled"
     private let defaults: UserDefaults
@@ -23,6 +24,7 @@ final class FeatureFlags {
     func isEnabled(_ flag: String) -> Bool { enabled.contains(flag) }
 
     var gisEnabled: Bool { isEnabled(Self.gis) }
+    var ipsasEnabled: Bool { isEnabled(Self.ipsas) }
 
     /// Stores the flags from a profile response; only `true` switches a module on.
     func update(from flags: [String: Bool]?) {

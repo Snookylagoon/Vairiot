@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { ALL_PERMISSIONS, ROLE_PERMISSION_MATRIX } from 'vairiot-shared';
 
-import { seedTuda, TUDA_ROLES, TUDA_TENANT_ID, TUDA_TENANT_NAME } from '../../../prisma/seed-tuda';
+import { seedTuda, TUDA_ASSET_CLASSES, TUDA_ROLES, TUDA_TENANT_ID, TUDA_TENANT_NAME } from '../../../prisma/seed-tuda';
 import { createApp } from '../../app';
 import { prisma } from '../../lib/prisma';
 import { flushAuditEvents } from '../../services/audit-event.service';
@@ -25,6 +25,7 @@ async function wipeTuda() {
   await prisma.onboardingProgress.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
   await prisma.deviceSlot.deleteMany({ where: { licence: { tenantId: TUDA_TENANT_ID } } });
   await prisma.licence.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
+  await prisma.assetClass.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
   await prisma.company.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
   await prisma.tenant.deleteMany({ where: { id: TUDA_TENANT_ID } });
 }
@@ -50,6 +51,18 @@ describe('seed:tuda', () => {
     expect(tenant.onboardingComplete).toBe(true);
     expect(tenant.featureFlags).toMatchObject({ gis: true, ipsas: true, reconciliation: true });
     expect(tenant.company).toMatchObject({ currency: 'GEL', country: 'GE', timezone: 'Asia/Tbilisi' });
+  });
+
+  it('seeds the nine asset classes as placeholders, and keeps Finance’s edits on a re-run', async () => {
+    const classes = await prisma.assetClass.findMany({ where: { tenantId: TUDA_TENANT_ID }, orderBy: { code: 'asc' } });
+    expect(classes.map((c) => c.code).sort()).toEqual(TUDA_ASSET_CLASSES.map((c) => c.code).sort());
+    expect(classes.every((c) => c.toBeConfirmed && c.capitalisationThreshold.toFixed(2) === '500.00')).toBe(true);
+    expect(classes.find((c) => c.code === 'SGN')!.defaultUsefulLifeMonths).toBe(84);
+    expect(classes.find((c) => c.code === 'SIG')!.componentisationRequired).toBe(true);
+    await prisma.assetClass.update({ where: { tenantId_code: { tenantId: TUDA_TENANT_ID, code: 'SGN' } }, data: { defaultUsefulLifeMonths: 96 } });
+    // A re-run re-invites the admin, so the later invite test uses the new link.
+    inviteUrl = (await seedTuda({ adminEmail: ADMIN })).inviteUrl!;
+    expect((await prisma.assetClass.findUniqueOrThrow({ where: { tenantId_code: { tenantId: TUDA_TENANT_ID, code: 'SGN' } } })).defaultUsefulLifeMonths).toBe(96);
   });
 
   it('creates exactly the six TUDA roles, each with valid tenant-level permissions', async () => {

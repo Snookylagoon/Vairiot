@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { conditionColumns, parseAssetScan, parseHri } from 'vairiot-shared';
+import { conditionColumns, parseAssetScan, parseHri, type AssetAccountingInput } from 'vairiot-shared';
 
 import { NotFoundError, ConflictError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
@@ -7,10 +7,13 @@ import { prisma } from '../lib/prisma';
 import { recordAssetChanges } from './asset-change-events.service';
 import { recordAssetEvent } from './asset-event.service';
 import { resolveTenantAssetGeo, type AssetGeoInput } from './asset-geo.service';
+import { computeDepreciation } from './depreciation/projection';
 import { allocateIar } from './gs1-identifier.service';
+import { resolveTenantAssetAccounting } from './recognition.service';
 import { dispatchWebhookEvent } from './webhook.service';
 
-export interface AssetCreateInput extends AssetGeoInput {
+export interface AssetCreateInput extends AssetGeoInput, Partial<Omit<AssetAccountingInput, 'recognitionDate'>> {
+  recognitionDate?: string | null;
   name: string; description?: string; categoryId?: string; siteId?: string;
   locationId?: string; serialNumber?: string; modelNumber?: string;
   manufacturer?: string; barcode?: string; rfidTag?: string; labelImage?: string;
@@ -78,50 +81,10 @@ function buildAssetWhere(tenantId: string, params: AssetListParams): Prisma.Asse
   };
 }
 
-const assetInclude = { category: true, site: true, location: true, disposal: true } as const;
+const assetInclude = { category: true, site: true, location: true, disposal: true, assetClass: { select: { id: true, code: true, name: true } } } as const;
 
-export function computeDepreciation(asset: {
-  purchaseCost: Prisma.Decimal | null;
-  freightCost: Prisma.Decimal | null;
-  installationCost: Prisma.Decimal | null;
-  customsDuties: Prisma.Decimal | null;
-  otherCapitalizedCosts: Prisma.Decimal | null;
-  residualValue: Prisma.Decimal | null;
-  usefulLifeMonths: number | null;
-  depreciationStartDate: Date | null;
-  depreciationMethod: string | null;
-}) {
-  const purchase = Number(asset.purchaseCost ?? 0);
-  const freight = Number(asset.freightCost ?? 0);
-  const installation = Number(asset.installationCost ?? 0);
-  const customs = Number(asset.customsDuties ?? 0);
-  const other = Number(asset.otherCapitalizedCosts ?? 0);
-  const capitalizedCost = purchase + freight + installation + customs + other;
-  const residual = Number(asset.residualValue ?? 0);
-
-  if (!asset.usefulLifeMonths || !asset.depreciationStartDate || capitalizedCost === 0) {
-    return { capitalizedCost, monthlyDepreciation: 0, accumulatedDepreciation: 0, netBookValue: capitalizedCost };
-  }
-
-  const depreciableAmount = capitalizedCost - residual;
-  const monthlyDepreciation = depreciableAmount / asset.usefulLifeMonths;
-
-  const start = asset.depreciationStartDate;
-  const now = new Date();
-  const monthsElapsed = Math.max(0,
-    (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth())
-  );
-  const cappedMonths = Math.min(monthsElapsed, asset.usefulLifeMonths);
-  const accumulatedDepreciation = monthlyDepreciation * cappedMonths;
-  const netBookValue = capitalizedCost - accumulatedDepreciation;
-
-  return {
-    capitalizedCost: Math.round(capitalizedCost * 100) / 100,
-    monthlyDepreciation: Math.round(monthlyDepreciation * 100) / 100,
-    accumulatedDepreciation: Math.round(accumulatedDepreciation * 100) / 100,
-    netBookValue: Math.round(netBookValue * 100) / 100,
-  };
-}
+// Moved to depreciation/projection.ts (stage 2.3); re-exported for its callers.
+export { computeDepreciation };
 
 function enrichAssetWithDepreciation(asset: any) {
   const depreciation = computeDepreciation(asset);
@@ -373,7 +336,7 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
       categoryId: input.categoryId,
       siteId:     input.siteId,
       locationId: input.locationId,
-      ...geo,
+      ...geo, ...await resolveTenantAssetAccounting(tenantId, input as unknown as Record<string, unknown>),
       clientRequestId: input.clientRequestId,
     },
     include: assetInclude,
@@ -420,7 +383,8 @@ export async function updateAsset(tenantId: string, id: string, actorId: string,
   for (const f of DATE_FIELDS) if (input[f] !== undefined) data[f] = input[f] ? new Date(input[f]!) : null;
   for (const f of REF_FIELDS) if (input[f] !== undefined) data[f] = input[f] ?? null;
   if (input.usefulLifeMonths !== undefined) data.usefulLifeMonths = input.usefulLifeMonths;
-  Object.assign(data, await resolveTenantAssetGeo(tenantId, input, existing), conditionColumns(input));
+  Object.assign(data, await resolveTenantAssetGeo(tenantId, input, existing), conditionColumns(input),
+    await resolveTenantAssetAccounting(tenantId, input as unknown as Record<string, unknown>, existing));
 
   const updated = await prisma.asset.update({ where: { id }, data, include: assetInclude });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'updated', before: existing as unknown as Prisma.InputJsonValue, after: updated as unknown as Prisma.InputJsonValue } });
@@ -483,6 +447,10 @@ export async function disposeAsset(tenantId: string, id: string, actorId: string
     },
   });
 
+  await recordAssetEvent({
+    tenantId, assetId: id, eventType: 'DISPOSED', actor: actorId, source: 'API',
+    payload: { disposalId: disposal.id, method: input.disposalMethod, netBookValue: dep.netBookValue, gainLoss: gainLoss ?? null },
+  });
   void dispatchWebhookEvent(tenantId, 'asset.disposed', { ...updated, disposal }).catch(() => {});
   return enrichAssetWithDepreciation({ ...updated, disposal });
 }

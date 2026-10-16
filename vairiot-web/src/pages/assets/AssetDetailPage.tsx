@@ -8,6 +8,7 @@ import { AssetDocuments } from '@/components/assets/AssetDocuments';
 import { AssetGeoPosition } from '@/components/assets/AssetGeoPosition';
 import { AssetGs1Identity } from '@/components/assets/AssetGs1Identity';
 import { AssetPhotos } from '@/components/assets/AssetPhotos';
+import { AssetRecognition } from '@/components/assets/AssetRecognition';
 import { AssetTimeline } from '@/components/assets/AssetTimeline';
 import { ConditionHistory } from '@/components/assets/ConditionHistory';
 import { Badge } from '@/components/ui/Badge';
@@ -205,6 +206,7 @@ export function AssetDetailPage() {
           </CardBody>
         </Card>
 
+        {hasFeature(user, 'ipsas') && <AssetRecognition asset={asset} />}
         {hasFeature(user, 'gis') && <AssetGeoPosition asset={asset} />}
         <ConditionHistory assetId={asset.id} categoryId={asset.category?.id} />
 

@@ -67,8 +67,10 @@ export const MODULES: readonly ModuleDefinition[] = [
     status: 'in_development',
     apiRoutes: [
       { method: 'GET', path: '/accounting/settings' },
+      { method: 'GET', path: '/accounting/classes' },
+      { method: 'GET', path: '/accounting/assets/pending-review' },
     ],
-    webRoutes: [],
+    webRoutes: ['/accounting/classes'],
   },
   {
     key: ModuleKey.Reconciliation,

@@ -59,6 +59,13 @@ struct LocationRefResponse: Codable, Identifiable, Hashable {
     let name: String
 }
 
+/// The asset's IPSAS class (stage 2.4). The apps show it; Finance sets it on the web.
+struct AssetClassRefResponse: Codable, Identifiable, Hashable {
+    let id: String
+    let code: String
+    let name: String
+}
+
 // MARK: - Asset Response
 
 struct AssetResponse: Codable, Identifiable {
@@ -84,6 +91,19 @@ struct AssetResponse: Codable, Identifiable {
     var geoAccuracyMeters: Double? = nil
     var geoSource: String? = nil
     var geoCapturedAt: String? = nil
+    // IPSAS class and recognition (stage 2.4), shown read-only
+    var assetClass: AssetClassRefResponse? = nil
+    var recognitionStatus: String? = nil
+
+    /// The "Asset class" row: "SGN · Road signs (recognised)", "None yet (waiting
+    /// for Finance)", or nil when the tenant keeps no IPSAS ledger.
+    var assetClassLabel: String? {
+        if assetClass == nil && recognitionStatus == nil { return nil }
+        let name = assetClass.map { "\($0.code) · \($0.name)" } ?? "None yet"
+        guard let status = recognitionStatus else { return name }
+        let labels = ["RECOGNISED": "recognised", "EXPENSED": "expensed, below threshold", "PENDING_REVIEW": "waiting for Finance"]
+        return "\(name) (\(labels[status] ?? status.lowercased()))"
+    }
 
     var assetStatus: AssetStatus? {
         AssetStatus(rawValue: status)

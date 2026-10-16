@@ -27,6 +27,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.Gs1EncodingResponse
+import com.vairiot.app.data.api.assetClassLabel
 import com.vairiot.app.location.AssetPosition
 import com.vairiot.app.ui.theme.*
 
@@ -40,6 +41,7 @@ fun AssetDetailScreen(
     val state by viewModel.state.collectAsState()
     val writeState by viewModel.writeState.collectAsState()
     val gisEnabled by viewModel.gisEnabled.collectAsState()
+    val ipsasEnabled by viewModel.ipsasEnabled.collectAsState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -81,6 +83,7 @@ fun AssetDetailScreen(
             is AssetDetailUiState.Error   -> ErrorCard(s.message, onReset = onBack)
             is AssetDetailUiState.Loaded  -> AssetBody(
                 gisEnabled = gisEnabled,
+                ipsasEnabled = ipsasEnabled,
                 asset = s.asset,
                 gs1 = s.gs1,
                 onPrintLabel = onLabel,
@@ -172,6 +175,7 @@ private fun AssetBody(
     supportsTagWrite: Boolean = false,
     onWriteTag: () -> Unit = {},
     gisEnabled: Boolean = false,
+    ipsasEnabled: Boolean = false,
 ) {
     Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
@@ -195,6 +199,7 @@ private fun AssetBody(
                 DetailRow("Status",      asset.status.uppercase())
                 DetailRow("Condition",   asset.condition)
                 asset.category?.let { DetailRow("Category", it.name) }
+                if (ipsasEnabled) assetClassLabel(asset.assetClass, asset.recognitionStatus)?.let { DetailRow("Asset class", it) }
                 asset.site?.let      { DetailRow("Site",     it.name) }
                 asset.location?.let  { DetailRow("Location", it.name) }
                 if (gisEnabled) AssetPosition.of(asset)?.let { GpsPositionRow(it, asset.name) }

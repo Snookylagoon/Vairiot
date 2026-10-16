@@ -4,7 +4,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AssetForm, AssetFormData } from '@/components/forms/AssetForm';
 import { normaliseCondition } from '@/components/forms/ConditionSelect';
 import { useAsset, useUpdateAsset } from '@/hooks/useAssets';
+import { accountingDefaults, accountingPayload } from '@/lib/accounting';
 import { geoPayload } from '@/lib/geo';
+import { hasFeature, useAuthStore } from '@/stores/auth.store';
 
 function fmtDate(d?: string | null) {
   return d ? d.slice(0, 10) : '';
@@ -19,6 +21,7 @@ export function EditAssetPage() {
   const navigate    = useNavigate();
   const { data: asset, isLoading } = useAsset(id!);
   const updateAsset = useUpdateAsset(id!);
+  const ipsas = useAuthStore(s => hasFeature(s.user, 'ipsas'));
 
   const onSubmit = async (data: AssetFormData) => {
     await updateAsset.mutateAsync({
@@ -31,6 +34,7 @@ export function EditAssetPage() {
       residualValue: toNum(data.residualValue),
       usefulLifeMonths: data.usefulLifeMonths ? Number(data.usefulLifeMonths) : undefined,
       ...geoPayload(data),
+      ...accountingPayload(data, ipsas),
     });
     navigate(`/assets/${id}`);
   };
@@ -50,6 +54,7 @@ export function EditAssetPage() {
       </div>
       <AssetForm
         defaultValues={{
+          ...accountingDefaults(asset),
           name:          asset.name,
           description:   asset.description ?? '',
           categoryId:    asset.category?.id ?? '',

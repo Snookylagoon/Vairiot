@@ -2,6 +2,24 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.8.0] — 2026-10-16
+
+### Added
+
+- IPSAS asset classes for organisations with the IPSAS ledger on (Administration → Asset Classes): capitalisation threshold, default life, method and residual, GL accounts; categories can point at a class (stage 2.3)
+- Each asset's capitalised cost and recognition: recognised, expensed below its class's threshold, or waiting for Finance when it has no class or cost; Finance can override the rule with a reason (stage 2.3)
+- Donated and transferred assets are recognised at fair value, with the donor recorded (stage 2.3)
+- The nine TUDA asset classes, with placeholder figures to be confirmed by the Accounting Policy Manual (stage 2.3)
+- The asset class on the asset screen of the Android and iOS apps, in the fixed asset register, and as a `classCode` column in the import (stage 2.4)
+- The register profiler recognises asset class, latitude and longitude columns (stage 2.4)
+
+### Changed
+
+- Assets below their class's capitalisation threshold show no carrying amount in the register and reports (stage 2.3)
+- Disposals are recorded on the asset's history ledger (stage 2.3)
+- The import page offers position and class columns only when GIS or the IPSAS ledger is on (stage 2.4)
+- Existing assets of organisations with the IPSAS ledger on are marked "waiting for Finance" until they have a class (stage 2.3)
+
 ## [2.7.0] — 2026-10-16
 
 ### Added

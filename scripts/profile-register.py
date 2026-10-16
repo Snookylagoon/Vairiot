@@ -51,17 +51,16 @@ SAMPLE_VALUES = 5
 # are matched against normalised headers (lower case, no punctuation); a
 # bilingual header such as "ინვ. № / Inventory No" is matched on each part.
 FIELD_SYNONYMS: dict[str, list[str]] = {
-    "name": [
-        "name", "asset name", "description of asset", "item", "title",
-        "დასახელება", "სახელწოდება", "наименование", "название",
-    ],
+    "name": ["name", "asset name", "description of asset", "item", "title", "დასახელება", "სახელწოდება", "наименование", "название"],
     "description": ["description", "details", "აღწერა", "описание"],
-    "categoryName": ["category", "class", "asset class", "type", "group", "კატეგორია", "ტიპი", "категория", "группа", "тип"],
+    "categoryName": ["category", "type", "group", "კატეგორია", "ტიპი", "категория", "группа", "тип"],
+    # IPSAS class code (stage 2.4, `ipsas` on) and WGS 84 position (`gis` on, G33).
+    "classCode": ["class code", "asset class code", "asset class", "class", "ipsas class", "კლასი", "აქტივის კლასი", "класс", "класс актива", "код класса"],
+    "latitude": ["latitude", "lat", "განედი", "широта"],
+    "longitude": ["longitude", "lon", "lng", "long", "გრძედი", "долгота"],
     "siteName": ["site", "facility", "building", "depot", "ობიექტი", "объект", "площадка"],
-    "serialNumber": [
-        "serial number", "serial no", "serial", "s n", "factory number",
-        "ქარხნული ნომერი", "ქარხნული", "სერიული ნომერი", "заводской номер", "серийный номер",
-    ],
+    "serialNumber": ["serial number", "serial no", "serial", "s n", "factory number",
+                     "ქარხნული ნომერი", "ქარხნული", "სერიული ნომერი", "заводской номер", "серийный номер"],
     "modelNumber": ["model", "model number", "მოდელი", "модель"],
     "manufacturer": ["manufacturer", "make", "brand", "მწარმოებელი", "производитель"],
     "barcode": ["barcode", "ean", "manufacturer ean", "შტრიხკოდი", "штрихкод"],

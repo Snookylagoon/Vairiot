@@ -62,6 +62,16 @@ export interface Asset {
   usefulLifeMonths?: number;
   depreciationStartDate?: string;
   depreciation?: Depreciation;
+  // IPSAS recognition (stage 2.3); set only for tenants with the ledger on.
+  assetClassId?: string | null;
+  acquisitionType?: string;
+  fairValueAtRecognition?: string | null;
+  sourceEntity?: string | null;
+  recognitionDate?: string | null;
+  capitalisedCost?: string | null;
+  recognitionStatus?: 'RECOGNISED' | 'EXPENSED' | 'PENDING_REVIEW' | null;
+  recognitionOverride?: boolean;
+  recognitionOverrideReason?: string | null;
   warrantyExpiry?: string;
   notes?:       string;
   disposal?:    Disposal | null;
@@ -110,6 +120,8 @@ export interface Category {
   id:   string;
   name: string;
   description?: string;
+  /** IPSAS class its assets default to (stage 2.3). */
+  assetClassId?: string | null;
 }
 
 export interface Site {

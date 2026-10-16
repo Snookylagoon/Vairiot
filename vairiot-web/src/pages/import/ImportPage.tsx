@@ -1,18 +1,22 @@
 import { Upload, Download, FileSpreadsheet, CheckCircle, AlertTriangle, ArrowRight, ArrowLeft } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import type { ModuleKey } from 'vairiot-shared';
 
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { useImportAssets } from '@/hooks/useImport';
+import { hasFeature, useAuthStore } from '@/stores/auth.store';
 import type { ImportResult } from '@/types';
 
-const ASSET_FIELDS = [
+/** Columns the import maps; module fields show only with their module on (D7). */
+const ASSET_FIELDS: { key: string; label: string; required?: boolean; feature?: ModuleKey }[] = [
   { key: 'name', label: 'Asset Name', required: true },
   { key: 'description', label: 'Description' },
   { key: 'categoryName', label: 'Category' },
   { key: 'siteName', label: 'Site' },
-  { key: 'latitude', label: 'Latitude' },
-  { key: 'longitude', label: 'Longitude' },
+  { key: 'classCode', label: 'Asset Class Code', feature: 'ipsas' },
+  { key: 'latitude', label: 'Latitude', feature: 'gis' },
+  { key: 'longitude', label: 'Longitude', feature: 'gis' },
   { key: 'serialNumber', label: 'Serial Number' },
   { key: 'modelNumber', label: 'Model Number' },
   { key: 'manufacturer', label: 'Manufacturer' },
@@ -68,13 +72,13 @@ function parseCsv(text: string): { headers: string[]; rows: Record<string, strin
   return { headers, rows };
 }
 
-function autoMapColumns(csvHeaders: string[]): Record<string, string> {
+function autoMapColumns(csvHeaders: string[], fields: typeof ASSET_FIELDS): Record<string, string> {
   const mapping: Record<string, string> = {};
   const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
   for (const csvH of csvHeaders) {
     const n = normalize(csvH);
-    for (const field of ASSET_FIELDS) {
+    for (const field of fields) {
       if (normalize(field.label) === n || normalize(field.key) === n) {
         mapping[csvH] = field.key;
         break;
@@ -93,6 +97,8 @@ export function ImportPage() {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [result, setResult] = useState<ImportResult | null>(null);
   const importAssets = useImportAssets();
+  const user = useAuthStore(st => st.user);
+  const fields = useMemo(() => ASSET_FIELDS.filter(f => !f.feature || hasFeature(user, f.feature)), [user]);
 
   const handleFile = useCallback((file: File) => {
     const reader = new FileReader();
@@ -102,11 +108,11 @@ export function ImportPage() {
       if (headers.length === 0 || rows.length === 0) return;
       setCsvHeaders(headers);
       setCsvRows(rows);
-      setMapping(autoMapColumns(headers));
+      setMapping(autoMapColumns(headers, fields));
       setStep('map');
     };
     reader.readAsText(file);
-  }, []);
+  }, [fields]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -129,7 +135,7 @@ export function ImportPage() {
   };
 
   const downloadTemplate = () => {
-    const headers = ASSET_FIELDS.map(f => f.label).join(',');
+    const headers = fields.map(f => f.label).join(',');
     const blob = new Blob([headers + '\n'], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -213,7 +219,7 @@ export function ImportPage() {
                     className="flex-1 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white"
                   >
                     <option value="">— Skip column —</option>
-                    {ASSET_FIELDS.map(f => (
+                    {fields.map(f => (
                       <option key={f.key} value={f.key}>{f.label}{'required' in f && f.required ? ' *' : ''}</option>
                     ))}
                   </select>
@@ -248,7 +254,7 @@ export function ImportPage() {
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th className="text-left py-2 px-2 text-xs font-medium text-gray-400">#</th>
-                    {ASSET_FIELDS.filter(f => Object.values(mapping).includes(f.key)).map(f => (
+                    {fields.filter(f => Object.values(mapping).includes(f.key)).map(f => (
                       <th key={f.key} className="text-left py-2 px-2 text-xs font-medium text-gray-400">{f.label}</th>
                     ))}
                   </tr>
@@ -257,7 +263,7 @@ export function ImportPage() {
                   {mappedRows.slice(0, 10).map((row, i) => (
                     <tr key={i} className="border-b border-gray-50">
                       <td className="py-1.5 px-2 text-gray-400">{i + 1}</td>
-                      {ASSET_FIELDS.filter(f => Object.values(mapping).includes(f.key)).map(f => (
+                      {fields.filter(f => Object.values(mapping).includes(f.key)).map(f => (
                         <td key={f.key} className="py-1.5 px-2 text-v-charcoal truncate max-w-[200px]">{row[f.key] ?? ''}</td>
                       ))}
                     </tr>
