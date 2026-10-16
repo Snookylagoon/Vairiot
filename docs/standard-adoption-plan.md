@@ -194,4 +194,7 @@ G20 is closed: merged branches and stale worktrees removed (stage 1.6). Dependab
 | --- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | G30 | No browser end-to-end tests: Playwright is in the standard (§9.1) and the S1.4 gate, but not in the repo | Raise as a decision with the e2e suite: Playwright against the mocked API first, then the Docker stack |
 | G31 | No Content-Security-Policy on the web console or API                                                      | Add a CSP in W6 (security); it must allow the tenant's tile host from `mapSettings`                |
+| G32 | MinIO still runs as root: existing servers keep its data in root-owned host directories                  | A one-off `chown` of `infra/data/minio` per server, then `USER` in `infra/minio/Dockerfile`; until then it is skipped by Trivy and annotated for Semgrep |
+
+Status after stage 1.17: G27 closed (Semgrep clean on the OWASP Top Ten rules); G16 closed except MinIO (G32).
 

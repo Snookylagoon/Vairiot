@@ -30,7 +30,8 @@ export function decryptSecret(payload: string): string {
   const iv = Buffer.from(ivB64, 'base64');
   const tag = Buffer.from(tagB64, 'base64');
   const enc = Buffer.from(encB64, 'base64');
-  const decipher = createDecipheriv(ALGO, getKey(), iv);
+  // A fixed 16-byte tag: a shorter forged tag must not verify (W6, G27).
+  const decipher = createDecipheriv(ALGO, getKey(), iv, { authTagLength: 16 });
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
 }

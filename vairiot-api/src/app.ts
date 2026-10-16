@@ -99,7 +99,8 @@ export function createApp(): Application {
       const { body, mimeType } = await readCompanyLogo(company.logoStorageKey);
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Cache-Control', 'public, max-age=300');
-      res.send(body);
+      // A stripped PNG, WebP or JPEG (logoMimeType): never markup.
+      res.send(body); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write
     } catch {
       res.status(404).json({ error: 'No logo' });
     }

@@ -7,6 +7,12 @@ x-logging: &default-logging
     max-size: "20m"
     max-file: "5"
 
+# App containers keep no Linux capabilities and cannot gain privileges
+# (W6, G16). They run as unprivileged users (see each Dockerfile).
+x-hardened: &hardened
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
 services:
 
   postgres:
@@ -93,6 +99,7 @@ services:
   # longer start the API against an un-migrated database. Built from the `builder`
   # stage because the prisma CLI is a devDependency (absent from the runtime image).
   migrate:
+    <<: *hardened
     build:
       context: ..
       dockerfile: vairiot-api/Dockerfile
@@ -112,6 +119,7 @@ services:
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
 
   api:
+    <<: *hardened
     build:
       context: ..
       dockerfile: vairiot-api/Dockerfile
@@ -167,6 +175,7 @@ services:
       start_period: 30s
 
   reports:
+    <<: *hardened
     build:
       context: ../vairiot-reports
       dockerfile: Dockerfile
@@ -183,6 +192,7 @@ services:
       retries: 3
 
   web:
+    <<: *hardened
     build:
       context: ..
       dockerfile: vairiot-web/Dockerfile
@@ -198,14 +208,15 @@ services:
     depends_on:
       - api
     expose:
-      - "80"
+      - "8080"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/"]
       interval: 30s
       timeout: 5s
       retries: 3
 
   admin:
+    <<: *hardened
     build:
       context: ..
       dockerfile: vairiot-admin/Dockerfile
@@ -218,14 +229,15 @@ services:
     depends_on:
       - api
     expose:
-      - "80"
+      - "8080"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/"]
       interval: 30s
       timeout: 5s
       retries: 3
 
   worker:
+    <<: *hardened
     build:
       context: ..
       dockerfile: vairiot-worker/Dockerfile

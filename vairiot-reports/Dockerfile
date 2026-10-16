@@ -13,6 +13,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ app/
 
+# Unprivileged user (W6, G16): the service only reads app/ and writes to /tmp.
+RUN useradd --system --uid 10001 --no-create-home app
+USER app
+
 EXPOSE 8100
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8100"]

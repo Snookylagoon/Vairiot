@@ -1,7 +1,4 @@
 # Trivy findings accepted for now, each with its open point. Remove a line as
-# soon as the work behind it lands.
-
-# Dockerfiles have no non-root USER. W4 (G16) adds `USER node` / a non-root
-# user to every image.
-AVD-DS-0002
-DS002
+# soon as the work behind it lands. (The root-user check, DS-0002, is no
+# longer ignored: every app image runs unprivileged since W6. MinIO and the
+# dev-only Dockerfiles are skipped in ci.yml instead, see G32.)
