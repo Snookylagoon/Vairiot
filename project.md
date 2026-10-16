@@ -133,4 +133,4 @@ Adoption workstreams W0–W6 from the [adoption plan](docs/standard-adoption-pla
 | 16 Oct 2026 | Phase 0 accepted by the owner ("Do 1, 2 and 3": merge #85 and #86, accept Phase 0, start Phase 1), with open points G7 and G21–G29 handled as proposed in the adoption plan | **Approved**          |
 | 16 Oct 2026 | D11: database image `postgis/postgis:16-3.5-alpine` everywhere (Phase 1 plan §4)                                                                                            | **Approved** |
 | 16 Oct 2026 | D12: Leaflet as the web map library, with a Leaflet drawing plugin for S3 zones                                                                                             | **Approved** |
-| 16 Oct 2026 | D13: photo originals keep their metadata as evidence and every copy leaving the API is stripped (KFR-043); capture time and GPS read into columns on upload | Proposed |
+| 16 Oct 2026 | D13: photo originals keep their metadata as evidence and every copy leaving the API is stripped (KFR-043); capture time and GPS read into columns on upload | **Approved** |

@@ -179,14 +179,14 @@ S0 gates were met on 6 October 2026 (`S0-summary.md`, "How to verify"). Stage 0.
 
 ### 8.2 Phase 1 — S1 GIS, condition and photos
 
-| Gate                 | Pass condition                                                                                                                                                                |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S1.1 Location model  | Migrations apply to a fresh database; API suite passes; `/api/v1/assets/geo?bbox=44.7,41.6,44.9,41.8` returns GeoJSON                                                         |
-| S1.2 Mobile GPS      | An asset created outdoors on a Meferi stores a position with accuracy; audit scans write positions to `AuditScanEvent` after sync                                             |
-| S1.3 Scan photos     | A photo taken during an audit appears against that scan on the web with time and position; the stored file has no EXIF GPS                                                    |
-| S1.4 Map             | `/map` shows seeded TUDA assets as clustered markers; choosing a campaign recolours markers; dragging a marker updates the asset and writes an event; Playwright smoke passes |
-| S1.5 Condition scale | Existing assets show a grade after migration; grade 2 on mobile prompts for a photo; the condition report groups by grade                                                     |
-| S1 toggle            | With `gis` off, every S1 GIS route answers 404 and no GIS UI shows; with it on again, data is unchanged                                                                       |
+| Gate                 | Pass condition                                                                                                                                                                                                    |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S1.1 Location model  | Migrations apply to a fresh database; API suite passes; `/api/v1/assets/geo?bbox=44.7,41.6,44.9,41.8` returns GeoJSON                                                                                             |
+| S1.2 Mobile GPS      | An asset created outdoors on a Meferi stores a position with accuracy; audit scans write positions to `AuditScanEvent` after sync                                                                                 |
+| S1.3 Scan photos     | A photo taken during an audit appears against that scan on the web with time and position; no copy that leaves the API (download, thumbnail, export) has EXIF GPS; the stored original keeps it as evidence (D13) |
+| S1.4 Map             | `/map` shows seeded TUDA assets as clustered markers; choosing a campaign recolours markers; dragging a marker updates the asset and writes an event; Playwright smoke passes                                     |
+| S1.5 Condition scale | Existing assets show a grade after migration; grade 2 on mobile prompts for a photo; the condition report groups by grade                                                                                         |
+| S1 toggle            | With `gis` off, every S1 GIS route answers 404 and no GIS UI shows; with it on again, data is unchanged                                                                                                           |
 
 ### 8.3 Phase 2 — S2 IPSAS ledger and import
 

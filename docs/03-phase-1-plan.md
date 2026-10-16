@@ -47,7 +47,7 @@ Designs for W2–W6 follow the S1 sprint prompts, with these changes agreed so f
 | Photo rules    | `PhotoRule` built with the scan photos (S1.3 step 6)                | Built with the condition scale in W5: its main rule depends on grades                                                                                                                                |
 | Photo stamp    | Burned-in stamp behind `photoStamp` (S1.3 step 4)                   | Deferred: needs image rendering; the stamp data is stored and shown in the gallery instead                                                                                                           |
 | Map route      | `/map`                                                              | Extend the existing `/assets/map`                                                                                                                                                                    |
-| EXIF           | Strip on upload                                                     | Keep KFR-043: originals keep their metadata as evidence, every download is stripped; time and GPS are read into columns on upload (D13, proposed)                                                    |
+| EXIF           | Strip on upload                                                     | Keep KFR-043: originals keep their metadata as evidence, every download is stripped; time and GPS are read into columns on upload (D13)                                                              |
 
 ## 3. Exit-gate tests
 
@@ -55,7 +55,7 @@ Designs for W2–W6 follow the S1 sprint prompts, with these changes agreed so f
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `assets/asset-geo-bbox.test.ts`  | Migration applies to a fresh database; the box returns only in-box assets of the caller's tenant; 404 with `gis` off; bad boxes 400 |
 | Mobile scan-position tests       | Fake location provider: a scan queued offline replays with its position                                                             |
-| `photos/scan-photos.test.ts`     | A scan photo is listed against its scan with time and position; the stored original has no EXIF GPS                                 |
+| `photos/scan-photos.test.ts`     | A scan photo is listed against its scan with time and position; no copy that leaves the API has EXIF GPS (D13)                      |
 | Playwright map smoke             | `/assets/map` loads seeded TUDA assets as clustered markers                                                                         |
 | `assets/condition-scale.test.ts` | Backfill maps the old strings to grades; grade 2 without a photo is flagged                                                         |
 | S1 toggle matrix                 | With `gis` off every S1 GIS route answers 404; on again, data unchanged                                                             |
@@ -63,11 +63,11 @@ Designs for W2–W6 follow the S1 sprint prompts, with these changes agreed so f
 
 ## 4. Decisions
 
-| #   | Decision                                                 | Recommendation                                                                                                                                                                                                           | Status       |
-| --- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
-| D11 | Database image for production, staging, dev, test and CI | `postgis/postgis:16-3.5-alpine` (same Postgres major and C library as today)                                                                                                                                             | **Approved** |
-| D12 | Web map library                                          | Leaflet (in use since stage 1.3); a Leaflet drawing plugin for S3 zones                                                                                                                                                  | **Approved** |
-| D13 | Where photo metadata is removed                          | Keep originals with their metadata as evidence and strip every copy that leaves the API (KFR-043); read capture time and GPS into columns on upload. The S1.3 gate then reads "no file that leaves the API has EXIF GPS" | **Proposed** |
+| #   | Decision                                                 | Recommendation                                                                                                                                                                                                      | Status       |
+| --- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| D11 | Database image for production, staging, dev, test and CI | `postgis/postgis:16-3.5-alpine` (same Postgres major and C library as today)                                                                                                                                        | **Approved** |
+| D12 | Web map library                                          | Leaflet (in use since stage 1.3); a Leaflet drawing plugin for S3 zones                                                                                                                                             | **Approved** |
+| D13 | Where photo metadata is removed                          | Keep originals with their metadata as evidence and strip every copy that leaves the API (KFR-043); read capture time and GPS into columns on upload. The S1.3 gate reads "no copy that leaves the API has EXIF GPS" | **Approved** |
 
 ## 5. Out of scope for Phase 1
 

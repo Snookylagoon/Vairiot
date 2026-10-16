@@ -17,7 +17,7 @@ All notable changes to Vairiot Asset Intelligence, newest first. One product ver
 
 ### Security
 
-- Stored originals keep their metadata as evidence; every download stays stripped of EXIF and GPS (KFR-043, D13 proposed) (stage 1.7)
+- Stored originals keep their metadata as evidence; every download stays stripped of EXIF and GPS (KFR-043, D13) (stage 1.7)
 
 ## [2.2.0] — 2026-10-16
 

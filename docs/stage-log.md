@@ -223,5 +223,5 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Activity | `ScanPhotoGallery` on the audit run and reconciliation pages: thumbnails, a lightbox with tag, capture time (en-GB) and position with accuracy, and an OpenStreetMap link; hidden when a campaign has no photos |
 | Output   | `vairiot-web/src/components/audits/ScanPhotoGallery.tsx`                                                                                                                                                  |
 | Tests    | Web 32/32 (new `ScanPhotoGallery.test.tsx`); API 352/352 in 38 suites; Android and iOS as in stage 1.8                                                                                                             |
-| Notes    | `PhotoRule` moved to W5 with the condition scale. Burned-in stamp and server thumbnails not built (plan §2.2). D13 still proposed                                                                         |
+| Notes    | `PhotoRule` moved to W5 with the condition scale. Burned-in stamp and server thumbnails not built (plan §2.2). D13 approved by the owner the same day; the S1.3 gate reworded to match                                                                         |
 
