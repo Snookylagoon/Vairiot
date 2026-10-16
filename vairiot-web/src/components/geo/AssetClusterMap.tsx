@@ -6,6 +6,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 
+import { useBaseMap } from '@/hooks/useBaseMap';
 import { boundsOf, escapeHtml, statusColour } from '@/lib/assetMap';
 import type { AssetMapPoint } from '@/types';
 
@@ -23,20 +24,15 @@ interface AssetClusterMapProps {
   colourOf?:  (point: AssetMapPoint) => string;
 }
 
-/** Fallback view before there's anything to fit: the whole world. */
-const WORLD: L.LatLngTuple = [20, 0];
-
 /** All-assets map: status-coloured markers, clustered where they crowd. */
 export function AssetClusterMap({ points, selectedId, onSelect, fitKey, className, colourOf }: AssetClusterMapProps) {
+  const base = useBaseMap();
   return (
     // `isolate` keeps Leaflet's high z-index panes below the app's dialogs.
     <div className={`isolate ${className ?? ''}`}>
-      <MapContainer center={WORLD} zoom={2} className="h-full w-full rounded-xl" worldCopyJump>
-        <TileLayer
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          maxZoom={19}
-        />
+      <MapContainer center={[base.centreLatitude, base.centreLongitude]} zoom={base.zoom} className="h-full w-full rounded-xl" worldCopyJump>
+        {/* key: a changed tile server swaps the layer rather than mixing tiles */}
+        <TileLayer key={base.tileUrl} url={base.tileUrl} attribution={base.attribution} maxZoom={19} />
         <ClusterLayer points={points} selectedId={selectedId} onSelect={onSelect} colourOf={colourOf} />
         <FitToPoints points={points} fitKey={fitKey} />
       </MapContainer>

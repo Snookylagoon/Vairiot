@@ -52,6 +52,36 @@ export const gisPaths = {
       },
     },
   },
+  '/gis/map-settings': {
+    get: {
+      tags: ['GIS'],
+      summary: 'The tenant’s base map: tile URL, attribution, default centre and zoom',
+      responses: { 200: { description: 'Stored settings over the OpenStreetMap defaults' }, 404: notFoundWhenOff },
+    },
+    put: {
+      tags: ['GIS'],
+      summary: 'Set the tenant’s base map (company:manage; audited)',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['tileUrl', 'attribution', 'centreLatitude', 'centreLongitude', 'zoom'],
+              properties: {
+                tileUrl: { type: 'string', example: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png' },
+                attribution: { type: 'string', description: 'Plain text only' },
+                centreLatitude: { type: 'number' },
+                centreLongitude: { type: 'number' },
+                zoom: { type: 'integer', minimum: 1, maximum: 19 },
+              },
+            },
+          },
+        },
+      },
+      responses: { 200: { description: 'Saved settings' }, 400: { description: 'Invalid settings' }, 404: notFoundWhenOff },
+    },
+  },
   '/audits/{id}/map': {
     get: {
       tags: ['Audits'],

@@ -90,6 +90,8 @@ export async function seedTuda(opts: TudaSeedOptions): Promise<TudaSeedResult> {
     create: {
       id: TUDA_TENANT_ID, name: TUDA_TENANT_NAME, deploymentMode: 'standalone', plan: 'standalone',
       active: true, onboardingComplete: true, featureFlags,
+      // Maps open on Tbilisi (stage 1.12); TUDA may later point tileUrl at its own server.
+      mapSettings: { centreLatitude: 41.7151, centreLongitude: 44.8271, zoom: 12 },
     },
   });
 

@@ -57,6 +57,7 @@ const nav: readonly NavEntry[] = [
       { to: '/admin/api-keys',      label: 'API Keys',      icon: KeyRound, require: ['apikey:read', 'apikey:write'] },
       { to: '/admin/webhooks',      label: 'Webhooks',      icon: Webhook,  require: ['apikey:write'] },
       { to: '/admin/custom-fields', label: 'Custom Fields', icon: Settings2 },
+      { to: '/admin/map-settings',  label: 'Map Settings',  icon: Map, require: ['company:manage'], feature: 'gis' },
       { to: '/admin/identification', label: 'Identification & GS1', icon: Barcode, require: ['gs1:admin'] },
       { to: '/admin/audit-log',     label: 'Audit Log',     icon: ScrollText, require: ['user:read', 'user:write', 'apikey:read', 'apikey:write'] },
     ],

@@ -1,10 +1,11 @@
-import { Crosshair, X } from 'lucide-react';
+import { Crosshair, MapPinned, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { FieldErrors, UseFormRegister, UseFormSetValue, UseFormWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 import { parseCoordinates, type GeoPosition } from 'vairiot-shared';
 
 import { MapPreview } from '@/components/geo/MapPreview';
+import { PositionPickerMap } from '@/components/geo/PositionPickerMap';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { formPosition } from '@/lib/geo';
@@ -30,6 +31,8 @@ export function GeoPositionFields({ register, setValue, watch, errors }: GeoPosi
   const accuracy  = watch('geoAccuracyMeters');
   const source    = watch('geoSource');
   const [locating, setLocating] = useState(false);
+  // "Set position" by clicking or dragging on a map (stage 1.11).
+  const [picking, setPicking] = useState(false);
 
   // Let typing settle before reloading the map.
   const [preview, setPreview] = useState<GeoPosition | null>(() => formPosition(latitude, longitude));
@@ -100,6 +103,9 @@ export function GeoPositionFields({ register, setValue, watch, errors }: GeoPosi
           <p className="text-xs text-gray-400 mt-0.5">Map coordinates, in addition to the site and location above</p>
         </div>
         <div className="flex gap-2 shrink-0">
+          <Button type="button" variant={picking ? 'primary' : 'ghost'} size="sm" onClick={() => setPicking(p => !p)}>
+            <MapPinned size={14} className="mr-1" /> {picking ? 'Done' : 'Pick on map'}
+          </Button>
           {(latitude || longitude) && (
             <Button type="button" variant="ghost" size="sm" onClick={clear}>
               <X size={14} className="mr-1" /> Clear
@@ -123,7 +129,15 @@ export function GeoPositionFields({ register, setValue, watch, errors }: GeoPosi
       {source === 'device' && accuracy && (
         <p className="text-xs text-gray-500">Captured from this device, accurate to ±{accuracy} m.</p>
       )}
-      {preview && <MapPreview position={preview} />}
+      {picking ? (
+        <>
+          <p className="text-xs text-gray-500">Click the map or drag the pin to set the position. It is saved as entered by hand.</p>
+          <PositionPickerMap
+            position={formPosition(latitude, longitude)}
+            onPick={(p) => setPosition(p.latitude.toFixed(6), p.longitude.toFixed(6), { source: 'manual' })}
+          />
+        </>
+      ) : preview && <MapPreview position={preview} />}
     </div>
   );
 }
