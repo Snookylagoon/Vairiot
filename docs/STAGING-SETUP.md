@@ -367,7 +367,7 @@ The very first user/organisation is created through the app's sign-up flow:
 1. Go to **https://test.vairiot.com**.
 2. Click **Register** / **Sign up** and create a test organisation and admin user
    (use any test email + a 12-character password — see the per-feature test plans
-   in `docs/TEST-PLAN.md`).
+   in `docs/testing/manual-checks.md`).
 3. Follow the onboarding steps. You now have data to test with.
 
 (If you'd rather load realistic sample data, tell me and I'll give you the seed

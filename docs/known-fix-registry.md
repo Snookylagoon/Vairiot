@@ -17,6 +17,60 @@ Each entry contains:
 
 ---
 
+## Index
+
+One line per entry (standard §16.6). Stage is the stage-log stage that recorded the fix; `pre-S0` entries predate the sprints. Full symptom, cause, fix and test are in each entry below.
+
+KFR-001 describes docx-js, which this project no longer uses: Word documents are generated with python-docx (project.md §2, rule 12).
+
+| ID      | Stage              | Area                                                                 | Entry                                                                             |
+| ------- | ------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| KFR-001 | pre-S0             | Any Node.js script generating Word (.docx) documents using the `doc… | docx-js PageNumber constant                                                       |
+| KFR-002 | pre-S0             | Any workflow that uploads PNG logo files to claude.ai for processing | PNG transparency stripped on claude.ai upload                                     |
+| KFR-003 | pre-S0             | All brand/design token files across web, Android, and documents      | Vairiot gradient end colour                                                       |
+| KFR-004 | pre-S0             | —                                                                    | Docker socket on newer Docker Desktop for Mac                                     |
+| KFR-005 | pre-S0             | —                                                                    | Sprint files: use shell scripts not zip files                                     |
+| KFR-006 | 0.2                | vairiot-mobile `sync/` (ScanSyncWorker, AssetSyncWorker)             | Android offline queue: transient failures parked as dead                          |
+| KFR-007 | 0.2                | Any client queue that replays requests to vairiot-api                | HTTP 409 is not "already synced" on Vairiot routes                                |
+| KFR-008 | 0.2                | vairiot-mobile AuditRunViewModel, AssetScanViewModel, ScanSessionRe… | Duplicate records after a timed-out online request                                |
+| KFR-009 | 0.2                | vairiot-mobile AssetPhotosViewModel                                  | Android photos taken offline were discarded                                       |
+| KFR-010 | 0.2                | vairiot-mobile AuditRunViewModel                                     | Rejected audit scans reported as "Queued offline"                                 |
+| KFR-011 | 0.2                | vairiot-mobile `di/DatabaseModule.kt`                                | Room destructive-migration fallback could wipe offline queues                     |
+| KFR-012 | 0.2                | vairiot-mobile `di/NetworkModule.kt`                                 | Android cleared the session on a refresh 403                                      |
+| KFR-013 | 0.3                | vairiot-ios `Data/SyncManager.swift`, queue models                   | iOS offline queue: same silent-loss rules as Android had                          |
+| KFR-014 | 0.3                | vairiot-ios `Screens/Audits/AuditRunViewModel.swift`, `AuditRunView… | iOS blind audits rejected online and offline                                      |
+| KFR-015 | 0.3                | vairiot-ios `API/APIClient.swift`                                    | iOS signed users out on refresh 5xx/403; photo uploads never refreshed            |
+| KFR-016 | 0.3                | vairiot-ios `API/APIClient.swift`                                    | iOS lost the server's reason for every 4xx                                        |
+| KFR-017 | 0.3                | vairiot-ios `Sync/QueueDrainer.swift`                                | Drain re-sent rows within one run (SwiftData object identity)                     |
+| KFR-018 | 0.3                | vairiot-ios `AssetPhotosView.swift`, `AssetEditViewModel.swift`, `A… | iOS offline photos lost; no background sync; online creates without a key         |
+| KFR-019 | 0.4                | vairiot-api `middleware/rate-limit.ts`, `app.ts`                     | Scanner fleets behind one NAT throttled by the per-IP limit                       |
+| KFR-020 | 0.4                | vairiot-api `routes/assets/assets.router.ts`                         | Replay of an existing asset refused at the licence cap                            |
+| KFR-021 | 0.4                | vairiot-api `routes/ios/ios.router.ts`, new `lib/ios-enrolment.ts`   | Public iOS enrolment trusted unsigned, unbounded input (SEC-H2)                   |
+| KFR-022 | 0.4                | vairiot-api `jest.setup.ts`                                          | `npm test` could run destructive tests against any database                       |
+| KFR-023 | 0.4                | vairiot-mobile `data/AssetRepository.kt`; vairiot-ios `Data/AssetRe… | Asset cache wiped on refresh (Android partial wipe; iOS lost offline creates)     |
+| KFR-024 | 0.4                | vairiot-api `lib/openapi.ts`                                         | OpenAPI said the asset list was `data`; the API returns `assets`                  |
+| KFR-025 | 0.4                | vairiot-api test harness (`jest.setup.ts`; supertest)                | API tests talked to other apps on macOS (random 401/405/"socket hang up")         |
+| KFR-026 | 0.5                | `infra/backup.sh`, `infra/backup.crontab`, `infra/restore.sh`        | Backups: placeholder key left unencrypted archives; no Redis; silent bucket skips |
+| KFR-027 | 0.5                | new `infra/restore-test.sh`, `infra/docker-compose.restoretest.yml`  | No proof backups could be restored                                                |
+| KFR-028 | 0.5                | `infra/deploy.sh`, new `infra/certbot/reload-nginx.sh`, `infra/dock… | Deploys could half-apply; nothing waited for health; certbot never reloaded nginx |
+| KFR-029 | 0.5                | `vairiot-worker` (`job-alerts.ts`, `index.ts`)                       | Background jobs failing for good went unnoticed                                   |
+| KFR-030 | 0.5                | `infra/docker-compose*.yml` (object storage)                         | MinIO image can no longer be pulled                                               |
+| KFR-031 | 0.6                | Any Python that reads registers with pandas (`scripts/profile-regis… | pandas reads "n/a", "NA", "null", "None" as blank                                 |
+| KFR-032 | 0.6                | Seeds and scripts calling `vairiot-api` services (e.g. `activateLic… | Services called from scripts need a real user id as the actor                     |
+| KFR-033 | 0.5 follow-up      | `infra/docker-compose.prod.yml`, new `infra/minio/init.sh`, `vairio… | The API ran with the MinIO root credentials (SEC-M3)                              |
+| KFR-034 | 0.5 follow-up      | `infra/nginx/*.conf`, `standalone.conf.template`, new `vairiot-api/… | nginx cut off slow reports at 60 s; no server timeouts (COM-3)                    |
+| KFR-035 | 0.5 follow-up      | `vairiot-api/src/lib/crypto.ts` + `index.ts`, `vairiot-worker/src/c… | A missing or short APP_ENCRYPTION_KEY only failed at first use (SEC-M6, partly)   |
+| KFR-036 | 0.5 follow-up      | `infra/minio/init.sh`                                                | minio-init failed on staging with a misleading MinIO error                        |
+| KFR-037 | after 0.7 (PR #82) | `vairiot-web/public/auto-login.html` (removed), `vairiot-api/prisma… | Demo login credentials served publicly (CI Phase 0, finding 1)                    |
+| KFR-038 | after 0.7 (PR #82) | `enforceAssetCap`, moved from `licence.service.ts` to new `vairiot-… | Enterprise tier (maxAssets = -1) refused every asset (finding 2)                  |
+| KFR-039 | after 0.7 (PR #82) | `vairiot-api/src/services/import.service.ts`                         | Bulk import bypassed the asset cap (finding 3)                                    |
+| KFR-040 | after 0.7 (PR #82) | `vairiot-api/src/middleware/require-active-licence.ts`, `middleware… | Licence and scope middleware defined but never mounted (finding 4)                |
+| KFR-041 | after 0.7 (PR #82) | `routes/alerts`, `routes/exceptions`, `routes/onboarding`, `routes/… | Alerts, exceptions, onboarding and two-factor had no guard (finding 5)            |
+| KFR-042 | after 0.7 (PR #82) | `vairiot-api/src/lib/minio.ts`, `src/index.ts`, `infra/deploy.sh`,…  | Production still fell back to the MinIO root credentials (finding 6)              |
+| KFR-043 | after 0.7 (PR #82) | New `vairiot-api/src/lib/image-metadata/` (`jpeg.ts`, `png-webp.ts`… | Images were shared with their EXIF/GPS data (finding 7)                           |
+
+---
+
 ## KFR-001 — docx-js PageNumber constant
 
 | Field | Detail |
