@@ -56,6 +56,9 @@ fun QueuedScan.toRequest() = RecordScanRequest(
     condition = condition,
     clientRequestId = clientRequestId,
     capturedAt = Instant.ofEpochMilli(createdAtMs).toString(),
+    latitude = latitude,
+    longitude = longitude,
+    geoAccuracyMeters = geoAccuracyMeters,
 )
 
 fun QueuedAsset.toRequest() = AssetCreateRequest(

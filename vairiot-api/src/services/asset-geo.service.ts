@@ -1,7 +1,8 @@
-import { GeoError, isGeoSource, validateGeoPosition, type GeoSource } from 'vairiot-shared';
+import { distanceMetres, GeoError, isGeoSource, validateGeoPosition, type GeoSource } from 'vairiot-shared';
 
 import { ValidationError } from '../lib/errors';
 
+import { recordAssetEvent } from './asset-event.service';
 import { tenantFeatureEnabled } from './tenant-features.service';
 
 /** GIS fields a client may send on asset create / update. */
@@ -110,3 +111,45 @@ export async function resolveTenantAssetGeo(
   if (!(await tenantFeatureEnabled(tenantId, 'gis'))) return undefined;
   return resolveAssetGeo(input, existing);
 }
+
+type StoredPosition = {
+  latitude: number | null;
+  longitude: number | null;
+  geoAccuracyMeters?: number | null;
+  geoSource?: string | null;
+} | null;
+
+/** Moves smaller than this are GPS noise, not a correction (S1.1 step 7). */
+export const POSITION_CORRECTION_THRESHOLD_M = 1;
+
+/** Which ledger event a position change is: first capture, a correction, or none. */
+export function positionEventType(before: StoredPosition, after: StoredPosition) {
+  if (after?.latitude == null || after.longitude == null) return null;
+  if (before?.latitude == null || before.longitude == null) return 'POSITION_CAPTURED' as const;
+  const moved = distanceMetres(
+    { latitude: before.latitude, longitude: before.longitude },
+    { latitude: after.latitude, longitude: after.longitude },
+  );
+  return moved > POSITION_CORRECTION_THRESHOLD_M ? ('POSITION_CORRECTED' as const) : null;
+}
+
+/** Appends POSITION_CAPTURED / POSITION_CORRECTED to the asset's event ledger. */
+export async function recordPositionEvent(
+  tenantId: string,
+  assetId: string,
+  actorId: string,
+  before: StoredPosition,
+  after: StoredPosition,
+): Promise<void> {
+  const eventType = positionEventType(before, after);
+  if (!eventType || !after) return;
+  await recordAssetEvent({
+    tenantId, assetId, eventType, actor: actorId, source: 'API',
+    payload: {
+      latitude: after.latitude, longitude: after.longitude,
+      geoAccuracyMeters: after.geoAccuracyMeters ?? null, geoSource: after.geoSource ?? null,
+      ...(eventType === 'POSITION_CORRECTED' && { previous: { latitude: before?.latitude, longitude: before?.longitude } }),
+    },
+  });
+}
+

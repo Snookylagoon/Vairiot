@@ -176,17 +176,6 @@ data class CreateAuditRequest(
     val assetIds:   List<String>? = null,
 )
 
-data class RecordScanRequest(
-    val tagValue:   String,
-    val deviceId:   String? = null,
-    val locationId: String? = null,
-    val condition:  String? = null,
-    /** Idempotency key so offline replays can't double-count. */
-    val clientRequestId: String? = null,
-    /** ISO-8601 device capture time for offline scans replayed later. */
-    val capturedAt: String? = null,
-)
-
 data class ZoneSubmissionResponse(
     val id:          String,
     val campaignId:  String,

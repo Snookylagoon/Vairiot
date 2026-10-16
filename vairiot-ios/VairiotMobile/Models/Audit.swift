@@ -47,6 +47,10 @@ struct RecordScanRequest: Codable {
     var clientRequestId: String?
     /// ISO-8601 device capture time for offline scans replayed later.
     var capturedAt: String?
+    /// Device position at the scan; the server drops it while GIS is off.
+    var latitude: Double?
+    var longitude: Double?
+    var geoAccuracyMeters: Double?
 }
 
 struct AuditScanEventResponse: Codable, Identifiable {

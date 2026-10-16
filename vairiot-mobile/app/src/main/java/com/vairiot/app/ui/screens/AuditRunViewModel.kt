@@ -3,6 +3,7 @@ package com.vairiot.app.ui.screens
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vairiot.app.data.FeatureFlags
 import com.vairiot.app.data.api.AuditCampaignResponse
 import com.vairiot.app.data.api.AuditReportResponse
 import com.vairiot.app.data.api.AuditScanEventResponse
@@ -10,6 +11,8 @@ import com.vairiot.app.data.api.VairiotApiService
 import com.vairiot.app.data.api.ZoneSubmissionResponse
 import com.vairiot.app.data.local.QueuedScan
 import com.vairiot.app.data.local.QueuedScanDao
+import com.vairiot.app.location.PositionProvider
+import com.vairiot.app.location.ScanPositionTracker
 import com.vairiot.app.scanner.ScannerService
 import com.vairiot.app.sync.AuditScanRecorder
 import com.vairiot.app.sync.ScanSyncScheduler
@@ -47,8 +50,17 @@ class AuditRunViewModel @Inject constructor(
     private val scanner: ScannerService,
     private val queuedScanDao: QueuedScanDao,
     private val syncScheduler: ScanSyncScheduler,
+    positions: PositionProvider,
+    private val featureFlags: FeatureFlags,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+
+    /** Recent device fix for each scan, kept only while GIS is on (D7, stage 1.5). */
+    private val positionTracker = ScanPositionTracker(positions)
+
+    /** GIS on for the tenant; the screen asks for location permission once when it is. */
+    val gisEnabled: StateFlow<Boolean> = featureFlags.isEnabled(FeatureFlags.GIS)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private val campaignId: String = savedStateHandle["campaignId"] ?: ""
 
@@ -72,6 +84,10 @@ class AuditRunViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             scanner.scanResults.collect { result -> submitTag(result.value) }
+        }
+        viewModelScope.launch { featureFlags.refresh() }
+        viewModelScope.launch {
+            gisEnabled.collect { on -> if (on) positionTracker.start(viewModelScope) else positionTracker.stop() }
         }
         loadCampaign()
     }
@@ -173,6 +189,7 @@ class AuditRunViewModel @Inject constructor(
                 tagValue   = trimmed,
                 locationId = if (currentState.isBlind) currentState.selectedLocationId else null,
                 condition  = currentState.condition.ifBlank { null },
+                fix        = if (gisEnabled.value) positionTracker.latest() else null,
             )
             _state.value = when (outcome) {
                 is AuditScanRecorder.Outcome.Recorded -> {

@@ -131,5 +131,5 @@ Adoption workstreams W0–W6 from the [adoption plan](docs/standard-adoption-pla
 | 16 Oct 2026 | D9: i18n and the language rules folded into S3 (Georgian i18n)                                                                                                              | **Approved**          |
 | 16 Oct 2026 | D10: defect severities are named Sev1–Sev4 (not S1–S4, which clash with sprint ids)                                                                                         | **Approved**          |
 | 16 Oct 2026 | Phase 0 accepted by the owner ("Do 1, 2 and 3": merge #85 and #86, accept Phase 0, start Phase 1), with open points G7 and G21–G29 handled as proposed in the adoption plan | **Approved**          |
-| 16 Oct 2026 | D11: database image `postgis/postgis:16-3.5-alpine` everywhere (Phase 1 plan §4)                                                                                            | Proposed              |
-| 16 Oct 2026 | D12: Leaflet as the web map library, with a Leaflet drawing plugin for S3 zones                                                                                             | Proposed              |
+| 16 Oct 2026 | D11: database image `postgis/postgis:16-3.5-alpine` everywhere (Phase 1 plan §4)                                                                                            | **Approved** |
+| 16 Oct 2026 | D12: Leaflet as the web map library, with a Leaflet drawing plugin for S3 zones                                                                                             | **Approved** |

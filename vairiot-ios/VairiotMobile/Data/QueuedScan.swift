@@ -23,6 +23,11 @@ final class QueuedScan {
     /// Pre-S0.3 dead-letter flag. Read once by `QueueState.migrateLegacyFlags`
     /// to carry old parked rows over to `state`; not written any more.
     var dead: Bool = false
+    /// Device position when the tag was scanned (stage 1.5); nil with GIS off
+    /// or no recent fix. Optional, so lightweight migration adds the columns.
+    var latitude: Double?
+    var longitude: Double?
+    var geoAccuracyMeters: Double?
 
     init(
         id: UUID = UUID(),
@@ -33,7 +38,8 @@ final class QueuedScan {
         condition: String? = nil,
         createdAt: Date = .now,
         attempts: Int = 0,
-        lastError: String? = nil
+        lastError: String? = nil,
+        fix: GeoFix? = nil
     ) {
         self.id = id
         self.campaignId = campaignId
@@ -44,5 +50,8 @@ final class QueuedScan {
         self.createdAt = createdAt
         self.attempts = attempts
         self.lastError = lastError
+        self.latitude = fix?.latitude
+        self.longitude = fix?.longitude
+        self.geoAccuracyMeters = fix?.accuracyMeters
     }
 }

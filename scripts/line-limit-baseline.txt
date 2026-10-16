@@ -4,13 +4,13 @@
 992 vairiot-web/src/pages/labels/LabelsPage.tsx
 777 vairiot-api/src/services/platform-admin.service.ts
 731 vairiot-mobile/app/src/main/java/com/vairiot/app/ui/screens/ScanSessionScreen.kt
-696 vairiot-api/src/services/audit.service.ts
+591 vairiot-api/src/services/audit.service.ts
 682 vairiot-api/src/lib/openapi.ts
-571 vairiot-api/src/services/asset.service.ts
+569 vairiot-api/src/services/asset.service.ts
 564 vairiot-mobile/app/src/main/java/com/vairiot/app/ui/screens/AuditRunScreen.kt
 562 scripts/profile-register.py
 540 vairiot-admin/src/pages/tenants/TenantDetailPage.tsx
-539 vairiot-mobile/app/src/main/java/com/vairiot/app/data/api/ApiModels.kt
+528 vairiot-mobile/app/src/main/java/com/vairiot/app/data/api/ApiModels.kt
 529 vairiot-ios/VairiotMobile/Screens/Audits/AuditRunView.swift
 511 vairiot-mobile/app/src/main/java/com/vairiot/app/ui/screens/MaintenanceListScreen.kt
 507 vairiot-mobile/app/src/main/java/com/vairiot/app/ui/screens/AuditListScreen.kt

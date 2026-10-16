@@ -32,6 +32,7 @@ import com.vairiot.app.data.api.AuditReportResponse
 import com.vairiot.app.data.api.AuditScanEventResponse
 import com.vairiot.app.data.api.MissingAssetResponse
 import com.vairiot.app.ui.components.ClearableTextField
+import com.vairiot.app.ui.components.LocationPermissionPrompt
 import com.vairiot.app.ui.theme.*
 
 private val SCAN_RESULT_OPTIONS = listOf("found", "unknown", "recorded")
@@ -54,9 +55,8 @@ fun AuditRunScreen(
     val state by viewModel.state.collectAsState()
     val pendingScans by viewModel.pendingScans.collectAsState()
     var manual by remember { mutableStateOf("") }
-
+    LocationPermissionPrompt(viewModel.gisEnabled) // GIS on: scans carry the device position
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-
         // Header
         Box(modifier = Modifier.fillMaxWidth()
             .background(Brush.horizontalGradient(listOf(VairiotCharcoal, VairiotCharcoal)))

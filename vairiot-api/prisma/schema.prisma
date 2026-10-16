@@ -477,11 +477,20 @@ model AuditScanEvent {
   // (crash between API success and queue-delete) must not double-count.
   clientRequestId String?   @unique
 
+  // Device position when the tag was scanned (stage 1.5; null with GIS off).
+  latitude          Float?
+  longitude         Float?
+  geoAccuracyMeters Float?
+  geoSource         String? // device
+  /// Derived from latitude/longitude by a trigger; read through raw SQL.
+  geom              Unsupported("geography(Point,4326)")?
+
   campaign            AuditCampaign             @relation(fields: [campaignId], references: [id])
   reconciliationItems AuditReconciliationItem[]
 
   @@index([campaignId])
   @@index([tenantId, tagValue])
+  @@index([geom], map: "audit_scan_events_geom_idx", type: Gist)
   @@map("audit_scan_events")
 }
 
@@ -500,6 +509,10 @@ model AuditSnapshotAsset {
   condition     String?
   purchaseCost  Decimal? @db.Decimal(12, 2)
   residualValue Decimal? @db.Decimal(12, 2)
+  // Register position at snapshot time (stage 1.5).
+  latitude          Float?
+  longitude         Float?
+  geoAccuracyMeters Float?
   snapshotAt    DateTime @default(now())
 
   campaign            AuditCampaign             @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -1229,6 +1242,8 @@ enum AssetEventType {
   IDENTIFIER_ASSIGNED
   GIAI_ACTIVATED
   GIAI_SUPERSEDED
+  POSITION_CAPTURED
+  POSITION_CORRECTED
 }
 
 // Per-tenant identification settings. INTERNAL is permanent and first-class;

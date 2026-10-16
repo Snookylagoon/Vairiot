@@ -131,4 +131,17 @@ class AuditScanRecorderTest {
         val keys = api.requests.map { it.second.clientRequestId }
         assertEquals(2, keys.toSet().size)
     }
+
+    @Test
+    fun `a scan keeps its device position online and in the queued replay`() = runBlocking {
+        val fix = com.vairiot.app.location.GeoFix.of(41.7151, 44.8271, 6.0, 1_000L)
+        val api = FakeScanApi(offline())
+
+        recorder(api).record(campaignId = "camp", tagValue = "RFID-1", locationId = null, condition = null, fix = fix)
+
+        assertEquals(41.7151, api.requests.single().second.latitude!!, 0.0)
+        val row = dao.all.single()
+        assertEquals(44.8271, row.longitude!!, 0.0)
+        assertEquals(6.0, row.toRequest().geoAccuracyMeters!!, 0.0)
+    }
 }

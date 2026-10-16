@@ -5,7 +5,7 @@ import { NotFoundError, ConflictError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
 
 import { recordAssetEvent } from './asset-event.service';
-import { resolveTenantAssetGeo, type AssetGeoInput } from './asset-geo.service';
+import { recordPositionEvent, resolveTenantAssetGeo, type AssetGeoInput } from './asset-geo.service';
 import { allocateIar } from './gs1-identifier.service';
 import { dispatchWebhookEvent } from './webhook.service';
 
@@ -388,6 +388,7 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
     tenantId, assetId: asset.id, eventType: 'CREATED', actor: actorId, source: 'API',
     payload: { individualAssetReference, assetNumber },
   });
+  await recordPositionEvent(tenantId, asset.id, actorId, null, asset);
   return enrichAssetWithDepreciation(asset);
 }
 
@@ -421,12 +422,9 @@ export async function updateAsset(tenantId: string, id: string, actorId: string,
   if (input.usefulLifeMonths !== undefined) data.usefulLifeMonths = input.usefulLifeMonths;
   Object.assign(data, await resolveTenantAssetGeo(tenantId, input, existing));
 
-  const updated = await prisma.asset.update({
-    where: { id },
-    data,
-    include: assetInclude,
-  });
+  const updated = await prisma.asset.update({ where: { id }, data, include: assetInclude });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'updated', before: existing as unknown as Prisma.InputJsonValue, after: updated as unknown as Prisma.InputJsonValue } });
+  await recordPositionEvent(tenantId, id, actorId, existing, updated);
   void dispatchWebhookEvent(tenantId, 'asset.updated', updated).catch(() => {});
   return enrichAssetWithDepreciation(updated);
 }

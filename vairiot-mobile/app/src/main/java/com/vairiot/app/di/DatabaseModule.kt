@@ -81,11 +81,21 @@ object DatabaseModule {
         }
     }
 
+    // v9: device position on queued audit scans (stage 1.5). Nullable
+    // columns, so scans already waiting in the queue are untouched.
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE queued_scans ADD COLUMN latitude REAL")
+            db.execSQL("ALTER TABLE queued_scans ADD COLUMN longitude REAL")
+            db.execSQL("ALTER TABLE queued_scans ADD COLUMN geoAccuracyMeters REAL")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): VairiotDatabase =
         Room.databaseBuilder(context, VairiotDatabase::class.java, "vairiot.db")
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             // No blanket destructive fallback: a version bump without a
             // migration must crash in testing, not silently wipe every offline
             // queue on a field device. Only pre-v4 builds (before the queues

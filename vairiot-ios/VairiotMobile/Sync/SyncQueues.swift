@@ -37,6 +37,9 @@ extension QueuedScan {
         request.condition = condition
         request.clientRequestId = id.uuidString
         request.capturedAt = ISO8601DateFormatter().string(from: createdAt)
+        request.latitude = latitude
+        request.longitude = longitude
+        request.geoAccuracyMeters = geoAccuracyMeters
         return request
     }
 }
