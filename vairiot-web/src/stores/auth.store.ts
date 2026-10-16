@@ -1,4 +1,4 @@
-import type { UserProfile } from 'vairiot-shared';
+import { isModuleEnabled, type ModuleKey, type UserProfile } from 'vairiot-shared';
 import { create } from 'zustand';
 
 import { useCurrencyStore } from './currency.store';
@@ -16,9 +16,9 @@ export function hasAnyPermission(user: UserProfile | null, ...required: string[]
   return required.some((p) => user.permissions.includes(p));
 }
 
-/** A per-tenant module switch (Tenant.featureFlags), e.g. `gis` (D7). Off unless set. */
-export function hasFeature(user: UserProfile | null, flag: string): boolean {
-  return user?.featureFlags?.[flag] === true;
+/** A per-tenant module from the registry (Tenant.featureFlags, D7), e.g. `gis`. Off unless set. */
+export function hasFeature(user: UserProfile | null, flag: ModuleKey): boolean {
+  return isModuleEnabled(user?.featureFlags, flag);
 }
 
 interface AuthState {

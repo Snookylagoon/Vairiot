@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown, Building2, Barcode, Map, Gauge, type LucideIcon } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import type { ModuleKey } from 'vairiot-shared';
 
 import { ImpersonationBanner } from './ImpersonationBanner';
 import { TenantSwitcher } from './TenantSwitcher';
@@ -12,7 +13,7 @@ import { useAuthStore, hasAnyPermission, hasFeature } from '@/stores/auth.store'
 import { useCurrencyStore, CURRENCIES } from '@/stores/currency.store';
 
 
-type NavItem = { to: string; label: string; icon: LucideIcon; require?: readonly string[]; feature?: string };
+type NavItem = { to: string; label: string; icon: LucideIcon; require?: readonly string[]; feature?: ModuleKey };
 type NavGroup = { heading: string; items: readonly NavItem[] };
 type NavEntry = NavItem | NavGroup;
 
