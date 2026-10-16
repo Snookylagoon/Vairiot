@@ -29,6 +29,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # One product version in every package, app and service (standard §8.2).
+      - name: Version files agree
+        run: npm run check:versions
+
       # vairiot-shared is consumed via its compiled dist/ (main + types), which
       # is gitignored and has no prepare hook, so npm ci does NOT build it.
       # Build it before anything type-checks/lints the workspaces that import it,

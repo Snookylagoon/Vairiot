@@ -42,10 +42,12 @@
 		601CD0505CF1389A97C56C49 /* Photo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67969A2CEBE1181E02360E90 /* Photo.swift */; };
 		637E04BE8F13A2C1CE7EEF5E /* QueueDrainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AC33412966F275ADDD637B4 /* QueueDrainerTests.swift */; };
 		68F61F0616DEC750EA99460C /* QueuedScan.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE7FE78124B0EF2F946EDA64 /* QueuedScan.swift */; };
+		6A9B1A7D575B02BC9E088E56 /* FeatureFlagsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C234CF2EB403A3B465328D31 /* FeatureFlagsTests.swift */; };
 		6ABA4454828F4C97D6C26433 /* LoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C1C7B528B5E17F97A9C2813 /* LoginViewModel.swift */; };
 		6C3D6FD6355585221100F66F /* AuditRunViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F962886475BD72CB3255DADC /* AuditRunViewModel.swift */; };
 		6C88B9AB2B058D408A24A815 /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D3EB9B3A05D0499C0C081B7 /* Date+Formatting.swift */; };
 		6CEE46F7AB843F954F5FFB4E /* RevealableSecureField.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8EE663449000FDA8A285299 /* RevealableSecureField.swift */; };
+		6D457C7DA481671C00C40A47 /* FeatureFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = D186ED334DBF553FB2D18E70 /* FeatureFlags.swift */; };
 		6F655A4E06994638E0697D91 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E75CD85D2C829C9E36B7357 /* ContentView.swift */; };
 		72EF5CBBD35C1E396106921D /* AssetPositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A203D6129D5F1C17693135AC /* AssetPositionTests.swift */; };
 		74603F02FCC9B33243FB359C /* Asset.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2ADA391E09B77430AA096DE /* Asset.swift */; };
@@ -159,12 +161,14 @@
 		A8697D8D86307B86F6AAB47F /* AssetEditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetEditViewModel.swift; sourceTree = "<group>"; };
 		B3F47E4C7D67F57A2F621D02 /* SyncQueues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncQueues.swift; sourceTree = "<group>"; };
 		BEDBFA083EC588D612C825AE /* AuditScanRecorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditScanRecorderTests.swift; sourceTree = "<group>"; };
+		C234CF2EB403A3B465328D31 /* FeatureFlagsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlagsTests.swift; sourceTree = "<group>"; };
 		C42D8E1DFF89CA0A3FE7A701 /* AssetDeltaSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDeltaSync.swift; sourceTree = "<group>"; };
 		CA8A8DEB36AE1A36E61EE5CC /* MaintenanceCreateFromListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaintenanceCreateFromListView.swift; sourceTree = "<group>"; };
 		CE634A2DEDC3B84524DA367C /* QueueState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueState.swift; sourceTree = "<group>"; };
 		CE9B54944DE9862472C37111 /* AssetDeltaSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDeltaSyncTests.swift; sourceTree = "<group>"; };
 		CFAB4F789CFA98123E13FCC7 /* QueueDrainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueDrainer.swift; sourceTree = "<group>"; };
 		D0F1C3769FC878ABFAABBA61 /* VairiotColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VairiotColors.swift; sourceTree = "<group>"; };
+		D186ED334DBF553FB2D18E70 /* FeatureFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlags.swift; sourceTree = "<group>"; };
 		D51F6AE53994A24FA4CE4B02 /* SyncFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncFailureTests.swift; sourceTree = "<group>"; };
 		D5431280E038637FA3CB2A7B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D7BF71D61E2AF2D08A25EC7C /* CameraImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraImagePicker.swift; sourceTree = "<group>"; };
@@ -362,6 +366,7 @@
 				1F07A0EB0022187A41DC11EC /* CachedAsset.swift */,
 				FB6A529423121523C9797E84 /* CachedReference.swift */,
 				7D2154A36A06B4BCF9B4A768 /* DeviceUDIDStore.swift */,
+				D186ED334DBF553FB2D18E70 /* FeatureFlags.swift */,
 				2F4AAAD2216A74C974530A2F /* QueuedAssetCreate.swift */,
 				2B1B23BDFA6ABFA8C03D4CBD /* QueuedPhoto.swift */,
 				EE7FE78124B0EF2F946EDA64 /* QueuedScan.swift */,
@@ -441,6 +446,7 @@
 				CE9B54944DE9862472C37111 /* AssetDeltaSyncTests.swift */,
 				A203D6129D5F1C17693135AC /* AssetPositionTests.swift */,
 				BEDBFA083EC588D612C825AE /* AuditScanRecorderTests.swift */,
+				C234CF2EB403A3B465328D31 /* FeatureFlagsTests.swift */,
 				9AC33412966F275ADDD637B4 /* QueueDrainerTests.swift */,
 				D51F6AE53994A24FA4CE4B02 /* SyncFailureTests.swift */,
 				6510EA3DAFE569E4F31535F6 /* SyncTestSupport.swift */,
@@ -546,6 +552,7 @@
 				B6CC037C99BA79BE66D078BD /* AssetDeltaSyncTests.swift in Sources */,
 				72EF5CBBD35C1E396106921D /* AssetPositionTests.swift in Sources */,
 				EA1409893ACBF3B46A327853 /* AuditScanRecorderTests.swift in Sources */,
+				6A9B1A7D575B02BC9E088E56 /* FeatureFlagsTests.swift in Sources */,
 				637E04BE8F13A2C1CE7EEF5E /* QueueDrainerTests.swift in Sources */,
 				0828CEA4D4A74F77C476249C /* SyncFailureTests.swift in Sources */,
 				0279540E9BBA8869F9DBBBEF /* SyncTestSupport.swift in Sources */,
@@ -589,6 +596,7 @@
 				6F655A4E06994638E0697D91 /* ContentView.swift in Sources */,
 				6C88B9AB2B058D408A24A815 /* Date+Formatting.swift in Sources */,
 				F4629A1F145780EE4E98D74D /* DeviceUDIDStore.swift in Sources */,
+				6D457C7DA481671C00C40A47 /* FeatureFlags.swift in Sources */,
 				88EF0638E4034BC118C2BAC7 /* Gs1.swift in Sources */,
 				A844812B810A94082BFDADA6 /* LabelDesignView.swift in Sources */,
 				7EE742EE3ED4D8B6D9DDB4D5 /* LabelLayout.swift in Sources */,
@@ -690,7 +698,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = VairiotMobile/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.10.1;
+				MARKETING_VERSION = 2.0.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -776,7 +784,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = VairiotMobile/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.10.1;
+				MARKETING_VERSION = 2.0.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

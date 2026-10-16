@@ -8,7 +8,7 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { registrationOpen } from '@/lib/registration';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { RegisterPage } from '@/pages/auth/RegisterPage';
-import { useAuthStore, hasAnyPermission } from '@/stores/auth.store';
+import { useAuthStore, hasAnyPermission, hasFeature } from '@/stores/auth.store';
 const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage').then(m => ({ default: m.AcceptInvitePage })));
 
 const DashboardPage       = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
@@ -87,6 +87,12 @@ function RequirePermission({ perms, children }: { perms: string[]; children: Rea
   return hasAnyPermission(user, ...perms) ? <>{children}</> : <Navigate to="/dashboard" replace />;
 }
 
+// A page of a switchable module (D7): with the module off, the address goes nowhere.
+function RequireFeature({ flag, fallback, children }: { flag: string; fallback: string; children: React.ReactNode }) {
+  const user = useAuthStore(s => s.user);
+  return hasFeature(user, flag) ? <>{children}</> : <Navigate to={fallback} replace />;
+}
+
 export default function App() {
   const hydrate = useAuthStore(s => s.hydrate);
   useEffect(() => { hydrate(); }, [hydrate]);
@@ -107,7 +113,7 @@ export default function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="assets"       element={<AssetsPage />} />
             <Route path="assets/new"   element={<NewAssetPage />} />
-            <Route path="assets/map"   element={<AssetMapPage />} />
+            <Route path="assets/map"   element={<RequireFeature flag="gis" fallback="/assets"><AssetMapPage /></RequireFeature>} />
             <Route path="assets/:id"   element={<AssetDetailPage />} />
             <Route path="assets/:id/edit" element={<EditAssetPage />} />
             <Route path="categories"   element={<CategoriesPage />} />

@@ -39,6 +39,7 @@ fun AssetDetailScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val writeState by viewModel.writeState.collectAsState()
+    val gisEnabled by viewModel.gisEnabled.collectAsState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -79,6 +80,7 @@ fun AssetDetailScreen(
             is AssetDetailUiState.Loading -> LoadingCard()
             is AssetDetailUiState.Error   -> ErrorCard(s.message, onReset = onBack)
             is AssetDetailUiState.Loaded  -> AssetBody(
+                gisEnabled = gisEnabled,
                 asset = s.asset,
                 gs1 = s.gs1,
                 onPrintLabel = onLabel,
@@ -169,6 +171,7 @@ private fun AssetBody(
     onPrintLabel: () -> Unit = {},
     supportsTagWrite: Boolean = false,
     onWriteTag: () -> Unit = {},
+    gisEnabled: Boolean = false,
 ) {
     Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
@@ -194,7 +197,7 @@ private fun AssetBody(
                 asset.category?.let { DetailRow("Category", it.name) }
                 asset.site?.let      { DetailRow("Site",     it.name) }
                 asset.location?.let  { DetailRow("Location", it.name) }
-                AssetPosition.of(asset)?.let { GpsPositionRow(it, asset.name) }
+                if (gisEnabled) AssetPosition.of(asset)?.let { GpsPositionRow(it, asset.name) }
                 asset.serialNumber?.let { DetailRow("Serial number", it) }
                 asset.barcode?.let      { DetailRow("Manufacturer EAN", it) }
                 asset.rfidTag?.let      { DetailRow("RFID tag", it) }

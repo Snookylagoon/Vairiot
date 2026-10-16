@@ -1,8 +1,8 @@
 {
   "name": "vairiot",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Vairiot Enhanced Asset Management Platform \u2014 monorepo root",
+  "description": "Vairiot Enhanced Asset Management Platform — monorepo root",
   "workspaces": [
     "vairiot-api",
     "vairiot-web",
@@ -29,6 +29,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:api": "./scripts/test-api.sh",
+    "check:versions": "node scripts/bump-version.mjs --check",
+    "version:set": "node scripts/bump-version.mjs",
     "db:migrate": "npm run db:migrate --workspace=vairiot-api",
     "db:studio": "npm run db:studio --workspace=vairiot-api"
   },

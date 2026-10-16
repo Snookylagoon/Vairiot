@@ -34,6 +34,7 @@ final class ProfileViewModel {
 
         do {
             profile = try await apiClient.request(.getMe)
+            FeatureFlags.shared.update(from: profile?.featureFlags)
         } catch let error as APIError {
             errorMessage = error.localizedDescription
         } catch {

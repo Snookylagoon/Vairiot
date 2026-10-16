@@ -107,7 +107,7 @@ struct AssetDetailView: View {
             VStack(spacing: 16) {
                 headerCard(asset)
                 infoSection(asset)
-                if let position = AssetPosition(asset) {
+                if FeatureFlags.shared.gisEnabled, let position = AssetPosition(asset) {
                     positionSection(position, assetName: asset.name)
                 }
                 if let gs1 = viewModel.gs1 {
@@ -162,8 +162,10 @@ struct AssetDetailView: View {
                 infoRow(icon: "building.2", label: "Site", value: asset.site?.name)
                 Divider().padding(.leading, 44)
                 infoRow(icon: "mappin.and.ellipse", label: "Location", value: asset.location?.name)
-                Divider().padding(.leading, 44)
-                infoRow(icon: "location", label: "GPS Position", value: AssetPosition(asset)?.coordinateText)
+                if FeatureFlags.shared.gisEnabled {
+                    Divider().padding(.leading, 44)
+                    infoRow(icon: "location", label: "GPS Position", value: AssetPosition(asset)?.coordinateText)
+                }
                 Divider().padding(.leading, 44)
                 infoRow(icon: "number", label: "Serial Number", value: asset.serialNumber)
                 Divider().padding(.leading, 44)

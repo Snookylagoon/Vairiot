@@ -1,0 +1,15 @@
+# Gitleaks configuration (standard §11.2). Runs in CI and can be run locally:
+#   gitleaks git --redact .
+#
+# Gitleaks reads text only: it does not open .xlsx, .docx or .pdf files, so a
+# spreadsheet of passwords passes unseen. `docs/Demo Passwords.xlsx` is exactly
+# that case (open point G7, decision D4). Never commit credentials in an office
+# document; keep them in the password manager.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders in the env templates, filled locally by scripts/dev-setup.sh"
+regexes = ['''change-me-[a-z0-9-]+''']
+paths = ['''package-lock\.json''']

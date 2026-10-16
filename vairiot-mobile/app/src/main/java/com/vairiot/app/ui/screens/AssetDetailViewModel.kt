@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
+import com.vairiot.app.data.FeatureFlags
 import com.vairiot.app.data.Gs1Repository
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.AssetUpdateRequest
@@ -16,8 +17,10 @@ import com.vairiot.app.scanner.ScanType
 import com.vairiot.app.scanner.ScannerService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import retrofit2.HttpException
@@ -47,6 +50,7 @@ class AssetDetailViewModel @Inject constructor(
     private val gs1Repository: Gs1Repository,
     private val scanner: ScannerService,
     private val deviceInfo: DeviceInfoProvider,
+    featureFlags: FeatureFlags,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -60,7 +64,14 @@ class AssetDetailViewModel @Inject constructor(
 
     val supportsTagWrite: Boolean get() = scanner.supportsTagWrite
 
-    init { load() }
+    /** GIS switched on for the tenant (D7); the position row is hidden otherwise. */
+    val gisEnabled: StateFlow<Boolean> = featureFlags.isEnabled(FeatureFlags.GIS)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    init {
+        load()
+        viewModelScope.launch { featureFlags.refresh() }
+    }
 
     fun load() {
         if (assetId.isBlank()) {

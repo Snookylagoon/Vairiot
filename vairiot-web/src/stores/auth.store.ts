@@ -16,6 +16,11 @@ export function hasAnyPermission(user: UserProfile | null, ...required: string[]
   return required.some((p) => user.permissions.includes(p));
 }
 
+/** A per-tenant module switch (Tenant.featureFlags), e.g. `gis` (D7). Off unless set. */
+export function hasFeature(user: UserProfile | null, flag: string): boolean {
+  return user?.featureFlags?.[flag] === true;
+}
+
 interface AuthState {
   user:    UserProfile | null;
   loading: boolean;

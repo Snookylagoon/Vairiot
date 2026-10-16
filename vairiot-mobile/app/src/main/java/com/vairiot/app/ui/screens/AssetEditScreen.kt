@@ -97,12 +97,14 @@ fun AssetEditScreen(
                 enabled = state.siteId.isNotBlank(),
                 onChange = { viewModel.update("locationId", it) })
 
-            GpsPositionSection(
-                state = state.gps,
-                onCapture = { viewModel.capturePosition() },
-                onRemove = { viewModel.removePosition() },
-                onPermissionDenied = { viewModel.positionPermissionDenied() },
-            )
+            if (state.gisEnabled) {
+                GpsPositionSection(
+                    state = state.gps,
+                    onCapture = { viewModel.capturePosition() },
+                    onRemove = { viewModel.removePosition() },
+                    onPermissionDenied = { viewModel.positionPermissionDenied() },
+                )
+            }
 
             ClearableTextField(value = state.serialNumber,
                 onValueChange = { viewModel.update("serialNumber", it) },

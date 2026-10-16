@@ -4,6 +4,7 @@ import { body, query, validationResult } from 'express-validator';
 import { toCsv } from '../../lib/csv';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
+import { requireFeature } from '../../middleware/require-feature';
 import { enforceAssetCap } from '../../services/asset-cap.service';
 import { listAssetEvents } from '../../services/asset-event.service';
 import { listAssets, listAssetChanges, listAssetPositions, getAsset, createAssetIdempotent, findAssetByClientRequestId, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
@@ -148,8 +149,9 @@ assetsRouter.get('/stats', requireAnyPermission('asset:read'),
   }),
 );
 
-// Positions for the all-assets map. Same filters as the list.
-assetsRouter.get('/map', requireAnyPermission('asset:read'),
+// Positions for the all-assets map. Same filters as the list. 404 when the
+// tenant has GIS switched off (D7).
+assetsRouter.get('/map', requireAnyPermission('asset:read'), requireFeature('gis'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     res.json(await listAssetPositions(req.user!.tenantId, {
       search:     req.query.search as string,

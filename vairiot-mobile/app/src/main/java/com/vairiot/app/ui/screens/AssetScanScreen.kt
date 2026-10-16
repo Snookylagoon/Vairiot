@@ -36,6 +36,7 @@ fun AssetScanScreen(
     val health by viewModel.scannerHealth.collectAsState()
     val showCamera by viewModel.showCameraFallback.collectAsState()
     val registrationGps by viewModel.registrationGps.collectAsState()
+    val gisEnabled by viewModel.gisEnabled.collectAsState()
     var manualQuery by remember { mutableStateOf("") }
     val sideRail = LocalUseSideRail.current
 
@@ -166,7 +167,7 @@ fun AssetScanScreen(
                     },
                     onScanSecondary = { viewModel.scanSecondary() },
                     onClearSecondary = { viewModel.clearSecondary() },
-                    gps = registrationGps,
+                    gps = registrationGps.takeIf { gisEnabled },
                     onCapturePosition = { viewModel.captureRegistrationPosition() },
                     onRemovePosition = { viewModel.removeRegistrationPosition() },
                     onPositionDenied = { viewModel.registrationPositionDenied() },
@@ -349,7 +350,8 @@ fun NotFoundCard(
     onRegister: (String, String?) -> Unit,
     onScanSecondary: () -> Unit = {},
     onClearSecondary: () -> Unit = {},
-    gps: GpsCaptureState = GpsCaptureState(),
+    /** Null when GIS is off for the tenant (D7): no position section. */
+    gps: GpsCaptureState? = null,
     onCapturePosition: () -> Unit = {},
     onRemovePosition: () -> Unit = {},
     onPositionDenied: () -> Unit = {},
@@ -441,20 +443,17 @@ fun NotFoundCard(
                         }
                     }
 
-                    HorizontalDivider()
-
-                    GpsPositionSection(
-                        state = gps,
-                        onCapture = onCapturePosition,
-                        onRemove = onRemovePosition,
-                        onPermissionDenied = onPositionDenied,
-                    )
+                    if (gps != null) {
+                        HorizontalDivider()
+                        GpsPositionSection(state = gps, onCapture = onCapturePosition,
+                            onRemove = onRemovePosition, onPermissionDenied = onPositionDenied)
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = { showDialog = false; onRegister(assetName, secondaryFinal) },
-                    enabled = assetName.isNotBlank() && !gps.isCapturing,
+                    enabled = assetName.isNotBlank() && gps?.isCapturing != true,
                     colors = ButtonDefaults.buttonColors(containerColor = VairiotViolet),
                 ) { Text("Register") }
             },

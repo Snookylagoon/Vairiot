@@ -40,7 +40,9 @@ struct AssetEditView: View {
                 identifiersSection
                 classificationSection
                 locationSection
-                positionSection
+                if viewModel.featureFlags.gisEnabled {
+                    positionSection
+                }
                 notesSection
             }
 

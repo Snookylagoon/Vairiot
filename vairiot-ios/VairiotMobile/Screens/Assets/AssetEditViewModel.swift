@@ -51,6 +51,8 @@ final class AssetEditViewModel {
     let mode: Mode
     private let apiClient: APIClient
     private let positionProvider: PositionProviding
+    /// Tenant module switches; GIS off means no position is sent (D7).
+    let featureFlags: FeatureFlags
 
     // MARK: - Computed
 
@@ -73,9 +75,11 @@ final class AssetEditViewModel {
         apiClient: APIClient,
         existingAsset: AssetResponse? = nil,
         prefillBarcode: String? = nil,
-        positionProvider: PositionProviding? = nil
+        positionProvider: PositionProviding? = nil,
+        featureFlags: FeatureFlags = .shared
     ) {
         self.apiClient = apiClient
+        self.featureFlags = featureFlags
         self.positionProvider = positionProvider ?? DevicePositionProvider()
 
         if let asset = existingAsset {
@@ -101,6 +105,7 @@ final class AssetEditViewModel {
 
     func loadReferenceData() async {
         isLoading = true
+        Task { await featureFlags.refresh(apiClient: apiClient) }
 
         async let categoriesTask: [CategoryRefResponse] = apiClient.request(.listCategories)
         async let sitesTask: [SiteRefResponse] = apiClient.request(.listSites)
@@ -344,7 +349,7 @@ final class AssetEditViewModel {
             siteId: selectedSiteId,
             locationId: selectedLocationId
         )
-        if positionChanged {
+        if positionChanged, featureFlags.gisEnabled {
             if let fix = capturedFix {
                 request.latitude = fix.latitude
                 request.longitude = fix.longitude

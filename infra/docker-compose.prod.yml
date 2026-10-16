@@ -252,7 +252,7 @@ services:
       SMTP_USER:    ${SMTP_USER:-}
       SMTP_PASS:    ${SMTP_PASS:-}
       SMTP_FROM:    ${SMTP_FROM:-}
-      # Digest/metering schedules — override to speed up testing (see TEST-PLAN 3.2).
+      # Digest/metering schedules — override to speed up testing (see docs/testing/manual-checks.md 3.2).
       ALERT_DIGEST_DAILY_CRON:  ${ALERT_DIGEST_DAILY_CRON:-}
       ALERT_DIGEST_WEEKLY_CRON: ${ALERT_DIGEST_WEEKLY_CRON:-}
       STORAGE_METERING_CRON:    ${STORAGE_METERING_CRON:-}
