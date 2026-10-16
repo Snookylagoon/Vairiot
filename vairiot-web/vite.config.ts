@@ -30,5 +30,12 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test-setup.ts',
+    // D8 ratchet (stage 2.1): the gate is the measured value, never lowered.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**'],
+      exclude: ['src/**/__tests__/**', 'src/test-setup.ts'],
+      thresholds: { lines: 7 },
+    },
   },
 });

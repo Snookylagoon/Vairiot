@@ -12,7 +12,8 @@
   },
   "scripts": {
     "test": "jest",
-    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc --project tsconfig.json"
+    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc --project tsconfig.json",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "zod": "^3.23.0"
