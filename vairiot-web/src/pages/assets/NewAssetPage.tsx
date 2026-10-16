@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 
 import { AssetForm, AssetFormData } from '@/components/forms/AssetForm';
 import { useCreateAsset } from '@/hooks/useAssets';
+import { accountingPayload } from '@/lib/accounting';
 import { geoPayload } from '@/lib/geo';
+import { hasFeature, useAuthStore } from '@/stores/auth.store';
 
 export function NewAssetPage() {
   const navigate    = useNavigate();
   const createAsset = useCreateAsset();
+  const ipsas = useAuthStore(s => hasFeature(s.user, 'ipsas'));
 
   const toNum = (v?: string) => v ? Number(v) : undefined;
 
@@ -22,6 +25,7 @@ export function NewAssetPage() {
       residualValue: toNum(data.residualValue),
       usefulLifeMonths: data.usefulLifeMonths ? Number(data.usefulLifeMonths) : undefined,
       ...geoPayload(data),
+      ...accountingPayload(data, ipsas),
     });
     navigate('/assets');
   };

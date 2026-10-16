@@ -2,11 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { AccountingFields } from '@/components/forms/AccountingFields';
 import { ConditionSelect } from '@/components/forms/ConditionSelect';
 import { GeoPositionFields } from '@/components/forms/GeoPositionFields';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
+import { useAssetClasses } from '@/hooks/useAccounting';
 import { useCategories, useCreateCategory } from '@/hooks/useCategories';
 import { useLocations, useCreateLocation } from '@/hooks/useLocations';
 import { useSites, useCreateSite } from '@/hooks/useSites';
@@ -44,17 +46,29 @@ function InlineCreateDialog({ title, label, onSave, onCancel }: {
 
 export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset', isLoading }: AssetFormProps) {
   const gisEnabled = useAuthStore(s => hasFeature(s.user, 'gis'));
+  const ipsasEnabled = useAuthStore(s => hasFeature(s.user, 'ipsas'));
+  const { data: classes = [] } = useAssetClasses();
   const { data: categories = [] } = useCategories();
   const { data: sites      = [] } = useSites();
   const createCategory = useCreateCategory();
   const createSite     = useCreateSite();
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AssetFormData>({
+  const { register, handleSubmit, setValue, setError, watch, formState: { errors } } = useForm<AssetFormData>({
     resolver: zodResolver(assetSchema),
     defaultValues,
   });
 
   const selectedSiteId = watch('siteId');
+  // D20: with the IPSAS ledger on, an asset needs a class, its own or its category's.
+  const categoryClassId = categories.find((c: { id: string; assetClassId?: string | null }) => c.id === watch('categoryId'))?.assetClassId;
+  const categoryClassName = classes.find(c => c.id === categoryClassId)?.name ?? null;
+  const submit = (data: AssetFormData) => {
+    if (ipsasEnabled && !data.assetClassId && !categoryClassName) {
+      setError('assetClassId', { message: 'Choose an asset class, or a category that has one' });
+      return Promise.resolve();
+    }
+    return onSubmit(data);
+  };
   const { data: locations = [] } = useLocations(selectedSiteId);
   const createLocation = useCreateLocation(selectedSiteId);
 
@@ -87,7 +101,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
 
   return (
     <>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(submit)} className="space-y-6">
         {/* Core details */}
         <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
           <h3 className="font-semibold text-v-charcoal text-sm uppercase tracking-wider">Asset Details</h3>
@@ -177,6 +191,8 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
           </div>
         </div>
 
+        {ipsasEnabled && <AccountingFields register={register} watch={watch} errors={errors} categoryClassName={categoryClassName} />}
+
         {/* Depreciation */}
         <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
           <h3 className="font-semibold text-v-charcoal text-sm uppercase tracking-wider">Depreciation</h3>
@@ -186,6 +202,8 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
               <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white"
                 {...register('depreciationMethod')}>
                 <option value="straight_line">Straight Line</option>
+                {ipsasEnabled && <option value="declining_balance">Reducing Balance</option>}
+                {ipsasEnabled && <option value="units_of_production">Units of Production</option>}
                 <option value="none">None</option>
               </select>
             </div>

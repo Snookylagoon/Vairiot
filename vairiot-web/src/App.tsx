@@ -58,6 +58,7 @@ const OnboardingPage       = lazy(() => import('@/pages/onboarding/OnboardingPag
 const LicensingPage        = lazy(() => import('@/pages/licensing/LicensingPage').then(m => ({ default: m.LicensingPage })));
 const TwoFactorPage        = lazy(() => import('@/pages/settings/TwoFactorPage').then(m => ({ default: m.TwoFactorPage })));
 const ConditionScalePage   = lazy(() => import('@/pages/admin/ConditionScalePage').then(m => ({ default: m.ConditionScalePage })));
+const AssetClassesPage     = lazy(() => import('@/pages/accounting/AssetClassesPage').then(m => ({ default: m.AssetClassesPage })));
 const MapSettingsPage      = lazy(() => import('@/pages/admin/MapSettingsPage').then(m => ({ default: m.MapSettingsPage })));
 const ChangePasswordPage   = lazy(() => import('@/pages/settings/ChangePasswordPage').then(m => ({ default: m.ChangePasswordPage })));
 
@@ -153,6 +154,7 @@ export default function App() {
             <Route path="admin/api-keys" element={<RequirePermission perms={['apikey:read', 'apikey:write']}><ApiKeysPage /></RequirePermission>} />
             <Route path="admin/webhooks" element={<RequirePermission perms={['apikey:write']}><WebhooksPage /></RequirePermission>} />
             <Route path="admin/condition-scale" element={<RequirePermission perms={['company:manage']}><ConditionScalePage /></RequirePermission>} />
+            <Route path="accounting/classes" element={<RequireFeature flag="ipsas" fallback="/dashboard"><RequirePermission perms={['accounting:read']}><AssetClassesPage /></RequirePermission></RequireFeature>} />
             <Route path="admin/map-settings" element={<RequireFeature flag="gis" fallback="/dashboard"><RequirePermission perms={['company:manage']}><MapSettingsPage /></RequirePermission></RequireFeature>} />
             <Route path="admin/custom-fields" element={<RequirePermission perms={['asset:write']}><CustomFieldsPage /></RequirePermission>} />
             <Route path="admin/identification" element={<RequirePermission perms={['gs1:admin']}><IdentificationPage /></RequirePermission>} />

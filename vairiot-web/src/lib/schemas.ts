@@ -54,6 +54,12 @@ export const assetSchema = z.object({
   usefulLifeMonths: z.string().optional(),
   depreciationStartDate: z.string().optional(),
   notes:          z.string().optional(),
+  // IPSAS (stage 2.3) — strings while in the form; see accountingPayload()
+  assetClassId:   z.string().optional(),
+  acquisitionType: z.string().optional(),
+  fairValueAtRecognition: z.string().optional(),
+  sourceEntity:   z.string().optional(),
+  recognitionDate: z.string().optional(),
   // GIS position — strings while in the form; see geoPayload()
   latitude:       z.string().optional(),
   longitude:      z.string().optional(),

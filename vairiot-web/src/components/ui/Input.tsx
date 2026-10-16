@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { Eye, EyeOff, Check, X } from 'lucide-react';
-import { InputHTMLAttributes, forwardRef, useCallback, useRef, useState } from 'react';
+import { InputHTMLAttributes, forwardRef, useCallback, useId, useRef, useState } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?:   string;
@@ -16,6 +16,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const [hasValue, setHasValue] = useState(false);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const showSuccess = !!success && !error;
+    // The label names its input for screen readers and tests (G34, stage 2.3).
+    const autoId = useId();
+    const id = props.id ?? autoId;
 
     const setRefs = useCallback((el: HTMLInputElement | null) => {
       inputRef.current = el;
@@ -44,10 +47,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
     return (
       <div className="space-y-1">
-        {label && <label className="block text-sm font-medium text-v-charcoal">{label}</label>}
+        {label && <label htmlFor={id} className="block text-sm font-medium text-v-charcoal">{label}</label>}
         <div className="relative">
           <input
             ref={setRefs}
+            id={id}
             type={isPassword && show ? 'text' : type}
             onChange={handleChange}
             className={clsx(
