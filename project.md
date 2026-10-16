@@ -86,14 +86,14 @@ Decision D1: Phase N is Sprint SN; sprint files keep their names and serve as th
 
 | Phase | Sprint | Scope                                                                       | Plan / record                                                | Status                                                                                       |
 | ----- | ------ | --------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| 0     | S0     | Hardening and hosting; standard adoption (stages 0.8–0.10)                  | `docs/sprints/S0-hardening-and-hosting.md` / `S0-summary.md` | Built; adoption in progress; awaiting acceptance                                             |
+| 0     | S0     | Hardening and hosting; standard adoption (stages 0.8–0.10)                  | `docs/sprints/S0-hardening-and-hosting.md` / `S0-summary.md` | Built, adoption stages 0.8–0.10 done; awaiting acceptance                                             |
 | 1     | S1     | GIS, condition and photos                                                   | `docs/sprints/S1-gis-condition-photos.md`                    | In progress — positions, GPS capture and map built; PostGIS (rest of S1.1), S1.3, S1.5 to do |
 | 2     | S2     | IPSAS ledger, policies, depreciation, Excel import                          | `docs/sprints/S2-ipsas-ledger-import.md`                     | Planned                                                                                      |
 | 3     | S3     | Maker–checker, zones and teams, QA sampling, Georgian i18n, training tenant | `docs/sprints/S3-zones-qa-georgian.md`                       | Planned                                                                                      |
 | 4     | S4     | Pilot defects, reconciliation engine, data-quality dashboard                | `docs/sprints/S4-reconciliation-and-dq.md`                   | Planned                                                                                      |
 | 5     | S5     | IPSAS reporting pack, GeoJSON/Shapefile exchange, handover                  | `docs/sprints/S5-reporting-and-handover.md`                  | Planned                                                                                      |
 
-Adoption workstreams W0–W6 from the [adoption plan](docs/standard-adoption-plan.md) §4: W0, W1a, W1 and W2 in stage 0.9; W3 in stage 0.10; W4–W6 placed in S1–S3.
+Adoption workstreams W0–W6 from the [adoption plan](docs/standard-adoption-plan.md) §4: W0, W1a, W1 and W2 built in stage 0.9; W3 built in stage 0.10; W4–W6 placed in S1–S3.
 
 ## 7. Documentation set
 
@@ -128,3 +128,4 @@ Adoption workstreams W0–W6 from the [adoption plan](docs/standard-adoption-pla
 | 16 Oct 2026 | D7: module registry built from `featureFlags`; GIS hidden now behind the `gis` flag                                                                       | **Approved**          |
 | 16 Oct 2026 | D8: coverage ratchet — API 50 → 80 % lines over S1–S3; other packages 60 % by S2, 80 % by S4                                                              | **Approved**          |
 | 16 Oct 2026 | D9: i18n and the language rules folded into S3 (Georgian i18n)                                                                                            | **Approved**          |
+| 16 Oct 2026 | D10: defect severities are named Sev1–Sev4 (not S1–S4, which clash with sprint ids) | **Approved** |
