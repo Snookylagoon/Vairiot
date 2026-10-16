@@ -26,7 +26,7 @@ const upload = multer({
   },
 });
 
-const uploadFields = upload.fields([
+export const uploadFields = upload.fields([
   { name: 'photo', maxCount: 1 },
   { name: 'thumb', maxCount: 1 },
 ]);

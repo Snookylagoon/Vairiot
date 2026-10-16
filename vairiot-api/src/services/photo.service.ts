@@ -175,7 +175,7 @@ export async function deletePhoto(tenantId: string, photoId: string) {
   return { id: photoId };
 }
 
-function mimeToExt(mime: string): string {
+export function mimeToExt(mime: string): string {
   switch (mime.toLowerCase()) {
     case 'image/jpeg': return '.jpg';
     case 'image/jpg':  return '.jpg';
@@ -186,7 +186,7 @@ function mimeToExt(mime: string): string {
   }
 }
 
-function randomHex(n: number): string {
+export function randomHex(n: number): string {
   const bytes = new Uint8Array(n);
   for (let i = 0; i < n; i++) bytes[i] = Math.floor(Math.random() * 256);
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
