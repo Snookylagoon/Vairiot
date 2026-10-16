@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 
 import { apiSpec } from './lib/api-spec';
+import { runWithTenant } from './lib/tenant-context';
 import { authenticate } from './middleware/authenticate';
 import { requireClientScope, requireTenantScope } from './middleware/authorise';
 import { errorHandler } from './middleware/error-handler';
@@ -99,7 +100,8 @@ export function createApp(): Application {
       const { body, mimeType } = await readCompanyLogo(company.logoStorageKey);
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Cache-Control', 'public, max-age=300');
-      res.send(body);
+      // A stripped PNG, WebP or JPEG (logoMimeType): never markup.
+      res.send(body); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write
     } catch {
       res.status(404).json({ error: 'No logo' });
     }
@@ -112,6 +114,14 @@ export function createApp(): Application {
   // ── Gated routes: require authentication + completed onboarding ──
   const gated = express.Router();
   gated.use(authenticate);
+  // Row-level security (D5): queries in a tenant request see only that tenant.
+  // Platform administration and the parent-over-children routes work across
+  // tenants by design and run unscoped (lib/tenant-context.ts).
+  gated.use((req, _res, next) => {
+    const crossTenant = /^\/(admin\/(platform|mobile-releases|ios-releases)|company\/sub-tenants)(\/|$)/.test(req.path);
+    if (crossTenant || !req.user?.tenantId) { next(); return; }
+    runWithTenant(req.user.tenantId, next);
+  });
   // Per-user budget for offline-queue flushes (the global limiter skips these).
   gated.use(syncLimiter);
   gated.use(requireOnboardingComplete());

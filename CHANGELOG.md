@@ -2,6 +2,20 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.6.0] — 2026-10-16
+
+### Security
+
+- Row-level security: in every tenant request the database itself returns only that tenant's assets, audit events and photos, even to a query with no tenant filter (stage 1.19)
+- Two-factor authentication is mandatory for administrators of a tenant and of the platform, after a 14-day grace period from their next sign-in; field roles are not affected (stage 1.18)
+- All app containers run as unprivileged users with no Linux capabilities; the web and admin containers listen on 8080 (stage 1.17)
+- Request metrics (`/health/metrics`) are no longer reachable through the proxy (stage 1.17)
+- The public iOS install page escapes release notes; encrypted settings require a full-length authentication tag; proxies forward a fixed Host header (stage 1.17)
+
+### Changed
+
+- Deploying 2.6.0: see DEPLOY.md, "Version 2.6.0: security changes to know before deploying" (stages 1.17–1.19)
+
 ## [2.5.0] — 2026-10-16
 
 ### Added
@@ -161,6 +175,7 @@ Adoption of the Managed Development Standard (decision D3). The major number mar
 
 Earlier versions (1.4.x–1.6.x, June–July 2026) were Android-only releases recorded in the commit history.
 
+[2.6.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.2.0...v2.3.0

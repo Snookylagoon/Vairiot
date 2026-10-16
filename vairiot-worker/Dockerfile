@@ -45,4 +45,7 @@ COPY --from=builder /app/vairiot-shared/package.json ./vairiot-shared/
 COPY --from=builder /app/vairiot-worker/dist ./vairiot-worker/dist
 
 WORKDIR /app/vairiot-worker
+# Run as the image's unprivileged user (W6, G16): the app only reads its
+# files and writes to /tmp.
+USER node
 CMD ["node", "dist/index.js"]

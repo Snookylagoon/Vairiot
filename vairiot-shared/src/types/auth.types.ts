@@ -17,6 +17,8 @@ export interface UserProfile {
   roles: string[];
   permissions: string[];
   featureFlags?: Record<string, boolean>;
+  /** D6: an administrator without two-factor must enrol by this time (ISO), else null. */
+  twoFactorSetupDueBy?: string | null;
 }
 
 export interface LoginRequest {

@@ -54,7 +54,8 @@ reportsRouter.get('/export/:reportType',
     res.setHeader('Content-Type', CONTENT_TYPES[format]);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Length', buffer.length);
-    res.send(buffer);
+    // A generated file sent as an attachment with its own type, not markup.
+    res.send(buffer); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write
   }),
 );
 

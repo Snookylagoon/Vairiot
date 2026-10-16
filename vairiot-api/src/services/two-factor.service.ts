@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 
 import bcrypt from 'bcryptjs';
 import { generateSecret, generateURI, verifySync } from 'otplib';
-import { ROLES_REQUIRING_2FA, type RoleName } from 'vairiot-shared';
+import { ROLES_REQUIRING_2FA } from 'vairiot-shared';
 
 import { encryptSecret, decryptSecret } from '../lib/crypto';
 import { ValidationError, NotFoundError, AppError } from '../lib/errors';
@@ -148,7 +148,7 @@ export async function validateTwoFactorToken(userId: string, token: string): Pro
 export async function disableTwoFactor(userId: string, roles: string[], token = ''): Promise<void> {
   // Block disabling for roles that require 2FA
   const requiresMandatory = roles.some((r) =>
-    ROLES_REQUIRING_2FA.includes(r as RoleName),
+    ROLES_REQUIRING_2FA.includes(r),
   );
   if (requiresMandatory) {
     throw new AppError(
@@ -185,7 +185,7 @@ export async function checkTwoFactorRequirement(userId: string, roles: string[])
   needsSetup: boolean;
 }> {
   const required = roles.some((r) =>
-    ROLES_REQUIRING_2FA.includes(r as RoleName),
+    ROLES_REQUIRING_2FA.includes(r),
   );
 
   const user = await prisma.user.findUnique({

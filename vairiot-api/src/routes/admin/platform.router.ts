@@ -275,7 +275,8 @@ platformRouter.get('/tenants/:id/logo', async (req: Request, res: Response) => {
   const { body, mimeType } = await readCompanyLogo(company.logoStorageKey);
   res.setHeader('Content-Type', mimeType);
   res.setHeader('Cache-Control', 'private, max-age=300');
-  res.send(body);
+  // A stripped PNG, WebP or JPEG (logoMimeType): never markup.
+  res.send(body); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write
 });
 
 platformRouter.delete('/tenants/:id/logo', async (req: Request, res: Response) => {

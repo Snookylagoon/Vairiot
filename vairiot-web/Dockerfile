@@ -24,8 +24,11 @@ RUN npm run build --workspace=vairiot-shared
 COPY vairiot-web ./vairiot-web
 RUN npm run build --workspace=vairiot-web
 
-FROM nginx:alpine
+# Unprivileged nginx (W6, G16): runs as uid 101 and listens on 8080.
+FROM nginxinc/nginx-unprivileged:1.30-alpine
 COPY --from=builder /app/vairiot-web/dist /usr/share/nginx/html
 COPY vairiot-web/nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+# The base image's nginx user, stated so scanners and readers can see it.
+USER 101
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

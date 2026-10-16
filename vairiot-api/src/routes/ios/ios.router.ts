@@ -46,6 +46,11 @@ const PAGE_STYLE = `
           border-radius: 10px; word-break: break-all; text-align: center; }
 `;
 
+/** Release data is typed by a platform admin and shown on public pages (W6, G27). */
+export function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
 function page(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -117,7 +122,7 @@ iosRouter.get('/manifest.plist', asyncHandler(async (req: Request, res: Response
       <key>metadata</key>
       <dict>
         <key>bundle-identifier</key><string>${IOS_BUNDLE_ID}</string>
-        <key>bundle-version</key><string>${release.versionName}</string>
+        <key>bundle-version</key><string>${escapeHtml(release.versionName)}</string>
         <key>kind</key><string>software</string>
         <key>title</key><string>${IOS_APP_TITLE}</string>
       </dict>
@@ -147,8 +152,8 @@ iosRouter.get('/install', asyncHandler(async (req: Request, res: Response): Prom
   res.send(page('Install Vairiot on iPhone', `
     <div id="install-cards">
       <div class="card">
-        <p style="margin-top:0"><strong>Version ${release.versionName}</strong> (build ${release.versionCode}) · ${sizeMb} MB</p>
-        ${release.releaseNotes ? `<p class="muted">${release.releaseNotes}</p>` : ''}
+        <p style="margin-top:0"><strong>Version ${escapeHtml(release.versionName)}</strong> (build ${release.versionCode}) · ${sizeMb} MB</p>
+        ${release.releaseNotes ? `<p class="muted">${escapeHtml(release.releaseNotes).replace(/\n/g, '<br>')}</p>` : ''}
         <a class="btn" id="install-btn" href="${itms}">Install Vairiot</a>
         <p class="muted" style="margin-bottom:0">Tap the button, then choose <strong>Install</strong> when iOS asks.</p>
       </div>
@@ -360,20 +365,26 @@ iosRouter.post(
   }),
 );
 
-iosRouter.get('/udid/done', (req: Request, res: Response): void => {
-  const udid = typeof req.query.udid === 'string' ? req.query.udid.replace(/[^A-Za-z0-9-]/g, '') : '';
-  res.send(page('Device enrolled', `
+/** The enrolment confirmation; udid is already reduced to [A-Za-z0-9-] and escaped again here. */
+function enrolledPage(udid: string): string {
+  const shown = escapeHtml(udid);
+  return page('Device enrolled', `
     <div class="card">
       <p style="margin-top:0"><strong>Done — your iPhone is queued for authorisation.</strong></p>
       <p class="muted">Your device identifier has been recorded:</p>
-      <div class="udid">${udid || 'recorded'}</div>
+      <div class="udid">${shown || 'recorded'}</div>
       <p class="muted">An administrator now authorises the device with Apple (this is a manual step on their side).
       Once that's done and a new build is published, come back and install:</p>
       <a class="btn secondary" href="/api/v1/ios/install">Go to install page</a>
     </div>
-    ${udid ? `<div class="card">
+    ${shown ? `<div class="card">
       <p style="margin-top:0"><strong>Already have the Vairiot app?</strong></p>
       <p class="muted">Save this UDID into the app so it's always available on your Profile page for future confirmation.</p>
       <a class="btn" href="vairiot://udid?value=${encodeURIComponent(udid)}">Save in Vairiot app</a>
-    </div>` : ''}`));
+    </div>` : ''}`);
+}
+
+iosRouter.get('/udid/done', (req: Request, res: Response): void => {
+  const udid = typeof req.query.udid === 'string' ? req.query.udid.replace(/[^A-Za-z0-9-]/g, '') : '';
+  res.send(enrolledPage(udid)); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write
 });

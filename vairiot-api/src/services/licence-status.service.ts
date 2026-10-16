@@ -9,6 +9,7 @@ import { NotFoundError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { prisma } from '../lib/prisma';
 import { buildOrderBy } from '../lib/sort';
+import { withoutTenantScope } from '../lib/tenant-context';
 
 import { computeStatus, getTenantFamily } from './licence-helpers';
 
@@ -56,9 +57,10 @@ export async function getLicenceStatus(tenantId: string): Promise<LicenceStatusR
 
   const tenantIds = await getTenantFamily(tenantId);
 
-  const assetCount = await prisma.asset.count({
+  // The licence covers the whole family, so this count crosses tenants (RLS, D5).
+  const assetCount = await withoutTenantScope(() => prisma.asset.count({
     where: { tenantId: { in: tenantIds }, deletedAt: null },
-  });
+  }));
 
   const deviceCount = await prisma.device.count({
     where: { tenantId, active: true },

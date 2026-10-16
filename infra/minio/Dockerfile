@@ -56,5 +56,9 @@ COPY --from=build /out/minio /out/mc /usr/bin/
 ENV MC_CONFIG_DIR=/tmp/.mc
 EXPOSE 9000 9001
 VOLUME ["/data"]
+# Still root: existing servers keep MinIO data in root-owned host directories,
+# so a non-root switch needs a one-off chown on each server first (G32).
+# nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint, dockerfile.security.missing-user.missing-user
 ENTRYPOINT ["minio"]
+# nosemgrep: dockerfile.security.missing-user.missing-user
 CMD ["server", "/data"]

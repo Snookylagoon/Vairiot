@@ -114,6 +114,7 @@ model User {
   passwordHash       String?
   active             Boolean   @default(true)
   twoFactorEnabled   Boolean   @default(false)
+  twoFactorGraceStartedAt DateTime? // D6: start of the enrolment grace period (stage 1.18)
   mustChangePassword Boolean   @default(false)
   failedLoginCount   Int       @default(0)
   lockedUntil        DateTime?

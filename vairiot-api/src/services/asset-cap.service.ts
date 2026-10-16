@@ -1,5 +1,6 @@
 import { AppError, ForbiddenError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
+import { withoutTenantScope } from '../lib/tenant-context';
 
 import { getRootTenantId, getTenantFamily } from './licence.service';
 
@@ -31,7 +32,8 @@ export async function getAssetHeadroom(tenantId: string): Promise<AssetHeadroom>
   }
 
   const tenantIds = await getTenantFamily(rootTenantId);
-  const count = await prisma.asset.count({ where: { tenantId: { in: tenantIds }, deletedAt: null } });
+  // The licence covers the whole family, so this count crosses tenants (RLS, D5).
+  const count = await withoutTenantScope(() => prisma.asset.count({ where: { tenantId: { in: tenantIds }, deletedAt: null } }));
   const maxAssets = licence.tier.maxAssets;
   const remaining = isUnlimitedCap(maxAssets) ? Infinity : Math.max(0, maxAssets - count);
   return { count, maxAssets, remaining };

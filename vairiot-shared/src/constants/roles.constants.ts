@@ -31,12 +31,20 @@ export type RoleName = (typeof RoleName)[keyof typeof RoleName];
 
 export const ALL_ROLE_NAMES = Object.values(RoleName);
 
-// ─── Roles that require mandatory TOTP 2FA ───────────────────────────────────
-// 2FA is OFF by default for all roles. A Platform Super Admin can enable it
-// per user via the admin console, and any user may opt in from their own
-// security settings. Leave this list empty unless a compliance regime
-// reintroduces a hard role-level requirement.
-export const ROLES_REQUIRING_2FA: RoleName[] = [];
+// ─── Roles that require mandatory TOTP 2FA (decision D6, stage 1.18) ─────────
+// Administrators of a tenant and of the platform. Each user gets a grace
+// period (TWO_FA_GRACE_DAYS, default 14) from the first sign-in after the
+// requirement applies; after it, sign-in goes through enrolment. Field
+// roles are excluded: crews share scanners. "Administrator" is the tenant
+// role name the TUDA seed uses; "Company Admin" the self-registration one.
+export const ROLES_REQUIRING_2FA: readonly string[] = [
+  RoleName.PlatformSuperAdmin,
+  RoleName.LicensingAuthority,
+  RoleName.CompanyAdmin,
+  'Administrator',
+];
+
+export const TWO_FA_GRACE_DAYS_DEFAULT = 14;
 
 // ─── Platform-level roles (not scoped to a single tenant) ────────────────────
 export const PLATFORM_ROLES: RoleName[] = [
