@@ -187,3 +187,11 @@ W3 is built: line-limit check with a shrink-only baseline (16 files), British En
 ## 12. Status after stage 1.6
 
 G20 is closed: merged branches and stale worktrees removed (stage 1.6). Dependabot branches (20) are handled in W6.
+
+## 13. Open points raised in Phase 1
+
+| #   | Point                                                                                                     | Proposed handling                                                                                  |
+| --- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| G30 | No browser end-to-end tests: Playwright is in the standard (§9.1) and the S1.4 gate, but not in the repo | Raise as a decision with the e2e suite: Playwright against the mocked API first, then the Docker stack |
+| G31 | No Content-Security-Policy on the web console or API                                                      | Add a CSP in W6 (security); it must allow the tenant's tile host from `mapSettings`                |
+

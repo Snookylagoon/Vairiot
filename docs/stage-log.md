@@ -225,3 +225,35 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Tests    | Web 32/32 (new `ScanPhotoGallery.test.tsx`); API 352/352 in 38 suites; Android and iOS as in stage 1.8                                                                                                             |
 | Notes    | `PhotoRule` moved to W5 with the condition scale. Burned-in stamp and server thumbnails not built (plan §2.2). D13 approved by the owner the same day; the S1.3 gate reworded to match                                                                         |
 
+### Stage 1.10 — Campaign layer on the asset map (W4, S1.4 step 2)
+
+| Item     | Detail                                                                                                                                                                                                                  |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date     | 16 October 2026                                                                                                                                                                                                         |
+| Version  | — (released with W4)                                                                                                                                                                                                    |
+| Activity | `GET /audits/:id/map`: expected assets in state verified, misplaced, condition variance, missing or not yet scanned (live from the scans; a completed blind campaign uses its reconciliation), surplus tags at their scan position; a blind count in progress shows only scanned / not scanned. Asset map: campaign selector, state colours and legend |
+| Output   | `services/campaign-map.service.ts`; web `lib/campaignMap.ts`, `hooks/useCampaignMap.ts`; `AssetClusterMap` `colourOf`                                                                                                   |
+| Tests    | `audits/campaign-map.test.ts` (states, surplus de-duplication, scan fallback, blind progress only, 404s); web campaign layer test                                                                                        |
+
+### Stage 1.11 — Set a position on the map (W4, S1.4 step 3)
+
+| Item     | Detail                                                                                                                                         |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date     | 16 October 2026                                                                                                                                |
+| Version  | — (released with W4)                                                                                                                           |
+| Activity | "Pick on map" in the asset form: a Leaflet map where a click or a drag of the pin sets the position as manual; the ledger records the move (stage 1.5) |
+| Output   | `components/geo/PositionPickerMap.tsx`                                                                                                         |
+| Tests    | Web `MapSettings.test.tsx` (pick sets a manual position)                                                                                       |
+| Notes    | No reason note (assets have no field for one)                                                                                                  |
+
+### Stage 1.12 — Per-tenant base map; W4 released (W4, S1.4 step 5)
+
+| Item     | Detail                                                                                                                                                                                         |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date     | 16 October 2026                                                                                                                                                                                |
+| Version  | 2.4.0                                                                                                                                                                                          |
+| Activity | Migration `20261016030000_tenant_map_settings`. `GET/PUT /gis/map-settings` behind `gis`: https tile URL with `{z}/{x}/{y}`, plain-text attribution (Leaflet renders it as HTML), centre and zoom; writes need `company:manage` and are audited. Both web maps use it; Map Settings page; TUDA seeds a Tbilisi centre |
+| Output   | `lib/map-settings.ts`, `routes/gis/gis.router.ts`; web `hooks/useBaseMap.ts`, `pages/admin/MapSettingsPage.tsx`                                                                                |
+| Tests    | API 362/362 in 40 suites (new `gis/map-settings.test.ts`); web 35/35                                                                                                                          |
+| Notes    | Playwright smoke not built (G30). No CSP exists to allow the tile host (G31)                                                                                                                   |
+
