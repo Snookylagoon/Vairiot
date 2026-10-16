@@ -12,7 +12,7 @@ export function tudaAdmin(featureFlags: Record<string, boolean> = { gis: true })
   return {
     userId: 'user-e2e', email: 'admin@tuda.example', tenantId: TUDA_TENANT_ID,
     tenantName: 'Tbilisi Urban Development Agency', currency: 'GEL',
-    roles: ['Administrator'], permissions: ['assets:read', 'assets:write', 'audits:read', 'company:manage'],
+    roles: ['Administrator'], permissions: ['asset:read', 'asset:write', 'audit:read', 'company:manage'],
     featureFlags, twoFactorSetupDueBy: null,
   };
 }
