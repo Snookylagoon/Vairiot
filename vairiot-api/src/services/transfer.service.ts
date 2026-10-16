@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { NotFoundError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
 
+import { afterAssetWrite } from './component.service';
 import { dispatchWebhookEvent } from './webhook.service';
 
 export interface TransferCreateInput {
@@ -80,6 +81,9 @@ export async function createTransfer(tenantId: string, actorId: string, input: T
     return created;
   });
 
+  // A parent's components follow it where they were still with it (S2.2).
+  const moved = await prisma.asset.findUniqueOrThrow({ where: { id: input.assetId } });
+  await afterAssetWrite(tenantId, moved, asset);
   void dispatchWebhookEvent(tenantId, 'transfer.created', transfer).catch(() => {});
   return transfer;
 }

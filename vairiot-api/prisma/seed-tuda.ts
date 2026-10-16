@@ -80,6 +80,17 @@ export const TUDA_ASSET_CLASSES = [
 ] as const;
 export const TUDA_PLACEHOLDER_THRESHOLD_GEL = 500;
 
+/** A signalised junction held as parts (S2.2); shares and lives are placeholders for D2. */
+export const TUDA_JUNCTION_TEMPLATE = {
+  code: 'JUNCTION', name: 'Signalised junction', classCode: 'SIG',
+  lines: [
+    { role: 'controller', name: 'Controller',       lifeMonths: 120, costSharePct: 35 },
+    { role: 'pole',       name: 'Poles',            lifeMonths: 240, costSharePct: 25 },
+    { role: 'head',       name: 'Signal heads',     lifeMonths: 120, costSharePct: 25 },
+    { role: 'detector',   name: 'Detectors',        lifeMonths: 96,  costSharePct: 15 },
+  ],
+} as const;
+
 export interface TudaSeedOptions {
   adminEmail: string;
   adminName?: string;
@@ -159,6 +170,17 @@ export async function seedTuda(opts: TudaSeedOptions): Promise<TudaSeedResult> {
       },
     });
   }
+
+  // ── Component template: signalised junction (S2.2), added once ─────────
+  const sig = await prisma.assetClass.findUnique({ where: { tenantId_code: { tenantId: tenant.id, code: TUDA_JUNCTION_TEMPLATE.classCode } } });
+  await prisma.componentTemplate.upsert({
+    where: { tenantId_code: { tenantId: tenant.id, code: TUDA_JUNCTION_TEMPLATE.code } },
+    update: {},
+    create: {
+      tenantId: tenant.id, code: TUDA_JUNCTION_TEMPLATE.code, name: TUDA_JUNCTION_TEMPLATE.name, assetClassId: sig?.id,
+      lines: TUDA_JUNCTION_TEMPLATE.lines.map((l) => ({ ...l, assetClassId: sig?.id ?? null })), toBeConfirmed: true,
+    },
+  });
 
   // ── Licence: Enterprise (unlimited assets), confirmed under the contract ─
   // ── First administrator (created before the licence so the licence's

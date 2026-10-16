@@ -56,6 +56,7 @@ model Tenant {
   auditEvents               AuditEvent[]
   categories                Category[]
   assetClasses              AssetClass[]
+  componentTemplates        ComponentTemplate[]
   sites                     Site[]
   assets                    Asset[]
   auditCampaigns            AuditCampaign[]
@@ -255,13 +256,39 @@ model AssetClass {
   createdAt                        DateTime   @default(now())
   updatedAt                        DateTime   @updatedAt
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [id])
-  categories Category[]
-  assets     Asset[]
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  categories         Category[]
+  assets             Asset[]
+  componentTemplates ComponentTemplate[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
   @@map("asset_classes")
+}
+
+// A recipe for an asset held as parts (stage 2.5, S2.2): creating a
+// "Signalised junction" makes the parent and its components in one go.
+// `lines`: [{ role, name, assetClassId?, lifeMonths?, costSharePct }] — the
+// contract is `componentTemplateSchema` in vairiot-shared.
+model ComponentTemplate {
+  id            String   @id @default(cuid())
+  tenantId      String
+  code          String
+  name          String
+  /// The parent's class.
+  assetClassId  String?
+  lines         Json
+  toBeConfirmed Boolean  @default(false)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  assetClass AssetClass? @relation(fields: [assetClassId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("component_templates")
 }
 
 enum IpsasClass {
@@ -407,6 +434,12 @@ model Asset {
   recognitionOverride       Boolean            @default(false)
   recognitionOverrideReason String?
 
+  // ── Components (stage 2.5, IPSAS 45 significant parts; `ipsas` on) ──
+  /// The asset this one is a part of. One level: a component has no components.
+  parentAssetId String?
+  /// What the part is: controller, pole, head, detector, cabinet, …
+  componentRole String?
+
   warrantyExpiry  DateTime?
   notes           String?
   customFields    Json?
@@ -420,6 +453,8 @@ model Asset {
   tenant               Tenant                     @relation(fields: [tenantId], references: [id])
   category             Category?                  @relation(fields: [categoryId], references: [id])
   assetClass           AssetClass?                @relation(fields: [assetClassId], references: [id])
+  parentAsset          Asset?                     @relation("AssetComponents", fields: [parentAssetId], references: [id])
+  components           Asset[]                    @relation("AssetComponents")
   site                 Site?                      @relation(fields: [siteId], references: [id])
   location             Location?                  @relation(fields: [locationId], references: [id])
   checkouts            Checkout[]
@@ -441,6 +476,7 @@ model Asset {
   @@index([tenantId, status])
   @@index([tenantId, categoryId])
   @@index([tenantId, assetClassId])
+  @@index([tenantId, parentAssetId])
   @@index([tenantId, recognitionStatus])
   @@index([tenantId, siteId])
   @@index([geom], map: "assets_geom_idx", type: Gist)

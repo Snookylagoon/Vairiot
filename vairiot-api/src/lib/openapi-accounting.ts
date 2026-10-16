@@ -56,6 +56,40 @@ export const accountingPaths = {
       responses: { 200: { description: 'Asset' }, 400: { description: 'Invalid' }, 403: { description: 'No accounting:approve' }, 404: { description: 'No such asset, or ipsas off' } },
     },
   },
+  '/accounting/assets/{id}/components': {
+    get: {
+      tags: ['Accounting'], summary: 'An asset with its components and the roll-up of cost, depreciation and NBV (S2.2; accounting:read)',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'asset, parent (for a component), components, rollUp' }, 404: { description: 'No such asset, or ipsas off' } },
+    },
+  },
+  '/accounting/assets/{id}/parent': {
+    put: {
+      tags: ['Accounting'], summary: 'Attach an asset to a parent as a component, move it, or detach it with parentAssetId null (accounting:write and asset:write; audited)',
+      description: 'One level only. A new component takes the parent’s site, location and position.',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'Asset' }, 400: { description: 'Would nest components, or not this tenant’s' }, 404: { description: 'No such asset, or ipsas off' } },
+    },
+  },
+  '/accounting/component-templates': {
+    get: { tags: ['Accounting'], summary: 'Component templates (accounting:read)', responses: { 200: { description: 'Templates' }, 404: notFoundWhenOff } },
+    post: {
+      tags: ['Accounting'], summary: 'Create a component template (accounting:write; audited)',
+      description: 'Body: `componentTemplateSchema` in vairiot-shared; cost shares add up to 100 % at most.',
+      responses: { 201: { description: 'Created' }, 400: { description: 'Invalid' }, 409: { description: 'Code already used' }, 404: notFoundWhenOff },
+    },
+  },
+  '/accounting/component-templates/{id}': {
+    patch: { tags: ['Accounting'], summary: 'Change a component template (accounting:write; audited)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Updated' }, 404: { description: 'No such template, or ipsas off' } } },
+  },
+  '/accounting/component-templates/{id}/assets': {
+    post: {
+      tags: ['Accounting'], summary: 'Create an asset and its components from a template (accounting:write and asset:write)',
+      description: 'Body: `instantiateTemplateSchema`. totalCost is split by the lines’ cost shares; the parent keeps the rest.',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 201: { description: 'The new group with its roll-up' }, 403: { description: 'Licence cap or permissions' }, 404: { description: 'No such template, or ipsas off' } },
+    },
+  },
   '/admin/platform/tenants/{id}/modules': {
     get: {
       tags: ['Platform'],

@@ -7,13 +7,14 @@ import { prisma } from '../lib/prisma';
 import { recordAssetChanges } from './asset-change-events.service';
 import { recordAssetEvent } from './asset-event.service';
 import { resolveTenantAssetGeo, type AssetGeoInput } from './asset-geo.service';
+import { afterAssetWrite, resolveComponentFields } from './component.service';
 import { computeDepreciation } from './depreciation/projection';
 import { allocateIar } from './gs1-identifier.service';
 import { resolveTenantAssetAccounting } from './recognition.service';
 import { dispatchWebhookEvent } from './webhook.service';
 
 export interface AssetCreateInput extends AssetGeoInput, Partial<Omit<AssetAccountingInput, 'recognitionDate'>> {
-  recognitionDate?: string | null;
+  recognitionDate?: string | null; parentAssetId?: string | null; componentRole?: string | null;
   name: string; description?: string; categoryId?: string; siteId?: string;
   locationId?: string; serialNumber?: string; modelNumber?: string;
   manufacturer?: string; barcode?: string; rfidTag?: string; labelImage?: string;
@@ -337,6 +338,7 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
       siteId:     input.siteId,
       locationId: input.locationId,
       ...geo, ...await resolveTenantAssetAccounting(tenantId, input as unknown as Record<string, unknown>),
+      ...await resolveComponentFields(tenantId, input as unknown as Record<string, unknown>),
       clientRequestId: input.clientRequestId,
     },
     include: assetInclude,
@@ -352,7 +354,8 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
   });
   // The default 'good' is not an assessment: only a condition sent is one.
   await recordAssetChanges(tenantId, asset.id, actorId, null, conditionColumns(input) ? asset : { ...asset, conditionGrade: null });
-  return enrichAssetWithDepreciation(asset);
+  await afterAssetWrite(tenantId, asset);
+  return enrichAssetWithDepreciation(await prisma.asset.findUniqueOrThrow({ where: { id: asset.id }, include: assetInclude }));
 }
 
 const STRING_FIELDS = [
@@ -389,8 +392,9 @@ export async function updateAsset(tenantId: string, id: string, actorId: string,
   const updated = await prisma.asset.update({ where: { id }, data, include: assetInclude });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'updated', before: existing as unknown as Prisma.InputJsonValue, after: updated as unknown as Prisma.InputJsonValue } });
   await recordAssetChanges(tenantId, id, actorId, existing, updated);
+  await afterAssetWrite(tenantId, updated, existing);
   void dispatchWebhookEvent(tenantId, 'asset.updated', updated).catch(() => {});
-  return enrichAssetWithDepreciation(updated);
+  return enrichAssetWithDepreciation(await prisma.asset.findUniqueOrThrow({ where: { id }, include: assetInclude }));
 }
 
 export async function deleteAsset(tenantId: string, id: string, actorId: string) {
