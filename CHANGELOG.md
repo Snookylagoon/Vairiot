@@ -2,6 +2,17 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.6.1] — 2026-10-16
+
+### Fixed
+
+- The bundled nginx now reports healthy: its healthcheck asked for `localhost`, which the current nginx image resolves to IPv6 first, so deploys waiting for healthy containers could time out (stage 1.21, KFR-044)
+
+### Added
+
+- Browser smoke tests of the asset map with Playwright, in CI with the API mocked and against a running stack before a release (stages 1.20–1.21)
+- GIS data model documentation for the GIS database structure deliverable (`docs/GIS-DATA-MODEL.md`) (stage 1.21)
+
 ## [2.6.0] — 2026-10-16
 
 ### Security

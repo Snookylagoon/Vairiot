@@ -1,6 +1,6 @@
 {
   "name": "vairiot",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "private": true,
   "description": "Vairiot Enhanced Asset Management Platform — monorepo root",
   "workspaces": [
