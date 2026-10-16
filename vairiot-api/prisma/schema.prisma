@@ -64,6 +64,8 @@ model Tenant {
   licences                  Licence[]
   devices                   Device[]
   featureFlags              Json                       @default("{}")
+  /// Base map for the web maps (stage 1.12); empty = defaults. See lib/map-settings.ts.
+  mapSettings               Json                       @default("{}")
   company                   Company?
   clientCompanies           ClientCompany[]
   onboardingProgress        OnboardingProgress[]

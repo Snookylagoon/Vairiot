@@ -9,6 +9,7 @@ import { asyncHandler } from '../../middleware/error-handler';
 import { requireFeature } from '../../middleware/require-feature';
 import { listScanPositions } from '../../services/audit-scan.service';
 import { listCampaigns, createCampaign, startCampaign, recordScan, submitZone, listZoneSubmissions, completeCampaign, getReconciliation, postAdjustment, listAdjustments, getCampaignReport, getCampaignReportRows, getComparison } from '../../services/audit.service';
+import { getCampaignMap } from '../../services/campaign-map.service';
 import type { Request } from '../../types/http';
 
 interface ReportRows {
@@ -88,6 +89,14 @@ auditsRouter.post('/:id/scans', requireAnyPermission('audit:write'),
     const event = await recordScan(req.user!.tenantId, req.params.id, req.user!.sub, req.body);
     // A replayed clientRequestId returns the original event: 200, not 201.
     res.status('duplicate' in event && event.duplicate ? 200 : 201).json(event);
+  }),
+);
+
+// Campaign layer of the asset map (stage 1.10): expected assets coloured by
+// count state, plus surplus tags at their scan position; 404 with GIS off.
+auditsRouter.get('/:id/map', requireAnyPermission('audit:read', 'audit:write'), requireFeature('gis'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await getCampaignMap(req.user!.tenantId, req.params.id));
   }),
 );
 

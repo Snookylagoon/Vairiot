@@ -87,4 +87,37 @@ describe('AssetMapPage', () => {
     fireEvent.click(await screen.findByText('List view'));
     expect(screen.getByTestId('where')).toHaveTextContent('/assets?categoryId=c1');
   });
+
+  it('switches to a campaign layer coloured by count state', async () => {
+    get.mockImplementation((path: string) => Promise.resolve({ data:
+      path === '/api/v1/audits' ? [{ id: 'c1', name: 'Park count', status: 'in_progress' }, { id: 'c0', name: 'Draft', status: 'draft' }]
+      : path === '/api/v1/audits/c1/map' ? {
+        campaign: { id: 'c1', name: 'Park count', mode: 'sighted', status: 'in_progress' },
+        points: [
+          { id: 'a1', assetId: 'a1', assetNumber: 'AST-1', name: 'Bench', state: 'misplaced', latitude: 41.7, longitude: 44.8, geoAccuracyMeters: null, positionSource: 'register' },
+          { id: 's9', assetId: null, assetNumber: null, name: 'STRAY-1', state: 'surplus', latitude: 41.71, longitude: 44.81, geoAccuracyMeters: 5, positionSource: 'scan' },
+        ],
+        counts: {}, unplaced: 2,
+      }
+      : { assets: [], total: 0, truncated: false, unplaced: 0 },
+    }));
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/assets/map?campaign=c1']}>
+          <Routes><Route path="*" element={<AssetMapPage />} /></Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText(/Park count: 2 on the map · 2 without a position/)).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Draft' })).toBeNull();
+    expect(screen.getByLabelText('Legend')).toHaveTextContent('Surplus tag');
+
+    fireEvent.click(screen.getByText('marker Bench'));
+    expect(screen.getAllByText('Misplaced')).toHaveLength(2); // the panel badge and the legend
+    expect(screen.getByText('Open asset').closest('a')).toHaveAttribute('href', '/assets/a1');
+
+    fireEvent.click(screen.getByText('marker STRAY-1'));
+    expect(screen.queryByText('Open asset')).toBeNull();
+    expect(screen.getByText(/Shown where it was scanned/)).toBeInTheDocument();
+  });
 });

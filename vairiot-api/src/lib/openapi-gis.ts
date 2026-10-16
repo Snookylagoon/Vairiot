@@ -52,6 +52,52 @@ export const gisPaths = {
       },
     },
   },
+  '/gis/map-settings': {
+    get: {
+      tags: ['GIS'],
+      summary: 'The tenant’s base map: tile URL, attribution, default centre and zoom',
+      responses: { 200: { description: 'Stored settings over the OpenStreetMap defaults' }, 404: notFoundWhenOff },
+    },
+    put: {
+      tags: ['GIS'],
+      summary: 'Set the tenant’s base map (company:manage; audited)',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['tileUrl', 'attribution', 'centreLatitude', 'centreLongitude', 'zoom'],
+              properties: {
+                tileUrl: { type: 'string', example: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png' },
+                attribution: { type: 'string', description: 'Plain text only' },
+                centreLatitude: { type: 'number' },
+                centreLongitude: { type: 'number' },
+                zoom: { type: 'integer', minimum: 1, maximum: 19 },
+              },
+            },
+          },
+        },
+      },
+      responses: { 200: { description: 'Saved settings' }, 400: { description: 'Invalid settings' }, 404: notFoundWhenOff },
+    },
+  },
+  '/audits/{id}/map': {
+    get: {
+      tags: ['Audits'],
+      summary: 'Campaign layer for the asset map',
+      description:
+        'Every expected asset with a position, in state verified, misplaced, condition_variance, missing or ' +
+        'not_scanned (live from the scans; a completed blind campaign uses its reconciliation), plus surplus tags ' +
+        'at their scan position. A blind campaign in progress reports only scanned / not_scanned. Assets without ' +
+        'a register position use their scan position.',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        200: { description: 'campaign, points, counts by state, unplaced' },
+        404: { description: 'Campaign not found, or GIS switched off for the tenant' },
+      },
+    },
+  },
   '/audits/{id}/scans/geo': {
     get: {
       tags: ['Audits'],

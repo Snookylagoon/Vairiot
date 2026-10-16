@@ -6,10 +6,12 @@ import { AssetClusterMap } from '@/components/geo/AssetClusterMap';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { useAssetPositions } from '@/hooks/useAssets';
+import { useCampaignMap, useMappableCampaigns } from '@/hooks/useCampaignMap';
 import { useCategories } from '@/hooks/useCategories';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useSites } from '@/hooks/useSites';
 import { STATUS_COLOURS } from '@/lib/assetMap';
+import { CAMPAIGN_STATE_COLOURS, stateColour, stateLabel, toAssetMapPoint } from '@/lib/campaignMap';
 import type { AssetMapPoint } from '@/types';
 
 const SELECT = 'rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink';
@@ -37,8 +39,20 @@ export function AssetMapPage() {
 
   const { data: categories = [] } = useCategories();
   const { data: sites = [] } = useSites();
-  const { data, isLoading, isError, isPlaceholderData } = useAssetPositions(filters);
-  const points = useMemo(() => data?.assets ?? [], [data]);
+  const { data, isLoading: assetsLoading, isError: assetsError, isPlaceholderData } = useAssetPositions(filters);
+
+  // Campaign layer (stage 1.10): the campaign's expected assets coloured by count state.
+  const campaignId = sp.get('campaign') || undefined;
+  const { data: campaigns = [] } = useMappableCampaigns();
+  const campaignMap = useCampaignMap(campaignId);
+  const isLoading = campaignId ? campaignMap.isLoading : assetsLoading;
+  const isError = campaignId ? campaignMap.isError : assetsError;
+  const points = useMemo(
+    () => (campaignId ? (campaignMap.data?.points ?? []).map(toAssetMapPoint) : data?.assets ?? []),
+    [campaignId, campaignMap.data, data],
+  );
+  const campaignPoint = (id: string) => campaignMap.data?.points.find((p) => p.id === id);
+  const legend = campaignId ? CAMPAIGN_STATE_COLOURS : STATUS_COLOURS;
 
   const [selected, setSelected] = useState<AssetMapPoint | null>(null);
   // Drop the selection when the filters hide it.
@@ -47,7 +61,9 @@ export function AssetMapPage() {
   }, [points, selected]);
 
   // Previous results stay on screen while new ones load; only fit to fresh data.
-  const fitKey = isPlaceholderData ? null : FILTER_KEYS.map((k) => filters[k] ?? '').join('|');
+  const fitKey = campaignId
+    ? (campaignMap.data ? `campaign:${campaignId}` : null)
+    : isPlaceholderData ? null : FILTER_KEYS.map((k) => filters[k] ?? '').join('|');
   const listHref = `/assets${sp.toString() ? `?${sp}` : ''}`;
   const hasFilters = FILTER_KEYS.some((k) => filters[k]);
 
@@ -57,7 +73,12 @@ export function AssetMapPage() {
         <div>
           <h1 className="text-2xl font-bold text-v-charcoal">Asset Map</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {data ? (
+            {campaignId && campaignMap.data ? (
+              <>
+                {campaignMap.data.campaign.name}: {points.length.toLocaleString()} on the map
+                {campaignMap.data.unplaced > 0 && <> · {campaignMap.data.unplaced.toLocaleString()} without a position</>}
+              </>
+            ) : data && !campaignId ? (
               <>
                 {data.total.toLocaleString()} {data.total === 1 ? 'asset' : 'assets'} on the map
                 {data.unplaced > 0 && <> · {data.unplaced.toLocaleString()} without a position</>}
@@ -71,6 +92,11 @@ export function AssetMapPage() {
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
+        <select aria-label="Campaign" className={SELECT} value={campaignId ?? ''} onChange={(e) => setFilter('campaign', e.target.value)}>
+          <option value="">Register (no campaign)</option>
+          {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}{c.status === 'completed' ? ' (completed)' : ''}</option>)}
+        </select>
+        {!campaignId && <>
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -99,9 +125,10 @@ export function AssetMapPage() {
             Clear filters
           </button>
         )}
+        </>}
       </div>
 
-      {data?.truncated && (
+      {!campaignId && data?.truncated && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
           Showing the first {data.assets.length.toLocaleString()} of {data.total.toLocaleString()} positioned assets. Narrow the filters to see the rest.
         </p>
@@ -113,6 +140,7 @@ export function AssetMapPage() {
           selectedId={selected?.id ?? null}
           onSelect={setSelected}
           fitKey={fitKey}
+          colourOf={campaignId ? (p) => stateColour(p.status) : undefined}
           className="h-[calc(100vh-17rem)] min-h-[420px]"
         />
 
@@ -147,8 +175,12 @@ export function AssetMapPage() {
               </button>
             </div>
             <div className="flex gap-2">
-              <Badge label={selected.status} variant={selected.status as 'active' | 'inactive'} />
-              <Badge label={selected.condition} variant="default" />
+              {campaignId
+                ? <Badge label={stateLabel(selected.status)} variant="default" />
+                : <>
+                  <Badge label={selected.status} variant={selected.status as 'active' | 'inactive'} />
+                  <Badge label={selected.condition} variant="default" />
+                </>}
             </div>
             <dl className="text-xs grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
               {selected.category && <><dt className="text-gray-400">Category</dt><dd className="text-v-charcoal">{selected.category.name}</dd></>}
@@ -160,16 +192,19 @@ export function AssetMapPage() {
                 {selected.geoAccuracyMeters != null && <span className="font-sans text-gray-400"> ±{Math.round(selected.geoAccuracyMeters)} m</span>}
               </dd>
             </dl>
-            <Link to={`/assets/${selected.id}`}
+            {campaignId && campaignPoint(selected.id)?.positionSource === 'scan' && (
+              <p className="text-xs text-gray-500">Shown where it was scanned: the register has no position.</p>
+            )}
+            {(!campaignId || campaignPoint(selected.id)?.assetId) && <Link to={`/assets/${campaignId ? campaignPoint(selected.id)!.assetId : selected.id}`}
               className="flex items-center justify-center gap-1 w-full rounded-lg bg-v-gradient text-white text-sm font-semibold py-2 hover:opacity-90">
               Open asset <ArrowRight size={14} />
-            </Link>
+            </Link>}
           </div>
         )}
       </div>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500" aria-label="Legend">
-        {Object.entries(STATUS_COLOURS).map(([k, v]) => (
+        {Object.entries(legend).map(([k, v]) => (
           <span key={k} className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ background: v.colour }} />
             {v.label}

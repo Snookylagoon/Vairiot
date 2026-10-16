@@ -83,7 +83,7 @@ export async function createCampaign(tenantId: string, actorId: string, input: C
  * Precedence: explicit asset list (if any) → otherwise filter active
  * tenant assets by site / location / category (any combination).
  */
-async function expectedAssets(
+export async function expectedAssets(
   tenantId: string,
   campaignId: string,
   scope: { siteId: string | null; locationId: string | null; categoryId: string | null },
