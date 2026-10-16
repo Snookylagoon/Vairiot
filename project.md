@@ -10,7 +10,7 @@
 | Source product (read-only) | None — this is the source product for Vairiot Cable Intelligence                                               |
 | Started                    | 17 June 2026 (first commit); standard adopted 16 October 2026                                                  |
 | Current phase              | Phase 0 (S0) built, awaiting acceptance; Phase 1 (S1) in progress                                              |
-| Version                    | 2.0.0                                                                                                          |
+| Version                    | 2.0.1                                                                                                          |
 
 This file is the single source of truth (standard §1.1). If scope, a rule or a decision is not here or in a document linked from §7, it has not been agreed.
 

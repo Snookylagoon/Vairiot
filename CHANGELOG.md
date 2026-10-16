@@ -2,6 +2,20 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.0.1] — 2026-10-16
+
+### Added
+
+- Machine-enforced build rules: 500-line limit (with a shrink-only baseline for 16 older files), British English check, conventional commit messages, all in pre-commit hooks and CI (`npm run check`) (stage 0.10)
+- Security job in CI: npm audit, Gitleaks, Trivy and Semgrep (OWASP Top Ten, new findings fail) (stage 0.10)
+- Android unit tests and a new iOS build-and-test workflow in CI; API test results (JUnit) and coverage uploaded on every run (stage 0.10)
+- Pull request template with the project's checklist (stage 0.10)
+
+### Security
+
+- Least-privilege workflow permissions and every action pinned by commit SHA (stage 0.10)
+- Seven-day cooling-off for npm installs and Dependabot; Dependabot no longer raises major versions, which go through the decision log (stage 0.10)
+
 ## [2.0.0] — 2026-10-16
 
 Adoption of the Managed Development Standard (decision D3). The major number marks the reset to one lockstep version; nothing in the API or data model is incompatible with 1.10.1 clients.
@@ -78,5 +92,6 @@ Adoption of the Managed Development Standard (decision D3). The major number mar
 
 Earlier versions (1.4.x–1.6.x, June–July 2026) were Android-only releases recorded in the commit history.
 
+[2.0.1]: https://github.com/Snookylagoon/Vairiot/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Snookylagoon/Vairiot/compare/v1.10.1...v2.0.0
 [1.10.1]: https://github.com/Snookylagoon/Vairiot/releases/tag/v1.10.1
