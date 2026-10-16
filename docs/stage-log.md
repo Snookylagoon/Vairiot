@@ -352,3 +352,14 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Tests     | API 388/388 in 46 suites; web 41/41; Playwright 5/5 (mocked) and 1/1 (stack); shared 69/69; worker 5/5; scripts 17/17; Android 79/79; iOS 63/63; `npm run check` passes                                                                                                                       |
 | Decisions | G30 closed. G33 (export and profiler lack the new columns) and G34 (form labels not tied to inputs) raised                                                                                                                                                                                   |
 | Notes     | The S1.2 Meferi field check and the S1.5 photo prompt on a device are outstanding (P1.1, P1.2). Found by the gate: nginx stayed unhealthy because `localhost` now resolves to IPv6 first. On ARM the gate needs `POSTGIS_IMAGE=imresamu/postgis:16-3.5-alpine`. Phase 1 awaits owner acceptance |
+
+### Stage 1.22 — Phase 1 accepted
+
+| Item      | Detail                                                                                                                                                                  |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date      | 16 October 2026                                                                                                                                                         |
+| Version   | 2.6.1                                                                                                                                                                   |
+| Activity  | Owner accepted Phase 1: "I accept Phase 1. The field checks P1.1 and P1.2 can follow and be recorded when done." Record, plan and project brief updated                  |
+| Output    | `docs/04-phase-1-record.md` §7; `project.md` decision log                                                                                                               |
+| Decisions | Phase 1 acceptance recorded, with P1.1 and P1.2 as follow-ups                                                                                                           |
+| Notes     | Tag `phase-1-accepted` waits for the promotion of `dev` to `main`, with `phase-0-accepted` and the 2.x tags. PR #93 carries stages 1.20–1.22 and the Phase 2 plan (stage 2.0) |

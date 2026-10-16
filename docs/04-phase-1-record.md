@@ -3,7 +3,7 @@
 | Item       | Detail                                                                                                         |
 | ---------- | -------------------------------------------------------------------------------------------------------------- |
 | Phase      | 1 (Sprint S1, decision D1)                                                                                     |
-| Status     | **Ready for owner acceptance**: automated exit gate passed; two field checks outstanding (§3)                  |
+| Status     | **Accepted** by the owner on 16 October 2026 (stage 1.22); field checks P1.1 and P1.2 follow (§3)               |
 | Revision   | 0.1 (16 October 2026)                                                                                          |
 | Version    | 2.6.1 (on `dev`; production unchanged until promotion, §5)                                                     |
 | Plan       | [Phase 1 plan](03-phase-1-plan.md) · [S1 sprint](sprints/S1-gis-condition-photos.md)                           |
@@ -79,7 +79,7 @@ Run on 16 October 2026 against the production images (`docker-compose.prod.yml` 
 | P1.1 An asset created outdoors keeps its position; offline scans sync with theirs | S1.2 | [manual-checks.md](testing/manual-checks.md) "Phase 1 field checks" |
 | P1.2 Grade 2 on an audit scan prompts for a photo, which appears against the scan | S1.5 | Same |
 
-Both need a staging or TUDA build with `gis` on. They can be done before acceptance, or accepted as follow-ups to record in the stage log when done.
+Both need a staging or TUDA build with `gis` on. The owner accepted Phase 1 with these as follow-ups (§7); each is recorded in the stage log when done.
 
 ## 4. Decisions
 
@@ -117,5 +117,6 @@ Both need a staging or TUDA build with `gis` on. They can be done before accepta
 | Item | Detail |
 | ---- | ------ |
 | Requested | 16 October 2026, with this record, the [S1 summary](sprints/S1-summary.md), the [GIS data model](GIS-DATA-MODEL.md) and the Word report `docs/word/Vairiot-AI-Phase-1-GIS-Condition-Photos.docx` |
-| Owner decision | *Pending* |
-| On acceptance | Merge `feat/phase-1-close` into `dev`; record stage 1.22 with the decision; tag `phase-1-accepted` at promotion; start the Phase 2 plan (`docs/05-phase-2-plan.md`) |
+| Owner decision | **Accepted**, 16 October 2026: "I accept Phase 1. The field checks P1.1 and P1.2 can follow and be recorded when done." |
+| Follow-ups | Field checks P1.1 and P1.2, recorded in the stage log when done; tag `phase-1-accepted` at the promotion of `dev` to `main` |
+| Next | [Phase 2 plan](05-phase-2-plan.md) (stage 2.0) |
