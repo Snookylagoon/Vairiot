@@ -51,6 +51,8 @@ struct RecordScanRequest: Codable {
     var latitude: Double?
     var longitude: Double?
     var geoAccuracyMeters: Double?
+    /// 1–5 on the condition scale; takes precedence over `condition` on the server.
+    var conditionGrade: Int?
 }
 
 struct AuditScanEventResponse: Codable, Identifiable {

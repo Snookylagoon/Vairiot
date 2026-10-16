@@ -51,6 +51,7 @@ extension QueuedScan {
         request.latitude = latitude
         request.longitude = longitude
         request.geoAccuracyMeters = geoAccuracyMeters
+        request.conditionGrade = conditionGrade
         return request
     }
 }

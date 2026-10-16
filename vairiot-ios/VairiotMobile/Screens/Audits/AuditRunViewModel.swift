@@ -41,8 +41,10 @@ final class AuditRunViewModel {
     // MARK: - Condition
 
     /// Optional condition recorded with the next scan ("" = not assessed).
-    var selectedCondition = ""
-    static let conditionOptions = ["", "good", "fair", "poor", "damaged"]
+    /// Grade for the next scan (stage 1.15); nil = not assessed.
+    var selectedGrade: Int?
+    /// The tenant's scale; the built-in one until it loads, or offline.
+    var conditionScale: [ConditionScaleEntry] = ConditionScaleEntry.defaultScale
 
     /// Scans for this audit saved on the device and not yet on the server.
     var pendingScanCount = 0
@@ -78,6 +80,9 @@ final class AuditRunViewModel {
         Task { [weak self] in
             guard let self else { return }
             await featureFlags.refresh(apiClient: apiClient)
+            if let scale: ConditionScaleResponse = try? await apiClient.request(.getConditionScale), scale.entries.count == 5 {
+                self.conditionScale = scale.entries
+            }
             if featureFlags.gisEnabled { self.positionTracker.start() }
         }
     }
@@ -142,10 +147,12 @@ final class AuditRunViewModel {
             campaignId: audit.id,
             tagValue: tag,
             locationId: zoneId,
-            condition: selectedCondition.isEmpty ? nil : selectedCondition,
+            condition: nil,
             fix: fix,
-            id: scanKey
+            id: scanKey,
+            conditionGrade: selectedGrade
         )
+        let graded = conditionScale.first { $0.grade == selectedGrade }
         if case .rejected = outcome {
             lastScan = nil
         } else {
@@ -163,20 +170,25 @@ final class AuditRunViewModel {
             default:
                 lastScanResult = .unknown(tagValue: tag)
             }
-            selectedCondition = ""
+            selectedGrade = nil
             successMessage = "Scan recorded"
         case .alreadyRecorded:
-            selectedCondition = ""
+            selectedGrade = nil
             successMessage = "Already recorded"
         case .queued:
             scanCount += 1
             lastScanResult = .queued(tagValue: tag)
-            selectedCondition = ""
+            selectedGrade = nil
             successMessage = "Offline — scan queued"
         case .rejected(let message):
             // Previously any non-network failure was shown and the scan dropped;
             // it is now kept under Profile → Pending uploads.
             errorMessage = "Scan not accepted: \(message). It is kept under Profile → Pending uploads."
+        }
+
+        // A grade whose scale needs a photo prompts for one (S1.5 step 5).
+        if let graded, graded.photoRequired, lastScan != nil {
+            successMessage = "\(successMessage ?? "Scan recorded"). Grade \(graded.grade) (\(graded.label)) needs a photo."
         }
 
         refreshPendingCount()

@@ -144,4 +144,12 @@ class AuditScanRecorderTest {
         assertEquals(44.8271, row.longitude!!, 0.0)
         assertEquals(6.0, row.toRequest().geoAccuracyMeters!!, 0.0)
     }
+
+    @Test
+    fun `a scan keeps its condition grade in the queued replay`() = runBlocking {
+        val api = FakeScanApi(offline())
+        recorder(api).record(campaignId = "camp", tagValue = "RFID-2", locationId = null, condition = null, conditionGrade = 2)
+        assertEquals(2, api.requests.single().second.conditionGrade)
+        assertEquals(2, dao.all.single().toRequest().conditionGrade)
+    }
 }

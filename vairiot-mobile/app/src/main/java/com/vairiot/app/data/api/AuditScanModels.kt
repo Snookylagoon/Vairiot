@@ -14,4 +14,6 @@ data class RecordScanRequest(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val geoAccuracyMeters: Double? = null,
+    /** 1–5 on the condition scale; takes precedence over [condition] on the server. */
+    val conditionGrade: Int? = null,
 )

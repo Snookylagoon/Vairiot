@@ -139,17 +139,7 @@ struct AuditRunView: View {
                 zonePicker
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Condition (optional)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Picker("Condition", selection: $viewModel.selectedCondition) {
-                    ForEach(AuditRunViewModel.conditionOptions, id: \.self) { option in
-                        Text(option.isEmpty ? "—" : option.capitalized).tag(option)
-                    }
-                }
-                .pickerStyle(.segmented)
-            }
+            ConditionGradePicker(entries: viewModel.conditionScale, selected: $viewModel.selectedGrade)
 
             Button {
                 viewModel.showScanner = true

@@ -33,7 +33,8 @@ struct AuditScanRecorder {
         deviceId: String? = nil,
         fix: GeoFix? = nil,
         /// Queue key and clientRequestId; the caller keeps it to attach photos.
-        id: UUID = UUID()
+        id: UUID = UUID(),
+        conditionGrade: Int? = nil
     ) async -> Outcome {
         let scan = QueuedScan(
             id: id,
@@ -44,6 +45,7 @@ struct AuditScanRecorder {
             condition: condition,
             fix: fix
         )
+        scan.conditionGrade = conditionGrade
         context.insert(scan)
         try? context.save()
 

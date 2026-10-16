@@ -39,6 +39,7 @@ class AuditScanRecorder(
         fix: GeoFix? = null,
         /** Idempotency key; the caller keeps it to attach photos to this scan. */
         clientRequestId: String = UUID.randomUUID().toString(),
+        conditionGrade: Int? = null,
     ): Outcome {
         val draft = QueuedScan(
             campaignId = campaignId,
@@ -50,6 +51,7 @@ class AuditScanRecorder(
             longitude = fix?.longitude,
             geoAccuracyMeters = fix?.accuracyMeters,
             clientRequestId = clientRequestId,
+            conditionGrade = conditionGrade,
         )
         val queued = draft.copy(id = dao.insert(draft))
         return try {

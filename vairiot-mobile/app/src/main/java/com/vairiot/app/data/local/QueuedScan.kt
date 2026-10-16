@@ -39,4 +39,6 @@ data class QueuedScan(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val geoAccuracyMeters: Double? = null,
+    /** 1–5 on the condition scale (stage 1.15); the server derives the condition string. */
+    val conditionGrade: Int? = null,
 )
