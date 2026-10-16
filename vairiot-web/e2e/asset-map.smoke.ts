@@ -48,6 +48,9 @@ test('a single marker opens the asset card', async ({ page }) => {
 test('clicking a cluster zooms in and splits it', async ({ page }) => {
   await mockApi(page);
   await page.goto('/assets/map');
+  // Wait for the first fit to settle: while it animates, Leaflet briefly
+  // draws two cluster icons, and a strict locator fails on two at once.
+  await expect(clusters(page)).toHaveCount(1);
   await expect(clusters(page)).toHaveText('40');
 
   await clusters(page).click();
