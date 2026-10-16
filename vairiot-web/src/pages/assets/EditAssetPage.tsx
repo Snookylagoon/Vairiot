@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { AssetForm, AssetFormData } from '@/components/forms/AssetForm';
+import { normaliseCondition } from '@/components/forms/ConditionSelect';
 import { useAsset, useUpdateAsset } from '@/hooks/useAssets';
 import { geoPayload } from '@/lib/geo';
 
@@ -59,7 +60,7 @@ export function EditAssetPage() {
           geoAccuracyMeters: asset.geoAccuracyMeters?.toString() ?? '',
           geoSource:     asset.geoSource ?? '',
           geoCapturedAt: asset.geoCapturedAt ?? '',
-          condition:     asset.condition ?? 'good',
+          condition:     normaliseCondition(asset.condition),
           serialNumber:  asset.serialNumber ?? '',
           modelNumber:   asset.modelNumber ?? '',
           manufacturer:  asset.manufacturer ?? '',

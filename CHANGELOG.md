@@ -2,6 +2,20 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.5.0] — 2026-10-16
+
+### Added
+
+- Graded condition scale, 5 Excellent to 1 Unserviceable, with criteria per grade; each organisation and category can set its own under Administration → Condition Scale (stages 1.13–1.14)
+- Condition history on the asset page, from `CONDITION_ASSESSED` events on the asset ledger (stages 1.13–1.14)
+- Photo rules: a minimum number of photos per scanned asset by category; zone submission and `GET /api/v1/audits/:id/photo-warnings` list scans that fall short, without blocking (stage 1.13)
+- Android and iOS audit screens grade condition 1–5 with the criteria shown, and prompt for a photo where the grade needs one (stage 1.15)
+
+### Changed
+
+- Every asset and scan carries a condition grade beside the condition string, each set from the other; existing records were graded from their strings (stage 1.13)
+- The condition report counts by grade (stage 1.16)
+
 ## [2.4.0] — 2026-10-16
 
 ### Added
@@ -147,6 +161,7 @@ Adoption of the Managed Development Standard (decision D3). The major number mar
 
 Earlier versions (1.4.x–1.6.x, June–July 2026) were Android-only releases recorded in the commit history.
 
+[2.5.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/Snookylagoon/Vairiot/compare/v2.1.0...v2.2.0

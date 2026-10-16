@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { CONDITION_FROM_GRADE, GRADE_FROM_CONDITION, type ConditionGrade } from 'vairiot-shared';
 
 import { prisma } from '../lib/prisma';
 
@@ -362,7 +363,7 @@ export async function exportAssetCondition(tenantId: string, opts: ExportOpts): 
   const assets = await prisma.asset.findMany({
     where: { tenantId, deletedAt: null },
     select: {
-      condition: true,
+      condition: true, conditionGrade: true,
       site: { select: { name: true } },
       category: { select: { name: true } },
     },
@@ -377,12 +378,9 @@ export async function exportAssetCondition(tenantId: string, opts: ExportOpts): 
     }
     const g = groups.get(label)!;
     g.total++;
-    const c = (a.condition ?? '').toLowerCase();
-    if (c === 'new') g.new++;
-    else if (c === 'good') g.good++;
-    else if (c === 'fair') g.fair++;
-    else if (c === 'poor') g.poor++;
-    else if (c === 'damaged') g.damaged++;
+    // By grade (stage 1.16): the columns are grades 5..1; legacy strings such as "excellent" count too.
+    const grade = a.conditionGrade ?? GRADE_FROM_CONDITION[(a.condition ?? '').toLowerCase()];
+    if (grade) g[CONDITION_FROM_GRADE[grade as ConditionGrade] as 'new' | 'good' | 'fair' | 'poor' | 'damaged']++;
   }
 
   const rows = Array.from(groups.entries()).map(([label, g]) => ({

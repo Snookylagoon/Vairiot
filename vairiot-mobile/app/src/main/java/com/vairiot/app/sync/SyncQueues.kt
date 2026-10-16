@@ -84,6 +84,7 @@ fun QueuedScan.toRequest() = RecordScanRequest(
     latitude = latitude,
     longitude = longitude,
     geoAccuracyMeters = geoAccuracyMeters,
+    conditionGrade = conditionGrade,
 )
 
 fun QueuedAsset.toRequest() = AssetCreateRequest(

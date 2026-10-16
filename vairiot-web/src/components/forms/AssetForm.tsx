@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { ConditionSelect } from '@/components/forms/ConditionSelect';
 import { GeoPositionFields } from '@/components/forms/GeoPositionFields';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -128,16 +129,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
                 {selectedSiteId && <option value="__add__">+ Add Location</option>}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-v-charcoal mb-1">Condition</label>
-              <select className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white"
-                {...register('condition')}>
-                <option value="good">Good</option>
-                <option value="excellent">Excellent</option>
-                <option value="fair">Fair</option>
-                <option value="poor">Poor</option>
-              </select>
-            </div>
+            <ConditionSelect registration={register('condition')} categoryId={watch('categoryId')} value={watch('condition')} />
           </div>
         </div>
 

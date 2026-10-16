@@ -36,7 +36,6 @@ import com.vairiot.app.ui.components.LocationPermissionPrompt
 import com.vairiot.app.ui.theme.*
 
 private val SCAN_RESULT_OPTIONS = listOf("found", "unknown", "recorded")
-private val CONDITION_OPTIONS = listOf("", "good", "fair", "poor", "damaged")
 
 private enum class ScanSortField(val label: String) {
     TAG("Tag"), RESULT("Result"),
@@ -174,33 +173,8 @@ fun AuditRunScreen(
                 }
             }
 
-            // Condition picker
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                    Text("Condition", style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
-                    CONDITION_OPTIONS.forEach { opt ->
-                        val label = if (opt.isEmpty()) "None" else opt.replaceFirstChar { it.uppercase() }
-                        val isSelected = state.condition == opt
-                        val bg by animateColorAsState(
-                            if (isSelected) VairiotViolet else MaterialTheme.colorScheme.surfaceVariant,
-                            label = "condBg",
-                        )
-                        val fg by animateColorAsState(
-                            if (isSelected) White else MaterialTheme.colorScheme.onSurface,
-                            label = "condFg",
-                        )
-                        Surface(onClick = { viewModel.setCondition(opt) }, color = bg,
-                            shape = RoundedCornerShape(8.dp)) {
-                            Text(label, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall, color = fg,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
-                        }
-                    }
-                }
-            }
+            // Condition grade picker (stage 1.15)
+            item { ConditionGradePicker(state.conditionScale, state.conditionGrade, viewModel::setConditionGrade) }
 
             // Manual entry + scan button
             item {

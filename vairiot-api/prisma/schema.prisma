@@ -218,6 +218,8 @@ model Category {
   parent   Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
   children Category[] @relation("CategoryChildren")
   assets   Asset[]
+  conditionScale ConditionScaleEntry[]
+  photoRules     PhotoRule[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -289,6 +291,7 @@ model Asset {
 
   status       String  @default("active")
   condition    String  @default("good")
+  conditionGrade Int? // 1–5 (stage 1.13); kept in step with condition
   serialNumber String?
   modelNumber  String?
   manufacturer String?
@@ -494,6 +497,7 @@ model AuditScanEvent {
   // (crash between API success and queue-delete) must not double-count.
   clientRequestId String?   @unique
 
+  conditionGrade  Int? // 1–5 (stage 1.13); kept in step with condition
   // Device position when the tag was scanned (stage 1.5; null with GIS off).
   latitude          Float?
   longitude         Float?
@@ -1489,3 +1493,35 @@ model AssetEvent {
   @@index([tenantId, assetId])
   @@map("asset_events")
 }
+
+// ─── Condition scale and photo rules (stage 1.13) ────────────────────────────
+// categoryId null = the tenant's scale; a category's rows override it.
+model ConditionScaleEntry {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  categoryId          String?
+  grade               Int
+  label               String
+  criteria            String
+  colour              String
+  impairmentIndicator Boolean   @default(false)
+  photoRequired       Boolean   @default(false)
+  updatedAt           DateTime  @updatedAt
+  category            Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, categoryId])
+  @@map("condition_scale_entries")
+}
+
+model PhotoRule {
+  id                   String    @id @default(cuid())
+  tenantId             String
+  categoryId           String?
+  minPhotosAtInventory Int       @default(0)
+  updatedAt            DateTime  @updatedAt
+  category             Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, categoryId])
+  @@map("photo_rules")
+}
+

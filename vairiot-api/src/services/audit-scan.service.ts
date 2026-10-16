@@ -1,4 +1,4 @@
-import { CampaignMode, GeoError, validateGeoPosition } from 'vairiot-shared';
+import { CampaignMode, conditionColumns, GeoError, validateGeoPosition } from 'vairiot-shared';
 
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
 import { logger } from '../lib/logger';
@@ -11,6 +11,8 @@ export interface RecordScanInput {
   deviceId?: string;
   locationId?: string;
   condition?: string;
+  /** 1–5 on the condition scale (stage 1.13); sets condition too. */
+  conditionGrade?: number;
   /** Client-generated idempotency key — replays of the same queued scan return the original event. */
   clientRequestId?: string;
   /** When the device actually captured the scan (ISO); server-clamped to a sane window. */
@@ -115,7 +117,7 @@ export async function recordScan(tenantId: string, campaignId: string, actorId: 
         scannedBy:  actorId,
         deviceId:   input.deviceId,
         locationId: input.locationId,
-        condition:  input.condition,
+        ...conditionColumns(input),
         result:     internalResult,
         capturedAt: clampCapturedAt(input.capturedAt, c.startedAt),
         clientRequestId: input.clientRequestId,

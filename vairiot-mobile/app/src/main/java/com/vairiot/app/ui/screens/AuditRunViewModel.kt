@@ -16,6 +16,8 @@ import com.vairiot.app.data.local.QueuedPhoto
 import com.vairiot.app.data.local.QueuedPhotoDao
 import com.vairiot.app.data.local.QueuedScan
 import com.vairiot.app.data.local.QueuedScanDao
+import com.vairiot.app.domain.model.ConditionScaleEntry
+import com.vairiot.app.domain.model.DEFAULT_CONDITION_SCALE
 import com.vairiot.app.location.GeoFix
 import com.vairiot.app.location.PositionProvider
 import com.vairiot.app.location.ScanPositionTracker
@@ -49,7 +51,9 @@ data class AuditRunUiState(
     val selectedLocationId: String = "",
     val locations: List<Pair<String, String>> = emptyList(),
     val zoneSubmissions: List<ZoneSubmissionResponse> = emptyList(),
-    val condition: String = "",
+    /** Grade for the next scan (stage 1.15); null = not assessed. */
+    val conditionGrade: Int? = null,
+    val conditionScale: List<ConditionScaleEntry> = DEFAULT_CONDITION_SCALE,
     val lastMessage:  String? = null,
     val error:        String? = null,
     val report:       AuditReportResponse? = null,
@@ -105,6 +109,11 @@ class AuditRunViewModel @Inject constructor(
             scanner.scanResults.collect { result -> submitTag(result.value) }
         }
         viewModelScope.launch { featureFlags.refresh() }
+        // The tenant's scale; the built-in one stays when offline.
+        viewModelScope.launch {
+            runCatching { api.getConditionScale() }.getOrNull()?.entries?.takeIf { it.size == 5 }
+                ?.let { _state.value = _state.value.copy(conditionScale = it) }
+        }
         viewModelScope.launch {
             gisEnabled.collect { on -> if (on) positionTracker.start(viewModelScope) else positionTracker.stop() }
         }
@@ -154,8 +163,8 @@ class AuditRunViewModel @Inject constructor(
         _state.value = _state.value.copy(selectedLocationId = locationId)
     }
 
-    fun setCondition(condition: String) {
-        _state.value = _state.value.copy(condition = condition)
+    fun setConditionGrade(grade: Int?) {
+        _state.value = _state.value.copy(conditionGrade = grade)
     }
 
     fun isZoneLocked(locationId: String): Boolean {
@@ -209,7 +218,8 @@ class AuditRunViewModel @Inject constructor(
                 campaignId = campaignId,
                 tagValue   = trimmed,
                 locationId = if (currentState.isBlind) currentState.selectedLocationId else null,
-                condition  = currentState.condition.ifBlank { null },
+                condition  = null,
+                conditionGrade = currentState.conditionGrade,
                 fix        = fix,
                 clientRequestId = scanKey,
             )
@@ -226,19 +236,19 @@ class AuditRunViewModel @Inject constructor(
                         foundCount    = _state.value.foundCount   + foundDelta,
                         unknownCount  = _state.value.unknownCount + unknownDelta,
                         recordedCount = _state.value.recordedCount + recordedDelta,
-                        condition     = "",
+                        conditionGrade = null,
                         lastMessage   = if (ev.result == "unknown") "Unknown tag: $trimmed"
                                         else "Recorded: $trimmed",
                     )
                 }
                 AuditScanRecorder.Outcome.AlreadyRecorded -> _state.value.copy(
                     isSubmitting = false,
-                    condition    = "",
+                    conditionGrade = null,
                     lastMessage  = "Already recorded: $trimmed",
                 )
                 AuditScanRecorder.Outcome.Queued -> _state.value.copy(
                     isSubmitting = false,
-                    condition    = "",
+                    conditionGrade = null,
                     lastMessage  = "Queued offline: $trimmed",
                 )
                 // Previously every failure read "Queued offline", so a scan the
@@ -251,6 +261,13 @@ class AuditRunViewModel @Inject constructor(
             _state.value = _state.value.copy(
                 lastScan = if (outcome is AuditScanRecorder.Outcome.Rejected) null else LastScan(scanKey, trimmed, fix),
             )
+            // A grade whose scale needs a photo prompts for one (S1.5 step 5).
+            val graded = currentState.conditionScale.firstOrNull { it.grade == currentState.conditionGrade }
+            if (graded?.photoRequired == true && outcome !is AuditScanRecorder.Outcome.Rejected) {
+                _state.value = _state.value.copy(
+                    lastMessage = "${_state.value.lastMessage ?: trimmed}. Grade ${graded.grade} (${graded.label}) needs a photo.",
+                )
+            }
         }
     }
 

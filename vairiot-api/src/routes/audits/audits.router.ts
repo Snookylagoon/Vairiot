@@ -10,6 +10,7 @@ import { requireFeature } from '../../middleware/require-feature';
 import { listScanPositions } from '../../services/audit-scan.service';
 import { listCampaigns, createCampaign, startCampaign, recordScan, submitZone, listZoneSubmissions, completeCampaign, getReconciliation, postAdjustment, listAdjustments, getCampaignReport, getCampaignReportRows, getComparison } from '../../services/audit.service';
 import { getCampaignMap } from '../../services/campaign-map.service';
+import { photoWarnings } from '../../services/condition.service';
 import type { Request } from '../../types/http';
 
 interface ReportRows {
@@ -77,7 +78,8 @@ auditsRouter.post('/:id/scans', requireAnyPermission('audit:write'),
   [
     body('tagValue').notEmpty(),
     body('locationId').optional({ nullable: true }).isString(),
-    body('condition').optional({ nullable: true }).isIn(['good', 'fair', 'poor', 'damaged']),
+    body('condition').optional({ nullable: true }).isIn(['new', 'good', 'fair', 'poor', 'damaged']),
+    body('conditionGrade').optional({ nullable: true }).isInt({ min: 1, max: 5 }).toInt(),
     body('clientRequestId').optional({ nullable: true }).isString().isLength({ max: 64 }),
     body('capturedAt').optional({ nullable: true }).isISO8601(),
     // Positions are checked in resolveScanGeo, which drops a bad one rather
@@ -107,9 +109,20 @@ auditsRouter.get('/:id/scans/geo', requireAnyPermission('audit:read', 'audit:wri
   }),
 );
 
+// Scans that miss the photo rules (stage 1.13), for a zone or the campaign.
+auditsRouter.get('/:id/photo-warnings', requireAnyPermission('audit:read', 'audit:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const locationId = typeof req.query.locationId === 'string' ? req.query.locationId : undefined;
+    res.json(await photoWarnings(req.user!.tenantId, req.params.id, locationId));
+  }),
+);
+
 auditsRouter.post('/:id/zones/:locationId/submit', requireAnyPermission('audit:write'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    res.status(201).json(await submitZone(req.user!.tenantId, req.params.id, req.params.locationId, req.user!.sub));
+    const submission = await submitZone(req.user!.tenantId, req.params.id, req.params.locationId, req.user!.sub);
+    // Photo rules warn, never block (S1.3 step 6, stage 1.13).
+    const warnings = await photoWarnings(req.user!.tenantId, req.params.id, req.params.locationId);
+    res.status(201).json({ ...submission, photoWarnings: warnings });
   }),
 );
 

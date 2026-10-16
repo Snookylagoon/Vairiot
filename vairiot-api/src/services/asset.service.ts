@@ -1,11 +1,12 @@
 import { Prisma } from '@prisma/client';
-import { parseAssetScan, parseHri } from 'vairiot-shared';
+import { conditionColumns, parseAssetScan, parseHri } from 'vairiot-shared';
 
 import { NotFoundError, ConflictError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
 
+import { recordAssetChanges } from './asset-change-events.service';
 import { recordAssetEvent } from './asset-event.service';
-import { recordPositionEvent, resolveTenantAssetGeo, type AssetGeoInput } from './asset-geo.service';
+import { resolveTenantAssetGeo, type AssetGeoInput } from './asset-geo.service';
 import { allocateIar } from './gs1-identifier.service';
 import { dispatchWebhookEvent } from './webhook.service';
 
@@ -14,7 +15,7 @@ export interface AssetCreateInput extends AssetGeoInput {
   locationId?: string; serialNumber?: string; modelNumber?: string;
   manufacturer?: string; barcode?: string; rfidTag?: string; labelImage?: string;
   purchaseDate?: string; purchaseCost?: number; supplier?: string;
-  warrantyExpiry?: string; notes?: string; condition?: string; status?: string;
+  warrantyExpiry?: string; notes?: string; condition?: string; conditionGrade?: number; status?: string;
   customFields?: Record<string, unknown>;
   // Expanded financial
   purchaseOrderNumber?: string; invoiceNumber?: string; invoiceDate?: string;
@@ -342,16 +343,14 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
   // Every new asset gets a server-allocated Individual Asset Reference
   // (GS1 spec invariant 2 — never caller-supplied). A rolled-back create
   // burns the number by design; the allocation row records it as consumed.
-  const individualAssetReference = await allocateIar(
-    tenantId, actorId.startsWith('apikey:') ? null : actorId, 'ASSET_CREATE',
-  );
+  const individualAssetReference = await allocateIar(tenantId, actorId.startsWith('apikey:') ? null : actorId, 'ASSET_CREATE');
   const asset = await prisma.asset.create({
     data: {
       tenantId, assetNumber, name: input.name, description: input.description,
       individualAssetReference, allocationAuthority: 'SERVER',
       serialNumber: input.serialNumber, modelNumber: input.modelNumber, manufacturer: input.manufacturer,
       barcode: input.barcode, rfidTag: input.rfidTag, supplier: input.supplier, notes: input.notes,
-      condition: input.condition, status: input.status,
+      ...(conditionColumns(input) ?? { condition: 'good', conditionGrade: 4 }), status: input.status,
       customFields: (input.customFields ?? undefined) as Prisma.InputJsonValue | undefined,
       purchaseCost: toDecimal(input.purchaseCost),
       purchaseDate: toDate(input.purchaseDate),
@@ -388,7 +387,8 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
     tenantId, assetId: asset.id, eventType: 'CREATED', actor: actorId, source: 'API',
     payload: { individualAssetReference, assetNumber },
   });
-  await recordPositionEvent(tenantId, asset.id, actorId, null, asset);
+  // The default 'good' is not an assessment: only a condition sent is one.
+  await recordAssetChanges(tenantId, asset.id, actorId, null, conditionColumns(input) ? asset : { ...asset, conditionGrade: null });
   return enrichAssetWithDepreciation(asset);
 }
 
@@ -420,11 +420,11 @@ export async function updateAsset(tenantId: string, id: string, actorId: string,
   for (const f of DATE_FIELDS) if (input[f] !== undefined) data[f] = input[f] ? new Date(input[f]!) : null;
   for (const f of REF_FIELDS) if (input[f] !== undefined) data[f] = input[f] ?? null;
   if (input.usefulLifeMonths !== undefined) data.usefulLifeMonths = input.usefulLifeMonths;
-  Object.assign(data, await resolveTenantAssetGeo(tenantId, input, existing));
+  Object.assign(data, await resolveTenantAssetGeo(tenantId, input, existing), conditionColumns(input));
 
   const updated = await prisma.asset.update({ where: { id }, data, include: assetInclude });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'updated', before: existing as unknown as Prisma.InputJsonValue, after: updated as unknown as Prisma.InputJsonValue } });
-  await recordPositionEvent(tenantId, id, actorId, existing, updated);
+  await recordAssetChanges(tenantId, id, actorId, existing, updated);
   void dispatchWebhookEvent(tenantId, 'asset.updated', updated).catch(() => {});
   return enrichAssetWithDepreciation(updated);
 }

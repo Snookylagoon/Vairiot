@@ -23,6 +23,8 @@ final class QueuedScan {
     /// Pre-S0.3 dead-letter flag. Read once by `QueueState.migrateLegacyFlags`
     /// to carry old parked rows over to `state`; not written any more.
     var dead: Bool = false
+    /// 1–5 on the condition scale (stage 1.15); the server derives the string.
+    var conditionGrade: Int?
     /// Device position when the tag was scanned (stage 1.5); nil with GIS off
     /// or no recent fix. Optional, so lightweight migration adds the columns.
     var latitude: Double?

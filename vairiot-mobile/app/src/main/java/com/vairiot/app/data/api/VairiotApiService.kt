@@ -1,5 +1,6 @@
 package com.vairiot.app.data.api
 
+import com.vairiot.app.domain.model.ConditionScaleResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
@@ -37,6 +38,10 @@ interface VairiotApiService {
 
     @GET("api/v1/auth/me")
     suspend fun getMe(): UserProfileResponse
+
+    /** The tenant's condition scale (stage 1.15); the category's own if it has one. */
+    @GET("api/v1/condition/scale")
+    suspend fun getConditionScale(@Query("categoryId") categoryId: String? = null): ConditionScaleResponse
 
     @GET("api/v1/licences/status")
     suspend fun getLicenceStatus(): LicenceStatusResponse

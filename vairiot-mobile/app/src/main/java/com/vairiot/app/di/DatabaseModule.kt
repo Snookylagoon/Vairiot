@@ -101,11 +101,18 @@ object DatabaseModule {
         }
     }
 
+    // v11: condition grade on queued audit scans (stage 1.15). Nullable column.
+    private val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE queued_scans ADD COLUMN conditionGrade INTEGER")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): VairiotDatabase =
         Room.databaseBuilder(context, VairiotDatabase::class.java, "vairiot.db")
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             // No blanket destructive fallback: a version bump without a
             // migration must crash in testing, not silently wipe every offline
             // queue on a field device. Only pre-v4 builds (before the queues
