@@ -210,7 +210,7 @@ There is **no screen to switch a flag**. Flags are set by a seed or directly in 
 
 ### 4.4 Target: the module registry (W5, D7)
 
-The full registry is **not** built in this stage. D7 places it in `vairiot-shared`, built from `featureFlags`, with GIS position work as the feature `gis.positions`.
+Built at stage 2.2 in `vairiot-shared/src/modules/module.registry.ts`: one entry per `featureFlags` key with name, description, status (`available` or `in_development`), the API routes it guards and the web paths it hides. The platform console switches modules per tenant (`PUT /admin/platform/tenants/:id/modules/:key`, audited). Sub-features such as `gis.positions`, dependencies and per-deployment defaults are not built yet.
 
 | Element             | Target                                                                                                           |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------- |

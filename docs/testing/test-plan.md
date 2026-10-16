@@ -62,10 +62,10 @@ Counts of tests are from `docs/sprints/S0-summary.md` (6 October 2026); file cou
 | Module           | Off means                                                                                          | Suite                                                       | Status                         |
 | ---------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------ |
 | `blindAudit`     | Blind campaigns refused by the API; option hidden on web and Android                               | `audits/blind-audit.test.ts`                                | Exists (on and off not paired) |
-| `gis`            | Position writes and `/assets/map` answer 404; web, Android and iOS hide GIS; stored positions kept | `assets/asset-gis-toggle.test.ts`; web `hasFeature.test.ts` | In progress (W1a)              |
-| `ipsas`          | Ledger, periods and policies refused and hidden                                                    | `toggle-matrix.test.ts`                                     | Planned (S2, W5)               |
+| `gis`            | Position writes and `/assets/map` answer 404; web, Android and iOS hide GIS; stored positions kept | `assets/asset-gis-toggle.test.ts`; `modules/toggle-matrix.test.ts`; web `hasFeature.test.ts`, `moduleRoutes.test.ts` | Built (stages 0.9, 2.2)        |
+| `ipsas`          | Ledger, periods and policies refused and hidden                                                    | `modules/toggle-matrix.test.ts` (every `/accounting` route in the registry) | Built for `/accounting/settings` (stage 2.2); grows with W2–W5 |
 | `reconciliation` | Three-way engine refused and hidden                                                                | `toggle-matrix.test.ts`                                     | Planned (S4, W5)               |
-| All              | Every module off, on and back off across API, web and mobile; flag changes written to `AuditEvent` | `toggle-matrix.test.ts`, web and mobile equivalents         | Planned (W5, D7)               |
+| All              | Every module off, on and back off across API, web and mobile; flag changes written to `AuditEvent` | `modules/toggle-matrix.test.ts` (API, every registry route, data unchanged, audit); admin `TenantModulesCard.test.tsx`; web `moduleRoutes.test.ts` | API and web built (stage 2.2); mobile equivalents planned |
 
 ### 3.2 Tenancy and access
 

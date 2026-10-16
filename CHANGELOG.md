@@ -2,6 +2,18 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.7.0] — 2026-10-16
+
+### Added
+
+- Modules can be switched on and off per organisation in the platform console (Tenants → a tenant → Modules); every switch is in the audit log, and switching a module off deletes nothing (stage 2.2)
+- Accounting permissions for the coming IPSAS ledger: view, prepare and approve; existing organisations' built-in roles receive them automatically (stage 2.1)
+- `GET /api/v1/accounting/settings`: the conventions the ledger will follow, for organisations with the IPSAS ledger switched on (stage 2.2)
+
+### Changed
+
+- Minimum test coverage raised for the API and set for the web, admin, shared and worker packages (stages 2.1–2.2)
+
 ## [2.6.1] — 2026-10-16
 
 ### Fixed
