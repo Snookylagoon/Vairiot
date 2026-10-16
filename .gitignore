@@ -63,3 +63,7 @@ vairiot-admin/public/favicon[0-9]*.svg
 # scripts/profile-register.py output written next to the sample register
 scripts/samples/*-profile.xlsx
 scripts/samples/*-mapping.json
+
+# Playwright (stage 1.20)
+test-results/
+playwright-report/

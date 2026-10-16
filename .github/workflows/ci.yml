@@ -169,6 +169,51 @@ jobs:
             vairiot-api/coverage
           if-no-files-found: ignore
 
+  # ── Browser smoke tests ──────────────────────────────────────────────────────
+  # Playwright against the web app with the API mocked (stage 1.20, G30): the
+  # S1.4 map gate in a real browser. The Docker-stack run comes later.
+  e2e-web:
+    name: Web smoke (Playwright)
+    runs-on: ubuntu-latest
+    needs: lint-typecheck
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js 24 LTS
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build shared package
+        run: npm run build --workspace vairiot-shared
+
+      - name: Type-check the smoke tests
+        working-directory: vairiot-web
+        run: npx tsc -p e2e --noEmit
+
+      - name: Install Chromium
+        working-directory: vairiot-web
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke tests
+        working-directory: vairiot-web
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: web-e2e-results
+          path: |
+            vairiot-web/test-results
+            vairiot-web/playwright-report
+          if-no-files-found: ignore
+
   # ── Docker images ────────────────────────────────────────────────────────────
   # Every service image must at least build on every PR; on pushes to main the
   # images are also published to GHCR so deploys can `docker compose pull`
