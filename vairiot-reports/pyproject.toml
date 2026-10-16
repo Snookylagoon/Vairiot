@@ -1,0 +1,8 @@
+# Version record for the reports service (standard §8.1: one product version,
+# lockstep). Set by scripts/bump-version.mjs; dependencies stay pinned in
+# requirements.txt, which the Dockerfile installs.
+[project]
+name = "vairiot-reports"
+version = "2.0.0"
+description = "Vairiot Asset Intelligence report service (FastAPI)"
+requires-python = ">=3.12"
