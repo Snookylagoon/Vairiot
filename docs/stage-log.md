@@ -328,3 +328,53 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Decisions | D5 applied                                                                                                                                                                                                                                                                                    |
 | Notes    | Found while building: the login role is the superuser, which bypasses RLS even with FORCE, hence the role switch; Prisma queries are lazy, so a scope must await inside it. The other tenant tables follow (G23)                                                                                |
 
+
+### Stage 1.20 — Playwright map smoke with the API mocked (W7, G30, S1.4 step 6)
+
+| Item      | Detail                                                                                                                                                                                                                                  |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date      | 16 October 2026                                                                                                                                                                                                                         |
+| Version   | — (no product change)                                                                                                                                                                                                                   |
+| Activity  | `@playwright/test` 1.64.0 in `vairiot-web`; Vite on port 4173 with the API mocked by `page.route` and blank map tiles. The map smoke loads 42 Tbilisi assets as one cluster of 40 and two single markers, opens an asset card, splits the cluster by clicking it, recolours the markers by count state when a campaign is chosen, and is not offered with `gis` off. CI job `e2e-web` (type-check, Chromium, report artefact) |
+| Output    | `vairiot-web/playwright.config.ts`, `vairiot-web/e2e/{fixtures.ts,asset-map.smoke.ts,tsconfig.json}`; `test:e2e` script                                                                                                                 |
+| Tests     | Playwright 5/5, stable over three repeats; web 41/41                                                                                                                                                                                    |
+| Decisions | G30 handled as proposed: mocked API first                                                                                                                                                                                               |
+| Notes     | The TUDA seed has no assets, so the fixture stands in for the register. Dragging a marker (also in the S1.4 gate) stays covered by Vitest and the API ledger test. The Docker-stack run is still to come                              |
+
+### Stage 1.21 — Exit gate on the Docker stack; Phase 1 record (W7, S1.6)
+
+| Item      | Detail                                                                                                                                                                                                                                                                                       |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date      | 16 October 2026                                                                                                                                                                                                                                                                              |
+| Version   | 2.6.1                                                                                                                                                                                                                                                                                        |
+| Activity  | Exit gate (test plan §8.2) on the production images with the standalone overlay, behind nginx with TLS, as a throwaway project on a fresh database seeded with `seed:tuda`: 15/15 checks over HTTPS (migrations, bbox GeoJSON, position events, scan photo time and position from EXIF, stripped download and kept original, grades, report, `gis` toggle). Playwright `asset-map.stack.ts` signs in and checks the map against the API. The register profiler was run on the stack's export. nginx healthcheck fixed (KFR-044). Phase 1 record, S1 summary, GIS data model, field checks P1.1–P1.2 and the Word report written |
+| Output    | `docs/04-phase-1-record.md`, `docs/sprints/S1-summary.md`, `docs/GIS-DATA-MODEL.md`, `docs/word/build_phase1.py`, `docs/word/Vairiot-AI-Phase-1-GIS-Condition-Photos.docx`; `vairiot-web/playwright.stack.config.ts`, `e2e/asset-map.stack.ts`; `security/compose-healthchecks.test.ts`      |
+| Tests     | API 388/388 in 46 suites; web 41/41; Playwright 5/5 (mocked) and 1/1 (stack); shared 69/69; worker 5/5; scripts 17/17; Android 79/79; iOS 63/63; `npm run check` passes                                                                                                                       |
+| Decisions | G30 closed. G33 (export and profiler lack the new columns) and G34 (form labels not tied to inputs) raised                                                                                                                                                                                   |
+| Notes     | The S1.2 Meferi field check and the S1.5 photo prompt on a device are outstanding (P1.1, P1.2). Found by the gate: nginx stayed unhealthy because `localhost` now resolves to IPv6 first. On ARM the gate needs `POSTGIS_IMAGE=imresamu/postgis:16-3.5-alpine`. Phase 1 awaits owner acceptance |
+
+### Stage 1.22 — Phase 1 accepted
+
+| Item      | Detail                                                                                                                                                                  |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date      | 16 October 2026                                                                                                                                                         |
+| Version   | 2.6.1                                                                                                                                                                   |
+| Activity  | Owner accepted Phase 1: "I accept Phase 1. The field checks P1.1 and P1.2 can follow and be recorded when done." Record, plan and project brief updated                  |
+| Output    | `docs/04-phase-1-record.md` §7; `project.md` decision log                                                                                                               |
+| Decisions | Phase 1 acceptance recorded, with P1.1 and P1.2 as follow-ups                                                                                                           |
+| Notes     | Tag `phase-1-accepted` waits for the promotion of `dev` to `main`, with `phase-0-accepted` and the 2.x tags. PR #93 carries stages 1.20–1.22 and the Phase 2 plan (stage 2.0) |
+
+---
+
+## Phase 2 — IPSAS ledger and register import (Sprint S2)
+
+### Stage 2.0 — Phase 2 planned
+
+| Item      | Detail                                                                                                                                                                                                                       |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date      | 16 October 2026                                                                                                                                                                                                              |
+| Version   | 2.6.1                                                                                                                                                                                                                        |
+| Activity  | Surveyed the code S2 builds on (money types, on-the-fly straight-line depreciation, CSV-only import, worker queues, the unread `ipsas` flag, roles, RLS) and wrote the Phase 2 plan: workstreams W0–W8, ledger rules, import design, changes to the sprint file, exit-gate tests. Data model document corrected to 21 event types |
+| Output    | `docs/05-phase-2-plan.md`; `project.md`; `docs/02-data-model-and-module-registry.md`                                                                                                                                         |
+| Decisions | D14–D21 raised as proposed: decimal money arithmetic, period convention, accounting permissions, ledger integrity before S3.1, `exceljs`, Zod contracts for the new routes, asset class on existing assets, units-of-production input |
+| Notes     | API line coverage measured at 65.5 % against a 50 % gate: W1 raises the gate (D8). W2 starts once D14–D21 are decided                                                                                                          |

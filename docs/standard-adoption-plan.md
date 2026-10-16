@@ -192,9 +192,11 @@ G20 is closed: merged branches and stale worktrees removed (stage 1.6). Dependab
 
 | #   | Point                                                                                                     | Proposed handling                                                                                  |
 | --- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| G30 | No browser end-to-end tests: Playwright is in the standard (§9.1) and the S1.4 gate, but not in the repo | Raise as a decision with the e2e suite: Playwright against the mocked API first, then the Docker stack |
+| G30 | No browser end-to-end tests: Playwright is in the standard (§9.1) and the S1.4 gate, but not in the repo | **Closed** — stage 1.20: Playwright against the mocked API (`vairiot-web/e2e/`, CI job `e2e-web`); stage 1.21: `asset-map.stack.ts` against a running stack (`npm run test:e2e:stack`), a manual step before each release |
 | G31 | No Content-Security-Policy on the web console or API                                                      | Add a CSP in W6 (security); it must allow the tenant's tile host from `mapSettings`                |
 | G32 | MinIO still runs as root: existing servers keep its data in root-owned host directories                  | A one-off `chown` of `infra/data/minio` per server, then `USER` in `infra/minio/Dockerfile`; until then it is skipped by Trivy and annotated for Semgrep |
+| G33 | The register export (`/assets/export.csv`) has Latitude and Longitude but not the condition grade, accuracy or position source; `scripts/profile-register.py` leaves Latitude and Longitude unmapped | S2 import and export work: add the columns and the profiler synonyms together |
+| G34 | Form labels in the web console (`components/ui/Input`) are not tied to their inputs, so screen readers do not announce them and tests cannot find fields by label | S3 accessibility work, with axe in Playwright |
 
 Status after stage 1.17: G27 closed (Semgrep clean on the OWASP Top Ten rules); G16 closed except MinIO (G32).
 

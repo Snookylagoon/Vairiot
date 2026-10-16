@@ -46,8 +46,9 @@ Build arguments used by the Docker image: `VITE_ALLOW_REGISTRATION` (`false` on 
 | -------- | ------------------------------------------------- |
 | Run once | `npm test --workspace vairiot-web` (`vitest run`) |
 | Watch    | `npm run test:watch --workspace vairiot-web`      |
+| Browser  | `npm run test:e2e --workspace vairiot-web` (Playwright; first run `npx playwright install chromium`) |
 
-Vitest runs in jsdom with Testing Library (`src/test-setup.ts`). No coverage gate yet; decision D8 sets 60 % by the end of S2 and 80 % by S4.
+Vitest runs in jsdom with Testing Library (`src/test-setup.ts`). Playwright smoke tests (`e2e/*.smoke.ts`) start Vite on port 4173 and mock the API with `page.route` (`e2e/fixtures.ts`), so they need no backend; map tiles are answered with a blank image. No coverage gate yet; decision D8 sets 60 % by the end of S2 and 80 % by S4.
 
 ## Rules
 

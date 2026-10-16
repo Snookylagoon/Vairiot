@@ -619,3 +619,48 @@ tenant(s)"* and the table has one row per tenant per day with sensible counts.
 ---
 
 *(Later batch test procedures are added below as each part lands.)*
+
+---
+
+# Phase 1 field checks (S1.2, S1.5 exit gates)
+
+These two gates need a real device outdoors; everything else in Phase 1 is
+checked automatically ([Phase 1 record](../04-phase-1-record.md) §2). Use a
+tenant with **GIS switched on**.
+
+## P1.1 — An asset created outdoors keeps its position (S1.2)
+
+**What:** the Android and iOS apps capture a GPS fix with its accuracy when an
+asset is created, and audit scans carry a position after they sync.
+
+**Steps (a Meferi scanner, then an iPhone):**
+1. Go outside with a clear view of the sky. Wait 30 seconds after opening the app.
+2. Create an asset. Note the accuracy the app shows next to the position.
+3. Start an audit on the same site and scan 3 tags, one of them in **Airplane
+   mode**, then switch Airplane mode off and wait for the queue to empty.
+4. In the web console, open the asset: its position card shows latitude,
+   longitude and the accuracy. Open **Assets → Map**, choose the audit in **Campaign**.
+
+**Pass:** the asset sits where you stood (within the accuracy shown); the three
+scans appear on the campaign layer, including the one made offline.
+
+**Fail:** no position, a position far from where you stood, or a missing scan.
+Send the device model, the accuracy shown and a screenshot of the map.
+
+## P1.2 — Grade 2 asks for a photo (S1.5)
+
+**What:** the audit screen grades condition 1–5 from the tenant's scale, and a
+grade that the photo rules mark as needing evidence prompts for a photo.
+
+**Steps:**
+1. In the web console: **Administration → Condition Scale**, tick the
+   **photo required** box on the grade 2 row (it is ticked in the default
+   scale for grades 1 and 2). Save.
+2. On the device, open an in-progress audit, scan a tag, choose grade **2**.
+
+**Pass:** the app asks for a photo straight away; the photo appears against
+that scan in the web console's audit page, with time and position.
+
+**Fail:** no prompt, or the photo is not against the scan. Note the app version
+(Profile screen) and the grade you chose.
+
