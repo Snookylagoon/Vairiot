@@ -1,0 +1,3 @@
+bash scripts/check-line-limits.sh --staged
+node scripts/check-british-english.mjs --staged
+npx lint-staged

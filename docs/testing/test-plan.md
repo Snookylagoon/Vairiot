@@ -238,7 +238,7 @@ S0 gates were met on 6 October 2026 (`S0-summary.md`, "How to verify"). Stage 0.
 | Sev3     | A feature impaired, workaround exists | Only with the owner's acceptance |
 | Sev4     | Cosmetic                              | Does not block                   |
 
-The standard names these S1–S4. Here they are **Sev1–Sev4**, because S1–S5 are already sprint ids (the same reason as D2). Every fix carries a test that fails before and passes after, and non-trivial lessons go into `docs/known-fix-registry.md`. A flaky test is a defect: record it, find the cause (as KFR-017 and KFR-025 did), fix it, never retry silently.
+The standard names these S1–S4. Here they are **Sev1–Sev4**, because S1–S5 are already sprint ids (the same reason as D2; decision D10, approved 16 October 2026). Every fix carries a test that fails before and passes after, and non-trivial lessons go into `docs/known-fix-registry.md`. A flaky test is a defect: record it, find the cause (as KFR-017 and KFR-025 did), fix it, never retry silently.
 
 ## 10. Traceability matrix
 

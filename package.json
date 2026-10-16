@@ -1,6 +1,6 @@
 {
   "name": "vairiot",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "Vairiot Enhanced Asset Management Platform — monorepo root",
   "workspaces": [
@@ -32,9 +32,15 @@
     "check:versions": "node scripts/bump-version.mjs --check",
     "version:set": "node scripts/bump-version.mjs",
     "db:migrate": "npm run db:migrate --workspace=vairiot-api",
-    "db:studio": "npm run db:studio --workspace=vairiot-api"
+    "db:studio": "npm run db:studio --workspace=vairiot-api",
+    "check:lines": "bash scripts/check-line-limits.sh",
+    "check:spelling": "node scripts/check-british-english.mjs",
+    "check": "npm run check:lines && npm run check:spelling && npm run check:versions && npm run lint && npm run build --workspace vairiot-shared && npm run typecheck",
+    "prepare": "husky || true"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
     "@eslint/js": "^9.39.0",
     "@typescript-eslint/eslint-plugin": "^8.68.0",
     "@typescript-eslint/parser": "^8.68.0",
@@ -44,6 +50,8 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
     "prettier": "^3.2.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.0"
@@ -51,5 +59,10 @@
   "engines": {
     "node": ">=24.0.0",
     "npm": ">=10.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs}": [
+      "eslint"
+    ]
   }
 }

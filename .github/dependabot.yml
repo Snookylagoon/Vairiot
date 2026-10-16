@@ -7,6 +7,14 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    # Seven-day cooling-off (standard §11.3): no version younger than a week.
+    cooldown:
+      default-days: 7
+    # Majors go through the decision log with a stage of their own
+    # (standard §11.4), so Dependabot raises only minor and patch updates.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
@@ -19,6 +27,14 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 3
+    # Seven-day cooling-off (standard §11.3): no version younger than a week.
+    cooldown:
+      default-days: 7
+    # Majors go through the decision log with a stage of their own
+    # (standard §11.4), so Dependabot raises only minor and patch updates.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: gradle
     directory: "/vairiot-mobile"
@@ -26,12 +42,28 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 3
+    # Seven-day cooling-off (standard §11.3): no version younger than a week.
+    cooldown:
+      default-days: 7
+    # Majors go through the decision log with a stage of their own
+    # (standard §11.4), so Dependabot raises only minor and patch updates.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
+    # Seven-day cooling-off (standard §11.3): no version younger than a week.
+    cooldown:
+      default-days: 7
+    # Majors go through the decision log with a stage of their own
+    # (standard §11.4), so Dependabot raises only minor and patch updates.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # Base images of every service. (Images named only in the compose files —
   # postgres, redis, nginx, minio — are not covered: bump those by hand.)
@@ -45,3 +77,11 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
+    # Seven-day cooling-off (standard §11.3): no version younger than a week.
+    cooldown:
+      default-days: 7
+    # Majors go through the decision log with a stage of their own
+    # (standard §11.4), so Dependabot raises only minor and patch updates.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

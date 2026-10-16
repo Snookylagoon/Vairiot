@@ -1,0 +1,65 @@
+name: iOS
+
+# Builds the iOS app and runs its XCTest suite (standard §9.1). Path-filtered
+# like the Android workflow: macOS runners are the most expensive minutes in
+# the pipeline and vairiot-ios changes rarely.
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'vairiot-ios/**'
+      - '.github/workflows/ios.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'vairiot-ios/**'
+      - '.github/workflows/ios.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  ios:
+    name: iOS Build & Tests
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The project file is generated from project.yml; regenerating it checks
+      # that the committed project.pbxproj is in step.
+      - name: Generate the Xcode project
+        working-directory: vairiot-ios
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          git diff --exit-code -- VairiotMobile.xcodeproj \
+            || { echo "project.pbxproj is out of step with project.yml: run xcodegen generate"; exit 1; }
+
+      # Runner images change their simulator line-up; take the first iPhone.
+      - name: Pick a simulator
+        id: sim
+        run: |
+          udid="$(xcrun simctl list devices available -j \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for r in d.values() for x in r if x["name"].startswith("iPhone")))')"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Unit tests
+        working-directory: vairiot-ios
+        run: >-
+          xcodebuild test -project VairiotMobile.xcodeproj -scheme VairiotMobile
+          -destination "id=${{ steps.sim.outputs.udid }}" -only-testing:VairiotMobileTests
+          -resultBundlePath build/TestResults.xcresult CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-test-results
+          path: vairiot-ios/build/TestResults.xcresult
+          if-no-files-found: ignore

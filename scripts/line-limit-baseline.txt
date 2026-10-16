@@ -1,0 +1,17 @@
+# <lines at adoption> <path> — may shrink, never grow (stage 0.10). Delete a line once the file is within 500.
+1440 vairiot-api/src/services/report-export.service.ts
+1079 vairiot-ios/VairiotMobile/Screens/Labels/LabelDesignView.swift
+992 vairiot-web/src/pages/labels/LabelsPage.tsx
+777 vairiot-api/src/services/platform-admin.service.ts
+731 vairiot-mobile/app/src/main/java/com/vairiot/app/ui/screens/ScanSessionScreen.kt
+696 vairiot-api/src/services/audit.service.ts
+682 vairiot-api/src/lib/openapi.ts
+571 vairiot-api/src/services/asset.service.ts
+564 vairiot-mobile/app/src/main/java/com/vairiot/app/ui/screens/AuditRunScreen.kt
+562 scripts/profile-register.py
+540 vairiot-admin/src/pages/tenants/TenantDetailPage.tsx
+539 vairiot-mobile/app/src/main/java/com/vairiot/app/data/api/ApiModels.kt
+529 vairiot-ios/VairiotMobile/Screens/Audits/AuditRunView.swift
+511 vairiot-mobile/app/src/main/java/com/vairiot/app/ui/screens/MaintenanceListScreen.kt
+507 vairiot-mobile/app/src/main/java/com/vairiot/app/ui/screens/AuditListScreen.kt
+504 vairiot-reports/app/templates/pdf_gen.py
