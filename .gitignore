@@ -11,9 +11,11 @@ out/
 
 # ─── Environment & secrets — NEVER commit these ───────────────────────────────
 .env
-.env.local
-.env.*.local
+.env.*
 *.env
+# Templates with change-me-… placeholders only; scripts/dev-setup.sh fills them.
+!.env.example
+!infra/.env.prod.example
 
 # ─── Prisma generated client (regenerated on install) ─────────────────────────
 vairiot-api/src/generated/
