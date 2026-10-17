@@ -1,6 +1,7 @@
 import { recordAssetEvent } from './asset-event.service';
 import { recordPositionEvent } from './asset-geo.service';
 import { recordConditionEvent } from './condition.service';
+import { raiseFromCondition } from './impairment.service';
 
 type AssetState = {
   latitude: number | null; longitude: number | null; geoAccuracyMeters?: number | null; geoSource?: string | null;
@@ -10,13 +11,15 @@ type AssetState = {
 /**
  * Ledger events for what changed on an asset write: POSITION_CAPTURED /
  * POSITION_CORRECTED (stage 1.5), CONDITION_ASSESSED (stage 1.13) and
- * CUSTODIAN_CHANGED (stage 2.7).
+ * CUSTODIAN_CHANGED (stage 2.7); and a draft impairment when the grade drops
+ * to one that indicates it (stage 2.11).
  */
 export async function recordAssetChanges(
   tenantId: string, assetId: string, actorId: string, before: AssetState | null, after: AssetState,
 ): Promise<void> {
   await recordPositionEvent(tenantId, assetId, actorId, before, after);
   await recordConditionEvent(tenantId, assetId, actorId, before, after);
+  await raiseFromCondition(tenantId, assetId, actorId, before?.conditionGrade ?? null, after.conditionGrade ?? null);
   await recordCustodianEvent(tenantId, assetId, actorId, before?.custodian ?? null, after.custodian ?? null);
 }
 

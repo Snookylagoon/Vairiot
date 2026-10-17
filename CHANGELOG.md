@@ -2,6 +2,21 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.11.0] — 2026-10-17
+
+### Added
+
+- Impairment for organisations with the IPSAS ledger on (Administration → Impairment): an asset whose grade drops to one that indicates impairment is put forward for assessment, and any asset can be raised from its page (stages 2.11–2.12)
+- The assessment records the standard (IPSAS 21 or 26), how the recoverable amount was measured (depreciated replacement cost, restoration cost, service units or fair value less costs to sell) and the amount; another approver posts it into an open month (stages 2.11–2.12)
+- A reversal of an impairment when the recoverable amount recovers, never above what the asset would carry had it not been impaired; a posting made in error is corrected by an offsetting entry (stages 2.11–2.12)
+- The asset page shows its impairments and lets you raise one (stage 2.12)
+- An impairment register report, on screen and as an export (stage 2.12)
+
+### Changed
+
+- From the month an impairment is posted into, depreciation is charged on the reduced carrying amount over the remaining life or units (stage 2.11)
+- The register, the asset page, depreciation by class and the valuation summary show carrying amounts net of impairment, and the last two show the impairment itself (stages 2.11–2.12)
+
 ## [2.10.0] — 2026-10-17
 
 ### Added

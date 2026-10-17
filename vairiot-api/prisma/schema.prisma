@@ -59,6 +59,7 @@ model Tenant {
   componentTemplates        ComponentTemplate[]
   accountingPeriods         AccountingPeriod[]
   depreciationRuns          DepreciationRun[]
+  impairments               Impairment[]
   sites                     Site[]
   assets                    Asset[]
   auditCampaigns            AuditCampaign[]
@@ -338,10 +339,11 @@ model AccountingPeriod {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  tenant  Tenant              @relation(fields: [tenantId], references: [id])
-  runs    DepreciationRun[]
-  entries DepreciationEntry[]
-  usage   AssetUsage[]
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
+  runs        DepreciationRun[]
+  entries     DepreciationEntry[]
+  usage       AssetUsage[]
+  impairments Impairment[]
 
   @@unique([tenantId, year, month])
   @@index([tenantId])
@@ -607,6 +609,7 @@ model Asset {
   components           Asset[]                    @relation("AssetComponents")
   depreciationEntries  DepreciationEntry[]
   usage                AssetUsage[]
+  impairments          Impairment[]
   site                 Site?                      @relation(fields: [siteId], references: [id])
   location             Location?                  @relation(fields: [locationId], references: [id])
   checkouts            Checkout[]
@@ -1792,4 +1795,83 @@ model PhotoRule {
 
   @@index([tenantId, categoryId])
   @@map("photo_rules")
+}
+
+enum ImpairmentIndicator {
+  CONDITION
+  DAMAGE
+  OBSOLESCENCE
+  IDLE
+  LEGAL
+  OTHER
+}
+
+enum ImpairmentStandard {
+  IPSAS_21
+  IPSAS_26
+}
+
+enum ImpairmentMethod {
+  DRC
+  RESTORATION_COST
+  SERVICE_UNITS
+  FVLCS
+}
+
+enum ImpairmentKind {
+  IMPAIRMENT
+  REVERSAL
+}
+
+enum ImpairmentStatus {
+  DRAFT
+  POSTED
+  REVERSED
+  DISMISSED
+}
+
+/// An impairment of an asset, or the reversal of one (Phase 2, S2.4, stage 2.11).
+/// Raised as a DRAFT from an indicator, assessed, and posted into an open period
+/// by someone other than the assessor (D17). `loss` is positive for an
+/// impairment and negative for a reversal of one; the engine lowers the
+/// depreciable base from the period after. A posted record is corrected by an
+/// offsetting record (`correctionOfId`), never edited.
+model Impairment {
+  id                String              @id @default(cuid())
+  tenantId          String
+  assetId           String
+  kind              ImpairmentKind      @default(IMPAIRMENT)
+  status            ImpairmentStatus    @default(DRAFT)
+  indicator         ImpairmentIndicator
+  indicatorNotes    String?
+  /// The grade that raised it, for indicator CONDITION.
+  conditionGrade    Int?
+  standard          ImpairmentStandard?
+  method            ImpairmentMethod?
+  carryingAmount    Decimal?            @db.Decimal(12, 2)
+  recoverableAmount Decimal?            @db.Decimal(12, 2)
+  loss              Decimal?            @db.Decimal(12, 2)
+  assessmentNotes   String?
+  evidencePhotoIds  String[]            @default([])
+  periodId          String?
+  correctionOfId    String?             @unique
+  raisedBy          String?
+  assessedBy        String?
+  assessedAt        DateTime?
+  postedBy          String?
+  postedAt          DateTime?
+  reversedBy        String?
+  reversedAt        DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  asset        Asset             @relation(fields: [assetId], references: [id])
+  period       AccountingPeriod? @relation(fields: [periodId], references: [id])
+  correctionOf Impairment?       @relation("ImpairmentCorrection", fields: [correctionOfId], references: [id])
+  correctedBy  Impairment?       @relation("ImpairmentCorrection")
+
+  @@index([tenantId, status])
+  @@index([tenantId, assetId])
+  @@map("impairments")
 }

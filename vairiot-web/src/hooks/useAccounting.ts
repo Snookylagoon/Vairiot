@@ -167,13 +167,15 @@ export interface AccountingPeriod {
 export interface DepreciationHistory {
   entries: Array<{ id: string; year: number; month: number; method: string; runStatus: string; openingNbv: string; charge: string; closingNbv: string; accumulated: string }>;
   accumulated: string;
+  /** Net posted impairment (stage 2.11). */
+  impaired?: string;
   carryingAmount: string | null;
 }
 
 export interface DepreciationByClass {
   period: { year: number; month: number } | null;
-  rows: Array<{ classCode: string; className: string; assetCount: number; periodCharge: string; accumulated: string; cost: string; carryingAmount: string }>;
-  totals: { assetCount: number; periodCharge: string; accumulated: string; cost: string; carryingAmount: string };
+  rows: Array<{ classCode: string; className: string; assetCount: number; periodCharge: string; accumulated: string; impaired?: string; cost: string; carryingAmount: string }>;
+  totals: { assetCount: number; periodCharge: string; accumulated: string; impaired?: string; cost: string; carryingAmount: string };
 }
 
 const apiError = (fallback: string) => (err: { response?: { data?: { error?: string } } }) => err.response?.data?.error ?? fallback;

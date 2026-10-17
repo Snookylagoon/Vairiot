@@ -104,8 +104,8 @@ it('reports posted depreciation by class for the latest period, and exports it',
   const r = await request(app).get('/api/v1/accounting/depreciation-by-class').set(as());
   expect(r.body.period).toEqual({ year: 2026, month: 10 });
   expect(r.body.rows).toEqual([
-    { classCode: 'FUR', className: 'Furniture', assetCount: 1, periodCharge: '10.00', accumulated: '20.00', cost: '1200.00', carryingAmount: '1180.00' },
-    { classCode: 'SGN', className: 'Signs', assetCount: 1, periodCharge: '11.90', accumulated: '23.80', cost: '1000.00', carryingAmount: '976.20' },
+    { classCode: 'FUR', className: 'Furniture', assetCount: 1, periodCharge: '10.00', accumulated: '20.00', impaired: '0.00', cost: '1200.00', carryingAmount: '1180.00' },
+    { classCode: 'SGN', className: 'Signs', assetCount: 1, periodCharge: '11.90', accumulated: '23.80', impaired: '0.00', cost: '1000.00', carryingAmount: '976.20' },
   ]);
   const sep = await request(app).get('/api/v1/accounting/depreciation-by-class?year=2026&month=9').set(as());
   expect(sep.body.totals).toMatchObject({ periodCharge: '21.90', accumulated: '21.90' });

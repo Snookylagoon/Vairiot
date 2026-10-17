@@ -28,6 +28,7 @@ function fakeDb(run: Record<string, unknown>, overrides: { count?: number } = {}
     asset: { findMany: jest.fn().mockResolvedValue(ASSETS) },
     depreciationEntry: { findMany: jest.fn().mockResolvedValue([]), createMany: jest.fn() },
     assetUsage: { findMany: jest.fn().mockResolvedValue([]) },
+    impairment: { findMany: jest.fn().mockResolvedValue([]) },
     company: { findUnique: jest.fn().mockResolvedValue({ timezone: 'UTC' }) },
     auditEvent: { create: jest.fn() },
     $transaction: jest.fn(),
@@ -54,6 +55,15 @@ it('posts the entries, closes the month and records who posted it', async () => 
   expect(updates).toContainEqual(expect.objectContaining({ status: 'POSTED', postedBy: 'bob' }));
   expect(db.auditEvent.create).toHaveBeenCalled();
   expect(updates.at(-1)).toMatchObject({ jobState: 'DONE' });
+});
+
+it('posts on the impaired carrying amount from the period after an impairment', async () => {
+  const { client, db } = fakeDb({ ...base, pendingAction: 'POST', pendingBy: 'bob' });
+  db.depreciationEntry.findMany.mockResolvedValue([{ assetId: 'desk', charge: '10.00' }]);
+  db.impairment.findMany.mockResolvedValue([{ assetId: 'desk', loss: '590.00' }]);
+  await processDepreciationRun(client, { tenantId: 't', runId: 'r1' });
+  // 1,200 − 10 − 590 = 600 left over the 119 months left: 5.04
+  expect(db.depreciationEntry.createMany).toHaveBeenCalledWith({ data: [expect.objectContaining({ openingNbv: '600.00', charge: '5.04', closingNbv: '594.96' })] });
 });
 
 it('records a refusal as FAILED with the reason, without throwing', async () => {

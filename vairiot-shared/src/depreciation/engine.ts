@@ -11,7 +11,10 @@ import { isBlank, maxMoney, minMoney, money, roundMoney, sumMoney, ZERO, type Mo
 // - only RECOGNISED assets depreciate (EXPENSED and PENDING_REVIEW do not);
 // - each charge is rounded half-up to 2 places and never takes the carrying
 //   amount below the residual value; the last month of a life takes whatever
-//   is left, so a life's charges add up to the depreciable base exactly.
+//   is left, so a life's charges add up to the depreciable base exactly;
+// - a posted impairment (S2.4, stage 2.11) lowers the carrying amount from the
+//   start of the period it is posted into; straight line and units of production then spread what
+//   is left above the residual over the remaining months or units.
 
 export type Method = 'straight_line' | 'declining_balance' | 'units_of_production';
 
@@ -33,6 +36,10 @@ export interface EngineAsset {
 export interface LedgerState {
   accumulated: Money;
   monthsCharged: number;
+  /** Net impairment posted up to this period (losses less reversals). */
+  impaired: Money;
+  /** Units used in earlier periods, for units of production after an impairment. */
+  unitsBefore: Money;
 }
 
 export interface Period { year: number; month: number }
@@ -76,15 +83,18 @@ export function chargeFor(asset: EngineAsset, period: Period, ledger: LedgerStat
   if (asset.disposalDate && index(monthIn(asset.disposalDate, timeZone)) <= index(period)) return { ok: false, skip: 'disposed' };
 
   const residual = maxMoney(asset.residualValue, ZERO);
-  const opening = cost.minus(ledger.accumulated);
+  const opening = cost.minus(ledger.accumulated).minus(ledger.impaired);
   const remaining = opening.minus(residual);
   if (!remaining.greaterThan(0)) return { ok: false, skip: 'fully_depreciated' };
   const lastMonth = asset.usefulLifeMonths !== null && ledger.monthsCharged + 1 >= asset.usefulLifeMonths;
+  const impaired = !ledger.impaired.isZero();
 
   let charge: Money;
   if (method === 'straight_line') {
     if (!asset.usefulLifeMonths) return { ok: false, skip: 'no_life' };
-    charge = lastMonth ? remaining : roundMoney(cost.minus(residual).dividedBy(asset.usefulLifeMonths));
+    charge = lastMonth ? remaining
+      : impaired ? roundMoney(remaining.dividedBy(asset.usefulLifeMonths - ledger.monthsCharged))
+        : roundMoney(cost.minus(residual).dividedBy(asset.usefulLifeMonths));
   } else if (method === 'declining_balance') {
     const rate = reducingRatePct(asset);
     if (!rate) return { ok: false, skip: 'no_life' };
@@ -94,7 +104,9 @@ export function chargeFor(asset: EngineAsset, period: Period, ledger: LedgerStat
     if (isBlank(expected) || !money(expected).greaterThan(0) || !money(units ?? 0).greaterThan(0)) {
       return { ok: false, skip: 'no_units' };
     }
-    charge = roundMoney(cost.minus(residual).times(money(units)).dividedBy(money(expected)));
+    const unitsLeft = money(expected).minus(ledger.unitsBefore);
+    charge = !impaired ? roundMoney(cost.minus(residual).times(money(units)).dividedBy(money(expected)))
+      : unitsLeft.greaterThan(0) ? roundMoney(remaining.times(money(units)).dividedBy(unitsLeft)) : remaining;
   }
   charge = minMoney(charge, remaining);
   if (!charge.greaterThan(0)) return { ok: false, skip: 'fully_depreciated' };
@@ -104,7 +116,30 @@ export function chargeFor(asset: EngineAsset, period: Period, ledger: LedgerStat
   };
 }
 
-/** Ledger state from posted entries' charges (reversals already excluded by the caller). */
-export function ledgerState(charges: MoneyInput[]): LedgerState {
-  return { accumulated: sumMoney(charges), monthsCharged: charges.filter((c) => money(c).greaterThan(0)).length };
+/**
+ * Ledger state from posted entries' charges (reversals already excluded by
+ * the caller), net posted impairment from earlier periods, and earlier usage.
+ */
+export function ledgerState(charges: MoneyInput[], impairments: MoneyInput[] = [], unitsBefore: MoneyInput[] = []): LedgerState {
+  return {
+    accumulated: sumMoney(charges), monthsCharged: charges.filter((c) => money(c).greaterThan(0)).length,
+    impaired: sumMoney(impairments), unitsBefore: sumMoney(unitsBefore),
+  };
+}
+
+/**
+ * The carrying amount the asset would have had with no impairment (IPSAS 21.68,
+ * 26.106): its charges replayed over the months it was charged, each with
+ * that month's usage. A reversal of impairment may not take the carrying
+ * amount above it.
+ */
+export function unimpairedCarrying(asset: EngineAsset, months: Array<{ period: Period; units?: MoneyInput }>, timeZone: string): Money {
+  const charges: Money[] = [];
+  const units: MoneyInput[] = [];
+  for (const m of months) {
+    const c = chargeFor(asset, m.period, ledgerState(charges, [], units), timeZone, m.units);
+    if (c.ok) charges.push(c.charge);
+    if (!isBlank(m.units)) units.push(m.units);
+  }
+  return costOf(asset).minus(sumMoney(charges));
 }
