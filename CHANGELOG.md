@@ -2,6 +2,19 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.10.0] — 2026-10-17
+
+### Added
+
+- Monthly depreciation for organisations with the IPSAS ledger on (Administration → Depreciation): open a month, prepare a run and check its preview by class, have another approver post it, reverse it if it was wrong, reopen or lock the month (stages 2.8–2.9)
+- Straight-line, reducing-balance and units-of-production depreciation, with usage entered on the asset for the last (stages 2.8–2.9)
+- The asset page shows its posted depreciation month by month and its carrying amount (stage 2.9)
+- A depreciation-by-class report for a posted month, on screen and as an export (stage 2.9)
+
+### Changed
+
+- Once a month is posted, the register, the asset page, the reports and the net book value at disposal use the posted figures instead of the projection (stage 2.9)
+
 ## [2.9.0] — 2026-10-17
 
 ### Added

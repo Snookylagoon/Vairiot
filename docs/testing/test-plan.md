@@ -194,7 +194,7 @@ S0 gates were met on 6 October 2026 (`S0-summary.md`, "How to verify"). Stage 0.
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | S2.1 Classes      | A sign without a life gets 84 months from its class; a GEL 200 item under a GEL 500 threshold is EXPENSED. Covered by `accounting/asset-classes.test.ts` (stage 2.3) |
 | S2.2 Components   | A "Signalised junction" template creates five assets; the parent's roll-up NBV equals the sum. Covered by `accounting/components.test.ts` (stage 2.5) |
-| S2.3 Depreciation | October 2026 run on seeded data posts entries; re-running a locked period is refused; the schedule report matches the entries. First two covered by `accounting/periods.test.ts` and the methods by `depreciation-golden.test.ts` (stage 2.8); the report in stage 2.9 |
+| S2.3 Depreciation | October 2026 run on seeded data posts entries; re-running a locked period is refused; the schedule report matches the entries. Covered by `accounting/periods.test.ts`, `depreciation-golden.test.ts` (stage 2.8) and `ledger-overlay.test.ts` (stage 2.9) |
 | S2.4 Impairment   | Grade 1 creates a DRAFT impairment; posting it reduces NBV; the next run uses the reduced base                                |
 | S2.5 Import       | 10,000 rows in under 2 minutes; error rows excluded and downloadable; re-running in update mode changes no asset numbers      |
 | S2 toggle         | With `ipsas` off, ledger routes answer 404 and screens are hidden                                                             |

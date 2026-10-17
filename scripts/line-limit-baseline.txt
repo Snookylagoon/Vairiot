@@ -1,5 +1,5 @@
 # <lines at adoption> <path> — may shrink, never grow (stage 0.10). Delete a line once the file is within 500.
-1438 vairiot-api/src/services/report-export.service.ts
+1436 vairiot-api/src/services/report-export.service.ts
 1079 vairiot-ios/VairiotMobile/Screens/Labels/LabelDesignView.swift
 992 vairiot-web/src/pages/labels/LabelsPage.tsx
 777 vairiot-api/src/services/platform-admin.service.ts
