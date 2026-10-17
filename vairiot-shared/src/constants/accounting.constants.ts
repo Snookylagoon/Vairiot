@@ -46,3 +46,6 @@ export const PendingReviewReason = {
   NoCost:  'no_cost',
 } as const;
 export type PendingReviewReason = (typeof PendingReviewReason)[keyof typeof PendingReviewReason];
+
+/** Suggested component roles (S2.2); any short label is accepted. */
+export const COMPONENT_ROLES = ['controller', 'pole', 'head', 'detector', 'cabinet', 'other'] as const;

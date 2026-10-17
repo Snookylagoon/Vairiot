@@ -73,6 +73,11 @@ class Mapping(unittest.TestCase):
         self.assertIsNone(fields[4])  # classCode is taken; each field is used once
         self.assertTrue(all(m["importable"] for m in mapping[:4]))
 
+    def test_custodian_is_importable(self):
+        (m,) = pr.suggest_mapping(["Responsible person"])
+        self.assertEqual(m["field"], "custodian")
+        self.assertTrue(m["importable"])
+
     def test_each_field_used_once(self):
         mapping = pr.suggest_mapping(["Name", "Asset name"])
         self.assertEqual(sorted(str(m["field"]) for m in mapping), ["None", "name"])

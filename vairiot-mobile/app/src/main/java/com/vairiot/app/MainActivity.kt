@@ -196,6 +196,7 @@ class MainActivity : ComponentActivity() {
                             onBack = { rootNav.popBackStack() },
                             onEdit = { rootNav.navigate("asset/$assetId/edit") },
                             onLabel = { rootNav.navigate("asset/$assetId/label") },
+                            onOpenAsset = { id -> rootNav.navigate("asset/$id") },
                         )
                     }
                     composable("asset/{assetId}/edit")        {

@@ -26,6 +26,7 @@ export const assetSchema = z.object({
   categoryId:     z.string().optional(),
   siteId:         z.string().optional(),
   locationId:     z.string().optional(),
+  custodian:      z.string().max(120, 'At most 120 characters').optional(),
   condition:      z.string().optional(),
   serialNumber:   z.string().optional(),
   modelNumber:    z.string().optional(),

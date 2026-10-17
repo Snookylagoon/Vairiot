@@ -60,6 +60,7 @@ export function EditAssetPage() {
           categoryId:    asset.category?.id ?? '',
           siteId:        asset.site?.id ?? '',
           locationId:    asset.location?.id ?? '',
+          custodian:     asset.custodian ?? '',
           latitude:      asset.latitude?.toString() ?? '',
           longitude:     asset.longitude?.toString() ?? '',
           geoAccuracyMeters: asset.geoAccuracyMeters?.toString() ?? '',

@@ -7,13 +7,14 @@ import { prisma } from '../lib/prisma';
 import { recordAssetChanges } from './asset-change-events.service';
 import { recordAssetEvent } from './asset-event.service';
 import { resolveTenantAssetGeo, type AssetGeoInput } from './asset-geo.service';
+import { afterAssetWrite, resolveComponentFields } from './component.service';
 import { computeDepreciation } from './depreciation/projection';
 import { allocateIar } from './gs1-identifier.service';
 import { resolveTenantAssetAccounting } from './recognition.service';
 import { dispatchWebhookEvent } from './webhook.service';
 
 export interface AssetCreateInput extends AssetGeoInput, Partial<Omit<AssetAccountingInput, 'recognitionDate'>> {
-  recognitionDate?: string | null;
+  recognitionDate?: string | null; parentAssetId?: string | null; componentRole?: string | null; custodian?: string | null;
   name: string; description?: string; categoryId?: string; siteId?: string;
   locationId?: string; serialNumber?: string; modelNumber?: string;
   manufacturer?: string; barcode?: string; rfidTag?: string; labelImage?: string;
@@ -58,12 +59,15 @@ export interface AssetListParams {
   search?: string; categoryId?: string; siteId?: string; status?: string; condition?: string;
   sortBy?: string; sortOrder?: string; page?: number; pageSize?: number;
   includeDeleted?: boolean;
+  /** Parents and standalone assets only, components folded into their parents (S2.2). */
+  rollUp?: boolean;
 }
 
 function buildAssetWhere(tenantId: string, params: AssetListParams): Prisma.AssetWhereInput {
-  const { search, categoryId, siteId, status, condition, includeDeleted } = params;
+  const { search, categoryId, siteId, status, condition, includeDeleted, rollUp } = params;
   return {
     tenantId,
+    ...(rollUp && { parentAssetId: null }),
     ...(!includeDeleted && { deletedAt: null }),
     ...(status && { status }),
     ...(condition && { condition }),
@@ -81,7 +85,12 @@ function buildAssetWhere(tenantId: string, params: AssetListParams): Prisma.Asse
   };
 }
 
-const assetInclude = { category: true, site: true, location: true, disposal: true, assetClass: { select: { id: true, code: true, name: true } } } as const;
+const assetInclude = {
+  category: true, site: true, location: true, disposal: true, assetClass: { select: { id: true, code: true, name: true } },
+  // Components (S2.2): the parent of a part, and how many parts a parent has.
+  parentAsset: { select: { id: true, assetNumber: true, name: true } },
+  _count: { select: { components: { where: { deletedAt: null } } } },
+} as const;
 
 // Moved to depreciation/projection.ts (stage 2.3); re-exported for its callers.
 export { computeDepreciation };
@@ -244,7 +253,10 @@ export async function getAssetStats(tenantId: string) {
 }
 
 export async function getAsset(tenantId: string, id: string) {
-  const asset = await prisma.asset.findFirst({ where: { id, tenantId }, include: assetInclude });
+  const asset = await prisma.asset.findFirst({ where: { id, tenantId }, include: {
+    ...assetInclude,
+    components: { where: { deletedAt: null }, select: { id: true, assetNumber: true, name: true, componentRole: true, status: true }, orderBy: { assetNumber: 'asc' } },
+  } });
   if (!asset) throw new NotFoundError('Asset not found');
   return enrichAssetWithDepreciation(asset);
 }
@@ -312,7 +324,7 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
       tenantId, assetNumber, name: input.name, description: input.description,
       individualAssetReference, allocationAuthority: 'SERVER',
       serialNumber: input.serialNumber, modelNumber: input.modelNumber, manufacturer: input.manufacturer,
-      barcode: input.barcode, rfidTag: input.rfidTag, supplier: input.supplier, notes: input.notes,
+      barcode: input.barcode, rfidTag: input.rfidTag, supplier: input.supplier, notes: input.notes, custodian: input.custodian?.trim() || undefined,
       ...(conditionColumns(input) ?? { condition: 'good', conditionGrade: 4 }), status: input.status,
       customFields: (input.customFields ?? undefined) as Prisma.InputJsonValue | undefined,
       purchaseCost: toDecimal(input.purchaseCost),
@@ -337,6 +349,7 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
       siteId:     input.siteId,
       locationId: input.locationId,
       ...geo, ...await resolveTenantAssetAccounting(tenantId, input as unknown as Record<string, unknown>),
+      ...await resolveComponentFields(tenantId, input as unknown as Record<string, unknown>),
       clientRequestId: input.clientRequestId,
     },
     include: assetInclude,
@@ -352,7 +365,8 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
   });
   // The default 'good' is not an assessment: only a condition sent is one.
   await recordAssetChanges(tenantId, asset.id, actorId, null, conditionColumns(input) ? asset : { ...asset, conditionGrade: null });
-  return enrichAssetWithDepreciation(asset);
+  await afterAssetWrite(tenantId, asset);
+  return enrichAssetWithDepreciation(await prisma.asset.findUniqueOrThrow({ where: { id: asset.id }, include: assetInclude }));
 }
 
 const STRING_FIELDS = [
@@ -383,14 +397,16 @@ export async function updateAsset(tenantId: string, id: string, actorId: string,
   for (const f of DATE_FIELDS) if (input[f] !== undefined) data[f] = input[f] ? new Date(input[f]!) : null;
   for (const f of REF_FIELDS) if (input[f] !== undefined) data[f] = input[f] ?? null;
   if (input.usefulLifeMonths !== undefined) data.usefulLifeMonths = input.usefulLifeMonths;
+  if (input.custodian !== undefined) data.custodian = input.custodian?.trim() || null;
   Object.assign(data, await resolveTenantAssetGeo(tenantId, input, existing), conditionColumns(input),
     await resolveTenantAssetAccounting(tenantId, input as unknown as Record<string, unknown>, existing));
 
   const updated = await prisma.asset.update({ where: { id }, data, include: assetInclude });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'updated', before: existing as unknown as Prisma.InputJsonValue, after: updated as unknown as Prisma.InputJsonValue } });
   await recordAssetChanges(tenantId, id, actorId, existing, updated);
+  await afterAssetWrite(tenantId, updated, existing, actorId);
   void dispatchWebhookEvent(tenantId, 'asset.updated', updated).catch(() => {});
-  return enrichAssetWithDepreciation(updated);
+  return enrichAssetWithDepreciation(await prisma.asset.findUniqueOrThrow({ where: { id }, include: assetInclude }));
 }
 
 export async function deleteAsset(tenantId: string, id: string, actorId: string) {

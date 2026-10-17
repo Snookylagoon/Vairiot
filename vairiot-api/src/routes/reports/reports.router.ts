@@ -68,8 +68,8 @@ reportsRouter.get('/depreciation',
 
 reportsRouter.get('/fixed-assets',
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { categoryId, siteId, status, search, sortBy, sortOrder } = req.query as Record<string, string>;
-    res.json(await fixedAssetRegister(req.user!.tenantId, { categoryId, siteId, status, search, sortBy, sortOrder }));
+    const { categoryId, siteId, status, search, sortBy, sortOrder, rollUp } = req.query as Record<string, string>;
+    res.json(await fixedAssetRegister(req.user!.tenantId, { categoryId, siteId, status, search, sortBy, sortOrder, rollUp }));
   }),
 );
 

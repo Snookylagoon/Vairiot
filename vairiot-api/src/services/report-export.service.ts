@@ -185,7 +185,7 @@ export async function exportAssetAging(tenantId: string, opts: ExportOpts): Prom
 }
 
 export async function exportAssetValuationSummary(tenantId: string, opts: ExportOpts): Promise<Buffer> {
-  const { categoryId, siteId, status } = opts.filters ?? {};
+  const { categoryId, siteId, status, rollUp } = opts.filters ?? {}; // rollUp=true: parts count under their parent (S2.2)
   const where = {
     tenantId,
     deletedAt: null,
@@ -202,7 +202,7 @@ export async function exportAssetValuationSummary(tenantId: string, opts: Export
       depreciationMethod: true, usefulLifeMonths: true, depreciationStartDate: true,
       purchaseDate: true, recognitionStatus: true,
       category: { select: { name: true } },
-      site: { select: { name: true } },
+      site: { select: { name: true } }, parentAsset: { select: { site: { select: { name: true } }, category: { select: { name: true } } } },
     },
   });
 
@@ -213,7 +213,7 @@ export async function exportAssetValuationSummary(tenantId: string, opts: Export
 
   const now = new Date();
   for (const a of assets) {
-    const label = `${a.site?.name ?? 'Unassigned'} / ${a.category?.name ?? 'Uncategorised'}`;
+    const part = rollUp === 'true' ? a.parentAsset : null; const label = `${(part ?? a).site?.name ?? 'Unassigned'} / ${(part ?? a).category?.name ?? 'Uncategorised'}`;
     const dep = computeDepreciation(a);
     const ageMonths = a.purchaseDate
       ? (now.getFullYear() - a.purchaseDate.getFullYear()) * 12 + (now.getMonth() - a.purchaseDate.getMonth())
@@ -223,12 +223,12 @@ export async function exportAssetValuationSummary(tenantId: string, opts: Export
       groups.set(label, { assetCount: 0, totalPurchaseCost: 0, totalCapitalizedCost: 0, totalDepreciation: 0, totalNBV: 0, totalAgeMonths: 0 });
     }
     const g = groups.get(label)!;
-    g.assetCount++;
+    if (!part) g.assetCount++;
     g.totalPurchaseCost += Number(a.purchaseCost ?? 0);
     g.totalCapitalizedCost += dep.capitalizedCost;
     g.totalDepreciation += dep.accumulatedDepreciation;
     g.totalNBV += dep.netBookValue;
-    g.totalAgeMonths += ageMonths;
+    g.totalAgeMonths += part ? 0 : ageMonths;
   }
 
   const rows = Array.from(groups.entries()).map(([label, g]) => ({

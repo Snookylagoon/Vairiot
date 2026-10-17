@@ -1,6 +1,7 @@
 package com.vairiot.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +29,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.vairiot.app.data.api.AssetResponse
 import com.vairiot.app.data.api.Gs1EncodingResponse
 import com.vairiot.app.data.api.assetClassLabel
+import com.vairiot.app.data.api.componentLabel
 import com.vairiot.app.location.AssetPosition
 import com.vairiot.app.ui.theme.*
 
@@ -36,6 +38,7 @@ fun AssetDetailScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit = {},
     onLabel: () -> Unit = {},
+    onOpenAsset: (String) -> Unit = {},
     viewModel: AssetDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -84,6 +87,7 @@ fun AssetDetailScreen(
             is AssetDetailUiState.Loaded  -> AssetBody(
                 gisEnabled = gisEnabled,
                 ipsasEnabled = ipsasEnabled,
+                onOpenAsset = onOpenAsset,
                 asset = s.asset,
                 gs1 = s.gs1,
                 onPrintLabel = onLabel,
@@ -176,6 +180,7 @@ private fun AssetBody(
     onWriteTag: () -> Unit = {},
     gisEnabled: Boolean = false,
     ipsasEnabled: Boolean = false,
+    onOpenAsset: (String) -> Unit = {},
 ) {
     Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
@@ -200,8 +205,19 @@ private fun AssetBody(
                 DetailRow("Condition",   asset.condition)
                 asset.category?.let { DetailRow("Category", it.name) }
                 if (ipsasEnabled) assetClassLabel(asset.assetClass, asset.recognitionStatus)?.let { DetailRow("Asset class", it) }
+                // Held as parts (stage 2.6): the parent of a part, or a parent's parts; each opens its asset.
+                if (ipsasEnabled) asset.parentAsset?.let { p ->
+                    Text("Part of ${p.assetNumber} ${p.name}", color = VairiotViolet, modifier = Modifier.clickable { onOpenAsset(p.id) }.padding(vertical = 4.dp))
+                }
+                if (ipsasEnabled && !asset.components.isNullOrEmpty()) {
+                    Text("Components (${asset.components.size})", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
+                    asset.components.forEach { c ->
+                        Text(componentLabel(c), color = VairiotViolet, modifier = Modifier.clickable { onOpenAsset(c.id) }.padding(vertical = 4.dp))
+                    }
+                }
                 asset.site?.let      { DetailRow("Site",     it.name) }
                 asset.location?.let  { DetailRow("Location", it.name) }
+                asset.custodian?.let { DetailRow("Custodian", it) }
                 if (gisEnabled) AssetPosition.of(asset)?.let { GpsPositionRow(it, asset.name) }
                 asset.serialNumber?.let { DetailRow("Serial number", it) }
                 asset.barcode?.let      { DetailRow("Manufacturer EAN", it) }

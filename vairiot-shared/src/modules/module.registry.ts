@@ -69,6 +69,7 @@ export const MODULES: readonly ModuleDefinition[] = [
       { method: 'GET', path: '/accounting/settings' },
       { method: 'GET', path: '/accounting/classes' },
       { method: 'GET', path: '/accounting/assets/pending-review' },
+      { method: 'GET', path: '/accounting/component-templates' },
     ],
     webRoutes: ['/accounting/classes'],
   },

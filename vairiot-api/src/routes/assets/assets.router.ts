@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
+import { parentDisposalChoice } from 'vairiot-shared';
 
 import { toCsv } from '../../lib/csv';
 import { requireAnyPermission } from '../../middleware/authorise';
@@ -9,6 +10,7 @@ import { enforceAssetCap } from '../../services/asset-cap.service';
 import { listAssetEvents } from '../../services/asset-event.service';
 import { listAssetsInBbox, parseBbox, parseGeoLimit } from '../../services/asset-geo-query.service';
 import { listAssets, listAssetChanges, listAssetPositions, getAsset, createAssetIdempotent, findAssetByClientRequestId, updateAsset, deleteAsset, disposeAsset, getAssetByTag, listAssetsForExport, getAssetStats } from '../../services/asset.service';
+import { prepareParentDisposal } from '../../services/component.service';
 import { encodeIdentifier } from '../../services/gs1-identifier.service';
 import { listLabelPrints } from '../../services/gs1-label.service';
 import { getAssetByEpc, listTagsForAsset } from '../../services/gs1-tag.service';
@@ -54,6 +56,7 @@ assetsRouter.get('/',
       page:       Number(req.query.page) || 1,
       pageSize:   Number(req.query.pageSize) || 50,
       includeDeleted: req.query.includeDeleted === 'true',
+      rollUp:     req.query.rollUp === 'true',
     }));
   }),
 );
@@ -71,7 +74,7 @@ assetsRouter.get('/export.csv', requireAnyPermission('asset:read'),
     const fmtDec = (d: any) => d ? d.toString() : '';
     const flat = rows.map((a: any) => ({
       assetNumber: a.assetNumber, name: a.name, status: a.status, condition: a.condition,
-      category: a.category?.name ?? '', site: a.site?.name ?? '', location: a.location?.name ?? '',
+      category: a.category?.name ?? '', site: a.site?.name ?? '', location: a.location?.name ?? '', custodian: a.custodian ?? '',
       latitude: a.latitude?.toString() ?? '', longitude: a.longitude?.toString() ?? '',
       serialNumber: a.serialNumber ?? '', modelNumber: a.modelNumber ?? '', manufacturer: a.manufacturer ?? '',
       barcode: a.barcode ?? '', rfidTag: a.rfidTag ?? '',
@@ -98,6 +101,7 @@ assetsRouter.get('/export.csv', requireAnyPermission('asset:read'),
       { key: 'category',       header: 'Category' },
       { key: 'site',           header: 'Site' },
       { key: 'location',       header: 'Location' },
+      { key: 'custodian',      header: 'Custodian' },
       { key: 'latitude',       header: 'Latitude' },
       { key: 'longitude',      header: 'Longitude' },
       { key: 'serialNumber',   header: 'Serial Number' },
@@ -218,6 +222,7 @@ assetsRouter.post('/', requireAnyPermission('asset:write'),
     body('name').notEmpty().withMessage('Asset name required'),
     body('clientRequestId').optional({ nullable: true }).isString().isLength({ max: 64 }),
     body('conditionGrade').optional({ nullable: true }).isInt({ min: 1, max: 5 }).toInt(),
+    body('custodian').optional({ nullable: true }).isString().isLength({ max: 120 }),
   ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
@@ -238,7 +243,10 @@ assetsRouter.post('/', requireAnyPermission('asset:write'),
 );
 
 assetsRouter.patch('/:id', requireAnyPermission('asset:write'),
-  [body('conditionGrade').optional({ nullable: true }).isInt({ min: 1, max: 5 }).toInt()],
+  [
+    body('conditionGrade').optional({ nullable: true }).isInt({ min: 1, max: 5 }).toInt(),
+    body('custodian').optional({ nullable: true }).isString().isLength({ max: 120 }),
+  ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
@@ -261,6 +269,13 @@ assetsRouter.post('/:id/dispose', requireAnyPermission('asset:write'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    res.json(await disposeAsset(req.user!.tenantId, req.params.id, req.user!.sub, req.body));
+    const { tenantId, sub } = req.user!;
+    // A parent with components: `components: 'dispose' | 'detach'` (S2.2), else 409.
+    const choice = parentDisposalChoice.optional().safeParse(req.body.components);
+    if (!choice.success) { res.status(400).json({ error: 'components must be dispose or detach' }); return; }
+    await prepareParentDisposal(tenantId, req.params.id, choice.data, (componentId) => disposeAsset(tenantId, componentId, sub, {
+      disposalDate: req.body.disposalDate, disposalMethod: req.body.disposalMethod, disposalValue: 0, disposalReason: 'Disposed with its parent',
+    }), sub);
+    res.json(await disposeAsset(tenantId, req.params.id, sub, req.body));
   }),
 );

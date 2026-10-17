@@ -2,6 +2,23 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.9.0] — 2026-10-17
+
+### Added
+
+- Assets held as parts, for organisations with the IPSAS ledger on: a signalised junction can be held as its controller, poles, signal heads and detectors, each with its own class and life (stages 2.5–2.6)
+- A Components card on the asset page: the parts with their cost and net book value, the whole asset's roll-up, adding parts from a template or by hand, moving and detaching them (stage 2.6)
+- Component templates, including TUDA's "Signalised junction" with placeholder figures; creating from one makes the asset and its parts with the cost split exactly (stage 2.5)
+- The asset list marks parents and parts and can roll parts up into their parents; the fixed asset register and the valuation summary have the same roll-up option (stage 2.6)
+- The Android and iOS apps show an asset's parts, or the asset a part belongs to, and open them (stage 2.6)
+- A custodian on every asset: the person or unit accountable for it, on the asset form and page, on the Android and iOS asset screens (read-only), in the import and export, and changed by a transfer that names one; each change is on the asset's history, and parts take and follow their parent's custodian (stage 2.7)
+
+### Changed
+
+- A part starts where its parent is and moves with it while it has not been moved on its own (stage 2.5)
+- The capitalisation threshold is tested on the whole asset, its parts included (stage 2.5)
+- Disposing of an asset that has parts asks whether to dispose of them too or keep them (stages 2.5–2.6)
+
 ## [2.8.0] — 2026-10-16
 
 ### Added

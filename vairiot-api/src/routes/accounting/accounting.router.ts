@@ -1,5 +1,8 @@
 import { Router, type Response } from 'express';
-import { assetClassSchema, assetClassUpdateSchema, recognitionOverrideSchema } from 'vairiot-shared';
+import {
+  assetClassSchema, assetClassUpdateSchema, componentLinkSchema, componentTemplateSchema, componentTemplateUpdateSchema,
+  instantiateTemplateSchema, recognitionOverrideSchema,
+} from 'vairiot-shared';
 import type { z } from 'zod';
 
 import { ValidationError } from '../../lib/errors';
@@ -8,6 +11,10 @@ import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { requireFeature } from '../../middleware/require-feature';
 import { createAssetClass, listAssetClasses, updateAssetClass } from '../../services/asset-class.service';
+import {
+  createComponentTemplate, instantiateComponentTemplate, listComponentTemplates, updateComponentTemplate,
+} from '../../services/component-template.service';
+import { getComponentGroup, setComponentParent } from '../../services/component.service';
 import { listPendingReview, overrideRecognition, setCategoryClass } from '../../services/recognition.service';
 import type { Request } from '../../types/http';
 
@@ -86,5 +93,44 @@ accountingRouter.get('/assets/pending-review', requireAnyPermission('accounting:
 accountingRouter.put('/assets/:id/recognition', requireAnyPermission('accounting:approve'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     res.json(await overrideRecognition(req.user!.tenantId, req.user!.sub, req.params.id, parse(recognitionOverrideSchema, req.body)));
+  }),
+);
+
+// ── Components (S2.2) ─────────────────────────────────────────────────────────
+
+accountingRouter.get('/assets/:id/components', requireAnyPermission('accounting:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await getComponentGroup(req.user!.tenantId, req.params.id));
+  }),
+);
+
+accountingRouter.put('/assets/:id/parent', requireAnyPermission('accounting:write'), requireAnyPermission('asset:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await setComponentParent(req.user!.tenantId, req.user!.sub, req.params.id, parse(componentLinkSchema, req.body)));
+  }),
+);
+
+accountingRouter.get('/component-templates', requireAnyPermission('accounting:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listComponentTemplates(req.user!.tenantId));
+  }),
+);
+
+accountingRouter.post('/component-templates', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json(await createComponentTemplate(req.user!.tenantId, req.user!.sub, parse(componentTemplateSchema, req.body)));
+  }),
+);
+
+accountingRouter.patch('/component-templates/:id', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await updateComponentTemplate(req.user!.tenantId, req.user!.sub, req.params.id, parse(componentTemplateUpdateSchema, req.body)));
+  }),
+);
+
+/** Creates an asset and its components from a template; needs asset:write too. */
+accountingRouter.post('/component-templates/:id/assets', requireAnyPermission('accounting:write'), requireAnyPermission('asset:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json(await instantiateComponentTemplate(req.user!.tenantId, req.user!.sub, req.params.id, parse(instantiateTemplateSchema, req.body)));
   }),
 );

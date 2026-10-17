@@ -14,6 +14,7 @@ const ASSET_FIELDS: { key: string; label: string; required?: boolean; feature?: 
   { key: 'description', label: 'Description' },
   { key: 'categoryName', label: 'Category' },
   { key: 'siteName', label: 'Site' },
+  { key: 'custodian', label: 'Custodian' },
   { key: 'classCode', label: 'Asset Class Code', feature: 'ipsas' },
   { key: 'latitude', label: 'Latitude', feature: 'gis' },
   { key: 'longitude', label: 'Longitude', feature: 'gis' },

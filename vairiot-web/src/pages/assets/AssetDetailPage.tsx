@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams, useNavigate } from 'react-router-dom';
 
+import { AssetComponents } from '@/components/assets/AssetComponents';
 import { AssetDocuments } from '@/components/assets/AssetDocuments';
 import { AssetGeoPosition } from '@/components/assets/AssetGeoPosition';
 import { AssetGs1Identity } from '@/components/assets/AssetGs1Identity';
@@ -53,9 +54,11 @@ function fmtDate(d?: string | null) {
   return d ? new Date(d).toLocaleDateString('en-GB') : undefined;
 }
 
-function DisposalDialog({ open, assetId, onClose, currencySymbol }: { open: boolean; assetId: string; onClose: () => void; currencySymbol: string }) {
+function DisposalDialog({ open, assetId, onClose, currencySymbol, componentCount = 0 }: { open: boolean; assetId: string; onClose: () => void; currencySymbol: string; componentCount?: number }) {
   const navigate = useNavigate();
   const disposeAsset = useDisposeAsset(assetId);
+  // A parent's parts are disposed with it or detached (S2.2).
+  const [parts, setParts] = useState<'dispose' | 'detach'>('dispose');
   const { register, handleSubmit, formState: { errors } } = useForm<DisposalFormData>({
     resolver: zodResolver(disposalSchema),
   });
@@ -64,6 +67,7 @@ function DisposalDialog({ open, assetId, onClose, currencySymbol }: { open: bool
     await disposeAsset.mutateAsync({
       ...data,
       disposalValue: data.disposalValue ? Number(data.disposalValue) : undefined,
+      ...(componentCount > 0 && { components: parts }),
     });
     onClose();
     navigate(`/assets/${assetId}`);
@@ -99,6 +103,13 @@ function DisposalDialog({ open, assetId, onClose, currencySymbol }: { open: bool
             {...register('disposalReason')} />
           <Textarea label="Notes" rows={2} placeholder="Additional notes"
             {...register('notes')} />
+          {componentCount > 0 && (
+            <fieldset className="text-sm space-y-1">
+              <legend className="font-medium text-v-charcoal">Its {componentCount} component(s)</legend>
+              <label className="flex items-center gap-2"><input type="radio" checked={parts === 'dispose'} onChange={() => setParts('dispose')} /> Dispose of them too</label>
+              <label className="flex items-center gap-2"><input type="radio" checked={parts === 'detach'} onChange={() => setParts('detach')} /> Detach them and keep them</label>
+            </fieldset>
+          )}
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
             <Button type="submit" variant="danger" loading={disposeAsset.isPending}>Confirm Disposal</Button>
@@ -203,10 +214,12 @@ export function AssetDetailPage() {
             <Field label="Category" value={asset.category?.name} />
             <Field label="Site"     value={asset.site?.name} />
             <Field label="Location" value={asset.location?.name} />
+            <Field label="Custodian" value={asset.custodian} />
           </CardBody>
         </Card>
 
         {hasFeature(user, 'ipsas') && <AssetRecognition asset={asset} />}
+        {hasFeature(user, 'ipsas') && hasAnyPermission(user, 'accounting:read') && <AssetComponents assetId={asset.id} assetName={asset.name} />}
         {hasFeature(user, 'gis') && <AssetGeoPosition asset={asset} />}
         <ConditionHistory assetId={asset.id} categoryId={asset.category?.id} />
 
@@ -334,7 +347,7 @@ export function AssetDetailPage() {
       />
 
       {/* Disposal dialog */}
-      <DisposalDialog open={showDisposal} assetId={asset.id} onClose={() => setShowDisposal(false)} currencySymbol={currencySymbol} />
+      <DisposalDialog open={showDisposal} assetId={asset.id} onClose={() => setShowDisposal(false)} currencySymbol={currencySymbol} componentCount={asset._count?.components ?? 0} />
     </div>
   );
 }

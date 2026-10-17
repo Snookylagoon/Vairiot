@@ -9,6 +9,7 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { useFixedAssetRegister } from '@/hooks/useReports';
 import { useSites } from '@/hooks/useSites';
 import { useUrlTableState } from '@/hooks/useUrlTableState';
+import { hasFeature, useAuthStore } from '@/stores/auth.store';
 
 interface FixedAssetRow {
   assetNumber: string;
@@ -27,12 +28,14 @@ export function FixedAssetsPage() {
   const navigate = useNavigate();
   const { fmt: fmtCurrency } = useCurrency();
   const { search, searchInput, setSearchInput, sortBy, sortOrder, toggleSort, extras, setExtra } =
-    useUrlTableState(['categoryId', 'siteId']);
-  const { categoryId, siteId } = extras;
+    useUrlTableState(['categoryId', 'siteId', 'rollUp']);
+  const { categoryId, siteId, rollUp } = extras;
+  const ipsas = useAuthStore(s => hasFeature(s.user, 'ipsas'));
 
   const filters: Record<string, string> = {};
   if (categoryId) filters.categoryId = categoryId;
   if (siteId) filters.siteId = siteId;
+  if (ipsas && rollUp === '1') filters.rollUp = 'true';
   if (search) filters.search = search;
   if (sortBy) { filters.sortBy = sortBy; filters.sortOrder = sortOrder; }
 
@@ -84,6 +87,12 @@ export function FixedAssetsPage() {
         <option value="">All Sites</option>
         {sites.map((s: { id: string; name: string }) => <option key={s.id} value={s.id}>{s.name}</option>)}
       </select>
+      {ipsas && (
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <input type="checkbox" checked={rollUp === '1'} onChange={e => setExtra('rollUp', e.target.checked ? '1' : '')} />
+          Roll up components
+        </label>
+      )}
     </>
   );
 

@@ -25,6 +25,7 @@ async function wipeTuda() {
   await prisma.onboardingProgress.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
   await prisma.deviceSlot.deleteMany({ where: { licence: { tenantId: TUDA_TENANT_ID } } });
   await prisma.licence.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
+  await prisma.componentTemplate.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
   await prisma.assetClass.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
   await prisma.company.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
   await prisma.tenant.deleteMany({ where: { id: TUDA_TENANT_ID } });
@@ -59,6 +60,9 @@ describe('seed:tuda', () => {
     expect(classes.every((c) => c.toBeConfirmed && c.capitalisationThreshold.toFixed(2) === '500.00')).toBe(true);
     expect(classes.find((c) => c.code === 'SGN')!.defaultUsefulLifeMonths).toBe(84);
     expect(classes.find((c) => c.code === 'SIG')!.componentisationRequired).toBe(true);
+    const junction = await prisma.componentTemplate.findUniqueOrThrow({ where: { tenantId_code: { tenantId: TUDA_TENANT_ID, code: 'JUNCTION' } } });
+    expect(junction).toMatchObject({ name: 'Signalised junction', assetClassId: classes.find((c) => c.code === 'SIG')!.id, toBeConfirmed: true });
+    expect((junction.lines as Array<{ costSharePct: number }>).reduce((t, l) => t + l.costSharePct, 0)).toBe(100);
     await prisma.assetClass.update({ where: { tenantId_code: { tenantId: TUDA_TENANT_ID, code: 'SGN' } }, data: { defaultUsefulLifeMonths: 96 } });
     // A re-run re-invites the admin, so the later invite test uses the new link.
     inviteUrl = (await seedTuda({ adminEmail: ADMIN })).inviteUrl!;

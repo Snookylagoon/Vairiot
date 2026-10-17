@@ -99,7 +99,6 @@ FIELD_SYNONYMS: dict[str, list[str]] = {
 NOT_IMPORTABLE = {
     "legacyAssetNumber": "Vairiot allocates its own asset numbers; keep this one (S2 import will carry it as the legacy reference). Until then map it to notes if needed.",
     "locationName": "The importer sets the site only; locations are added after import (or in S2).",
-    "custodian": "No custodian field yet; map to notes if needed.",
 }
 
 # What each check needs from the mapping.

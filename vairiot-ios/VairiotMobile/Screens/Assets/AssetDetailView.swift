@@ -107,6 +107,9 @@ struct AssetDetailView: View {
             VStack(spacing: 16) {
                 headerCard(asset)
                 infoSection(asset)
+                if FeatureFlags.shared.ipsasEnabled, asset.parentAsset != nil || !(asset.components ?? []).isEmpty {
+                    AssetComponentsSection(asset: asset, apiClient: apiClient)
+                }
                 if FeatureFlags.shared.gisEnabled, let position = AssetPosition(asset) {
                     positionSection(position, assetName: asset.name)
                 }
@@ -166,6 +169,8 @@ struct AssetDetailView: View {
                 infoRow(icon: "building.2", label: "Site", value: asset.site?.name)
                 Divider().padding(.leading, 44)
                 infoRow(icon: "mappin.and.ellipse", label: "Location", value: asset.location?.name)
+                Divider().padding(.leading, 44)
+                infoRow(icon: "person.crop.circle", label: "Custodian", value: asset.custodian)
                 if FeatureFlags.shared.gisEnabled {
                     Divider().padding(.leading, 44)
                     infoRow(icon: "location", label: "GPS Position", value: AssetPosition(asset)?.coordinateText)

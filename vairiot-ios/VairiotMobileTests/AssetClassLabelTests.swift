@@ -39,4 +39,28 @@ final class AssetClassLabelTests: XCTestCase {
         flags.update(from: ["ipsas": true])
         XCTAssertTrue(flags.ipsasEnabled)
     }
+
+    func testPartsAndParentFromTheApi() throws {
+        let parent = try decode("""
+        {"id":"p1","assetNumber":"AST-1","name":"Junction","status":"active","condition":"good",
+         "components":[{"id":"c1","assetNumber":"AST-2","name":"Junction — Controller","componentRole":"controller","status":"active"}]}
+        """)
+        XCTAssertEqual(parent.components?.first?.label, "Controller · AST-2 Junction — Controller")
+        let part = try decode("""
+        {"id":"c1","assetNumber":"AST-2","name":"C","status":"active","condition":"good",
+         "parentAsset":{"id":"p1","assetNumber":"AST-1","name":"Junction"}}
+        """)
+        XCTAssertEqual(part.parentAsset?.assetNumber, "AST-1")
+        XCTAssertNil(part.components)
+    }
+
+    func testCustodianFromTheApiAndAbsentFromAnOlderServer() throws {
+        let asset = try decode("""
+        {"id":"a1","assetNumber":"AST-1","name":"Cabinet","status":"active","condition":"good","custodian":"Signals Unit"}
+        """)
+        XCTAssertEqual(asset.custodian, "Signals Unit")
+        XCTAssertNil(try decode("""
+        {"id":"a1","assetNumber":"AST-1","name":"Cabinet","status":"active","condition":"good"}
+        """).custodian)
+    }
 }
