@@ -168,6 +168,8 @@ services:
       # Shared with the worker for the staged import's commit (stage 2.13); unset
       # keeps the internal endpoints shut. At least 32 characters.
       INTERNAL_API_TOKEN:     ${INTERNAL_API_TOKEN:-}
+      # Tile servers the consoles' CSP allows; a tenant tile URL elsewhere is refused (G31).
+      CSP_TILE_HOSTS:         ${CSP_TILE_HOSTS:-https://tile.openstreetmap.org}
     expose:
       - "3001"
     healthcheck:
@@ -205,6 +207,11 @@ services:
         # in .env, then redeploy. Empty = disabled.
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     container_name: vairiot_web
+    # Content-Security-Policy (G31, stage 2.16): map tile servers, and any other
+    # origin the console calls (a Sentry DSN's host, if set).
+    environment:
+      CSP_TILE_HOSTS:  ${CSP_TILE_HOSTS:-https://tile.openstreetmap.org}
+      CSP_CONNECT_SRC: ${CSP_CONNECT_SRC:-}
     restart: always
     logging: *default-logging
     mem_limit: 128m
@@ -226,6 +233,10 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL}
     container_name: vairiot_admin
+    # The admin console calls the API on another origin (G31, stage 2.16).
+    environment:
+      CSP_TILE_HOSTS:  ${CSP_TILE_HOSTS:-https://tile.openstreetmap.org}
+      CSP_CONNECT_SRC: ${VITE_API_URL}
     restart: always
     logging: *default-logging
     mem_limit: 128m

@@ -2,13 +2,15 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 
 import { createApp } from '../../app';
-import { DEFAULT_MAP_SETTINGS, resolveMapSettings } from '../../lib/map-settings';
+import { DEFAULT_MAP_SETTINGS, DEFAULT_TILE_HOSTS, resolveMapSettings, tileHostAllowed } from '../../lib/map-settings';
 import { prisma } from '../../lib/prisma';
 import { flushAuditEvents } from '../../services/audit-event.service';
 import { ensureTestLicence, removeTestLicence } from '../helpers/test-licence';
 
 // Per-tenant base map (Phase 1 W4, stage 1.12).
 
+// The operator allows TUDA's tile server in the console's CSP (G31, stage 2.16).
+process.env.CSP_TILE_HOSTS = 'https://tile.openstreetmap.org https://tiles.tuda.example';
 const app = createApp();
 const TID = 'test-map-settings-tenant';
 const PASS = 'TestPassword123!';
@@ -92,5 +94,21 @@ describe('resolveMapSettings', () => {
     expect(resolveMapSettings({ zoom: 12 })).toEqual({ ...DEFAULT_MAP_SETTINGS, zoom: 12 });
     expect(resolveMapSettings({ attribution: '<b>x</b>' })).toEqual(DEFAULT_MAP_SETTINGS);
     expect(resolveMapSettings(null)).toEqual(DEFAULT_MAP_SETTINGS);
+  });
+});
+
+describe('tile servers and the Content-Security-Policy (G31, stage 2.16)', () => {
+  it('refuses to save a tile server the console may not load from', async () => {
+    const r = await request(app).put('/api/v1/gis/map-settings').set(as('Administrator')).send({ ...VALID, tileUrl: 'https://tiles.elsewhere.example/{z}/{x}/{y}.png' });
+    expect(r.status).toBe(400);
+    expect(r.body.error).toMatch(/CSP_TILE_HOSTS/);
+  });
+
+  it('matches an origin exactly, or a subdomain under a *. entry', () => {
+    expect(tileHostAllowed('https://tile.openstreetmap.org/{z}/{x}/{y}.png', DEFAULT_TILE_HOSTS)).toBe(true);
+    expect(tileHostAllowed('https://a.tiles.gov.example/{z}/{x}/{y}.png', 'https://*.tiles.gov.example')).toBe(true);
+    expect(tileHostAllowed('https://tiles.gov.example/{z}/{x}/{y}.png', 'https://*.tiles.gov.example')).toBe(false);
+    expect(tileHostAllowed('https://tile.openstreetmap.org.evil.example/{z}/{x}/{y}.png', 'https://tile.openstreetmap.org')).toBe(false);
+    expect(tileHostAllowed('https://tiles.tuda.example:8443/{z}/{x}/{y}.png', 'http://tiles.tuda.example')).toBe(false);
   });
 });

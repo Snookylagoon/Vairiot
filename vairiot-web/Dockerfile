@@ -27,7 +27,10 @@ RUN npm run build --workspace=vairiot-web
 # Unprivileged nginx (W6, G16): runs as uid 101 and listens on 8080.
 FROM nginxinc/nginx-unprivileged:1.30-alpine
 COPY --from=builder /app/vairiot-web/dist /usr/share/nginx/html
-COPY vairiot-web/nginx.conf /etc/nginx/conf.d/default.conf
+# The site is a template filled from CSP_* at start-up (G31); the defaults
+# allow OpenStreetMap tiles and same-origin requests only.
+COPY vairiot-web/nginx.conf.template /etc/nginx/templates/default.conf.template
+ENV CSP_TILE_HOSTS="https://tile.openstreetmap.org" CSP_CONNECT_SRC=""
 # The base image's nginx user, stated so scanners and readers can see it.
 USER 101
 EXPOSE 8080

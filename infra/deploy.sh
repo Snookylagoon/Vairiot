@@ -69,6 +69,16 @@ echo "→ Applying database migrations…"
 "${COMPOSE[@]}" run --rm migrate \
   || die "migrations failed — nothing was restarted; the previous version is still serving. Fix the migration and deploy again."
 
+# MinIO runs as uid 10001 since stage 2.16 (G32). Data written by the old
+# root image is handed over once; later deploys find it owned and skip this.
+MINIO_DATA="${REPO_DIR}/infra/data/minio"
+if [ -d "$MINIO_DATA" ] && [ "$(stat -c %u "$MINIO_DATA")" != "10001" ]; then
+  echo "→ Handing MinIO's data to its unprivileged user (uid 10001)…"
+  # Stopped first, so the old root image writes nothing more meanwhile.
+  "${COMPOSE[@]}" stop minio
+  chown -R 10001:10001 "$MINIO_DATA" || die "could not chown ${MINIO_DATA}: deploy as root, or run: sudo chown -R 10001:10001 ${MINIO_DATA}"
+fi
+
 echo "→ Starting containers…"
 "${COMPOSE[@]}" up -d --remove-orphans
 

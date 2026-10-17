@@ -1,0 +1,33 @@
+# Filled in by the nginx image at start-up (envsubst on /etc/nginx/templates):
+# only the CSP_* variables are set in the environment, so nginx's own
+# variables ($uri) are left as they are.
+#
+# Content-Security-Policy (W7, G31, stage 2.16). Scripts only from this
+# origin; styles also inline (React and the toasts set them) and from Google
+# Fonts; images from here, data: and blob: URLs (QR codes, photos) and the
+# map tile servers in CSP_TILE_HOSTS; requests to here and CSP_CONNECT_SRC
+# (the API's origin when it differs, as for the admin console). The API
+# refuses a tenant tile URL outside CSP_TILE_HOSTS, so a map never breaks on
+# this header. add_header is repeated in each location, as a location's own
+# add_header replaces the server's.
+map $uri $vairiot_csp {
+    default "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: ${CSP_TILE_HOSTS}; connect-src 'self' ${CSP_CONNECT_SRC}; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'";
+}
+
+server {
+    listen 8080;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Content-Security-Policy $vairiot_csp always;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header Content-Security-Policy $vairiot_csp always;
+    }
+}
