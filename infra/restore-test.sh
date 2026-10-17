@@ -98,8 +98,17 @@ log "Starting throwaway stack (project vairiot-restoretest)…"
 PSQL=("${COMPOSE[@]}" exec -T postgres psql -U restoretest -d restoretest -At -v ON_ERROR_STOP=1)
 
 log "Restoring Postgres…"
-"${COMPOSE[@]}" exec -T postgres pg_restore -U restoretest -d restoretest --no-owner --no-acl --exit-on-error \
-    < "$DUMP" || fail "pg_restore failed"
+# In sections (KFR-046): the schema, then the search path of Vairiot's own
+# functions pinned (a dump runs with an empty one, and a CHECK constraint
+# calls them), then the rows with triggers off, as dumped (no hash chain or
+# position recomputed), then indexes, constraints and policies.
+restore_section() {
+  "${COMPOSE[@]}" exec -T postgres pg_restore -U restoretest -d restoretest --no-owner --no-acl --exit-on-error "$@" < "$DUMP"
+}
+restore_section --section=pre-data || fail "pg_restore failed (schema)"
+"${PSQL[@]}" < "${REPO_DIR}/infra/restore-pin-search-path.sql" >/dev/null || fail "could not pin the functions' search path"
+restore_section --section=data --disable-triggers || fail "pg_restore failed (data)"
+restore_section --section=post-data || fail "pg_restore failed (indexes, constraints, policies)"
 
 # ----- 3. Schema vs this checkout's migrations -----------------------------
 log "Checking migration status…"

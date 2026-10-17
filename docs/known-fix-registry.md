@@ -485,3 +485,14 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Test Added** | `vairiot-api/src/__tests__/gs1/identifier-sequence-race.test.ts`: twelve first allocations at once for a new tenant all succeed with distinct references (fails without the fix with the original error); eight first asset creates at once all succeed; the function still runs as its owner with the pinned search path. |
 
 *Last updated: stage 2.13, October 2026*
+
+## KFR-046 — Backups could not be restored (stage 3.1, W0)
+
+| Field | Detail |
+|---|---|
+| **Module** | Vairiot's database functions (GS1 identification, PostGIS position sync, asset ledger chain); `infra/restore.sh`, `infra/restore-test.sh` |
+| **Root Cause** | `pg_restore` runs with an empty `search_path`, and a CHECK constraint on `assets` and on `identifier_allocations` calls `is_valid_iar()`, which calls `gs1_check_digit()` without a schema. Loading the first asset with a GS1 reference failed: "function gs1_check_digit(text) does not exist". Found by staging's restore test before the PostGIS switch (W0). `restore-test.sh` stopped on it; `restore.sh`, the real restore, did not stop on errors, so a restore would have reported success and left out every asset with a GS1 reference. The insert triggers have the same unqualified names; a restore with them enabled would also have recomputed the asset ledger's hash chain instead of keeping it. A local reproduction on PostgreSQL 16.10 and 16.15 did not fail, but staging's dump (pg_dump 16.14) did, every time |
+| **Fix Applied** | Migration `20261017080000_function_search_path` pins `search_path = public, pg_temp` on every Vairiot function except `rls_tenant_matches()`, which uses only built-ins and stays inlinable for row-level security. Both restore scripts now restore in sections and stop at the first error: the schema; the same pin from `infra/restore-pin-search-path.sql` (so dumps taken before the migration, production's included, restore too); the rows with triggers off, as dumped; then indexes, constraints and policies. Proved on staging's real dump: the old restore fails at `assets`, the new one restores all 7 assets with their GS1 references and the asset events with the same hash chain as the live database |
+| **Test Added** | `vairiot-api/src/__tests__/security/restorable-backups.test.ts`: every Vairiot function but the RLS check has its search path pinned, and that one uses only built-ins; both restore scripts restore in sections in that order and stop at the first error; the migration and the restore snippet pin the same functions. The restore test itself runs before every server change (W0, W8) and monthly |
+
+*Last updated: stage 3.1, October 2026*

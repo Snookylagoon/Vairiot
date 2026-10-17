@@ -1,6 +1,6 @@
 {
   "name": "vairiot-worker",
-  "version": "2.13.1",
+  "version": "2.13.2",
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",

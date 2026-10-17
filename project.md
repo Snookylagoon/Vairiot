@@ -9,8 +9,8 @@
 | Method                     | Managed Development Standard rev 1.0 (`Vairiot CI/docs/managed-development-standard.md`), adopted in stage 0.8 |
 | Source product (read-only) | None — this is the source product for Vairiot Cable Intelligence                                               |
 | Started                    | 17 June 2026 (first commit); standard adopted 16 October 2026                                                  |
-| Current phase              | Phase 3 (S3) planning; Phase 2 accepted 17 October 2026                                                        |
-| Version                    | 2.13.1                                                                                                         |
+| Current phase              | Phase 3 (S3) in progress; Phase 2 accepted 17 October 2026                                                      |
+| Version                    | 2.13.2                                                                                                         |
 
 This file is the single source of truth (standard §1.1). If scope, a rule or a decision is not here or in a document linked from §7, it has not been agreed.
 
@@ -89,7 +89,7 @@ Decision D1: Phase N is Sprint SN; sprint files keep their names and serve as th
 | 0     | S0     | Hardening and hosting; standard adoption (stages 0.8–0.10)                  | `docs/sprints/S0-hardening-and-hosting.md` / `S0-summary.md`                  | **Accepted 16 October 2026**                                                                 |
 | 1     | S1     | GIS, condition and photos                                                   | `docs/sprints/S1-gis-condition-photos.md`, [03 plan](docs/03-phase-1-plan.md) | **Accepted** 16 Oct 2026 ([04 record](docs/04-phase-1-record.md)); field checks P1.1–P1.2 follow |
 | 2     | S2     | IPSAS ledger, policies, depreciation, Excel import                          | `docs/sprints/S2-ipsas-ledger-import.md`, [05 plan](docs/05-phase-2-plan.md) | **Accepted** 17 Oct 2026 ([06 record](docs/06-phase-2-record.md))                             |
-| 3     | S3     | Maker–checker, zones and teams, QA sampling, Georgian i18n, training tenant | `docs/sprints/S3-zones-qa-georgian.md`, [07 plan](docs/07-phase-3-plan.md)    | Planning (stage 3.0)                                                                                      |
+| 3     | S3     | Maker–checker, zones and teams, QA sampling, Georgian i18n, training tenant | `docs/sprints/S3-zones-qa-georgian.md`, [07 plan](docs/07-phase-3-plan.md)    | In progress — D22–D31 approved; W0 from stage 3.1                                                                                      |
 | 4     | S4     | Pilot defects, reconciliation engine, data-quality dashboard                | `docs/sprints/S4-reconciliation-and-dq.md`                                    | Planned                                                                                      |
 | 5     | S5     | IPSAS reporting pack, GeoJSON/Shapefile exchange, handover                  | `docs/sprints/S5-reporting-and-handover.md`                                   | Planned                                                                                      |
 
@@ -150,3 +150,13 @@ Adoption workstreams W0–W6 from the [adoption plan](docs/standard-adoption-pla
 | 16 Oct 2026 | D20: asset class required on create with `ipsas` on; back-fill from the category, else PENDING_REVIEW | **Approved** |
 | 16 Oct 2026 | D21: units of production entered per asset and period; no automatic feed in S2 | **Approved** |
 | 17 Oct 2026 | Phase 2 accepted by the owner ("I accept Phase 2. Record the acceptance and start the Phase 3 plan."), with the open points in the record §6 | **Approved** |
+| 17 Oct 2026 | D22: one approval request and rule model; capitalisation, transfer, disposal, write-off and register-new through requests with thresholds; never self-approved for disposal, write-off or impairment; runs and impairments keep their D17 post step (Phase 3 plan §4) | **Approved** |
+| 17 Oct 2026 | D23: a zone is a `Location` with a WGS 84 MultiPolygon boundary | **Approved** |
+| 17 Oct 2026 | D24: Leaflet-Geoman Free for drawing zones | **Approved** |
+| 17 Oct 2026 | D25: route order by nearest neighbour from the zone's centroid, ties by asset number | **Approved** |
+| 17 Oct 2026 | D26: QA samples drawn with a seeded PRNG (sfc32) whose seed is stored | **Approved** |
+| 17 Oct 2026 | D27: react-i18next, Android string resources, an iOS string catalogue, a reports translations module with Noto Sans Georgian; the platform console stays English | **Approved** |
+| 17 Oct 2026 | D28: a `Translation` table for the tenant's own names in Georgian | **Approved** |
+| 17 Oct 2026 | D29: machine-made Georgian marked ⟪MT⟫ until TUDA's translator replaces it; no external translation service | **Approved** |
+| 17 Oct 2026 | D30: staging promoted to `dev` at the start of Phase 3 with the PostGIS switch; production only at the freeze on the owner's go-ahead; tenant-scoped mobile releases | **Approved** |
+| 17 Oct 2026 | D31: `TUDA-{CLASS}-{SEQ:6}` asset numbers for new assets; existing numbers unchanged | **Approved** |
