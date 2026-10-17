@@ -99,3 +99,16 @@ export type ComponentLinkInput = z.infer<typeof componentLinkSchema>;
 /** What to do with a parent's components when it is disposed. */
 export const parentDisposalChoice = z.enum(['dispose', 'detach']);
 export type ParentDisposalChoice = z.infer<typeof parentDisposalChoice>;
+
+// ── Periods and depreciation runs (stage 2.8, S2.3) ───────────────────────
+
+export const accountingPeriodSchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+  month: z.coerce.number().int().min(1).max(12),
+});
+export type AccountingPeriodInput = z.infer<typeof accountingPeriodSchema>;
+
+/** Units an asset delivered in a period (units of production, D21). */
+export const assetUsageSchema = z.object({ units: z.coerce.number().finite().min(0).max(1e14) });
+
+export const reverseRunSchema = z.object({ notes: z.string().trim().max(500).optional() });
