@@ -16,6 +16,8 @@ and the Content-Security-Policy).
 
 ## Once
 
+Python 3.10 or later (Pillow 12), Docker, and Node for the browser check.
+
 ```bash
 export GATE_DIR=~/vairiot-gate
 mkdir -p "$GATE_DIR"/{tls,le,certbot}
