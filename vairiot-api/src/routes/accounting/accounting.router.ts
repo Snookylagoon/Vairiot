@@ -1,7 +1,8 @@
 import { Router, type Response } from 'express';
 import {
   assetClassSchema, assetClassUpdateSchema, componentLinkSchema, componentTemplateSchema, componentTemplateUpdateSchema,
-  accountingPeriodSchema, assetUsageBulkSchema, assetUsageSchema, instantiateTemplateSchema, recognitionOverrideSchema, reverseRunSchema,
+  accountingPeriodSchema, assetUsageBulkSchema, assetUsageSchema, impairmentAssessmentSchema, impairmentCreateSchema, impairmentPeriodSchema,
+  instantiateTemplateSchema, recognitionOverrideSchema, reverseRunSchema,
 } from 'vairiot-shared';
 import type { z } from 'zod';
 
@@ -18,6 +19,9 @@ import { getComponentGroup, setComponentParent } from '../../services/component.
 import {
   assetDepreciationHistory, discardRun, listPeriods, listUsage, openPeriod, postRun, prepareRun, reverseRun, setPeriodStatus, setUsage, setUsageBulk,
 } from '../../services/depreciation/runs.service';
+import {
+  assessImpairment, correctImpairment, dismissImpairment, listImpairments, postImpairment, raiseImpairment,
+} from '../../services/impairment.service';
 import { listPendingReview, overrideRecognition, setCategoryClass } from '../../services/recognition.service';
 import { depreciationByClass } from '../../services/reports/depreciation-by-class';
 import type { Request } from '../../types/http';
@@ -219,5 +223,44 @@ accountingRouter.get('/assets/:id/depreciation', requireAnyPermission('accountin
 accountingRouter.get('/depreciation-by-class', requireAnyPermission('accounting:read'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     res.json(await depreciationByClass(req.user!.tenantId, { year: req.query.year as string, month: req.query.month as string }));
+  }),
+);
+
+// ── Impairment (S2.4, stage 2.11) ────────────────────────────────────────────
+
+accountingRouter.get('/impairments', requireAnyPermission('accounting:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listImpairments(req.user!.tenantId, { status: req.query.status as string | undefined, assetId: req.query.assetId as string | undefined }));
+  }),
+);
+
+accountingRouter.post('/impairments', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json(await raiseImpairment(req.user!.tenantId, req.user!.sub, parse(impairmentCreateSchema, req.body)));
+  }),
+);
+
+accountingRouter.put('/impairments/:id/assessment', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await assessImpairment(req.user!.tenantId, req.user!.sub, req.params.id, parse(impairmentAssessmentSchema, req.body)));
+  }),
+);
+
+accountingRouter.post('/impairments/:id/dismiss', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await dismissImpairment(req.user!.tenantId, req.user!.sub, req.params.id, parse(reverseRunSchema, req.body ?? {}).notes));
+  }),
+);
+
+accountingRouter.post('/impairments/:id/post', requireAnyPermission('accounting:approve'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await postImpairment(req.user!.tenantId, req.user!.sub, req.params.id, parse(impairmentPeriodSchema, req.body).periodId));
+  }),
+);
+
+accountingRouter.post('/impairments/:id/correct', requireAnyPermission('accounting:approve'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const body = parse(impairmentPeriodSchema, req.body);
+    res.status(201).json(await correctImpairment(req.user!.tenantId, req.user!.sub, req.params.id, body.periodId, body.notes));
   }),
 );

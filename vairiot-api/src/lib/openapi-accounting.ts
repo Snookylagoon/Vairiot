@@ -140,6 +140,39 @@ export const accountingPaths = {
   '/accounting/assets/{id}/depreciation': {
     get: { tags: ['Accounting'], summary: 'An asset’s depreciation entries and carrying amount from the ledger (accounting:read)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Entries, accumulated, carrying amount' }, 404: { description: 'No such asset, or ipsas off' } } },
   },
+  '/accounting/impairments': {
+    get: { tags: ['Accounting'], summary: 'Impairments, newest first, by status or asset (accounting:read)', parameters: [{ name: 'status', in: 'query', schema: { type: 'string', enum: ['DRAFT', 'POSTED', 'REVERSED', 'DISMISSED'] } }, { name: 'assetId', in: 'query', schema: { type: 'string' } }], responses: { 200: { description: 'Impairments with their asset and period' } } },
+    post: {
+      tags: ['Accounting'], summary: 'Raise an impairment indicator by hand as a DRAFT (accounting:write); a grade with impairmentIndicator raises one itself',
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['assetId', 'indicator'], properties: { assetId: { type: 'string' }, indicator: { type: 'string', enum: ['CONDITION', 'DAMAGE', 'OBSOLESCENCE', 'IDLE', 'LEGAL', 'OTHER'] }, indicatorNotes: { type: 'string', maxLength: 1000 } } } } } },
+      responses: { 201: { description: 'Draft' }, 409: { description: 'NOT_RECOGNISED or DRAFT_EXISTS' } },
+    },
+  },
+  '/accounting/impairments/{id}/assessment': {
+    put: {
+      tags: ['Accounting'], summary: 'Assess a draft (accounting:write): the standard, the measurement method and the recoverable amount',
+      description: 'Below the carrying amount: an IMPAIRMENT of the difference. Above it with impairment outstanding: a REVERSAL, capped at the impairment outstanding and at the carrying amount the asset would have had unimpaired (IPSAS 21.68, 26.106); `loss` is negative.',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['standard', 'method', 'recoverableAmount'], properties: { standard: { type: 'string', enum: ['IPSAS_21', 'IPSAS_26'] }, method: { type: 'string', enum: ['DRC', 'RESTORATION_COST', 'SERVICE_UNITS', 'FVLCS'] }, recoverableAmount: { type: 'number', minimum: 0 }, assessmentNotes: { type: 'string' }, evidencePhotoIds: { type: 'array', items: { type: 'string' }, maxItems: 20 } } } } } },
+      responses: { 200: { description: 'Assessed draft with kind, carryingAmount and loss' }, 409: { description: 'Not a draft' } },
+    },
+  },
+  '/accounting/impairments/{id}/dismiss': { post: { tags: ['Accounting'], summary: 'Dismiss a draft: no impairment (accounting:write)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Dismissed' }, 409: { description: 'Not a draft' } } } },
+  '/accounting/impairments/{id}/post': {
+    post: {
+      tags: ['Accounting'], summary: 'Post an assessed draft into an open period (accounting:approve; not by its assessor, D17); writes IMPAIRED on the asset ledger',
+      description: 'The figures are worked out again; the period’s run is the first on the new base. No later period may have posted depreciation.',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['periodId'], properties: { periodId: { type: 'string' }, notes: { type: 'string', maxLength: 500 } } } } } },
+      responses: { 200: { description: 'Posted' }, 403: { description: 'The assessor' }, 409: { description: 'NOT_ASSESSED, PERIOD_NOT_OPEN, LATER_PERIOD_POSTED, NO_LOSS, REASSESS or DISPOSED' } },
+    },
+  },
+  '/accounting/impairments/{id}/correct': {
+    post: {
+      tags: ['Accounting'], summary: 'Correct a posted impairment with an offsetting record in an open period (accounting:approve); the original becomes REVERSED',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['periodId'], properties: { periodId: { type: 'string' }, notes: { type: 'string', maxLength: 500 } } } } } },
+      responses: { 201: { description: 'The offsetting record' }, 409: { description: 'NOT_POSTED, NOT_LATEST or the period' } },
+    },
+  },
   '/admin/platform/tenants/{id}/modules': {
     get: {
       tags: ['Platform'],

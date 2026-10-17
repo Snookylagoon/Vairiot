@@ -189,10 +189,11 @@ export async function listUsage(tenantId: string, periodId: string) {
   return assets.map(({ usage, ...a }) => ({ ...a, units: usage[0]?.units ?? null }));
 }
 
-/** An asset's posted depreciation, oldest first, with its carrying amount from the ledger. */
+/** An asset's posted depreciation, oldest first, with its carrying amount from the ledger (net of impairment). */
 export async function assetDepreciationHistory(tenantId: string, assetId: string) {
   const asset = await prisma.asset.findFirst({ where: { id: assetId, tenantId } });
   if (!asset) throw new NotFoundError('Asset not found');
+  const impaired = sumMoney((await prisma.impairment.findMany({ where: { tenantId, assetId, status: { in: ['POSTED', 'REVERSED'] } }, select: { loss: true } })).map((i) => i.loss));
   const entries = await prisma.depreciationEntry.findMany({
     where: { tenantId, assetId },
     include: { period: { select: { year: true, month: true } }, run: { select: { status: true, reversalOfRunId: true } } },
@@ -207,6 +208,7 @@ export async function assetDepreciationHistory(tenantId: string, assetId: string
       openingNbv: e.openingNbv, charge: e.charge, closingNbv: e.closingNbv, accumulated: e.accumulated,
     })),
     accumulated: accumulated.toFixed(2),
-    carryingAmount: counted.length ? money(cost).minus(accumulated).toFixed(2) : null,
+    impaired: impaired.toFixed(2),
+    carryingAmount: counted.length || !impaired.isZero() ? money(cost).minus(accumulated).minus(impaired).toFixed(2) : null,
   };
 }

@@ -117,3 +117,30 @@ export const reverseRunSchema = z.object({ notes: z.string().trim().max(500).opt
 export const assetUsageBulkSchema = z.object({
   rows: z.array(z.object({ assetId: z.string().min(1), units: z.coerce.number().finite().min(0).max(1e14) })).min(1).max(2000),
 });
+
+// ── Impairment (stage 2.11, S2.4, IPSAS 21 / 26) ─────────────────────────────
+
+export const IMPAIRMENT_INDICATORS = ['CONDITION', 'DAMAGE', 'OBSOLESCENCE', 'IDLE', 'LEGAL', 'OTHER'] as const;
+/** IPSAS 21: non-cash-generating; IPSAS 26: cash-generating. */
+export const IMPAIRMENT_STANDARDS = ['IPSAS_21', 'IPSAS_26'] as const;
+/** Depreciated replacement cost, restoration cost, service units, fair value less costs to sell. */
+export const IMPAIRMENT_METHODS = ['DRC', 'RESTORATION_COST', 'SERVICE_UNITS', 'FVLCS'] as const;
+
+/** An indicator raised by hand; a grade with `impairmentIndicator` raises one itself. */
+export const impairmentCreateSchema = z.object({
+  assetId: z.string().min(1),
+  indicator: z.enum(IMPAIRMENT_INDICATORS),
+  indicatorNotes: z.string().trim().max(1000).optional(),
+});
+
+/** The assessment: how the recoverable amount was measured, and what it is. */
+export const impairmentAssessmentSchema = z.object({
+  standard: z.enum(IMPAIRMENT_STANDARDS),
+  method: z.enum(IMPAIRMENT_METHODS),
+  recoverableAmount: z.coerce.number().finite().min(0).max(1e10),
+  assessmentNotes: z.string().trim().max(2000).optional(),
+  evidencePhotoIds: z.array(z.string().min(1)).max(20).optional(),
+});
+
+/** Posting (or correcting) into an open period. */
+export const impairmentPeriodSchema = z.object({ periodId: z.string().min(1), notes: z.string().trim().max(500).optional() });

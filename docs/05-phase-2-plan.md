@@ -3,7 +3,7 @@
 | Item                     | Detail                                                                                                                                          |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Phase                    | 2 (Sprint S2, decision D1)                                                                                                                      |
-| Status                   | In progress — W1 (2.7.0) and W2 (2.8.0) merged; W3 built (stages 2.5–2.7, 2.9.0); W4 built (stages 2.8–2.9, 2.10.0); W5 (impairment) next                            |
+| Status                   | In progress — W1 (2.7.0), W2 (2.8.0), W3 (2.9.0) and W4 (2.10.0, stages 2.8–2.10) merged; W5 (impairment) under way: API at stage 2.11 |
 | Revision                 | 0.1 (16 October 2026)                                                                                                                           |
 | Builds on                | Phase 1, accepted 16 October 2026 (stage 1.22, [record](04-phase-1-record.md)); version 2.6.1                                                   |
 | Modules                  | `ipsas`: classes, policies, periods, depreciation, impairment. Import is core; its IPSAS columns need `ipsas`                                   |
@@ -47,7 +47,7 @@ Each workstream lands as one or more stages (2.1, 2.2, …) merged on a green pi
 
 - **Cost model only.** IPSAS 45 revaluation is out of scope (§5). `REVALUED` stays unused.
 - **Carrying amount** = capitalised cost − accumulated depreciation − accumulated impairment, all from posted entries. Before the first posted run, it is the projection.
-- **Depreciable base** = carrying amount − residual value at the start of the period. Charges never take the carrying amount below the residual value. An impairment changes the base from the period after it is posted.
+- **Depreciable base** = carrying amount − residual value at the start of the period. Charges never take the carrying amount below the residual value. An impairment takes effect at the start of the period it is posted into, whose run is not yet posted, so that run is the first on the lower base (stage 2.11; this meets the S2.4 gate, "the next run uses the reduced base"). Straight line and units of production then spread what is left above the residual over the remaining months or units.
 - **Monthly periods** in the tenant's time zone (`Company.timezone`). The default convention is a full month's charge in the month of `depreciationStartDate` and none in the month of disposal (D15). Other conventions are class fields that the policy manual can set.
 - **Rounding.** Each entry is rounded half-up to 2 decimals. The last month of an asset's life takes the remainder, so accumulated depreciation equals the depreciable base exactly (D14).
 - **Immutability.** `DepreciationEntry` rows and posted `Impairment` rows are append-only by database trigger, as `asset_events` already are. A mistake is corrected by a reversing run or a reversal record, never by an update (D17).
@@ -93,7 +93,9 @@ S3.1 brings the maker–checker framework. Until then (D17):
 | Draft entries | Entries written for a draft, discarded with it | A draft stores only its preview (count, charge by class, why assets were left out); posting computes again and writes the entries, so entries are append-only from the start (stage 2.8) |
 | Reducing balance and units | Rate on the asset or from life; `AssetUsage` | `Asset.reducingBalanceRatePct` (else double the straight-line rate) and `Asset.expectedTotalUnits`; `AssetUsage` per asset and period (stage 2.8) |
 | Mobile | Class read-only; components under the parent | As specified. No accounting screens on mobile |
-| Impairment trigger | From a grade change | From a grade with `impairmentIndicator` in the tenant's scale (stage 1.13), not a fixed grade |
+| Impairment trigger | From a grade change | From a grade with `impairmentIndicator` in the asset's scale (stage 1.13), not a fixed grade: a DRAFT when the grade moves from one that does not indicate impairment to one that does, for a RECOGNISED asset with `ipsas` on; one draft per asset at a time (stage 2.11) |
+| Impairment statuses | DRAFT, APPROVED, POSTED, REVERSED | DRAFT, POSTED, REVERSED, DISMISSED: assessed by accounting:write, posted by a different accounting:approve user (D17), so no separate APPROVED step; a draft judged not impaired is DISMISSED (stage 2.11) |
+| Impairment reversal | Capped at the carrying amount without impairment | Two things kept apart: a REVERSAL of a loss (IPSAS 21.68, 26.106) is its own assessed and posted record with a negative loss, capped at the impairment outstanding and at the carrying amount replayed with no impairment; a posting mistake is corrected by an offsetting record (`correctionOfId`), the original marked REVERSED. Posted rows are otherwise immutable by trigger (stage 2.11) |
 | Components and the module | Not specified | Behind `ipsas`, like the classes they use: with it off, `parentAssetId` is ignored (stage 2.5) |
 | `Asset.isComponent` | Stored Boolean | Not stored: an asset is a component when it has `parentAssetId`. One level is enforced by a database trigger, which also refuses a parent in another tenant (stage 2.5) |
 | Recognition of components | Not specified | On the whole: the threshold is tested on the parent's roll-up cost and the components take the parent's status, so a junction whose cost is all in its parts is recognised (stage 2.5) |

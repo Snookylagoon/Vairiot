@@ -18,7 +18,9 @@ const effective = { status: 'POSTED' as const, reversalOfRunId: null };
 export class RunRefused extends Error {}
 
 async function computeCharges(db: Db, tenantId: string, period: { id: string; year: number; month: number }) {
-  const [assets, posted, usage, company] = await Promise.all([
+  const before = { OR: [{ year: { lt: period.year } }, { year: period.year, month: { lt: period.month } }] };
+  const upTo = { OR: [{ year: { lt: period.year } }, { year: period.year, month: { lte: period.month } }] };
+  const [assets, posted, usage, company, impairments, earlierUsage] = await Promise.all([
     db.asset.findMany({
       where: { tenantId, deletedAt: null },
       select: {
@@ -31,11 +33,23 @@ async function computeCharges(db: Db, tenantId: string, period: { id: string; ye
     db.depreciationEntry.findMany({ where: { tenantId, run: effective }, select: { assetId: true, charge: true } }),
     db.assetUsage.findMany({ where: { tenantId, periodId: period.id }, select: { assetId: true, units: true } }),
     db.company.findUnique({ where: { tenantId }, select: { timezone: true } }),
+    // An impairment takes effect at the start of the period it is posted into, so
+    // that period's run already uses the lower base (stage 2.11); a corrected one
+    // (REVERSED) and its offsetting record cancel out from the latter's period.
+    db.impairment.findMany({ where: { tenantId, status: { in: ['POSTED', 'REVERSED'] }, period: upTo }, select: { assetId: true, loss: true } }),
+    db.assetUsage.findMany({ where: { tenantId, period: before }, select: { assetId: true, units: true } }),
   ]);
   const timeZone = company?.timezone ?? 'UTC';
   const byAsset = new Map<string, Prisma.Decimal[]>();
   for (const e of posted) byAsset.set(e.assetId, [...(byAsset.get(e.assetId) ?? []), e.charge]);
   const units = new Map(usage.map((u) => [u.assetId, u.units]));
+  const group = (rows: Array<{ assetId: string; v: Prisma.Decimal | null }>) => {
+    const m = new Map<string, Prisma.Decimal[]>();
+    for (const r of rows) if (r.v) m.set(r.assetId, [...(m.get(r.assetId) ?? []), r.v]);
+    return m;
+  };
+  const impaired = group(impairments.map((i) => ({ assetId: i.assetId, v: i.loss })));
+  const unitsBefore = group(earlierUsage.map((u) => ({ assetId: u.assetId, v: u.units })));
   return assets.map((a) => ({
     assetId: a.id,
     classCode: a.assetClass?.code ?? null,
@@ -44,7 +58,7 @@ async function computeCharges(db: Db, tenantId: string, period: { id: string; ye
       costParts: [a.purchaseCost, a.freightCost, a.installationCost, a.customsDuties, a.otherCapitalizedCosts],
       residualValue: a.residualValue, usefulLifeMonths: a.usefulLifeMonths, depreciationStartDate: a.depreciationStartDate,
       disposalDate: a.disposal?.disposalDate ?? null, reducingBalanceRatePct: a.reducingBalanceRatePct, expectedTotalUnits: a.expectedTotalUnits,
-    }, period, ledgerState(byAsset.get(a.id) ?? []), timeZone, units.get(a.id)) as Charge,
+    }, period, ledgerState(byAsset.get(a.id) ?? [], impaired.get(a.id), unitsBefore.get(a.id)), timeZone, units.get(a.id)) as Charge,
   }));
 }
 

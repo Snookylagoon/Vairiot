@@ -2,7 +2,7 @@ import { FAIR_VALUE_ACQUISITIONS } from '../constants/accounting.constants.js';
 import {
   assetAccountingSchema, assetClassSchema, assetClassUpdateSchema, componentLinkSchema, componentTemplateSchema,
   instantiateTemplateSchema, parentDisposalChoice, recognitionOverrideSchema,
-  accountingPeriodSchema, assetUsageBulkSchema, assetUsageSchema, reverseRunSchema,
+  accountingPeriodSchema, assetUsageBulkSchema, assetUsageSchema, impairmentAssessmentSchema, impairmentCreateSchema, impairmentPeriodSchema, reverseRunSchema,
 } from '../schemas/accounting.schemas.js';
 
 describe('accounting contracts', () => {
@@ -69,5 +69,16 @@ describe('period and run contracts', () => {
     expect(assetUsageBulkSchema.safeParse({ rows: [] }).success).toBe(false);
     expect(assetUsageBulkSchema.safeParse({ rows: [{ assetId: 'a1', units: -3 }] }).success).toBe(false);
     expect(reverseRunSchema.parse({})).toEqual({});
+  });
+});
+
+describe('impairment contracts', () => {
+  it('takes an indicator, an assessment and a period', () => {
+    expect(impairmentCreateSchema.safeParse({ assetId: 'a1', indicator: 'DAMAGE' }).success).toBe(true);
+    expect(impairmentCreateSchema.safeParse({ assetId: 'a1', indicator: 'WEATHER' }).success).toBe(false);
+    expect(impairmentAssessmentSchema.parse({ standard: 'IPSAS_21', method: 'DRC', recoverableAmount: '600.5' }).recoverableAmount).toBe(600.5);
+    expect(impairmentAssessmentSchema.safeParse({ standard: 'IPSAS_21', method: 'DRC', recoverableAmount: -1 }).success).toBe(false);
+    expect(impairmentAssessmentSchema.safeParse({ standard: 'IPSAS_17', method: 'DRC', recoverableAmount: 1 }).success).toBe(false);
+    expect(impairmentPeriodSchema.safeParse({}).success).toBe(false);
   });
 });
