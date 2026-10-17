@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
+import { awaiting, SENT_FOR_APPROVAL } from '@/hooks/useApprovals';
 import { api } from '@/lib/api';
 import type { AssetListResponse, AssetMapResponse, Asset } from '@/types';
 
@@ -70,11 +71,13 @@ export function useDisposeAsset(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => api.post(`/api/v1/assets/${id}/dispose`, data).then(r => r.data),
-    onSuccess:  () => {
+    onSuccess:  (data: unknown) => {
       qc.invalidateQueries({ queryKey: ['assets'] });
       qc.invalidateQueries({ queryKey: ['asset', id] });
-      toast.success('Asset disposed');
+      qc.invalidateQueries({ queryKey: ['approvals'] });
+      toast.success(awaiting(data) ? SENT_FOR_APPROVAL : 'Asset disposed');
     },
-    onError:    () => { toast.error('Failed to dispose asset'); },
+    // A request already waiting (409 APPROVAL_PENDING) says so.
+    onError:    (err: { response?: { data?: { error?: string } } }) => { toast.error(err.response?.data?.error ?? 'Failed to dispose asset'); },
   });
 }

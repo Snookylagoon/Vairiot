@@ -35,7 +35,7 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**'],
       exclude: ['src/**/__tests__/**', 'src/test-setup.ts'],
-      thresholds: { lines: 19 },
+      thresholds: { lines: 21 }, // stage 3.3, measured 21.3 %
     },
   },
 });

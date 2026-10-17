@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type { AssetClassInput, AssetClassUpdateInput, IpsasClass, RecognitionOverrideInput } from 'vairiot-shared';
 
+import { awaiting, SENT_FOR_APPROVAL } from '@/hooks/useApprovals';
 import { useMutationWithToast } from '@/hooks/useMutationWithToast';
 import { api } from '@/lib/api';
 import { hasFeature, useAuthStore } from '@/stores/auth.store';
@@ -85,7 +86,7 @@ export function useOverrideRecognition(assetId: string) {
   return useMutationWithToast<unknown, RecognitionOverrideInput>({
     mutationFn: (body) => api.put(`/api/v1/accounting/assets/${assetId}/recognition`, body).then(r => r.data),
     invalidate: ['asset', assetId],
-    success: 'Recognition updated',
+    success: (data) => awaiting(data) ? SENT_FOR_APPROVAL : 'Recognition updated',
     error: 'Could not change the recognition',
   });
 }

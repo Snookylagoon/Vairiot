@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams, useNavigate } from 'react-router-dom';
 
+import { AwaitingApproval } from '@/components/approvals/AwaitingApproval';
 import { AssetComponents } from '@/components/assets/AssetComponents';
 import { AssetDepreciation } from '@/components/assets/AssetDepreciation';
 import { AssetDocuments } from '@/components/assets/AssetDocuments';
@@ -220,6 +221,7 @@ export function AssetDetailPage() {
           </CardBody>
         </Card>
 
+        <AwaitingApproval assetId={asset.id} />
         {hasFeature(user, 'ipsas') && <AssetRecognition asset={asset} />}
         {hasFeature(user, 'ipsas') && hasAnyPermission(user, 'accounting:read') && <AssetComponents assetId={asset.id} assetName={asset.name} />}
         {hasFeature(user, 'ipsas') && hasAnyPermission(user, 'accounting:read') && <AssetDepreciation assetId={asset.id} method={asset.depreciationMethod} />}
