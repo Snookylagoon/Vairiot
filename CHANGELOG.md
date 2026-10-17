@@ -2,6 +2,24 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.12.0] — 2026-10-17
+
+### Added
+
+- A new register import (Import): upload an .xlsx or .csv of up to 25 MB, choose which column becomes which field, review every row with the reasons it cannot be imported, correct rows on the page or in a downloaded workbook, then import; the work happens in the background and the page shows its progress (stages 2.13–2.14)
+- The import guesses the columns from their headers, takes the register profiler's mapping, and remembers saved mappings for the next file (stages 2.13–2.14)
+- Update mode: change existing assets from a file, matched by their finance reference, without changing any asset number (stages 2.13–2.14)
+- Each imported asset keeps its finance reference and old register number as identifiers, and a reconciliation sheet shows which asset each source row became (stage 2.13)
+- The register export has the condition grade, the position's accuracy and source, the asset class, and the finance and legacy references, under headers the import recognises (stage 2.14)
+
+### Changed
+
+- The old one-step CSV import is replaced by the new one (stage 2.14)
+
+### Fixed
+
+- Several assets created at the same moment for a new organisation could fail to save (stage 2.13)
+
 ## [2.11.0] — 2026-10-17
 
 ### Added
