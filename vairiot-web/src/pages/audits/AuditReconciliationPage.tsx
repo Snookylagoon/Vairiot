@@ -8,6 +8,7 @@ import { ScanPhotoGallery } from '@/components/audits/ScanPhotoGallery';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { awaiting, SENT_FOR_APPROVAL } from '@/hooks/useApprovals';
 import { api } from '@/lib/api';
 import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
@@ -200,8 +201,8 @@ function ReconciliationRow({
       justification,
       applyToRegister,
     }).then(r => r.data),
-    onSuccess: () => {
-      toast.success('Adjustment posted');
+    onSuccess: (data: unknown) => {
+      toast.success(awaiting(data) ? SENT_FOR_APPROVAL : 'Adjustment posted');
       setShowForm(false);
       setAdjType('no_action'); setField(''); setValue(''); setJustification(''); setApplyToRegister(false);
       onAdjusted();

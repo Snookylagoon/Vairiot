@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown, Building2, Barcode, Map, Gauge, Landmark, CalendarClock, TrendingDown, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, LogOut, Menu, Tag, MapPin, Users, KeyRound, ScrollText, ArrowLeftRight, Wrench, AlertTriangle, BarChart3, Bell, Webhook, Upload, QrCode, Settings2, ShieldCheck, BadgeCheck, ChevronDown, Building2, Barcode, Map, Gauge, Landmark, CalendarClock, TrendingDown, ClipboardCheck, type LucideIcon } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import type { ModuleKey } from 'vairiot-shared';
@@ -8,6 +8,7 @@ import { ImpersonationBanner } from './ImpersonationBanner';
 import { TenantSwitcher } from './TenantSwitcher';
 import { TwoFactorDueBanner } from './TwoFactorDueBanner';
 
+import { ApprovalBadge } from '@/components/approvals/ApprovalBadge';
 import { useDeviceHeartbeat } from '@/hooks/useLicensing';
 import { useAuthStore, hasAnyPermission, hasFeature } from '@/stores/auth.store';
 import { useCurrencyStore, CURRENCIES } from '@/stores/currency.store';
@@ -36,6 +37,7 @@ const nav: readonly NavEntry[] = [
       { to: '/checkouts',   label: 'Checkouts',    icon: ArrowLeftRight },
       { to: '/maintenance', label: 'Maintenance',  icon: Wrench },
       { to: '/exceptions',  label: 'Exceptions',   icon: AlertTriangle },
+      { to: '/approvals',   label: 'Approvals',    icon: ClipboardCheck },
     ],
   },
   {
@@ -248,6 +250,7 @@ export function AppShell() {
             )}
           </div>
           <div className="flex items-center gap-3">
+            <ApprovalBadge />
             <TenantSwitcher />
           </div>
         </header>

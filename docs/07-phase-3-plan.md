@@ -3,7 +3,7 @@
 | Item                     | Detail |
 | ------------------------ | ------ |
 | Phase                    | 3 (Sprint S3, decision D1) |
-| Status                   | **Approved** 17 October 2026: decisions D22–D31 approved as recommended (§4); W0 from stage 3.1; W1's API from stage 3.2 |
+| Status                   | **Approved** 17 October 2026: decisions D22–D31 approved as recommended (§4); W0 from stage 3.1; W1's API from stage 3.2, its web screens from stage 3.3 |
 | Revision                 | 0.1 (17 October 2026) |
 | Builds on                | Phase 2, accepted 17 October 2026 (stage 2.18, [record](06-phase-2-record.md)); version 2.13.1 |
 | Modules                  | Approvals, teams, QA sampling and the Georgian language are core. Zone drawing and boundary assignment need `gis`; approvals of capitalisation and impairment need `ipsas` |

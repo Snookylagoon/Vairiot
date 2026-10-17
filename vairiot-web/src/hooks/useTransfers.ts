@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
+import { awaiting, SENT_FOR_APPROVAL } from '@/hooks/useApprovals';
 import { api } from '@/lib/api';
 import type { TransferListResponse } from '@/types';
 
@@ -20,10 +21,11 @@ export function useCreateTransfer() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => api.post('/api/v1/transfers', data).then(r => r.data),
-    onSuccess: () => {
+    onSuccess: (data: unknown) => {
       qc.invalidateQueries({ queryKey: ['transfers'] });
       qc.invalidateQueries({ queryKey: ['assets'] });
-      toast.success('Transfer recorded');
+      qc.invalidateQueries({ queryKey: ['approvals'] });
+      toast.success(awaiting(data) ? SENT_FOR_APPROVAL : 'Transfer recorded');
     },
     onError: () => { toast.error('Failed to create transfer'); },
   });

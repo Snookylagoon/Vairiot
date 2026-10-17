@@ -626,3 +626,14 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Output    | Migration `20261017090000_approvals`; `services/approvals/`, `routes/approvals/`, `lib/openapi-approvals.ts`; shared `approval.schemas.ts`; worker `approvals/approval-mail.ts`, `processors/approval-notify.ts` |
 | Tests     | New `approvals/maker-checker.test.ts` (11), shared `approval.test.ts`, worker `approval-mail.test.ts` (4); the OpenAPI contract test walks the approvals router too; the TUDA seed test clears the rules and keeps deciding approvals off the Administrator; API 541 passed (1 skipped) |
 | Notes     | The web inbox, badge and "awaiting approval" are stage 3.3 |
+
+### Stage 3.3 — Approvals on the web: inbox, badge, rules, "awaiting approval" (W1, S3.1, D22)
+
+| Item      | Detail |
+| --------- | ------ |
+| Date      | 17 October 2026 |
+| Version   | 2.13.3 (2.14.0 at the end of W1) |
+| Activity  | An Approvals page (Operations): what the user may decide, each request with what will change if it is approved, approve, or reject with a reason; the ledger's runs and impairments awaiting their post step, linked to their own pages (D17); the user's own requests with their outcome and a withdraw button; and, for company:manage, the rules (per action, the amount from which approval is needed, the deciding role; disposal and write-off always "not by the requester"). A header badge counts what waits for the user (approval:decide or accounting:approve), refreshed every minute. An asset's page shows "awaiting approval" with its pending requests. Disposal, transfer, audit adjustments and recognition say "sent for approval" when the API answers 202, and a disposal refused because one is already waiting says so |
+| Output    | `pages/approvals/` (`ApprovalsPage`, `ApprovalRules`), `components/approvals/` (`ApprovalBadge`, `AwaitingApproval`), `hooks/useApprovals.ts`; `useMutationWithToast` takes a success message worked out from the result |
+| Tests     | New `Approvals.test.tsx` (7) and `e2e/approvals.smoke.ts`; web 87/87, smoke 8/8; web coverage gate raised to 21 % (measured 21.3 %) |
+| Notes     | The Android and iOS "awaiting approval" is with the apps' W4–W5 work; the exit-gate test (S3.1 in test plan §8.4) runs at the phase close |

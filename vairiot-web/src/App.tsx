@@ -61,6 +61,7 @@ const ConditionScalePage   = lazy(() => import('@/pages/admin/ConditionScalePage
 const PeriodsPage          = lazy(() => import('@/pages/accounting/PeriodsPage').then(m => ({ default: m.PeriodsPage })));
 const ImpairmentsPage      = lazy(() => import('@/pages/accounting/ImpairmentsPage').then(m => ({ default: m.ImpairmentsPage })));
 const AssetClassesPage     = lazy(() => import('@/pages/accounting/AssetClassesPage').then(m => ({ default: m.AssetClassesPage })));
+const ApprovalsPage        = lazy(() => import('@/pages/approvals/ApprovalsPage').then(m => ({ default: m.ApprovalsPage })));
 const MapSettingsPage      = lazy(() => import('@/pages/admin/MapSettingsPage').then(m => ({ default: m.MapSettingsPage })));
 const ChangePasswordPage   = lazy(() => import('@/pages/settings/ChangePasswordPage').then(m => ({ default: m.ChangePasswordPage })));
 
@@ -132,6 +133,7 @@ export default function App() {
             <Route path="maintenance"        element={<MaintenancePage />} />
             <Route path="maintenance/:id"    element={<MaintenanceDetailPage />} />
             <Route path="exceptions"     element={<ExceptionsPage />} />
+            <Route path="approvals"      element={<ApprovalsPage />} />
             <Route path="reports"        element={<ReportsPage />} />
             <Route path="reports/depreciation" element={<DepreciationPage />} />
             <Route path="reports/fixed-assets" element={<FixedAssetsPage />} />
