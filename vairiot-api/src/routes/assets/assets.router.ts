@@ -5,11 +5,11 @@ import { parentDisposalChoice } from 'vairiot-shared';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { requireFeature } from '../../middleware/require-feature';
+import { requestDisposal } from '../../services/approvals/approval-wiring';
 import { enforceAssetCap } from '../../services/asset-cap.service';
 import { listAssetEvents } from '../../services/asset-event.service';
 import { listAssetsInBbox, parseBbox, parseGeoLimit } from '../../services/asset-geo-query.service';
-import { listAssets, listAssetChanges, listAssetPositions, getAsset, createAssetIdempotent, findAssetByClientRequestId, updateAsset, deleteAsset, disposeAsset, getAssetByTag, getAssetStats } from '../../services/asset.service';
-import { prepareParentDisposal } from '../../services/component.service';
+import { listAssets, listAssetChanges, listAssetPositions, getAsset, createAssetIdempotent, findAssetByClientRequestId, updateAsset, deleteAsset, getAssetByTag, getAssetStats } from '../../services/asset.service';
 import { encodeIdentifier } from '../../services/gs1-identifier.service';
 import { listLabelPrints } from '../../services/gs1-label.service';
 import { getAssetByEpc, listTagsForAsset } from '../../services/gs1-tag.service';
@@ -200,9 +200,9 @@ assetsRouter.post('/:id/dispose', requireAnyPermission('asset:write'),
     // A parent with components: `components: 'dispose' | 'detach'` (S2.2), else 409.
     const choice = parentDisposalChoice.optional().safeParse(req.body.components);
     if (!choice.success) { res.status(400).json({ error: 'components must be dispose or detach' }); return; }
-    await prepareParentDisposal(tenantId, req.params.id, choice.data, (componentId) => disposeAsset(tenantId, componentId, sub, {
-      disposalDate: req.body.disposalDate, disposalMethod: req.body.disposalMethod, disposalValue: 0, disposalReason: 'Disposed with its parent',
-    }), sub);
-    res.json(await disposeAsset(tenantId, req.params.id, sub, req.body));
+    // Through a request when the tenant's rules ask for approval (S3.1): 202 with it.
+    const r = await requestDisposal(tenantId, sub, req.params.id, { ...req.body, components: choice.data });
+    if (r.approval) { res.status(202).json({ approvalRequest: r.approval }); return; }
+    res.json(r.result);
   }),
 );

@@ -43,21 +43,22 @@ export const TUDA_ROLES: Record<string, string[]> = {
     P.AuditRead, P.AuditWrite, P.ScanExecute, P.Gs1Admin, P.TagCommission, P.DeviceManage,
     P.ReportRead, P.ReportExport, P.WorkOrderRead, P.WorkOrderWrite,
     P.UserRead, P.UserWrite, P.ApiKeyRead, P.ApiKeyWrite, P.CompanyManage, P.ClientRead, P.ClientManage,
-    P.AccountingRead, P.AccountingWrite,
+    P.AccountingRead, P.AccountingWrite, P.ApprovalRead,
   ],
   // Values, depreciation and reports; reads the register, doesn't edit it.
   // Prepares and approves the ledger (D16); never both on one item (D17).
-  Finance: [...READ_REGISTER, P.AuditRead, P.ReportRead, P.ReportExport, P.AccountingRead, P.AccountingWrite, P.AccountingApprove],
+  // Approves capitalisation, disposals and large write-offs (D22).
+  Finance: [...READ_REGISTER, P.AuditRead, P.ReportRead, P.ReportExport, P.AccountingRead, P.AccountingWrite, P.AccountingApprove, P.ApprovalRead, P.ApprovalDecide],
   // Maintains the register and plans counts.
   'Inventory Manager': [
     P.AssetRead, P.AssetWrite, P.AssetDelete, P.SiteRead, P.SiteWrite, P.CategoryRead, P.CategoryWrite,
     P.AuditRead, P.AuditWrite, P.ScanExecute, P.TagCommission, P.DeviceManage,
-    P.ReportRead, P.ReportExport, P.WorkOrderRead, P.AccountingRead,
+    P.ReportRead, P.ReportExport, P.WorkOrderRead, P.AccountingRead, P.ApprovalRead, P.ApprovalDecide,
   ],
   // Counts and tags in the field (scanners); can't change the register.
   'Field Operator': [...READ_REGISTER, P.AuditRead, P.AuditWrite, P.ScanExecute, P.TagCommission],
   // Independent check of counts and results.
-  Verifier: [...READ_REGISTER, P.AuditRead, P.AuditWrite, P.ScanExecute, P.ReportRead, P.ReportExport],
+  Verifier: [...READ_REGISTER, P.AuditRead, P.AuditWrite, P.ScanExecute, P.ReportRead, P.ReportExport, P.ApprovalRead],
   Viewer: [...READ_REGISTER, P.ReportRead],
 };
 
@@ -90,6 +91,19 @@ export const TUDA_JUNCTION_TEMPLATE = {
     { role: 'detector',   name: 'Detectors',        lifeMonths: 96,  costSharePct: 15 },
   ],
 } as const;
+
+/**
+ * Who approves what (S3.1, D22): placeholders for the policy manual's
+ * internal controls (TOR D2), in GEL. Write-offs go to Finance from 5,000.
+ */
+export const TUDA_APPROVAL_RULES = [
+  { action: 'CAPITALISE', minAmount: 0, role: 'Finance' },
+  { action: 'DISPOSE', minAmount: 0, role: 'Finance' },
+  { action: 'TRANSFER', minAmount: 0, role: 'Inventory Manager' },
+  { action: 'REGISTER_NEW', minAmount: 0, role: 'Inventory Manager' },
+  { action: 'WRITE_OFF', minAmount: 0, role: 'Inventory Manager' },
+  { action: 'WRITE_OFF', minAmount: 5000, role: 'Finance' },
+] as const;
 
 export interface TudaSeedOptions {
   adminEmail: string;
@@ -181,6 +195,16 @@ export async function seedTuda(opts: TudaSeedOptions): Promise<TudaSeedResult> {
       lines: TUDA_JUNCTION_TEMPLATE.lines.map((l) => ({ ...l, assetClassId: sig?.id ?? null })), toBeConfirmed: true,
     },
   });
+
+  // ── Approval rules (S3.1), added once; Finance may change them later ────
+  for (const r of TUDA_APPROVAL_RULES) {
+    const role = await prisma.role.findFirst({ where: { tenantId: tenant.id, name: r.role } });
+    await prisma.approvalRule.upsert({
+      where: { tenantId_action_minAmount: { tenantId: tenant.id, action: r.action, minAmount: r.minAmount } },
+      update: {},
+      create: { tenantId: tenant.id, action: r.action, minAmount: r.minAmount, approverRoleId: role?.id ?? null },
+    });
+  }
 
   // ── Licence: Enterprise (unlimited assets), confirmed under the contract ─
   // ── First administrator (created before the licence so the licence's

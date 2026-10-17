@@ -3,7 +3,8 @@ import { body, validationResult } from 'express-validator';
 
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
-import { listTransfers, createTransfer } from '../../services/transfer.service';
+import { requestTransfer } from '../../services/approvals/approval-wiring';
+import { listTransfers } from '../../services/transfer.service';
 import type { Request } from '../../types/http';
 
 export const transfersRouter = Router();
@@ -24,6 +25,8 @@ transfersRouter.post('/', requireAnyPermission('asset:write'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    res.status(201).json(await createTransfer(req.user!.tenantId, req.user!.sub, req.body));
+    const r = await requestTransfer(req.user!.tenantId, req.user!.sub, req.body);
+    if (r.approval) { res.status(202).json({ approvalRequest: r.approval }); return; }
+    res.status(201).json(r.result);
   }),
 );

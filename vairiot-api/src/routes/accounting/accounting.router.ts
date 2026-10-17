@@ -11,6 +11,7 @@ import { prisma } from '../../lib/prisma';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { requireFeature } from '../../middleware/require-feature';
+import { requestRecognitionOverride } from '../../services/approvals/approval-wiring';
 import { createAssetClass, listAssetClasses, updateAssetClass } from '../../services/asset-class.service';
 import {
   createComponentTemplate, instantiateComponentTemplate, listComponentTemplates, updateComponentTemplate,
@@ -22,7 +23,7 @@ import {
 import {
   assessImpairment, correctImpairment, dismissImpairment, listImpairments, postImpairment, raiseImpairment,
 } from '../../services/impairment.service';
-import { listPendingReview, overrideRecognition, setCategoryClass } from '../../services/recognition.service';
+import { listPendingReview, setCategoryClass } from '../../services/recognition.service';
 import { depreciationByClass } from '../../services/reports/depreciation-by-class';
 import { impairmentRegister } from '../../services/reports/impairment-register';
 import type { Request } from '../../types/http';
@@ -101,7 +102,10 @@ accountingRouter.get('/assets/pending-review', requireAnyPermission('accounting:
 
 accountingRouter.put('/assets/:id/recognition', requireAnyPermission('accounting:approve'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    res.json(await overrideRecognition(req.user!.tenantId, req.user!.sub, req.params.id, parse(recognitionOverrideSchema, req.body)));
+    // EXPENSED → RECOGNISED is capitalisation, through approval when the rules ask (S3.1).
+    const r = await requestRecognitionOverride(req.user!.tenantId, req.user!.sub, req.params.id, parse(recognitionOverrideSchema, req.body));
+    if (r.approval) { res.status(202).json({ approvalRequest: r.approval }); return; }
+    res.json(r.result);
   }),
 );
 

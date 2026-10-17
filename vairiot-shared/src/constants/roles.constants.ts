@@ -104,6 +104,7 @@ export const ROLE_PERMISSION_MATRIX: RoleDefinition[] = [
       P.SystemConfigure,
       P.Gs1Admin, P.TagCommission, P.DeviceManage,
       P.AccountingRead, P.AccountingWrite, P.AccountingApprove,
+      P.ApprovalRead, P.ApprovalDecide,
     ],
   },
 
@@ -126,6 +127,7 @@ export const ROLE_PERMISSION_MATRIX: RoleDefinition[] = [
       P.ClientRead, P.ClientManage,
       P.Gs1Admin, P.TagCommission, P.DeviceManage,
       P.AccountingRead, P.AccountingWrite, P.AccountingApprove,
+      P.ApprovalRead, P.ApprovalDecide,
     ],
   },
 
@@ -142,7 +144,7 @@ export const ROLE_PERMISSION_MATRIX: RoleDefinition[] = [
       P.ReportRead, P.ReportExport,
       P.WorkOrderRead,
       P.TagCommission, P.DeviceManage,
-      P.AccountingRead,
+      P.AccountingRead, P.ApprovalRead, P.ApprovalDecide,
     ],
   },
 
@@ -195,7 +197,7 @@ export const ROLE_PERMISSION_MATRIX: RoleDefinition[] = [
       P.AuditRead, P.AuditWrite,
       P.ScanExecute,
       P.ReportRead, P.ReportExport,
-      P.AccountingRead,
+      P.AccountingRead, P.ApprovalRead,
     ],
   },
 

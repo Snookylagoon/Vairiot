@@ -1,5 +1,5 @@
 import { Queue, ConnectionOptions } from 'bullmq';
-import { QUEUE_NAMES, type AuditCompleteJob, type DepreciationRunJob, type RegisterImportJob, type UserInviteJob, type WebhookDeliverJob } from 'vairiot-shared';
+import { QUEUE_NAMES, type ApprovalNotifyJob, type AuditCompleteJob, type DepreciationRunJob, type RegisterImportJob, type UserInviteJob, type WebhookDeliverJob } from 'vairiot-shared';
 
 import { logger } from './logger';
 
@@ -120,6 +120,21 @@ export async function enqueueRegisterImport(payload: RegisterImportJob): Promise
     return true;
   } catch (e) {
     logger.error(`Failed to enqueue register-import: ${(e as Error).message}`);
+    return false;
+  }
+}
+
+let cachedApprovalQueue: Queue<ApprovalNotifyJob> | null = null;
+
+/** Tells approvers of a request, or its requester of the decision (stage 3.2); never fails the request. */
+export async function enqueueApprovalNotify(payload: ApprovalNotifyJob): Promise<boolean> {
+  if (isWorkerDisabled()) return false;
+  cachedApprovalQueue ??= new Queue<ApprovalNotifyJob>(QUEUE_NAMES.approvalNotify, { connection: connection() });
+  try {
+    await cachedApprovalQueue.add(payload.event, payload, { removeOnComplete: 200, removeOnFail: 500, attempts: 3, backoff: { type: 'exponential', delay: 10_000 } });
+    return true;
+  } catch (e) {
+    logger.error(`Failed to enqueue approval-notify: ${(e as Error).message}`);
     return false;
   }
 }

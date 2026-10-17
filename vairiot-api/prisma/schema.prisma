@@ -62,6 +62,8 @@ model Tenant {
   impairments               Impairment[]
   importBatches             ImportBatch[]
   importMappings            ImportMapping[]
+  approvalRequests          ApprovalRequest[]
+  approvalRules             ApprovalRule[]
   sites                     Site[]
   assets                    Asset[]
   auditCampaigns            AuditCampaign[]
@@ -157,6 +159,8 @@ model Role {
 
   tenant Tenant     @relation(fields: [tenantId], references: [id])
   users  UserRole[]
+
+  approvalRules ApprovalRule[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -1974,4 +1978,78 @@ model ImportMapping {
 
   @@unique([tenantId, name])
   @@map("import_mappings")
+}
+
+enum ApprovalAction {
+  CAPITALISE
+  TRANSFER
+  DISPOSE
+  WRITE_OFF
+  REGISTER_NEW
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  FAILED
+}
+
+/// A change waiting for a second person (Phase 3, S3.1, stage 3.2, D22). The
+/// payload is what the requester asked for; it is applied by the action's own
+/// service only when approved, so until then nothing changes. FAILED: the
+/// approval was given but applying it was refused (the asset moved on).
+model ApprovalRequest {
+  id          String         @id @default(cuid())
+  tenantId    String
+  action      ApprovalAction
+  status      ApprovalStatus @default(PENDING)
+  /// The asset the change is about (the reconciliation item's for audit adjustments).
+  assetId     String?
+  entityType  String
+  entityId    String
+  payload     Json
+  /// What the threshold was tested on: carrying amount, or capitalised cost to capitalise.
+  amount      Decimal?       @db.Decimal(14, 2)
+  summary     String
+  ruleId      String?
+  requestedBy String
+  decidedBy   String?
+  decidedAt   DateTime?
+  reason      String?
+  result      Json?
+  error       String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id])
+  rule   ApprovalRule? @relation(fields: [ruleId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, assetId])
+  @@map("approval_requests")
+}
+
+/// Who approves an action from what amount (D22). Tiers: the rule with the
+/// highest minimum not above the amount applies; below every tier the action
+/// proceeds at once and is logged. No rule for an action: no approval.
+model ApprovalRule {
+  id                   String         @id @default(cuid())
+  tenantId             String
+  action               ApprovalAction
+  minAmount            Decimal        @default(0) @db.Decimal(14, 2)
+  /// The role whose members decide; with none, anyone holding approval:decide.
+  approverRoleId       String?
+  requireDifferentUser Boolean        @default(true)
+  active               Boolean        @default(true)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id])
+  role     Role?             @relation(fields: [approverRoleId], references: [id])
+  requests ApprovalRequest[]
+
+  @@unique([tenantId, action, minAmount])
+  @@map("approval_rules")
 }

@@ -53,7 +53,7 @@ export const accountingPaths = {
       requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: {
         status: { type: 'string', enum: ['RECOGNISED', 'EXPENSED'], nullable: true }, reason: { type: 'string', minLength: 5 },
       } } } } },
-      responses: { 200: { description: 'Asset' }, 400: { description: 'Invalid' }, 403: { description: 'No accounting:approve' }, 404: { description: 'No such asset, or ipsas off' } },
+      responses: { 200: { description: 'Asset' }, 202: { description: 'EXPENSED → RECOGNISED is capitalisation: waiting for approval when a rule covers it (S3.1), { approvalRequest }' }, 400: { description: 'Invalid' }, 403: { description: 'No accounting:approve' }, 404: { description: 'No such asset, or ipsas off' } },
     },
   },
   '/accounting/assets/{id}/components': {
