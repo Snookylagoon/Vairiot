@@ -8,6 +8,8 @@ export interface AssetListParams {
   search?: string; page?: number; pageSize?: number;
   categoryId?: string; siteId?: string; status?: string; condition?: string;
   sortBy?: string; sortOrder?: string; includeDeleted?: boolean;
+  /** Parents and standalone assets only (S2.2). */
+  rollUp?: boolean;
 }
 
 export function useAssets(params: AssetListParams = {}) {

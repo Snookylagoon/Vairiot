@@ -1,4 +1,4 @@
-import { Search, Plus, Package, Download, Filter, ArrowUpDown, ArrowUp, ArrowDown, Map } from 'lucide-react';
+import { Search, Plus, Package, Download, Filter, ArrowUpDown, ArrowUp, ArrowDown, Map, Layers, CornerDownRight } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
@@ -82,6 +82,8 @@ export function AssetsPage() {
   const activeFilterCount = [categoryId, siteId, status, condition].filter(Boolean).length;
 
   const includeDeleted = get('archived') === '1';
+  const ipsas = hasFeature(user, 'ipsas');
+  const rollUp = ipsas && get('rollUp') === '1';
 
   const { data, isLoading, isPlaceholderData } = useAssets({
     search: search || undefined,
@@ -94,6 +96,7 @@ export function AssetsPage() {
     sortBy: sortBy || undefined,
     sortOrder: sortOrder || undefined,
     includeDeleted,
+    rollUp: rollUp || undefined,
   });
 
   const toggleSort = (col: string) => {
@@ -245,6 +248,15 @@ export function AssetsPage() {
                 Show archived
               </label>
             </div>
+            {ipsas && (
+              <div className="space-y-1 flex items-end">
+                <label className="flex items-center gap-2 text-xs font-medium text-gray-500 cursor-pointer">
+                  <input type="checkbox" checked={rollUp} onChange={e => set({ rollUp: e.target.checked ? '1' : '', page: '' })}
+                    className="rounded-sm border-gray-300 text-v-violet focus:ring-v-pink" />
+                  Roll up components
+                </label>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -291,7 +303,13 @@ export function AssetsPage() {
                   onClick={() => navigate(`/assets/${a.id}`)}
                   className="border-b border-gray-50 hover:bg-v-wash cursor-pointer transition-colors last:border-0">
                   <td className="px-4 py-3 font-mono text-xs text-v-violet">{a.assetNumber}</td>
-                  <td className="px-4 py-3 font-medium text-v-charcoal">{a.name}</td>
+                  <td className="px-4 py-3 font-medium text-v-charcoal">
+                    <span className="inline-flex items-center gap-1.5">
+                      {a.parentAsset && <span title={`Part of ${a.parentAsset.assetNumber}`} aria-label={`Part of ${a.parentAsset.assetNumber}`}><CornerDownRight size={14} className="text-gray-400" /></span>}
+                      {(a._count?.components ?? 0) > 0 && <span title={`${a._count!.components} components`} aria-label={`${a._count!.components} components`}><Layers size={14} className="text-v-violet" /></span>}
+                      {a.name}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-gray-500">{a.category?.name ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-500">{a.site?.name ?? '—'}</td>
                   <td className="px-4 py-3"><Badge label={a.status} variant={a.status as 'active'|'inactive'} /></td>

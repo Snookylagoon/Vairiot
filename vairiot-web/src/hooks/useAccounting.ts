@@ -89,3 +89,58 @@ export function useOverrideRecognition(assetId: string) {
     error: 'Could not change the recognition',
   });
 }
+
+// ── Components (stage 2.6) ────────────────────────────────────────────────────
+
+interface GroupMember {
+  id: string; assetNumber: string; name: string; status: string; componentRole: string | null;
+  capitalisedCost: string | null; recognitionStatus: string | null;
+  depreciation: { capitalizedCost: number; accumulatedDepreciation: number; netBookValue: number };
+}
+
+export interface ComponentGroup {
+  asset: GroupMember;
+  parent: { id: string; assetNumber: string; name: string } | null;
+  components: GroupMember[];
+  rollUp: { capitalizedCost: number; accumulatedDepreciation: number; netBookValue: number } | null;
+}
+
+export interface ComponentTemplate {
+  id: string; code: string; name: string; active: boolean; toBeConfirmed: boolean;
+  lines: Array<{ role: string; name: string; costSharePct: number; lifeMonths?: number | null }>;
+  assetClass: { code: string; name: string } | null;
+}
+
+export function useComponentGroup(assetId: string) {
+  return useQuery<ComponentGroup>({
+    queryKey: ['accounting', 'components', assetId],
+    queryFn: () => api.get(`/api/v1/accounting/assets/${assetId}/components`).then(r => r.data),
+  });
+}
+
+export function useComponentTemplates() {
+  return useQuery<ComponentTemplate[]>({
+    queryKey: ['accounting', 'component-templates'],
+    queryFn: () => api.get('/api/v1/accounting/component-templates').then(r => r.data),
+  });
+}
+
+/** Creates from a template: a new asset with its parts, or the parts onto `parentAssetId`. */
+export function useCreateFromTemplate() {
+  return useMutationWithToast<ComponentGroup, { templateId: string; name: string; totalCost?: number | null; parentAssetId?: string; siteId?: string }>({
+    mutationFn: ({ templateId, ...body }) => api.post(`/api/v1/accounting/component-templates/${templateId}/assets`, body).then(r => r.data),
+    invalidate: ['accounting'],
+    success: 'Components created',
+    error: 'Could not create from the template',
+  });
+}
+
+/** Attach, move or (parentAssetId null) detach a component. */
+export function useSetParent(assetId: string) {
+  return useMutationWithToast<unknown, { parentAssetId: string | null; componentRole?: string | null }>({
+    mutationFn: (body) => api.put(`/api/v1/accounting/assets/${assetId}/parent`, body).then(r => r.data),
+    invalidate: ['accounting'],
+    success: 'Component updated',
+    error: (err) => err.response?.data?.error ?? 'Could not change the component',
+  });
+}
