@@ -67,3 +67,6 @@ scripts/samples/*-mapping.json
 # Playwright (stage 1.20)
 test-results/
 playwright-report/
+
+# Office lock files (Word keeps one beside an open document)
+~$*
