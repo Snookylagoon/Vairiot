@@ -637,3 +637,12 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Output    | `pages/approvals/` (`ApprovalsPage`, `ApprovalRules`), `components/approvals/` (`ApprovalBadge`, `AwaitingApproval`), `hooks/useApprovals.ts`; `useMutationWithToast` takes a success message worked out from the result |
 | Tests     | New `Approvals.test.tsx` (7) and `e2e/approvals.smoke.ts`; web 87/87, smoke 8/8; web coverage gate raised to 21 % (measured 21.3 %) |
 | Notes     | The Android and iOS "awaiting approval" is with the apps' W4–W5 work; the exit-gate test (S3.1 in test plan §8.4) runs at the phase close |
+
+### Stage 3.4 — 2.14.0 on staging (W1)
+
+| Item      | Detail |
+| --------- | ------ |
+| Date      | 17 October 2026 |
+| Version   | 2.14.0 |
+| Activity  | Staging promoted from `baec2ea` (2.13.3) to `617832e` (2.14.0). Backup (`vairiot-backup-20261017-154328.tar`, 97 MB, kept on the host), then the restore test, which passed (71 tables, MinIO and Redis match). `deploy.sh`: the `approvals` migration applied, every container healthy, `/health/ready` 200. Checked after: `approval_requests` and `approval_rules` under forced row-level security with their tenant policies, the one-pending index and both checks; `approval:read` and `approval:decide` on the demo tenant's Platform Super Admin, Company Admin and Asset Manager, `approval:read` on its Auditor; the worker consuming `approval-notify`; the seven `/approvals` paths in the served OpenAPI |
+| Notes     | Staging has only the `demo` tenant, so there are no TUDA approval rules to check there: with no rules every action takes effect at once, as before. TUDA's rules and roles were checked by the seed test (stage 3.2); they reach a server when `seed:tuda` is run there. Production is unchanged |
