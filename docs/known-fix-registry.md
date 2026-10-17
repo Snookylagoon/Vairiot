@@ -496,3 +496,14 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Test Added** | `vairiot-api/src/__tests__/security/restorable-backups.test.ts`: every Vairiot function but the RLS check has its search path pinned, and that one uses only built-ins; both restore scripts restore in sections in that order and stop at the first error; the migration and the restore snippet pin the same functions. The restore test itself runs before every server change (W0, W8) and monthly |
 
 *Last updated: stage 3.1, October 2026*
+
+## KFR-047 — The restore test's database restarted under the restore (stage 3.1, W0)
+
+| Field | Detail |
+|---|---|
+| **Module** | Postgres healthchecks in `infra/docker-compose*.yml`; `infra/restore-test.sh` |
+| **Root Cause** | The Postgres images initialise a fresh data directory with a temporary server that listens on the Unix socket only, run their init scripts (PostGIS's take seconds), then restart. The healthcheck, `pg_isready` over the socket, called that temporary server healthy, so `up --wait` returned and the restore started against it; the restart then cut it off ("terminating connection due to administrator command"). Found on staging once KFR-046 let the restore get further |
+| **Fix Applied** | Every Postgres healthcheck asks over TCP (`pg_isready -h 127.0.0.1`), which only the real server answers |
+| **Test Added** | `vairiot-api/src/__tests__/security/compose-healthchecks.test.ts`: every Postgres healthcheck in every compose file uses `-h 127.0.0.1`; the restore test on staging passes with it |
+
+*Last updated: stage 3.1, October 2026*

@@ -30,8 +30,10 @@ services:
       POSTGRES_DB:       ${POSTGRES_DB}
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
+    # Over TCP (KFR-047): a fresh data directory is initialised by a temporary
+    # socket-only server first, which a socket check would call healthy.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5

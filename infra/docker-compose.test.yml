@@ -35,7 +35,7 @@ services:
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U vairiot_test -d vairiot_test']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U vairiot_test -d vairiot_test']
       interval: 2s
       timeout: 5s
       retries: 15

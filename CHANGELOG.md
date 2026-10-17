@@ -2,6 +2,12 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.13.3] — 2026-10-17
+
+### Fixed
+
+- The restore test could be cut off by the database restarting at the end of its first start; database health checks now wait for the real server (stage 3.1, KFR-047)
+
 ## [2.13.2] — 2026-10-17
 
 ### Fixed
