@@ -27,6 +27,7 @@ def all_report_defs() -> dict[str, ReportDef]:
 # Import report modules to trigger registration
 import app.reports.assets.fixed_asset_register  # noqa: E402, F401
 import app.reports.assets.depreciation_schedule  # noqa: E402, F401
+import app.reports.assets.depreciation_by_class  # noqa: E402, F401
 import app.reports.assets.asset_aging  # noqa: E402, F401
 import app.reports.assets.asset_valuation_summary  # noqa: E402, F401
 import app.reports.assets.asset_movement_history  # noqa: E402, F401

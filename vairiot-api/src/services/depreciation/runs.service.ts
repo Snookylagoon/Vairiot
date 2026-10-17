@@ -45,7 +45,7 @@ export async function listPeriods(tenantId: string) {
   return prisma.accountingPeriod.findMany({
     where: { tenantId },
     orderBy: [{ year: 'desc' }, { month: 'desc' }],
-    include: { runs: { orderBy: { createdAt: 'desc' }, select: { id: true, status: true, assetCount: true, totalCharge: true, preparedBy: true, postedBy: true, postedAt: true, reversalOfRunId: true, createdAt: true } } },
+    include: { runs: { orderBy: { createdAt: 'desc' }, select: { id: true, status: true, assetCount: true, totalCharge: true, preview: true, preparedBy: true, postedBy: true, postedAt: true, reversalOfRunId: true, createdAt: true } } },
   });
 }
 

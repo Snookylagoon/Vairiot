@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 import { computeDepreciation } from './asset.service';
+import { postedDepreciation, withLedger } from './depreciation/ledger';
 
 /**
  * Apply search + sort to report rows in JS. Reports are computed
@@ -90,9 +91,11 @@ export async function depreciationRegister(tenantId: string, filters: ReportFilt
     select: assetFinancialSelect,
     orderBy: { assetNumber: 'asc' },
   });
+  // Posted entries where an asset has any (stage 2.9), else the projection.
+  const posted = await postedDepreciation(tenantId, assets.map((a) => a.id));
 
   const rows = assets.map(a => {
-    const dep = computeDepreciation(a);
+    const dep = withLedger(computeDepreciation(a), posted.get(a.id));
     return {
       assetNumber: a.assetNumber,
       name: a.name,
@@ -139,9 +142,11 @@ export async function fixedAssetRegister(tenantId: string, filters: ReportFilter
     orderBy: { assetNumber: 'asc' },
   });
 
+  const ids = assets.flatMap((a) => [a.id, ...('components' in a ? (a.components as Array<{ id: string }>).map((p) => p.id) : [])]);
+  const posted = await postedDepreciation(tenantId, ids);
   const rows = assets.map(a => {
-    const parts = ('components' in a ? a.components : []) as Array<Parameters<typeof computeDepreciation>[0] & { purchaseCost: Prisma.Decimal | null }>;
-    const deps = [computeDepreciation(a), ...parts.map((p) => computeDepreciation(p))];
+    const parts = ('components' in a ? a.components : []) as Array<Parameters<typeof computeDepreciation>[0] & { id: string; purchaseCost: Prisma.Decimal | null }>;
+    const deps = [withLedger(computeDepreciation(a), posted.get(a.id)), ...parts.map((p) => withLedger(computeDepreciation(p), posted.get(p.id)))];
     const total = (k: 'capitalizedCost' | 'accumulatedDepreciation' | 'netBookValue') =>
       Math.round(deps.reduce((t, d) => t + d[k], 0) * 100) / 100;
     const dep = { capitalizedCost: total('capitalizedCost'), accumulatedDepreciation: total('accumulatedDepreciation'), netBookValue: total('netBookValue') };

@@ -19,6 +19,7 @@ import {
   assetDepreciationHistory, discardRun, listPeriods, openPeriod, postRun, prepareRun, reverseRun, setPeriodStatus, setUsage,
 } from '../../services/depreciation/runs.service';
 import { listPendingReview, overrideRecognition, setCategoryClass } from '../../services/recognition.service';
+import { depreciationByClass } from '../../services/reports/depreciation-by-class';
 import type { Request } from '../../types/http';
 
 // The IPSAS ledger (Phase 2), behind the tenant's `ipsas` module: every route
@@ -197,5 +198,12 @@ accountingRouter.post('/runs/:id/reverse', requireAnyPermission('accounting:appr
 accountingRouter.get('/assets/:id/depreciation', requireAnyPermission('accounting:read'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     res.json(await assetDepreciationHistory(req.user!.tenantId, req.params.id));
+  }),
+);
+
+/** Posted depreciation by class for a period (default: the latest posted); also exportable as `depreciation-by-class`. */
+accountingRouter.get('/depreciation-by-class', requireAnyPermission('accounting:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await depreciationByClass(req.user!.tenantId, { year: req.query.year as string, month: req.query.month as string }));
   }),
 );
