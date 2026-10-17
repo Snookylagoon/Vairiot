@@ -9,7 +9,7 @@
 | Method                     | Managed Development Standard rev 1.0 (`Vairiot CI/docs/managed-development-standard.md`), adopted in stage 0.8 |
 | Source product (read-only) | None — this is the source product for Vairiot Cable Intelligence                                               |
 | Started                    | 17 June 2026 (first commit); standard adopted 16 October 2026                                                  |
-| Current phase              | Phase 1 (S1) in progress; Phase 0 accepted 16 October 2026                                                     |
+| Current phase              | Phase 3 (S3) planning; Phase 2 accepted 17 October 2026                                                        |
 | Version                    | 2.13.1                                                                                                         |
 
 This file is the single source of truth (standard §1.1). If scope, a rule or a decision is not here or in a document linked from §7, it has not been agreed.
@@ -88,8 +88,8 @@ Decision D1: Phase N is Sprint SN; sprint files keep their names and serve as th
 | ----- | ------ | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | 0     | S0     | Hardening and hosting; standard adoption (stages 0.8–0.10)                  | `docs/sprints/S0-hardening-and-hosting.md` / `S0-summary.md`                  | **Accepted 16 October 2026**                                                                 |
 | 1     | S1     | GIS, condition and photos                                                   | `docs/sprints/S1-gis-condition-photos.md`, [03 plan](docs/03-phase-1-plan.md) | **Accepted** 16 Oct 2026 ([04 record](docs/04-phase-1-record.md)); field checks P1.1–P1.2 follow |
-| 2     | S2     | IPSAS ledger, policies, depreciation, Excel import                          | `docs/sprints/S2-ipsas-ledger-import.md`, [05 plan](docs/05-phase-2-plan.md) | In progress — D14–D21 approved; W1 from stage 2.1                                            |
-| 3     | S3     | Maker–checker, zones and teams, QA sampling, Georgian i18n, training tenant | `docs/sprints/S3-zones-qa-georgian.md`                                        | Planned                                                                                      |
+| 2     | S2     | IPSAS ledger, policies, depreciation, Excel import                          | `docs/sprints/S2-ipsas-ledger-import.md`, [05 plan](docs/05-phase-2-plan.md) | **Accepted** 17 Oct 2026 ([06 record](docs/06-phase-2-record.md))                             |
+| 3     | S3     | Maker–checker, zones and teams, QA sampling, Georgian i18n, training tenant | `docs/sprints/S3-zones-qa-georgian.md`, [07 plan](docs/07-phase-3-plan.md)    | Planning (stage 3.0)                                                                                      |
 | 4     | S4     | Pilot defects, reconciliation engine, data-quality dashboard                | `docs/sprints/S4-reconciliation-and-dq.md`                                    | Planned                                                                                      |
 | 5     | S5     | IPSAS reporting pack, GeoJSON/Shapefile exchange, handover                  | `docs/sprints/S5-reporting-and-handover.md`                                   | Planned                                                                                      |
 
@@ -108,6 +108,9 @@ Adoption workstreams W0–W6 from the [adoption plan](docs/standard-adoption-pla
 | [docs/02-data-model-and-module-registry.md](docs/02-data-model-and-module-registry.md)                               | Data model and module switches                         |
 | [docs/03-phase-1-plan.md](docs/03-phase-1-plan.md)                                                                   | Phase 1 plan: workstreams, design, exit gates, D11–D12 |
 | [docs/04-phase-1-record.md](docs/04-phase-1-record.md)                                                               | Phase 1 record: exit gate results, open points, acceptance |
+| [docs/06-phase-2-record.md](docs/06-phase-2-record.md)                                                               | Phase 2 record: exit gate results, open points, acceptance |
+| [docs/07-phase-3-plan.md](docs/07-phase-3-plan.md)                                                                   | Phase 3 plan: workstreams, design, exit gates, decisions |
+| [docs/IPSAS-LEDGER-MECHANICS.md](docs/IPSAS-LEDGER-MECHANICS.md)                                                     | IPSAS ledger mechanics (behind TOR Deliverable D2) |
 | [docs/05-phase-2-plan.md](docs/05-phase-2-plan.md)                                                                   | Phase 2 plan: workstreams, ledger design, exit gates, D14–D21 |
 | [docs/GIS-DATA-MODEL.md](docs/GIS-DATA-MODEL.md)                                                                     | GIS database structure (TOR Deliverable D4)            |
 | [docs/testing/test-plan.md](docs/testing/test-plan.md)                                                               | Test levels, coverage, exit gates, traceability        |
@@ -146,3 +149,4 @@ Adoption workstreams W0–W6 from the [adoption plan](docs/standard-adoption-pla
 | 16 Oct 2026 | D19: Zod schemas in `vairiot-shared` for the ledger and import routes; OpenAPI stays hand-written, with a contract test | **Approved** |
 | 16 Oct 2026 | D20: asset class required on create with `ipsas` on; back-fill from the category, else PENDING_REVIEW | **Approved** |
 | 16 Oct 2026 | D21: units of production entered per asset and period; no automatic feed in S2 | **Approved** |
+| 17 Oct 2026 | Phase 2 accepted by the owner ("I accept Phase 2. Record the acceptance and start the Phase 3 plan."), with the open points in the record §6 | **Approved** |

@@ -3,7 +3,7 @@
 | Item                     | Detail                                                                                                                                          |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Phase                    | 2 (Sprint S2, decision D1)                                                                                                                      |
-| Status                   | In progress — W1 (2.7.0), W2 (2.8.0), W3 (2.9.0) and W4 (2.10.0, stages 2.8–2.10) merged; W5 (impairment, 2.11.0) merged; W6 (staged import, 2.12.0) merged; **Built** — all seven workstreams merged (2.7.0–2.13.0); exit gate passed on the Docker stack, 17 October 2026 (stage 2.17, [record](06-phase-2-record.md)); awaiting acceptance |
+| Status                   | **Accepted** 17 October 2026 (stage 2.18): all seven workstreams merged (2.7.0–2.13.0); exit gate passed on the Docker stack (stage 2.17, [record](06-phase-2-record.md)) |
 | Revision                 | 0.1 (16 October 2026)                                                                                                                           |
 | Builds on                | Phase 1, accepted 16 October 2026 (stage 1.22, [record](04-phase-1-record.md)); version 2.6.1                                                   |
 | Modules                  | `ipsas`: classes, policies, periods, depreciation, impairment. Import is core; its IPSAS columns need `ipsas`                                   |

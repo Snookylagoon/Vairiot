@@ -577,3 +577,29 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Tests     | API 523/523 in 63 suites at 72.9 % lines; shared 109/109; worker 24/24; web 80/80; Playwright 7/7 over three runs; stack browser 1/1; admin 4/4; profiler 20/20; Android 85/85 and iOS 69/69 green in CI; `npm run check` passes |
 | Decisions | The PPE movement note stays in S5 (plan §5); the gate ties the register to the assets' carrying amounts instead |
 | Notes     | Found by the gate script, not the system: the October run leaves out the junction itself, whose cost is in its parts (`no_cost`), as designed. The Phase 1 field checks P1.1 and P1.2 wait for the promotion: staging still runs a build from before Phase 1. Awaiting owner acceptance |
+
+### Stage 2.18 — Phase 2 accepted
+
+| Item      | Detail |
+| --------- | ------ |
+| Date      | 17 October 2026 |
+| Version   | 2.13.1 |
+| Activity  | Owner accepted Phase 2: "I accept Phase 2. Record the acceptance and start the Phase 3 plan." Record, plan and project brief updated |
+| Output    | `docs/06-phase-2-record.md` §7; `docs/05-phase-2-plan.md`; `project.md` phase table, documents and decision log |
+| Decisions | Phase 2 acceptance recorded, with the open points in the record §6 as follow-ups |
+| Notes     | Tag `phase-2-accepted` waits for the promotion of `dev` to `main`, with the earlier tags. The Phase 3 plan follows as stage 3.0 |
+
+---
+
+## Phase 3 — Zones, QA, approvals and Georgian (Sprint S3)
+
+### Stage 3.0 — Phase 3 planned
+
+| Item      | Detail |
+| --------- | ------ |
+| Date      | 17 October 2026 |
+| Version   | 2.13.1 |
+| Activity  | Phase 3 plan written from the S3 sprint file and the code as it stands: nine workstreams (W0 staging promotion and the Phase 1 field checks; W1 maker–checker approvals; W2 zones, teams and routes; W3 QA sampling, recounts and the Verifier; W4–W5 Georgian on the web, the apps, the reports and the tenant's own names; W6 the TUDA tagging preset, labels and the training tenant; W7 carry-overs; W8 the tools freeze), the design of each, the changes to the sprint file and the exit-gate tests. Found while planning: locations have no zone boundary yet, the reports service is ReportLab rather than WeasyPrint, there is no internationalisation on any surface (about 1,000 web, 400 Android and 250 iOS strings and 43 reports), mobile releases are not tenant-scoped, and staging and production still run builds from before Phase 1 |
+| Output    | `docs/07-phase-3-plan.md`; `project.md` phase table and documents |
+| Decisions | D22–D31 proposed (plan §4), awaiting the owner |
+| Notes     | W0 changes staging (the PostGIS switch after a backup and restore test) and W8 production; production is promoted only on the owner's go-ahead at the freeze |
