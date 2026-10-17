@@ -3,7 +3,7 @@
 | Item        | Detail |
 | ----------- | ------ |
 | Phase       | 2 (Sprint S2, decision D1) |
-| Status      | **Built**; exit gate passed on the Docker stack on 17 October 2026 (§2); awaiting owner acceptance (§7) |
+| Status      | **Accepted** by the owner on 17 October 2026 (stage 2.18); exit gate passed on the Docker stack the same day (§2) |
 | Revision    | 0.1 (17 October 2026) |
 | Version     | 2.13.1 (on `dev`; staging and production unchanged until promotion, §5) |
 | Plan        | [Phase 2 plan](05-phase-2-plan.md) · [S2 sprint](sprints/S2-ipsas-ledger-import.md) |
@@ -140,5 +140,6 @@ Closed in this phase: G23 (row-level security), G31 (Content-Security-Policy), G
 | Item | Detail |
 | ---- | ------ |
 | Requested | 17 October 2026, with this record, the [S2 summary](sprints/S2-summary.md), the [IPSAS ledger mechanics](IPSAS-LEDGER-MECHANICS.md) and the Word report `docs/word/Vairiot-AI-Phase-2-IPSAS-Ledger-and-Import.docx` |
-| Owner decision | Awaiting |
-| Next | Phase 3 plan (S3: zones, QA, approvals, Georgian) on acceptance |
+| Owner decision | **Accepted**, 17 October 2026: "I accept Phase 2. Record the acceptance and start the Phase 3 plan." |
+| Follow-ups | The open points in §6; the Phase 1 field checks P1.1 and P1.2 after the promotion; tag `phase-2-accepted` at the promotion of `dev` to `main` |
+| Next | [Phase 3 plan](07-phase-3-plan.md) (stage 3.0) |
