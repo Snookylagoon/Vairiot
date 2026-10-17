@@ -474,3 +474,14 @@ Zip downloads via claude.ai are unreliable. All sprints delivered as heredoc she
 | **Test Added** | `vairiot-api/src/__tests__/security/compose-healthchecks.test.ts`: the production nginx healthcheck uses `127.0.0.1` and never `localhost`, and every site still listens on IPv4 port 80. |
 
 *Last updated: Phase 1 close, October 2026*
+
+## KFR-045 — A new tenant's first assets created together could fail (stage 2.13)
+
+| Field | Detail |
+|---|---|
+| **Module** | `provision_tenant_identifier_seq` (GS1 identification migration), called by `allocate_iar` on every asset create and by `lease_identifier_block` |
+| **Root Cause** | A tenant's GS1 reference sequence is created on its first allocation with `CREATE SEQUENCE IF NOT EXISTS`, which PostgreSQL does not make safe under concurrency: two first allocations at once both pass the check and the second fails on `pg_class_relname_nsp_index`, so that asset is not created. Found by the staged import's parallel commit; several mobile or API creates arriving together for a new tenant could hit it too. Block leasing was safe, as it already took the tenant's advisory lock. |
+| **Fix Applied** | Migration `20261017060000_identifier_sequence_race`: the function returns at once when the sequence exists, otherwise takes the same per-tenant advisory lock as block leasing before creating it, and treats "already exists" as success. `SECURITY DEFINER` and the pinned `search_path` are restated, as `CREATE OR REPLACE` resets them. The staged import's own workaround was removed. |
+| **Test Added** | `vairiot-api/src/__tests__/gs1/identifier-sequence-race.test.ts`: twelve first allocations at once for a new tenant all succeed with distinct references (fails without the fix with the original error); eight first asset creates at once all succeed; the function still runs as its owner with the pinned search path. |
+
+*Last updated: stage 2.13, October 2026*

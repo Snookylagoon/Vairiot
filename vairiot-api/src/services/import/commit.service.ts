@@ -79,8 +79,6 @@ export async function commitChunk(tenantId: string, batchId: string, rowIds: str
   const rows = await prisma.importRow.findMany({ where: { batchId, id: { in: rowIds }, status: { in: ['VALID', 'WARNING'] } }, orderBy: { rowNumber: 'asc' } });
   let committed = 0;
   let failed = 0;
-  // A tenant's first GS1 reference creates its sequence, which concurrent creates would race on.
-  if (batch.mode === 'CREATE' && rows.length) await prisma.$executeRaw`SELECT provision_tenant_identifier_seq(${tenantId})`;
   const first = batch.mode === 'CREATE' && rows.length ? Number((await nextAssetNumber(tenantId)).replace('AST-', '')) : 0;
   const numbers = new Map(rows.map((r, i) => [r.id, `AST-${String(first + i).padStart(6, '0')}`]));
   const one = async (row: (typeof rows)[number]) => {
