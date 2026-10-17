@@ -198,6 +198,7 @@ S0 gates were met on 6 October 2026 (`S0-summary.md`, "How to verify"). Stage 0.
 | S2.4 Impairment   | Grade 1 creates a DRAFT impairment; posting it reduces NBV; the next run uses the reduced base                                |
 | S2.5 Import       | 10,000 rows in under 2 minutes; error rows excluded and downloadable; re-running in update mode changes no asset numbers      |
 | S2 toggle         | With `ipsas` off, ledger routes answer 404 and screens are hidden                                                             |
+| Result            | All passed on the Docker stack, 17 October 2026 (stage 2.17): `scripts/gate/phase2_gate.py` 14/14, `import_gate.py` 8/8, see the [Phase 2 record](../06-phase-2-record.md) §2 |
 
 ### 8.4 Phase 3 — S3 zones, QA, approvals, Georgian
 
