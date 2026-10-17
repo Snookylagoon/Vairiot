@@ -46,6 +46,7 @@ docker ps                                                                       
 - **`WARN: variable is not set` everywhere** — you forgot `--env-file /opt/Vairiot/.env`. Postgres/Redis will recreate with blank passwords and refuse connections against the existing data volume.
 - **502 Bad Gateway after deploy** — should no longer happen (nginx re-resolves upstreams via `resolver`). If it does, `docker exec vairiot_nginx nginx -s reload`, or restart nginx.
 - **MinIO is built from source** (`infra/minio/Dockerfile`), because MinIO stopped publishing images in 2025 (`minio/minio` no longer pulls). The first deploy after this change builds it, which takes a few minutes and needs about 2 GB of free memory. Later deploys reuse the cached build. The same image is published to GHCR by CI (`vairiot-minio`). To upgrade, follow the comment at the top of the Dockerfile; Dependabot can't track it, so check MinIO's releases monthly for "Security/CVE" releases.
+- **`backup.sh`: `syntax error near unexpected token`** — the backup and restore scripts read `.env` as a shell file, so a value with spaces or `<`, `>`, `&`, `;` must be quoted, e.g. `SMTP_FROM="Vairiot <noreply@example.org>"`. Compose reads the quoted value the same (found on staging, stage 3.1).
 - **`Permission denied (publickey)`** when SSHing — make sure `~/.ssh/vairiot_key` exists locally and `~/.ssh/config` has the `Host vairiot` block pointing at it.
 
 ## Operations

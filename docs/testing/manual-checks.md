@@ -628,6 +628,13 @@ These two gates need a real device outdoors; everything else in Phase 1 is
 checked automatically ([Phase 1 record](../04-phase-1-record.md) §2). Use a
 tenant with **GIS switched on**.
 
+**On staging** (from stage 3.1): `test.vairiot.com` runs the Phase 1 and 2
+code, and the staging Android build 37 (`2.13.3-staging`) is published there;
+a Meferi on the staging channel updates itself. The `demo` tenant has GIS off:
+switch it on first in the platform console (testadmin.vairiot.com → Tenants →
+demo → Modules → GIS). The iOS app is production-only, so on staging run the
+checks on Android; the iPhone steps wait for the production promotion.
+
 ## P1.1 — An asset created outdoors keeps its position (S1.2)
 
 **What:** the Android and iOS apps capture a GPS fix with its accuracy when an
