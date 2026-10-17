@@ -2,6 +2,16 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.14.0] — 2026-10-17
+
+### Added
+
+- Maker–checker approvals: when an organisation's rules cover it, a disposal, transfer, write-off, found asset or capitalisation waits for someone in the rule's role to approve it, and nothing changes until then; a disposal or write-off is never approved by the person who asked for it, and a rejection needs a reason (stages 3.2–3.3)
+- An Approvals page with what waits for the user's decision, including depreciation runs and impairments to post; the user's own requests with their outcome; and the rules, per action, amount and role (stage 3.3)
+- A badge in the header counting what waits for the user, and "awaiting approval" on an asset's page (stage 3.3)
+- Emails to the approvers when a request is made, and to the requester when it is decided (stage 3.2)
+- TUDA's approval rules, as placeholders for the Accounting Policy Manual: capitalisation and disposal by Finance; transfers, found assets and write-offs by the Inventory Manager, write-offs from GEL 5,000 by Finance (stage 3.2)
+
 ## [2.13.3] — 2026-10-17
 
 ### Fixed
