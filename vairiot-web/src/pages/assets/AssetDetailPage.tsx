@@ -214,6 +214,7 @@ export function AssetDetailPage() {
             <Field label="Category" value={asset.category?.name} />
             <Field label="Site"     value={asset.site?.name} />
             <Field label="Location" value={asset.location?.name} />
+            <Field label="Custodian" value={asset.custodian} />
           </CardBody>
         </Card>
 

@@ -144,6 +144,7 @@ export function AssetForm({ defaultValues, onSubmit, submitLabel = 'Save Asset',
               </select>
             </div>
             <ConditionSelect registration={register('condition')} categoryId={watch('categoryId')} value={watch('condition')} />
+            <Input label="Custodian" placeholder="Person or unit accountable for it" error={errors.custodian?.message} {...register('custodian')} />
           </div>
         </div>
 

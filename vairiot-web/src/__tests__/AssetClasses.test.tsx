@@ -124,6 +124,18 @@ describe('asset form with the ledger on', () => {
   });
 });
 
+describe('custodian (stage 2.7)', () => {
+  it('is part of the asset form', async () => {
+    signIn(['asset:write']);
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    wrap(<AssetForm onSubmit={onSubmit} defaultValues={{ name: 'Cabinet', categoryId: 'k1' }} />);
+    await screen.findByText('From category: Road signs'); // the class check needs the category's class
+    fireEvent.change(screen.getByLabelText('Custodian'), { target: { value: 'Signals Unit' } });
+    fireEvent.click(screen.getByText('Save Asset'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ custodian: 'Signals Unit' })));
+  });
+});
+
 describe('AssetRecognition', () => {
   const asset = {
     id: 'a1', assetNumber: 'AST-1', name: 'Bracket', status: 'active', condition: 'good', createdAt: '', updatedAt: '',
