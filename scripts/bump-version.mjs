@@ -8,7 +8,8 @@
 //
 // Version files: the root and workspace package.json files, their entries in
 // package-lock.json, vairiot-reports/pyproject.toml, the Android versionName and
-// the iOS MARKETING_VERSION (project.yml and the generated project.pbxproj).
+// the iOS MARKETING_VERSION (project.yml and the generated project.pbxproj),
+// and the API's OpenAPI `info.version`.
 // Build numbers are not touched: Android versionCode and iOS
 // CURRENT_PROJECT_VERSION go up by one for every build handed to a device or
 // tester, whatever the version (§8.3).
@@ -29,6 +30,10 @@ const TEXT_FILES = [
   {
     file: 'vairiot-reports/pyproject.toml',
     pattern: /(\[project\]\nname = "vairiot-reports"\nversion = ")([^"]+)(")/,
+  },
+  {
+    file: 'vairiot-api/src/lib/openapi.ts',
+    pattern: /(title: 'Vairiot Asset Management API',\n    version: ')([^']+)(')/,
   },
   {
     file: 'vairiot-mobile/app/build.gradle.kts',
