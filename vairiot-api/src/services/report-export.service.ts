@@ -4,11 +4,9 @@ import { CONDITION_FROM_GRADE, GRADE_FROM_CONDITION, type ConditionGrade } from 
 import { prisma } from '../lib/prisma';
 
 import { computeDepreciation } from './asset.service';
-import {
-  depreciationRegister,
-  fixedAssetRegister,
-  assetAgingReport,
-} from './report.service';
+import { postedDepreciation, withLedger } from './depreciation/ledger';
+import { depreciationRegister, fixedAssetRegister, assetAgingReport } from './report.service';
+import { exportDepreciationByClass } from './reports/depreciation-by-class';
 
 const REPORT_SERVICE_URL = process.env.REPORT_SERVICE_URL || 'http://localhost:8100';
 
@@ -17,7 +15,7 @@ interface ExportOpts {
   filters?: Record<string, string>;
 }
 
-async function getCompanyInfo(tenantId: string) {
+export async function getCompanyInfo(tenantId: string) {
   const company = await prisma.company.findUnique({ where: { tenantId } });
   if (!company) return {};
   // Reports service reaches the logo via the public endpoint — no auth required.
@@ -50,7 +48,7 @@ async function getTenantCurrency(tenantId: string): Promise<string> {
   return company?.currency ?? 'USD';
 }
 
-async function getTenantName(tenantId: string): Promise<string> {
+export async function getTenantName(tenantId: string): Promise<string> {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
     select: { name: true },
@@ -58,7 +56,7 @@ async function getTenantName(tenantId: string): Promise<string> {
   return tenant?.name ?? '';
 }
 
-async function callReportService(tenantId: string, payload: Record<string, unknown>): Promise<Buffer> {
+export async function callReportService(tenantId: string, payload: Record<string, unknown>): Promise<Buffer> {
   const currency = await getTenantCurrency(tenantId);
   const response = await axios.post(`${REPORT_SERVICE_URL}/generate`, { currency, ...payload }, {
     responseType: 'arraybuffer',
@@ -67,7 +65,7 @@ async function callReportService(tenantId: string, payload: Record<string, unkno
   return Buffer.from(response.data);
 }
 
-function serializeRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+export function serializeRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
   return rows.map(row => {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(row)) {
@@ -197,7 +195,7 @@ export async function exportAssetValuationSummary(tenantId: string, opts: Export
   const assets = await prisma.asset.findMany({
     where,
     select: {
-      purchaseCost: true, freightCost: true, installationCost: true,
+      id: true, purchaseCost: true, freightCost: true, installationCost: true,
       customsDuties: true, otherCapitalizedCosts: true, residualValue: true,
       depreciationMethod: true, usefulLifeMonths: true, depreciationStartDate: true,
       purchaseDate: true, recognitionStatus: true,
@@ -211,10 +209,10 @@ export async function exportAssetValuationSummary(tenantId: string, opts: Export
     totalDepreciation: number; totalNBV: number; totalAgeMonths: number;
   }>();
 
-  const now = new Date();
+  const now = new Date(); const posted = await postedDepreciation(tenantId, assets.map((a) => a.id)); // ledger first (stage 2.9)
   for (const a of assets) {
     const part = rollUp === 'true' ? a.parentAsset : null; const label = `${(part ?? a).site?.name ?? 'Unassigned'} / ${(part ?? a).category?.name ?? 'Uncategorised'}`;
-    const dep = computeDepreciation(a);
+    const dep = withLedger(computeDepreciation(a), posted.get(a.id));
     const ageMonths = a.purchaseDate
       ? (now.getFullYear() - a.purchaseDate.getFullYear()) * 12 + (now.getMonth() - a.purchaseDate.getMonth())
       : 0;
@@ -1388,7 +1386,7 @@ function round2(n: number): number {
 const EXPORTERS: Record<string, (tenantId: string, opts: ExportOpts) => Promise<Buffer>> = {
   // Assets
   'fixed-asset-register': exportFixedAssetRegister,
-  'depreciation-schedule': exportDepreciationSchedule,
+  'depreciation-schedule': exportDepreciationSchedule, 'depreciation-by-class': exportDepreciationByClass,
   'asset-aging': exportAssetAging,
   'asset-valuation-summary': exportAssetValuationSummary,
   'asset-movement-history': exportAssetMovementHistory,

@@ -8,6 +8,7 @@ export const QUEUE_NAMES = {
   notificationScheduler: 'notification-scheduler',
   webhookDeliver: 'webhook-deliver',
   storageMetering: 'storage-metering',
+  depreciationRun: 'depreciation-run',
 } as const;
 
 export interface WebhookDeliverJob {
@@ -66,4 +67,13 @@ export interface AuditCompleteJob {
   };
   csv: string;     // full report CSV body
   completedAt: string;
+}
+
+/**
+ * A depreciation run to work on (stage 2.10): the run row says what was asked
+ * (`pendingAction`: prepare, post or reverse) and by whom.
+ */
+export interface DepreciationRunJob {
+  tenantId: string;
+  runId:    string;
 }

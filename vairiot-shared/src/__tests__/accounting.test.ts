@@ -2,6 +2,7 @@ import { FAIR_VALUE_ACQUISITIONS } from '../constants/accounting.constants.js';
 import {
   assetAccountingSchema, assetClassSchema, assetClassUpdateSchema, componentLinkSchema, componentTemplateSchema,
   instantiateTemplateSchema, parentDisposalChoice, recognitionOverrideSchema,
+  accountingPeriodSchema, assetUsageBulkSchema, assetUsageSchema, reverseRunSchema,
 } from '../schemas/accounting.schemas.js';
 
 describe('accounting contracts', () => {
@@ -55,5 +56,18 @@ describe('component contracts', () => {
     expect(componentLinkSchema.safeParse({ parentAssetId: 'p', componentRole: '' }).success).toBe(false);
     expect(parentDisposalChoice.safeParse('detach').success).toBe(true);
     expect(parentDisposalChoice.safeParse('sell').success).toBe(false);
+  });
+});
+
+describe('period and run contracts', () => {
+  it('read a period, usage and a reversal note', () => {
+    expect(accountingPeriodSchema.parse({ year: '2026', month: '10' })).toEqual({ year: 2026, month: 10 });
+    expect(accountingPeriodSchema.safeParse({ year: 2026, month: 13 }).success).toBe(false);
+    expect(assetUsageSchema.parse({ units: '2500' }).units).toBe(2500);
+    expect(assetUsageSchema.safeParse({ units: -1 }).success).toBe(false);
+    expect(assetUsageBulkSchema.parse({ rows: [{ assetId: 'a1', units: '12.5' }] }).rows[0].units).toBe(12.5);
+    expect(assetUsageBulkSchema.safeParse({ rows: [] }).success).toBe(false);
+    expect(assetUsageBulkSchema.safeParse({ rows: [{ assetId: 'a1', units: -3 }] }).success).toBe(false);
+    expect(reverseRunSchema.parse({})).toEqual({});
   });
 });

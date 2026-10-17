@@ -8,6 +8,7 @@ import { recordAssetChanges } from './asset-change-events.service';
 import { recordAssetEvent } from './asset-event.service';
 import { resolveTenantAssetGeo, type AssetGeoInput } from './asset-geo.service';
 import { afterAssetWrite, resolveComponentFields } from './component.service';
+import { postedDepreciation, withLedger, type Posted } from './depreciation/ledger';
 import { computeDepreciation } from './depreciation/projection';
 import { allocateIar } from './gs1-identifier.service';
 import { resolveTenantAssetAccounting } from './recognition.service';
@@ -95,8 +96,9 @@ const assetInclude = {
 // Moved to depreciation/projection.ts (stage 2.3); re-exported for its callers.
 export { computeDepreciation };
 
-function enrichAssetWithDepreciation(asset: any) {
-  const depreciation = computeDepreciation(asset);
+/** The asset with its depreciation: posted entries where it has any (stage 2.9), else the projection. */
+function enrichAssetWithDepreciation(asset: any, posted?: Map<string, Posted>) {
+  const depreciation = withLedger(computeDepreciation(asset), posted?.get(asset.id));
   return { ...asset, depreciation };
 }
 
@@ -109,7 +111,8 @@ export async function listAssets(tenantId: string, params: AssetListParams) {
     prisma.asset.findMany({ where, include: assetInclude, orderBy: { [col]: dir }, skip: (page - 1) * pageSize, take: pageSize }),
     prisma.asset.count({ where }),
   ]);
-  return { assets: assets.map(enrichAssetWithDepreciation), total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  const posted = await postedDepreciation(tenantId, assets.map((a) => a.id));
+  return { assets: assets.map((a) => enrichAssetWithDepreciation(a, posted)), total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
 
 export interface AssetChangesParams extends Pick<AssetListParams, 'categoryId' | 'siteId' | 'status' | 'condition'> {
@@ -156,8 +159,9 @@ export async function listAssetChanges(tenantId: string, params: AssetChangesPar
       orderBy: { id: 'asc' },
     }),
   ]);
+  const posted = await postedDepreciation(tenantId, assets.map((a) => a.id));
   return {
-    assets: assets.map(enrichAssetWithDepreciation),
+    assets: assets.map((a) => enrichAssetWithDepreciation(a, posted)),
     total,
     page,
     pageSize,
@@ -176,7 +180,7 @@ export async function getAssetStats(tenantId: string) {
     prisma.asset.findMany({
       where: notDeleted,
       select: {
-        purchaseCost: true, freightCost: true, installationCost: true,
+        id: true, purchaseCost: true, freightCost: true, installationCost: true,
         customsDuties: true, otherCapitalizedCosts: true, residualValue: true,
         usefulLifeMonths: true, depreciationStartDate: true, depreciationMethod: true,
         categoryId: true, siteId: true, createdAt: true,
@@ -199,10 +203,11 @@ export async function getAssetStats(tenantId: string) {
   const valueByCat: Record<string, number> = {};
   const valueBySite: Record<string, number> = {};
 
-  const depCache = new Array<ReturnType<typeof computeDepreciation>>(allAssets.length);
+  const posted = await postedDepreciation(tenantId);
+  const depCache = new Array<ReturnType<typeof withLedger>>(allAssets.length);
   for (let i = 0; i < allAssets.length; i++) {
     const a = allAssets[i];
-    const dep = computeDepreciation(a);
+    const dep = withLedger(computeDepreciation(a), posted.get(a.id));
     depCache[i] = dep;
     totalAssetValue += dep.capitalizedCost;
     totalNetBookValue += dep.netBookValue;
@@ -258,7 +263,7 @@ export async function getAsset(tenantId: string, id: string) {
     components: { where: { deletedAt: null }, select: { id: true, assetNumber: true, name: true, componentRole: true, status: true }, orderBy: { assetNumber: 'asc' } },
   } });
   if (!asset) throw new NotFoundError('Asset not found');
-  return enrichAssetWithDepreciation(asset);
+  return enrichAssetWithDepreciation(asset, await postedDepreciation(tenantId, [asset.id]));
 }
 
 /** The asset an earlier request with this idempotency key created, if any. */
@@ -431,7 +436,8 @@ export async function disposeAsset(tenantId: string, id: string, actorId: string
   if (!asset) throw new NotFoundError('Asset not found');
   if (asset.status === 'disposed') throw new ConflictError('Asset is already disposed', 'ALREADY_DISPOSED');
 
-  const dep = computeDepreciation(asset);
+  // NBV at disposal from posted entries where there are any (stage 2.9).
+  const dep = withLedger(computeDepreciation(asset), (await postedDepreciation(tenantId, [id])).get(id));
   const gainLoss = input.disposalValue != null
     ? input.disposalValue - dep.netBookValue
     : undefined;
@@ -479,7 +485,8 @@ export async function listAssetsForExport(tenantId: string, params: Omit<AssetLi
     orderBy: { assetNumber: 'asc' },
     take: 10_000,
   });
-  return assets.map(enrichAssetWithDepreciation);
+  const posted = await postedDepreciation(tenantId, assets.map((a) => a.id));
+  return assets.map((a) => enrichAssetWithDepreciation(a, posted));
 }
 
 /** Most markers the map endpoint returns in one response. */
@@ -549,5 +556,5 @@ export async function getAssetByTag(tenantId: string, tag: string) {
     include: assetInclude,
   });
   if (!asset) throw new NotFoundError('No asset found for this tag');
-  return enrichAssetWithDepreciation(asset);
+  return enrichAssetWithDepreciation(asset, await postedDepreciation(tenantId, [asset.id]));
 }

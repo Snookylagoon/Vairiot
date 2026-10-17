@@ -1,4 +1,6 @@
 export interface Depreciation {
+  /** Where the figures come from: posted entries, or the straight-line projection (stage 2.9). */
+  source?:                'ledger' | 'projection';
   capitalizedCost:        number;
   monthlyDepreciation:    number;
   accumulatedDepreciation: number;
