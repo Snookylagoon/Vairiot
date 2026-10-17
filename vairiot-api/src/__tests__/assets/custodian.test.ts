@@ -8,6 +8,7 @@ import { createApp } from '../../app';
 import { signAccessToken } from '../../lib/jwt';
 import { prisma } from '../../lib/prisma';
 import { flushAuditEvents } from '../../services/audit-event.service';
+import { stagedImport } from '../helpers/staged-import';
 import { ensureTestLicence, removeTestLicence } from '../helpers/test-licence';
 
 // Stage 2.7: the person or unit accountable for an asset — set on the asset,
@@ -36,6 +37,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await flushAuditEvents();
   await prisma.auditEvent.deleteMany({ where: { tenantId: TID } });
+  await prisma.importBatch.deleteMany({ where: { tenantId: TID } });
   await prisma.transfer.deleteMany({ where: { tenantId: TID } });
   await prisma.asset.updateMany({ where: { tenantId: TID }, data: { parentAssetId: null, componentRole: null } });
   await prisma.asset.deleteMany({ where: { tenantId: TID } });
@@ -89,8 +91,8 @@ describe('components', () => {
 
 describe('import and export', () => {
   it('reads and writes the Custodian column', async () => {
-    const r = await request(app).post('/api/v1/assets/import').set(as()).send({ rows: [{ name: 'Imported bench', custodian: 'Parks' }] });
-    expect(r.body.created).toBe(1);
+    const r = await stagedImport(app, as().Authorization, TID, [{ name: 'Imported bench', custodian: 'Parks' }]);
+    expect(r.created).toBe(1);
     const csv = await request(app).get('/api/v1/assets/export.csv').set(as());
     expect(csv.text.split('\n')[0]).toContain('Location,Custodian,');
     expect(csv.text).toMatch(/Imported bench,.*,Parks,/);

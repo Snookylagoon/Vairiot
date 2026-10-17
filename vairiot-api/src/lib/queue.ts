@@ -1,5 +1,5 @@
 import { Queue, ConnectionOptions } from 'bullmq';
-import { QUEUE_NAMES, type AuditCompleteJob, type DepreciationRunJob, type UserInviteJob, type WebhookDeliverJob } from 'vairiot-shared';
+import { QUEUE_NAMES, type AuditCompleteJob, type DepreciationRunJob, type RegisterImportJob, type UserInviteJob, type WebhookDeliverJob } from 'vairiot-shared';
 
 import { logger } from './logger';
 
@@ -105,6 +105,21 @@ export async function enqueueDepreciationRun(payload: DepreciationRunJob): Promi
     return true;
   } catch (e) {
     logger.error(`Failed to enqueue depreciation-run: ${(e as Error).message}`);
+    return false;
+  }
+}
+
+let cachedImportQueue: Queue<RegisterImportJob> | null = null;
+
+/** Queues a step of a staged import (stage 2.13); nothing when the worker is off. */
+export async function enqueueRegisterImport(payload: RegisterImportJob): Promise<boolean> {
+  if (isWorkerDisabled()) return false;
+  cachedImportQueue ??= new Queue<RegisterImportJob>(QUEUE_NAMES.registerImport, { connection: connection() });
+  try {
+    await cachedImportQueue.add(payload.step, payload, { removeOnComplete: 100, removeOnFail: 200, attempts: 2, backoff: { type: 'exponential', delay: 5000 } });
+    return true;
+  } catch (e) {
+    logger.error(`Failed to enqueue register-import: ${(e as Error).message}`);
     return false;
   }
 }

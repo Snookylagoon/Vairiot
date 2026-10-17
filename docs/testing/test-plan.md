@@ -108,7 +108,7 @@ Every screen label in Georgian on web, Android and iOS; reports rendered with `l
 
 | Budget                                            | Source                      | Status                             |
 | ------------------------------------------------- | --------------------------- | ---------------------------------- |
-| 10,000-row register import in under 2 minutes     | S2.5 acceptance             | Planned                            |
+| 10,000-row register import in under 2 minutes     | S2.5 acceptance             | `import/import-budget.test.ts` (opt-in, `IMPORT_BUDGET=1`): 72.7 s against the test database (stage 2.13); 43.2 s on the Docker stack behind nginx (stage 2.14) |
 | `/map` first render with seeded TUDA data ≤ 2.5 s | Proposed (standard example) | Planned (S1.4); confirm the number |
 | Delta sync of 10,000 assets on a Meferi over 4G   | Proposed                    | Planned                            |
 
@@ -255,7 +255,7 @@ The standard names these S1–S4. Here they are **Sev1–Sev4**, because S1–S5
 | REQ-07 | Donated assets                                   | S2         | `ipsas`               | `ipsas/donated-assets.test.ts` (planned)                                                                                                                                                  |
 | REQ-08 | Maker–checker approvals                          | S3.1       | core (approvals)      | `approvals/maker-checker.test.ts` (planned)                                                                                                                                               |
 | REQ-09 | Internal controls                                | S3.1       | core (approvals)      | `approvals/controls.test.ts` (planned)                                                                                                                                                    |
-| REQ-10 | Register profiling and import                    | S0.6, S2.5 | core (import)         | `scripts/tests/test_profile_register.py`; `import/import-wizard.test.ts`, import performance (planned)                                                                                    |
+| REQ-10 | Register profiling and import                    | S0.6, S2.5 | core (import)         | `scripts/tests/test_profile_register.py`; `import/staged-import.test.ts`, `import/import-budget.test.ts`; web `Import.test.tsx` (stage 2.14)                                                                                    |
 | REQ-11 | GPS and GIS positions                            | S1.1, S1.2 | `gis`                 | `assets/asset-geo.test.ts`, `asset-gis-toggle.test.ts`, shared `geo.test.ts`, web `GeoPosition.test.tsx`, Android `GpsCaptureTest.kt`, iOS `AssetPositionTests`; scan positions (planned) |
 | REQ-12 | Map view; GeoJSON and Shapefile exchange         | S1.4, S5.2 | `gis`                 | web `AssetMap.test.tsx`; Playwright `e2e/asset-map.smoke.ts`, `gis/exchange.test.ts` (planned)                                                                                                           |
 | REQ-13 | Photos bound to scans                            | S1.3       | core (media)          | `photos/photos.test.ts`, `image-metadata.test.ts`, `download-strip.test.ts`, mobile photo queue tests; scan photos and `PhotoRule` (planned)                                              |

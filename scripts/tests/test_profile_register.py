@@ -83,9 +83,17 @@ class Mapping(unittest.TestCase):
         self.assertEqual(sorted(str(m["field"]) for m in mapping), ["None", "name"])
 
     def test_fields_without_an_importer_target_are_flagged(self):
-        (m,) = pr.suggest_mapping(["Inventory number"])
+        (m,) = pr.suggest_mapping(["Room"])
+        self.assertEqual(m["field"], "locationName")
         self.assertFalse(m["importable"])
         self.assertIn("note", m)
+
+    def test_staged_import_fields(self):
+        # Stage 2.14 (G33): the legacy number, the grade and the finance reference
+        # are imported, under the headers the register export writes.
+        mapping = pr.suggest_mapping(["Legacy Asset Number", "Condition Grade", "Finance Reference", "Inventory number"])
+        self.assertEqual([m["field"] for m in mapping[:3]], ["legacyAssetNumber", "conditionGrade", "financeRef"])
+        self.assertTrue(all(m["importable"] for m in mapping[:3]))
 
 
 class SampleRegister(unittest.TestCase):

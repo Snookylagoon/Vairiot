@@ -4,6 +4,7 @@ import { createApp } from '../../app';
 import { signAccessToken } from '../../lib/jwt';
 import { prisma } from '../../lib/prisma';
 import { isUnlimitedCap } from '../../services/asset-cap.service';
+import { stagedImport } from '../helpers/staged-import';
 
 // KFR-038: Enterprise (maxAssets = -1) was refused every asset, because the
 // check was `count >= maxAssets`. KFR-039: the bulk import skipped the cap.
@@ -27,9 +28,7 @@ async function useTier(name: 'TIER_2' | 'TIER_3', maxAssets: number): Promise<()
 const countAssets = () => prisma.asset.count({ where: { tenantId: TID, deletedAt: null } });
 const create = (name: string) =>
   request(app).post('/api/v1/assets').set('Authorization', `Bearer ${token}`).send({ name });
-const importRows = (names: string[]) =>
-  request(app).post('/api/v1/assets/import').set('Authorization', `Bearer ${token}`)
-    .send({ rows: names.map((name) => ({ name })) });
+const importRows = (rows: Array<Record<string, string>>) => stagedImport(app, `Bearer ${token}`, TID, rows);
 
 beforeAll(async () => {
   await prisma.tenant.upsert({
@@ -63,6 +62,7 @@ afterEach(async () => {
 
 afterAll(async () => {
   await prisma.auditEvent.deleteMany({ where: { tenantId: TID } });
+  await prisma.importBatch.deleteMany({ where: { tenantId: TID } });
   await prisma.licence.deleteMany({ where: { tenantId: TID } });
   await prisma.user.deleteMany({ where: { tenantId: TID } });
   await prisma.tenant.delete({ where: { id: TID } });
@@ -80,9 +80,8 @@ describe('Unlimited tier (maxAssets = -1)', () => {
     const restore = await useTier('TIER_3', -1);
     try {
       expect((await create('Enterprise asset')).status).toBe(201);
-      const res = await importRows(['E1', 'E2', 'E3']);
-      expect(res.status).toBe(200);
-      expect(res.body.created).toBe(3);
+      const res = await importRows([{ name: 'E1' }, { name: 'E2' }, { name: 'E3' }]);
+      expect(res).toMatchObject({ status: 'COMMITTED', created: 3 });
     } finally { await restore(); }
   });
 });
@@ -102,9 +101,9 @@ describe('Capped tier', () => {
     const restore = await useTier('TIER_2', 3);
     try {
       expect((await create('Existing')).status).toBe(201);
-      const res = await importRows(['I1', 'I2', 'I3']);
-      expect(res.status).toBe(403);
-      expect(res.body.code).toBe('ASSET_CAP_REACHED');
+      const res = await importRows([{ name: 'I1' }, { name: 'I2' }, { name: 'I3' }]);
+      expect(res).toMatchObject({ status: 'FAILED', created: 0 });
+      expect(res.jobError).toMatch(/^Adding 3 assets would exceed the limit/);
       expect(await countAssets()).toBe(1);
     } finally { await restore(); }
   });
@@ -112,11 +111,8 @@ describe('Capped tier', () => {
   it('accepts an import that fits, ignoring nameless rows in the count', async () => {
     const restore = await useTier('TIER_2', 3);
     try {
-      const res = await request(app).post('/api/v1/assets/import').set('Authorization', `Bearer ${token}`)
-        .send({ rows: [{ name: 'A' }, { name: '' }, { name: 'B' }, { name: 'C' }] });
-      expect(res.status).toBe(200);
-      expect(res.body.created).toBe(3);
-      expect(res.body.skipped).toBe(1);
+      const res = await importRows([{ name: 'A' }, { name: '', notes: 'no name' }, { name: 'B' }, { name: 'C' }]);
+      expect(res).toMatchObject({ status: 'COMMITTED', created: 3, errors: [{ row: 3, message: 'Name is required' }] });
     } finally { await restore(); }
   });
 });

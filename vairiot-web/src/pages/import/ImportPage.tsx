@@ -1,327 +1,131 @@
-import { Upload, Download, FileSpreadsheet, CheckCircle, AlertTriangle, ArrowRight, ArrowLeft } from 'lucide-react';
-import { useState, useCallback, useMemo } from 'react';
-import type { ModuleKey } from 'vairiot-shared';
+import { CheckCircle, FileSpreadsheet, Loader2, Upload, XCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
-import { useImportAssets } from '@/hooks/useImport';
-import { hasFeature, useAuthStore } from '@/stores/auth.store';
-import type { ImportResult } from '@/types';
+import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { downloadWorkbook, useImportBatch, useImportBatches, useUploadImport, WORKING, type BatchStatus, type ImportBatch } from '@/hooks/useImport';
+import { MappingStep } from '@/pages/import/MappingStep';
+import { ReviewStep } from '@/pages/import/ReviewStep';
+import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
-/** Columns the import maps; module fields show only with their module on (D7). */
-const ASSET_FIELDS: { key: string; label: string; required?: boolean; feature?: ModuleKey }[] = [
-  { key: 'name', label: 'Asset Name', required: true },
-  { key: 'description', label: 'Description' },
-  { key: 'categoryName', label: 'Category' },
-  { key: 'siteName', label: 'Site' },
-  { key: 'custodian', label: 'Custodian' },
-  { key: 'classCode', label: 'Asset Class Code', feature: 'ipsas' },
-  { key: 'latitude', label: 'Latitude', feature: 'gis' },
-  { key: 'longitude', label: 'Longitude', feature: 'gis' },
-  { key: 'serialNumber', label: 'Serial Number' },
-  { key: 'modelNumber', label: 'Model Number' },
-  { key: 'manufacturer', label: 'Manufacturer' },
-  { key: 'barcode', label: 'Manufacturer EAN' },
-  { key: 'rfidTag', label: 'RFID Tag' },
-  { key: 'purchaseCost', label: 'Purchase Cost' },
-  { key: 'purchaseDate', label: 'Purchase Date' },
-  { key: 'supplier', label: 'Supplier' },
-  { key: 'warrantyExpiry', label: 'Warranty Expiry' },
-  { key: 'condition', label: 'Condition' },
-  { key: 'status', label: 'Status' },
-  { key: 'notes', label: 'Notes' },
-  { key: 'purchaseOrderNumber', label: 'PO Number' },
-  { key: 'invoiceNumber', label: 'Invoice Number' },
-  { key: 'residualValue', label: 'Residual Value' },
-  { key: 'usefulLifeMonths', label: 'Useful Life (Months)' },
-  { key: 'depreciationMethod', label: 'Depreciation Method' },
-  { key: 'depreciationStartDate', label: 'Depreciation Start Date' },
-] as const;
+const STEPS = ['Upload', 'Map the columns', 'Review and fix', 'Import'];
+const STEP_OF: Record<BatchStatus, number> = {
+  UPLOADED: 0, PARSING: 0, PARSED: 1, VALIDATING: 2, VALIDATED: 2, COMMITTING: 3, COMMITTED: 3, FAILED: 1, CANCELLED: 0,
+};
+const BADGE: Record<BatchStatus, 'green' | 'yellow' | 'red' | 'gray'> = {
+  UPLOADED: 'gray', PARSING: 'yellow', PARSED: 'yellow', VALIDATING: 'yellow', VALIDATED: 'yellow', COMMITTING: 'yellow', COMMITTED: 'green', FAILED: 'red', CANCELLED: 'gray',
+};
+const WORKING_TEXT: Partial<Record<BatchStatus, string>> = {
+  UPLOADED: 'Waiting to read the file…', PARSING: 'Reading the file…', VALIDATING: 'Checking every row…', COMMITTING: 'Importing…',
+};
 
-function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return { headers: [], rows: [] };
-
-  const parseRow = (line: string): string[] => {
-    const cells: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (inQuotes) {
-        if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
-        else if (ch === '"') inQuotes = false;
-        else current += ch;
-      } else {
-        if (ch === '"') inQuotes = true;
-        else if (ch === ',') { cells.push(current.trim()); current = ''; }
-        else current += ch;
-      }
-    }
-    cells.push(current.trim());
-    return cells;
-  };
-
-  const headers = parseRow(lines[0]);
-  const rows = lines.slice(1).map(line => {
-    const cells = parseRow(line);
-    const obj: Record<string, string> = {};
-    headers.forEach((h, i) => { obj[h] = cells[i] ?? ''; });
-    return obj;
-  });
-
-  return { headers, rows };
+function UploadCard({ onUploaded }: { onUploaded: (b: ImportBatch) => void }) {
+  const upload = useUploadImport();
+  const canUpdate = useAuthStore(s => hasAnyPermission(s.user, 'accounting:write'));
+  const [file, setFile] = useState<File | null>(null);
+  const [mode, setMode] = useState<'CREATE' | 'UPDATE'>('CREATE');
+  return (
+    <div className="space-y-3 text-sm">
+      <p className="text-gray-500">An .xlsx or .csv register of up to 25 MB and 50,000 rows. Old .xls files: save them as .xlsx first.</p>
+      <input aria-label="Register file" type="file" accept=".xlsx,.csv" onChange={e => setFile(e.target.files?.[0] ?? null)} />
+      <fieldset className="flex flex-wrap gap-4">
+        <label className="flex items-center gap-2"><input type="radio" name="mode" checked={mode === 'CREATE'} onChange={() => setMode('CREATE')} /> Add new assets</label>
+        <label className={`flex items-center gap-2 ${canUpdate ? '' : 'text-gray-400'}`} title={canUpdate ? undefined : 'Needs accounting:write'}>
+          <input type="radio" name="mode" disabled={!canUpdate} checked={mode === 'UPDATE'} onChange={() => setMode('UPDATE')} /> Update existing assets, matched by finance reference
+        </label>
+      </fieldset>
+      <Button disabled={!file} loading={upload.isPending} onClick={() => file && upload.mutate({ file, mode }, { onSuccess: onUploaded })}><Upload size={14} /> Upload</Button>
+    </div>
+  );
 }
 
-function autoMapColumns(csvHeaders: string[], fields: typeof ASSET_FIELDS): Record<string, string> {
-  const mapping: Record<string, string> = {};
-  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  for (const csvH of csvHeaders) {
-    const n = normalize(csvH);
-    for (const field of fields) {
-      if (normalize(field.label) === n || normalize(field.key) === n) {
-        mapping[csvH] = field.key;
-        break;
-      }
-    }
-  }
-  return mapping;
+function Recent({ onOpen }: { onOpen: (id: string) => void }) {
+  const { data: batches = [] } = useImportBatches();
+  if (batches.length === 0) return null;
+  return (
+    <Card>
+      <CardHeader><span className="font-semibold text-sm text-v-charcoal">Recent imports</span></CardHeader>
+      <CardBody>
+        <ul className="divide-y divide-gray-50 text-sm">
+          {batches.slice(0, 10).map(b => (
+            <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+              <button className="text-left text-v-violet hover:underline" onClick={() => onOpen(b.id)}>{b.fileName}</button>
+              <span className="flex items-center gap-2 text-gray-500">
+                {b.status === 'COMMITTED' ? `${b.committedCount} ${b.mode === 'UPDATE' ? 'updated' : 'imported'}` : `${b.rowCount} rows`}
+                <Badge variant={BADGE[b.status]} label={b.status.toLowerCase()} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CardBody>
+    </Card>
+  );
 }
 
-type Step = 'upload' | 'map' | 'preview' | 'result';
-
+/**
+ * The staged register import (Phase 2, S2.5, stage 2.14): upload, map the
+ * columns, review and fix the rows, import. The worker reads, checks and
+ * imports; this page follows the batch, which can be left and reopened.
+ */
 export function ImportPage() {
-  const [step, setStep] = useState<Step>('upload');
-  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
-  const [csvRows, setCsvRows] = useState<Record<string, string>[]>([]);
-  const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<ImportResult | null>(null);
-  const importAssets = useImportAssets();
-  const user = useAuthStore(st => st.user);
-  const fields = useMemo(() => ASSET_FIELDS.filter(f => !f.feature || hasFeature(user, f.feature)), [user]);
-
-  const handleFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const { headers, rows } = parseCsv(text);
-      if (headers.length === 0 || rows.length === 0) return;
-      setCsvHeaders(headers);
-      setCsvRows(rows);
-      setMapping(autoMapColumns(headers, fields));
-      setStep('map');
-    };
-    reader.readAsText(file);
-  }, [fields]);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  }, [handleFile]);
-
-  const mappedRows = csvRows.map(row => {
-    const mapped: Record<string, string> = {};
-    for (const [csvCol, fieldKey] of Object.entries(mapping)) {
-      if (fieldKey && row[csvCol]) mapped[fieldKey] = row[csvCol];
-    }
-    return mapped;
-  }).filter(r => r.name);
-
-  const handleImport = async () => {
-    const res = await importAssets.mutateAsync({ rows: mappedRows });
-    setResult(res);
-    setStep('result');
-  };
-
-  const downloadTemplate = () => {
-    const headers = fields.map(f => f.label).join(',');
-    const blob = new Blob([headers + '\n'], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'asset-import-template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const reset = () => {
-    setStep('upload');
-    setCsvHeaders([]);
-    setCsvRows([]);
-    setMapping({});
-    setResult(null);
-  };
+  const [params, setParams] = useSearchParams();
+  const id = params.get('batch');
+  const { data: batch } = useImportBatch(id);
+  const [remap, setRemap] = useState(false);
+  const open = (next: string | null) => { setRemap(false); setParams(next ? { batch: next } : {}); };
+  const step = batch ? STEP_OF[batch.status] : 0;
+  const working = batch && WORKING.includes(batch.status);
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="max-w-5xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-v-charcoal">Import Assets</h1>
-        <p className="text-sm text-gray-500 mt-1">Bulk import assets from a CSV file</p>
+        <h1 className="text-2xl font-bold text-v-charcoal">Import a register</h1>
+        <ol className="mt-3 flex flex-wrap gap-2 text-xs" aria-label="Steps">
+          {STEPS.map((s, i) => (
+            <li key={s} className={`rounded-full px-3 py-1 ${i === step ? 'bg-v-violet text-white' : i < step ? 'bg-v-violet/10 text-v-violet' : 'bg-gray-100 text-gray-400'}`} aria-current={i === step ? 'step' : undefined}>{i + 1}. {s}</li>
+          ))}
+        </ol>
       </div>
 
-      {/* Progress steps */}
-      <div className="flex items-center gap-2 text-xs font-medium">
-        {(['upload', 'map', 'preview', 'result'] as Step[]).map((s, i) => (
-          <div key={s} className="flex items-center gap-2">
-            {i > 0 && <ArrowRight size={12} className="text-gray-300" />}
-            <span className={`px-3 py-1.5 rounded-full ${step === s ? 'bg-v-violet text-white' : 'bg-gray-100 text-gray-500'}`}>
-              {s === 'upload' ? '1. Upload' : s === 'map' ? '2. Map Columns' : s === 'preview' ? '3. Preview' : '4. Result'}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Step 1: Upload */}
-      {step === 'upload' && (
+      {!batch ? (
+        <>
+          <Card><CardHeader><span className="flex items-center gap-2 font-semibold text-sm text-v-charcoal"><FileSpreadsheet size={16} className="text-v-violet" /> Upload</span></CardHeader>
+            <CardBody><UploadCard onUploaded={b => open(b.id)} /></CardBody></Card>
+          <Recent onOpen={open} />
+        </>
+      ) : (
         <Card>
-          <CardBody>
-            <div
-              onDrop={handleDrop}
-              onDragOver={(e) => e.preventDefault()}
-              className="border-2 border-dashed border-gray-200 rounded-xl p-12 text-center hover:border-v-pink transition-colors"
-            >
-              <Upload size={40} className="mx-auto text-gray-300 mb-4" />
-              <p className="text-sm text-gray-500 mb-4">Drag and drop a CSV file here, or click to browse</p>
-              <label className="cursor-pointer">
-                <input type="file" accept=".csv,text/csv" className="hidden"
-                  onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
-                <span className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 text-v-charcoal bg-white hover:bg-gray-50 transition-colors">Choose File</span>
-              </label>
-              <p className="text-xs text-gray-400 mt-4">
-                CSV must include a header row. The first column should contain the asset name.
-              </p>
-              <button type="button" onClick={downloadTemplate}
-                className="inline-flex items-center gap-1.5 mt-3 text-xs text-v-violet hover:text-v-pink transition-colors">
-                <Download size={13} /> Download CSV template
-              </button>
-            </div>
-          </CardBody>
-        </Card>
-      )}
-
-      {/* Step 2: Column Mapping */}
-      {step === 'map' && (
-        <Card>
-          <CardHeader>
-            <span className="font-semibold text-v-charcoal text-sm">Map CSV Columns to Asset Fields</span>
-          </CardHeader>
-          <CardBody className="space-y-3">
-            <p className="text-xs text-gray-400">We auto-matched some columns. Adjust any that are wrong or unmapped.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {csvHeaders.map(h => (
-                <div key={h} className="flex items-center gap-3">
-                  <span className="text-sm text-v-charcoal font-mono bg-gray-50 px-2 py-1 rounded-sm min-w-[120px] truncate">{h}</span>
-                  <ArrowRight size={14} className="text-gray-300 shrink-0" />
-                  <select
-                    value={mapping[h] ?? ''}
-                    onChange={e => setMapping(prev => ({ ...prev, [h]: e.target.value }))}
-                    className="flex-1 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-v-pink bg-white"
-                  >
-                    <option value="">— Skip column —</option>
-                    {fields.map(f => (
-                      <option key={f.key} value={f.key}>{f.label}{'required' in f && f.required ? ' *' : ''}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-3 pt-4">
-              <Button variant="secondary" size="sm" onClick={() => setStep('upload')}>
-                <ArrowLeft size={14} className="mr-1" /> Back
-              </Button>
-              <Button size="sm" onClick={() => setStep('preview')}
-                disabled={!Object.values(mapping).includes('name')}>
-                Preview Import <ArrowRight size={14} className="ml-1" />
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-      )}
-
-      {/* Step 3: Preview */}
-      {step === 'preview' && (
-        <Card>
-          <CardHeader className="flex items-center justify-between">
-            <span className="font-semibold text-v-charcoal text-sm">
-              <FileSpreadsheet size={16} className="inline mr-2 text-v-violet" />
-              Preview — {mappedRows.length} rows ready to import
-            </span>
+          <CardHeader className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-semibold text-sm text-v-charcoal">{batch.fileName}{batch.mode === 'UPDATE' && <span className="ml-2 text-xs text-gray-500">update mode</span>}</span>
+            <span className="flex items-center gap-2"><Badge variant={BADGE[batch.status]} label={batch.status.toLowerCase()} />
+              <Button size="sm" variant="secondary" onClick={() => open(null)}>Another file</Button></span>
           </CardHeader>
           <CardBody className="space-y-4">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left py-2 px-2 text-xs font-medium text-gray-400">#</th>
-                    {fields.filter(f => Object.values(mapping).includes(f.key)).map(f => (
-                      <th key={f.key} className="text-left py-2 px-2 text-xs font-medium text-gray-400">{f.label}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {mappedRows.slice(0, 10).map((row, i) => (
-                    <tr key={i} className="border-b border-gray-50">
-                      <td className="py-1.5 px-2 text-gray-400">{i + 1}</td>
-                      {fields.filter(f => Object.values(mapping).includes(f.key)).map(f => (
-                        <td key={f.key} className="py-1.5 px-2 text-v-charcoal truncate max-w-[200px]">{row[f.key] ?? ''}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {mappedRows.length > 10 && (
-                <p className="text-xs text-gray-400 mt-2">Showing first 10 of {mappedRows.length} rows</p>
-              )}
-            </div>
-            {csvRows.length - mappedRows.length > 0 && (
-              <p className="text-xs text-amber-600">
-                <AlertTriangle size={12} className="inline mr-1" />
-                {csvRows.length - mappedRows.length} rows will be skipped (missing name)
-              </p>
+            {working && (
+              <p className="flex items-center gap-2 text-sm text-gray-600" role="status"><Loader2 size={16} className="animate-spin" />{WORKING_TEXT[batch.status]}
+                {batch.status === 'COMMITTING' && ` ${batch.committedCount} of ${batch.validCount + batch.warningCount}`}</p>
             )}
-            <div className="flex gap-3">
-              <Button variant="secondary" size="sm" onClick={() => setStep('map')}>
-                <ArrowLeft size={14} className="mr-1" /> Back
-              </Button>
-              <Button size="sm" onClick={handleImport} loading={importAssets.isPending}>
-                Import {mappedRows.length} Assets
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-      )}
-
-      {/* Step 4: Result */}
-      {step === 'result' && result && (
-        <Card>
-          <CardBody className="py-8 text-center space-y-4">
-            <CheckCircle size={48} className="mx-auto text-emerald-500" />
-            <h2 className="text-xl font-bold text-v-charcoal">Import Complete</h2>
-            <div className="flex items-center justify-center gap-6 text-sm">
-              <div>
-                <p className="text-2xl font-bold text-emerald-600">{result.created}</p>
-                <p className="text-gray-500">Created</p>
-              </div>
-              {result.skipped > 0 && (
-                <div>
-                  <p className="text-2xl font-bold text-amber-500">{result.skipped}</p>
-                  <p className="text-gray-500">Skipped</p>
-                </div>
-              )}
-            </div>
-            {result.errors.length > 0 && (
-              <div className="max-w-md mx-auto text-left">
-                <p className="text-sm font-medium text-gray-600 mb-2">Errors:</p>
-                <div className="max-h-40 overflow-y-auto text-xs space-y-1">
-                  {result.errors.map((err, i) => (
-                    <p key={i} className="text-red-500">Row {err.row}: {err.message}</p>
-                  ))}
+            {batch.status === 'FAILED' && <p className="flex items-center gap-2 text-sm text-red-600" role="alert"><XCircle size={16} /> {batch.jobError}</p>}
+            {batch.status === 'CANCELLED' && <p className="text-sm text-gray-500">This import was cancelled.</p>}
+            {(batch.status === 'PARSED' || remap || (batch.status === 'FAILED' && batch.rowCount > 0 && !batch.committedCount)) && (
+              <>
+                <p className="text-sm text-gray-500">{batch.rowCount} rows and {batch.columns.length} columns read. Choose which column becomes which field.</p>
+                <MappingStep batch={batch} onDone={() => setRemap(false)} />
+              </>
+            )}
+            {batch.status === 'VALIDATED' && !remap && <ReviewStep batch={batch} onRemap={() => setRemap(true)} />}
+            {batch.status === 'COMMITTED' && (
+              <div className="space-y-3 text-sm">
+                <p className="flex items-center gap-2 text-green-700"><CheckCircle size={16} /> {batch.committedCount} assets {batch.mode === 'UPDATE' ? 'updated' : 'imported'}{batch.errorCount ? `; ${batch.errorCount} rows left out` : ''}.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => downloadWorkbook(batch.id, 'reconciliation')}>Download the reconciliation sheet</Button>
+                  {batch.errorCount > 0 && <Button variant="secondary" size="sm" onClick={() => downloadWorkbook(batch.id, 'errors')}>Download the rows left out</Button>}
+                  <Link to="/assets" className="text-v-violet hover:underline self-center">Go to the assets</Link>
                 </div>
               </div>
             )}
-            <Button variant="secondary" size="sm" onClick={reset}>Import More</Button>
           </CardBody>
         </Card>
       )}

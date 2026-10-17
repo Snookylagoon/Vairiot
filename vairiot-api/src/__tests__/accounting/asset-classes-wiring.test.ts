@@ -5,6 +5,7 @@ import { signAccessToken } from '../../lib/jwt';
 import { prisma } from '../../lib/prisma';
 import { flushAuditEvents } from '../../services/audit-event.service';
 import { fixedAssetRegister } from '../../services/report.service';
+import { stagedImport } from '../helpers/staged-import';
 import { ensureTestLicence, removeTestLicence } from '../helpers/test-licence';
 
 // Stage 2.4: the asset class where the rest of the system meets it — asset
@@ -22,7 +23,7 @@ const token = (tenantId = TID, sub = userId) => signAccessToken({
   permissions: ['asset:read', 'asset:write', 'accounting:read', 'accounting:write'],
 });
 const importRows = (rows: Record<string, string>[], tenantId = TID, sub = userId) =>
-  request(app).post('/api/v1/assets/import').set('Authorization', `Bearer ${token(tenantId, sub)}`).send({ rows });
+  stagedImport(app, `Bearer ${token(tenantId, sub)}`, tenantId, rows);
 
 beforeAll(async () => {
   await prisma.tenant.upsert({ where: { id: TID }, update: { onboardingComplete: true, featureFlags: { ipsas: true } }, create: { id: TID, name: TID, onboardingComplete: true, featureFlags: { ipsas: true } } });
@@ -38,6 +39,7 @@ afterAll(async () => {
   await flushAuditEvents();
   for (const id of [TID, OFF]) {
     await prisma.auditEvent.deleteMany({ where: { tenantId: id } });
+    await prisma.importBatch.deleteMany({ where: { tenantId: id } });
     await prisma.asset.deleteMany({ where: { tenantId: id } });
     await prisma.assetClass.deleteMany({ where: { tenantId: id } });
     await removeTestLicence(id);
@@ -50,20 +52,20 @@ afterAll(async () => {
 describe('import classCode', () => {
   it('sets the class from its code, in any case, and applies its defaults', async () => {
     const r = await importRows([{ name: 'Imported sign', classCode: 'sgn', purchaseCost: '900' }]);
-    expect(r.body).toMatchObject({ created: 1, skipped: 0 });
+    expect(r).toMatchObject({ created: 1, errors: [] });
     const asset = await prisma.asset.findFirstOrThrow({ where: { tenantId: TID, name: 'Imported sign' } });
     expect(asset).toMatchObject({ assetClassId: classId, usefulLifeMonths: 84, recognitionStatus: 'RECOGNISED' });
   });
 
   it('skips a row with an unknown code and says why', async () => {
     const r = await importRows([{ name: 'Mystery', classCode: 'XYZ' }, { name: 'Fine sign', classCode: 'SGN', purchaseCost: '100' }]);
-    expect(r.body.created).toBe(1);
-    expect(r.body.errors).toEqual([{ row: 1, message: 'Unknown asset class code: XYZ' }]);
+    expect(r.created).toBe(1);
+    expect(r.errors).toEqual([{ row: 2, message: 'Unknown asset class XYZ' }]);
   });
 
   it('ignores the column with the IPSAS ledger off', async () => {
     const r = await importRows([{ name: 'Plain', classCode: 'XYZ' }], OFF, `${userId}-off`);
-    expect(r.body).toMatchObject({ created: 1, skipped: 0 });
+    expect(r).toMatchObject({ created: 1, errors: [] });
   });
 });
 

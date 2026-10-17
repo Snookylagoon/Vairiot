@@ -11,7 +11,7 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "2.11.0"
+    MARKETING_VERSION: "2.12.0"
     CURRENT_PROJECT_VERSION: "12"
     INFOPLIST_FILE: VairiotMobile/Resources/Info.plist
 

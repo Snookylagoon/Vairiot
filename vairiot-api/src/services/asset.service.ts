@@ -41,7 +41,7 @@ function toDate(v: string | undefined | null): Date | undefined {
   return v ? new Date(v) : undefined;
 }
 
-async function nextAssetNumber(tenantId: string): Promise<string> {
+export async function nextAssetNumber(tenantId: string): Promise<string> {
   const last = await prisma.asset.findFirst({
     where: { tenantId, assetNumber: { startsWith: 'AST-' } },
     orderBy: { assetNumber: 'desc' },
@@ -275,8 +275,9 @@ export async function findAssetByClientRequestId(tenantId: string, clientRequest
   return existing ? enrichAssetWithDepreciation(existing) : null;
 }
 
-export async function createAsset(tenantId: string, actorId: string, input: AssetCreateInput) {
-  return (await createAssetIdempotent(tenantId, actorId, input)).asset;
+/** `reserved`: a number the caller set aside (the staged import, stage 2.13); taken elsewhere meanwhile, the next is used. */
+export async function createAsset(tenantId: string, actorId: string, input: AssetCreateInput, reserved?: string) {
+  return (await createAssetIdempotent(tenantId, actorId, input, reserved)).asset;
 }
 
 /**
@@ -285,7 +286,7 @@ export async function createAsset(tenantId: string, actorId: string, input: Asse
  * instead of 201). Covers both a replay that arrives later and one that races
  * the original.
  */
-export async function createAssetIdempotent(tenantId: string, actorId: string, input: AssetCreateInput) {
+export async function createAssetIdempotent(tenantId: string, actorId: string, input: AssetCreateInput, reserved?: string) {
   // Idempotent replay: a queued offline create that already succeeded (crash
   // between API response and queue-delete on the device) returns the original.
   if (input.clientRequestId) {
@@ -297,7 +298,7 @@ export async function createAssetIdempotent(tenantId: string, actorId: string, i
   // same number. Retry with a fresh number on that unique violation.
   for (let attempt = 0; ; attempt++) {
     try {
-      const asset = await createAssetOnce(tenantId, actorId, input);
+      const asset = await createAssetOnce(tenantId, actorId, input, reserved);
       // Fire the asset.created webhook (durable dispatch via the delivery queue).
       // Non-blocking and isolated: a webhook problem must never fail the create.
       void dispatchWebhookEvent(tenantId, 'asset.created', asset).catch(() => {});
@@ -310,16 +311,16 @@ export async function createAssetIdempotent(tenantId: string, actorId: string, i
         const existing = await findAssetByClientRequestId(tenantId, input.clientRequestId);
         if (existing) return { asset: existing, created: false };
       }
-      if (target.includes('assetNumber') && attempt < 3) continue;
+      if (target.includes('assetNumber') && attempt < 3) { reserved = undefined; continue; }
       throw e;
     }
   }
 }
 
-async function createAssetOnce(tenantId: string, actorId: string, input: AssetCreateInput) {
+async function createAssetOnce(tenantId: string, actorId: string, input: AssetCreateInput, reserved?: string) {
   // Validate before allocating an IAR, so a bad position doesn't burn a number.
   const geo = await resolveTenantAssetGeo(tenantId, input);
-  const assetNumber = await nextAssetNumber(tenantId);
+  const assetNumber = reserved ?? await nextAssetNumber(tenantId);
   // Every new asset gets a server-allocated Individual Asset Reference
   // (GS1 spec invariant 2 — never caller-supplied). A rolled-back create
   // burns the number by design; the allocation row records it as consumed.

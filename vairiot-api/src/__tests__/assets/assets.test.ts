@@ -4,6 +4,7 @@ import request from 'supertest';
 import { createApp } from '../../app';
 import { prisma } from '../../lib/prisma';
 import { flushAuditEvents } from '../../services/audit-event.service';
+import { stagedImport } from '../helpers/staged-import';
 
 const app = createApp();
 const TID = 'test-asset-tenant-001';
@@ -40,6 +41,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await flushAuditEvents(); // let in-flight audit writes land before deleting the tenant
   await prisma.auditEvent.deleteMany({ where: { tenantId: TID } });
+  await prisma.importBatch.deleteMany({ where: { tenantId: TID } });
   await prisma.asset.deleteMany({ where: { tenantId: TID } });
   await prisma.category.deleteMany({ where: { tenantId: TID } });
   await prisma.location.deleteMany({ where: { site: { tenantId: TID } } });
@@ -304,13 +306,12 @@ describe('Asset GIS position', () => {
   });
 
   it('imports positions, rejecting bad rows', async () => {
-    const r = await request(app).post('/api/v1/assets/import').set(auth()).send({ rows: [
+    const r = await stagedImport(app, auth().Authorization, TID, [
       { name: 'Imported Pump', latitude: '41.70', longitude: '44.80' },
       { name: 'Imported Valve', latitude: '41.70' },
-    ] });
-    expect(r.status).toBe(200);
-    expect(r.body.created).toBe(1);
-    expect(r.body.errors).toEqual([{ row: 2, message: 'Latitude and longitude must be provided together' }]);
+    ]);
+    expect(r.created).toBe(1);
+    expect(r.errors).toEqual([{ row: 3, message: 'A position needs both latitude and longitude' }]);
     const pump = await prisma.asset.findFirst({ where: { tenantId: TID, name: 'Imported Pump' } });
     expect(pump).toMatchObject({ latitude: 41.7, longitude: 44.8, geoSource: 'import' });
   });
