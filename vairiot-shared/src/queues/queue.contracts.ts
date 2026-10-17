@@ -9,6 +9,7 @@ export const QUEUE_NAMES = {
   webhookDeliver: 'webhook-deliver',
   storageMetering: 'storage-metering',
   depreciationRun: 'depreciation-run',
+  registerImport: 'register-import',
 } as const;
 
 export interface WebhookDeliverJob {
@@ -76,4 +77,11 @@ export interface AuditCompleteJob {
 export interface DepreciationRunJob {
   tenantId: string;
   runId:    string;
+}
+
+/** A step of a staged import (stage 2.13); the batch row carries its status and counts. */
+export interface RegisterImportJob {
+  tenantId: string;
+  batchId: string;
+  step: 'parse' | 'validate' | 'commit';
 }

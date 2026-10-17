@@ -14,7 +14,7 @@ import { prepareParentDisposal } from '../../services/component.service';
 import { encodeIdentifier } from '../../services/gs1-identifier.service';
 import { listLabelPrints } from '../../services/gs1-label.service';
 import { getAssetByEpc, listTagsForAsset } from '../../services/gs1-tag.service';
-import { bulkImportAssets } from '../../services/import.service';
+import { bulkImportAssets } from '../../services/import/legacy-import.service';
 import type { Request } from '../../types/http';
 
 export const assetsRouter = Router();

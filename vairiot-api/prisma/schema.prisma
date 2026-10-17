@@ -60,6 +60,8 @@ model Tenant {
   accountingPeriods         AccountingPeriod[]
   depreciationRuns          DepreciationRun[]
   impairments               Impairment[]
+  importBatches             ImportBatch[]
+  importMappings            ImportMapping[]
   sites                     Site[]
   assets                    Asset[]
   auditCampaigns            AuditCampaign[]
@@ -1874,4 +1876,102 @@ model Impairment {
   @@index([tenantId, status])
   @@index([tenantId, assetId])
   @@map("impairments")
+}
+
+enum ImportBatchStatus {
+  UPLOADED
+  PARSING
+  PARSED
+  VALIDATING
+  VALIDATED
+  COMMITTING
+  COMMITTED
+  FAILED
+  CANCELLED
+}
+
+enum ImportMode {
+  CREATE
+  UPDATE
+}
+
+enum ImportRowStatus {
+  PENDING
+  VALID
+  WARNING
+  ERROR
+  COMMITTED
+}
+
+/// A staged register import (Phase 2, S2.5, stage 2.13): uploaded to MinIO, then
+/// parsed, mapped, validated and committed by worker jobs, each updating the
+/// status and counts that the web polls. In UPDATE mode rows match existing
+/// assets by FINANCE_REF and never change asset numbers.
+model ImportBatch {
+  id             String            @id @default(cuid())
+  tenantId       String
+  fileName       String
+  storageKey     String
+  fileSize       Int
+  mode           ImportMode        @default(CREATE)
+  status         ImportBatchStatus @default(UPLOADED)
+  sheetName      String?
+  headerRow      Int?
+  /// The file's column headers, in order.
+  columns        String[]          @default([])
+  /// { fields: { target: source column }, transforms }; see vairiot-shared.
+  mapping        Json?
+  rowCount       Int               @default(0)
+  validCount     Int               @default(0)
+  warningCount   Int               @default(0)
+  errorCount     Int               @default(0)
+  committedCount Int               @default(0)
+  jobError       String?
+  createdBy      String
+  committedBy    String?
+  committedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id])
+  rows   ImportRow[]
+
+  @@index([tenantId, createdAt])
+  @@map("import_batches")
+}
+
+model ImportRow {
+  id        String          @id @default(cuid())
+  tenantId  String
+  batchId   String
+  /// The spreadsheet row number, as the user sees it.
+  rowNumber Int
+  raw       Json
+  mapped    Json?
+  status    ImportRowStatus @default(PENDING)
+  /// [{ level: 'error' | 'warning', field?, message }]
+  messages  Json            @default("[]")
+  assetId   String?
+
+  batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, rowNumber])
+  @@index([batchId, status])
+  @@map("import_rows")
+}
+
+/// A mapping saved for reuse on the next file of the same layout.
+model ImportMapping {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  mapping   Json
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, name])
+  @@map("import_mappings")
 }

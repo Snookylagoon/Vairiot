@@ -238,6 +238,7 @@ The app reads its passwords and settings from a file called `.env` at
    JWT_REFRESH_SECRET=$(openssl rand -hex 32)
    JWT_SETUP_SECRET=$(openssl rand -hex 32)
    APP_ENCRYPTION_KEY=$(openssl rand -hex 32)
+   INTERNAL_API_TOKEN=$(openssl rand -hex 32)
 
    WEB_ORIGIN=https://test.vairiot.com
    VITE_API_URL=https://test.vairiot.com

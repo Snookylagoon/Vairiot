@@ -165,6 +165,9 @@ services:
       MINIO_PHOTOS_BUCKET:    vairiot-photos
       MINIO_DOCUMENTS_BUCKET: vairiot-documents
       REPORT_SERVICE_URL:     http://reports:8100
+      # Shared with the worker for the staged import's commit (stage 2.13); unset
+      # keeps the internal endpoints shut. At least 32 characters.
+      INTERNAL_API_TOKEN:     ${INTERNAL_API_TOKEN:-}
     expose:
       - "3001"
     healthcheck:
@@ -271,6 +274,15 @@ services:
       ALERT_DIGEST_DAILY_CRON:  ${ALERT_DIGEST_DAILY_CRON:-}
       ALERT_DIGEST_WEEKLY_CRON: ${ALERT_DIGEST_WEEKLY_CRON:-}
       STORAGE_METERING_CRON:    ${STORAGE_METERING_CRON:-}
+      # The staged import (stage 2.13): files from MinIO, the commit through the API.
+      API_INTERNAL_URL:       http://api:3001
+      INTERNAL_API_TOKEN:     ${INTERNAL_API_TOKEN:-}
+      MINIO_ENDPOINT:         minio
+      MINIO_PORT:             9000
+      MINIO_USE_SSL:          "false"
+      MINIO_ACCESS_KEY:       ${MINIO_ACCESS_KEY:-${MINIO_ROOT_USER}}
+      MINIO_SECRET_KEY:       ${MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
+      MINIO_DOCUMENTS_BUCKET: vairiot-documents
     # Heartbeat file is refreshed by the worker event loop (see src/index.ts).
     # A stale file means the loop is wedged even though the process is up.
     healthcheck:

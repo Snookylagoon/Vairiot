@@ -12,5 +12,5 @@ module.exports = {
   // D8 ratchet (stage 2.1): every source file counts, not only those the
   // tests load; the gate is the measured value and is never lowered.
   collectCoverageFrom: ['src/**/*.ts', '!src/**/__tests__/**', '!src/index.ts'],
-  coverageThreshold: { global: { lines: 25 } },
+  coverageThreshold: { global: { lines: 37 } },
 };

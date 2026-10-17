@@ -39,6 +39,7 @@ import { identifiersRouter }  from './routes/gs1/identifiers.router';
 import { labelsRouter }       from './routes/gs1/labels.router';
 import { tagsRouter }         from './routes/gs1/tags.router';
 import { healthRouter }     from './routes/health/health.router';
+import { importsRouter, internalImportsRouter } from './routes/imports/imports.router';
 import { iosRouter } from './routes/ios/ios.router';
 import { licencesRouter }    from './routes/licences/licences.router';
 import { maintenanceRouter }  from './routes/maintenance/maintenance.router';
@@ -135,6 +136,7 @@ export function createApp(): Application {
   gated.use(requireClientScope());
   gated.use(requireActiveLicence({ exemptPrefixes: ['/licences', '/company/switch-context'] }));
 
+  gated.use('/imports',      importsRouter);      // staged register import (stage 2.13)
   gated.use('/assets',       assetsRouter);
   gated.use('/categories',   categoriesRouter);
   gated.use('/sites',        sitesRouter);
@@ -171,6 +173,8 @@ export function createApp(): Application {
   gated.use('/admin/ios-releases', iosReleasesRouter);
 
   app.use('/api/v1', gated);
+  // The worker's calls back into the API (stage 2.13); nginx serves only /api/.
+  app.use('/internal/imports', internalImportsRouter);
   app.use((_req: Request, res: Response) => { res.status(404).json({ error: 'Not found' }); });
   app.use(errorHandler);
   return app;

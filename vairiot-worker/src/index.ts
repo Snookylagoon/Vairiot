@@ -11,10 +11,11 @@ import { handleAlertDigest } from './processors/alert-digest';
 import { handleAuditComplete } from './processors/audit-complete';
 import { handleDepreciationRun } from './processors/depreciation-run';
 import { handleSchedulerTick, setDigestQueue } from './processors/notification-scheduler';
+import { handleRegisterImport } from './processors/register-import';
 import { handleStorageMetering } from './processors/storage-metering';
 import { handleUserInvite } from './processors/user-invite';
 import { handleWebhookDeliver } from './processors/webhook-deliver';
-import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, DepreciationRunJob, UserInviteJob, SchedulerTickJob, WebhookDeliverJob } from './queues';
+import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, DepreciationRunJob, RegisterImportJob, UserInviteJob, SchedulerTickJob, WebhookDeliverJob } from './queues';
 
 initMonitoring();
 if (process.env.NODE_ENV === 'production') assertEncryptionKey();
@@ -105,6 +106,18 @@ const depreciationRunWorker = new Worker<DepreciationRunJob>(
 depreciationRunWorker.on('failed', (job, err) => {
   logger.error(`depreciation-run job ${job?.id ?? '?'} failed: ${err.message}`);
   reportIfExhausted(QUEUE_NAMES.depreciationRun, job, err);
+});
+
+// Staged register imports (stage 2.13): two batches at a time; each step is one job.
+const registerImportWorker = new Worker<RegisterImportJob>(
+  QUEUE_NAMES.registerImport,
+  handleRegisterImport,
+  { connection, concurrency: 2 },
+);
+
+registerImportWorker.on('failed', (job, err) => {
+  logger.error(`register-import job ${job?.id ?? '?'} failed: ${err.message}`);
+  reportIfExhausted(QUEUE_NAMES.registerImport, job, err);
 });
 
 const storageMeteringWorker = new Worker(
@@ -222,6 +235,7 @@ async function shutdown(signal: string): Promise<void> {
   await webhookDeliverWorker.close();
   await storageMeteringWorker.close();
   await depreciationRunWorker.close();
+  await registerImportWorker.close();
   await schedulerQueue.close();
   await meteringQueue.close();
   await digestQueue.close();

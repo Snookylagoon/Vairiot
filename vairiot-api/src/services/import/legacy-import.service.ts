@@ -1,8 +1,7 @@
-import { prisma } from '../lib/prisma';
-
-import { enforceAssetCap } from './asset-cap.service';
-import { createAsset, type AssetCreateInput } from './asset.service';
-import { tenantFeatureEnabled } from './tenant-features.service';
+import { prisma } from '../../lib/prisma';
+import { enforceAssetCap } from '../asset-cap.service';
+import { createAsset, type AssetCreateInput } from '../asset.service';
+import { tenantFeatureEnabled } from '../tenant-features.service';
 
 export interface ImportRow {
   name: string;
