@@ -3,7 +3,7 @@
 | Item                     | Detail |
 | ------------------------ | ------ |
 | Phase                    | 3 (Sprint S3, decision D1) |
-| Status                   | **Draft for approval** (stage 3.0): decisions D22–D31 (§4) await the owner |
+| Status                   | **Approved** 17 October 2026: decisions D22–D31 approved as recommended (§4); W0 from stage 3.1 |
 | Revision                 | 0.1 (17 October 2026) |
 | Builds on                | Phase 2, accepted 17 October 2026 (stage 2.18, [record](06-phase-2-record.md)); version 2.13.1 |
 | Modules                  | Approvals, teams, QA sampling and the Georgian language are core. Zone drawing and boundary assignment need `gis`; approvals of capitalisation and impairment need `ipsas` |
@@ -169,16 +169,16 @@ Each workstream lands as one or more stages (3.1, 3.2, …), merged into `dev` o
 
 | #   | Decision | Recommendation | Status |
 | --- | -------- | -------------- | ------ |
-| D22 | Approval scope | One generic request and rule model. Capitalisation, transfer, disposal, write-off and register-new go through requests, with thresholds per action. The requester can never approve disposal, write-off or impairment. Depreciation runs and impairments keep their D17 post step and show in the same inbox | Proposed |
-| D23 | Zone geometry | A zone is a `Location` with a `boundary` MultiPolygon in WGS 84 (GiST-indexed), so campaign scope and zone submissions stay as they are; no separate zone table | Proposed |
-| D24 | Map drawing | Leaflet-Geoman Free (MIT, maintained) for drawing and editing polygons; Leaflet.draw is unmaintained | Proposed |
-| D25 | Route order | Nearest neighbour from the zone's centroid, ties by asset number; no road routing in S3 | Proposed |
-| D26 | Sampling randomness | A seeded PRNG in `vairiot-shared` (sfc32, seed stored with the sample) over the asset ids in a fixed order, so samples can be reproduced and audited | Proposed |
-| D27 | Translation stack | Web `react-i18next`; Android string resources with per-app language; iOS string catalogue; a translations module and Noto Sans Georgian in the reports service. The platform console stays English | Proposed |
-| D28 | Tenant data in Georgian | A `Translation` table for the tenant's own names (classes, categories, condition labels, template parts), returned in the request's language with English as the fallback | Proposed |
-| D29 | Machine translation | The first Georgian is machine-made in this repository, never through an external service, and marked ⟪MT⟫ until TUDA's professional translator replaces it; `scripts/i18n-report.py` is the translator's work list | Proposed |
-| D30 | Environments and releases | Staging is promoted to `dev` at the start of Phase 3 (W0), with the PostGIS switch after a backup and restore test, so the field checks and pilot builds run there. Production is promoted only at the freeze, on the owner's go-ahead. Mobile releases gain an optional tenant scope, so the pilot build reaches TUDA only | Proposed |
-| D31 | TUDA asset numbers | `TUDA-{CLASS}-{SEQ:6}` for assets created after the preset is applied, with a sequence per class; existing assets keep their numbers | Proposed |
+| D22 | Approval scope | One generic request and rule model. Capitalisation, transfer, disposal, write-off and register-new go through requests, with thresholds per action. The requester can never approve disposal, write-off or impairment. Depreciation runs and impairments keep their D17 post step and show in the same inbox | **Approved** |
+| D23 | Zone geometry | A zone is a `Location` with a `boundary` MultiPolygon in WGS 84 (GiST-indexed), so campaign scope and zone submissions stay as they are; no separate zone table | **Approved** |
+| D24 | Map drawing | Leaflet-Geoman Free (MIT, maintained) for drawing and editing polygons; Leaflet.draw is unmaintained | **Approved** |
+| D25 | Route order | Nearest neighbour from the zone's centroid, ties by asset number; no road routing in S3 | **Approved** |
+| D26 | Sampling randomness | A seeded PRNG in `vairiot-shared` (sfc32, seed stored with the sample) over the asset ids in a fixed order, so samples can be reproduced and audited | **Approved** |
+| D27 | Translation stack | Web `react-i18next`; Android string resources with per-app language; iOS string catalogue; a translations module and Noto Sans Georgian in the reports service. The platform console stays English | **Approved** |
+| D28 | Tenant data in Georgian | A `Translation` table for the tenant's own names (classes, categories, condition labels, template parts), returned in the request's language with English as the fallback | **Approved** |
+| D29 | Machine translation | The first Georgian is machine-made in this repository, never through an external service, and marked ⟪MT⟫ until TUDA's professional translator replaces it; `scripts/i18n-report.py` is the translator's work list | **Approved** |
+| D30 | Environments and releases | Staging is promoted to `dev` at the start of Phase 3 (W0), with the PostGIS switch after a backup and restore test, so the field checks and pilot builds run there. Production is promoted only at the freeze, on the owner's go-ahead. Mobile releases gain an optional tenant scope, so the pilot build reaches TUDA only | **Approved** |
+| D31 | TUDA asset numbers | `TUDA-{CLASS}-{SEQ:6}` for assets created after the preset is applied, with a sequence per class; existing assets keep their numbers | **Approved** |
 
 ## 5. Out of scope for Phase 3
 

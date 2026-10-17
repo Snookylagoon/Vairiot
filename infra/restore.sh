@@ -49,8 +49,21 @@ DUMP="$(find "$WORK" -name 'postgres-*.dump' | head -1)"
 docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:-}" "$PG_CONTAINER" \
     psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
     "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'vairiot_rls') THEN CREATE ROLE vairiot_rls NOLOGIN NOBYPASSRLS; END IF; END \$\$; GRANT vairiot_rls TO CURRENT_USER;"
+# In sections and stopping at the first error (KFR-046): until stage 3.1 the
+# restore went on past errors, and a dump taken before migration
+# 20261017080000 dropped every asset with a GS1 reference without failing.
+# The schema first, then the search path of Vairiot's own functions pinned,
+# then the rows with triggers off (as dumped: no hash chain or position
+# recomputed), then indexes, constraints and policies.
+restore_section() {
+  docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:-}" "$PG_CONTAINER" \
+    pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --exit-on-error "$@" < "$DUMP"
+}
+restore_section --clean --if-exists --section=pre-data
 docker exec -i -e PGPASSWORD="${POSTGRES_PASSWORD:-}" "$PG_CONTAINER" \
-    pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner < "$DUMP"
+    psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -q < "${REPO_DIR}/infra/restore-pin-search-path.sql"
+restore_section --section=data --disable-triggers
+restore_section --section=post-data
 
 echo "→ Restoring MinIO buckets…"
 # The MinIO image ships no tar — unpack on the host and copy the tree in.
