@@ -217,6 +217,7 @@ private fun AssetBody(
                 }
                 asset.site?.let      { DetailRow("Site",     it.name) }
                 asset.location?.let  { DetailRow("Location", it.name) }
+                asset.custodian?.let { DetailRow("Custodian", it) }
                 if (gisEnabled) AssetPosition.of(asset)?.let { GpsPositionRow(it, asset.name) }
                 asset.serialNumber?.let { DetailRow("Serial number", it) }
                 asset.barcode?.let      { DetailRow("Manufacturer EAN", it) }

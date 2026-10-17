@@ -107,6 +107,8 @@ struct AssetResponse: Codable, Identifiable {
     let category: CategoryRefResponse?
     let site: SiteRefResponse?
     let location: LocationRefResponse?
+    /// The person or unit accountable for the asset (stage 2.7).
+    var custodian: String? = nil
     // GIS position (WGS 84) — complements site / location
     var latitude: Double? = nil
     var longitude: Double? = nil

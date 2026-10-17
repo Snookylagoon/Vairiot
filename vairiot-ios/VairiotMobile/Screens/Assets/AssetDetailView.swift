@@ -169,6 +169,8 @@ struct AssetDetailView: View {
                 infoRow(icon: "building.2", label: "Site", value: asset.site?.name)
                 Divider().padding(.leading, 44)
                 infoRow(icon: "mappin.and.ellipse", label: "Location", value: asset.location?.name)
+                Divider().padding(.leading, 44)
+                infoRow(icon: "person.crop.circle", label: "Custodian", value: asset.custodian)
                 if FeatureFlags.shared.gisEnabled {
                     Divider().padding(.leading, 44)
                     infoRow(icon: "location", label: "GPS Position", value: AssetPosition(asset)?.coordinateText)

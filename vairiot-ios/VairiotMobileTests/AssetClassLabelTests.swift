@@ -53,4 +53,14 @@ final class AssetClassLabelTests: XCTestCase {
         XCTAssertEqual(part.parentAsset?.assetNumber, "AST-1")
         XCTAssertNil(part.components)
     }
+
+    func testCustodianFromTheApiAndAbsentFromAnOlderServer() throws {
+        let asset = try decode("""
+        {"id":"a1","assetNumber":"AST-1","name":"Cabinet","status":"active","condition":"good","custodian":"Signals Unit"}
+        """)
+        XCTAssertEqual(asset.custodian, "Signals Unit")
+        XCTAssertNil(try decode("""
+        {"id":"a1","assetNumber":"AST-1","name":"Cabinet","status":"active","condition":"good"}
+        """).custodian)
+    }
 }

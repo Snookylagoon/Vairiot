@@ -124,7 +124,7 @@ data class AssetResponse(
     val giai:                     String? = null,
     val category:     CategoryRefResponse?,
     val site:         SiteRefResponse?,
-    val location:     LocationRefResponse?,
+    val location:     LocationRefResponse?, val custodian: String? = null, // accountable person or unit (stage 2.7)
     // GIS position (WGS 84) — complements site / location
     val latitude:          Double? = null,
     val longitude:         Double? = null,

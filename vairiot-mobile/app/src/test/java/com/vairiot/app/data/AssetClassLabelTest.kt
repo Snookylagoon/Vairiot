@@ -48,4 +48,10 @@ class AssetClassLabelTest {
             "parentAsset":{"id":"p1","assetNumber":"AST-1","name":"Junction"}}""", AssetResponse::class.java)
         assertEquals("AST-1", part.parentAsset?.assetNumber)
     }
+
+    @Test fun `custodian from the API, absent from an older server (stage 2_7)`() {
+        val asset = Gson().fromJson("""{"id":"a1","assetNumber":"AST-1","name":"Cabinet","status":"active","condition":"good","custodian":"Signals Unit"}""", AssetResponse::class.java)
+        assertEquals("Signals Unit", asset.custodian)
+        assertNull(Gson().fromJson("""{"id":"a1","assetNumber":"AST-1","name":"Cabinet","status":"active","condition":"good"}""", AssetResponse::class.java).custodian)
+    }
 }
