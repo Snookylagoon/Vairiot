@@ -29,6 +29,8 @@ export interface ImportRow {
   depreciationStartDate?: string;
   latitude?: string;
   longitude?: string;
+  /** The accountable person or unit (stage 2.7). */
+  custodian?: string;
   /** IPSAS asset class code (stage 2.4); read only with the `ipsas` module on. */
   classCode?: string;
   [key: string]: string | undefined;
@@ -89,6 +91,7 @@ export async function bulkImportAssets(
         purchaseOrderNumber: row.purchaseOrderNumber?.trim(),
         invoiceNumber: row.invoiceNumber?.trim(),
         depreciationMethod: row.depreciationMethod?.trim(),
+        custodian: row.custodian?.trim().slice(0, 120) || undefined,
       };
 
       if (row.categoryName) {

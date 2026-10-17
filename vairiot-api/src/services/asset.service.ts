@@ -14,7 +14,7 @@ import { resolveTenantAssetAccounting } from './recognition.service';
 import { dispatchWebhookEvent } from './webhook.service';
 
 export interface AssetCreateInput extends AssetGeoInput, Partial<Omit<AssetAccountingInput, 'recognitionDate'>> {
-  recognitionDate?: string | null; parentAssetId?: string | null; componentRole?: string | null;
+  recognitionDate?: string | null; parentAssetId?: string | null; componentRole?: string | null; custodian?: string | null;
   name: string; description?: string; categoryId?: string; siteId?: string;
   locationId?: string; serialNumber?: string; modelNumber?: string;
   manufacturer?: string; barcode?: string; rfidTag?: string; labelImage?: string;
@@ -324,7 +324,7 @@ async function createAssetOnce(tenantId: string, actorId: string, input: AssetCr
       tenantId, assetNumber, name: input.name, description: input.description,
       individualAssetReference, allocationAuthority: 'SERVER',
       serialNumber: input.serialNumber, modelNumber: input.modelNumber, manufacturer: input.manufacturer,
-      barcode: input.barcode, rfidTag: input.rfidTag, supplier: input.supplier, notes: input.notes,
+      barcode: input.barcode, rfidTag: input.rfidTag, supplier: input.supplier, notes: input.notes, custodian: input.custodian?.trim() || undefined,
       ...(conditionColumns(input) ?? { condition: 'good', conditionGrade: 4 }), status: input.status,
       customFields: (input.customFields ?? undefined) as Prisma.InputJsonValue | undefined,
       purchaseCost: toDecimal(input.purchaseCost),
@@ -397,13 +397,14 @@ export async function updateAsset(tenantId: string, id: string, actorId: string,
   for (const f of DATE_FIELDS) if (input[f] !== undefined) data[f] = input[f] ? new Date(input[f]!) : null;
   for (const f of REF_FIELDS) if (input[f] !== undefined) data[f] = input[f] ?? null;
   if (input.usefulLifeMonths !== undefined) data.usefulLifeMonths = input.usefulLifeMonths;
+  if (input.custodian !== undefined) data.custodian = input.custodian?.trim() || null;
   Object.assign(data, await resolveTenantAssetGeo(tenantId, input, existing), conditionColumns(input),
     await resolveTenantAssetAccounting(tenantId, input as unknown as Record<string, unknown>, existing));
 
   const updated = await prisma.asset.update({ where: { id }, data, include: assetInclude });
   await prisma.auditEvent.create({ data: { tenantId, actorId, entityType: 'asset', entityId: id, action: 'updated', before: existing as unknown as Prisma.InputJsonValue, after: updated as unknown as Prisma.InputJsonValue } });
   await recordAssetChanges(tenantId, id, actorId, existing, updated);
-  await afterAssetWrite(tenantId, updated, existing);
+  await afterAssetWrite(tenantId, updated, existing, actorId);
   void dispatchWebhookEvent(tenantId, 'asset.updated', updated).catch(() => {});
   return enrichAssetWithDepreciation(await prisma.asset.findUniqueOrThrow({ where: { id }, include: assetInclude }));
 }

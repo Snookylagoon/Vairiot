@@ -434,6 +434,10 @@ model Asset {
   recognitionOverride       Boolean            @default(false)
   recognitionOverrideReason String?
 
+  /// The person or unit accountable for the asset (stage 2.7), as a transfer names them.
+  /// A checkout's custodian is who holds it for now; this is who answers for it.
+  custodian String?
+
   // ── Components (stage 2.5, IPSAS 45 significant parts; `ipsas` on) ──
   /// The asset this one is a part of. One level: a component has no components.
   parentAssetId String?

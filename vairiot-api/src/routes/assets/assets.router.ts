@@ -74,7 +74,7 @@ assetsRouter.get('/export.csv', requireAnyPermission('asset:read'),
     const fmtDec = (d: any) => d ? d.toString() : '';
     const flat = rows.map((a: any) => ({
       assetNumber: a.assetNumber, name: a.name, status: a.status, condition: a.condition,
-      category: a.category?.name ?? '', site: a.site?.name ?? '', location: a.location?.name ?? '',
+      category: a.category?.name ?? '', site: a.site?.name ?? '', location: a.location?.name ?? '', custodian: a.custodian ?? '',
       latitude: a.latitude?.toString() ?? '', longitude: a.longitude?.toString() ?? '',
       serialNumber: a.serialNumber ?? '', modelNumber: a.modelNumber ?? '', manufacturer: a.manufacturer ?? '',
       barcode: a.barcode ?? '', rfidTag: a.rfidTag ?? '',
@@ -101,6 +101,7 @@ assetsRouter.get('/export.csv', requireAnyPermission('asset:read'),
       { key: 'category',       header: 'Category' },
       { key: 'site',           header: 'Site' },
       { key: 'location',       header: 'Location' },
+      { key: 'custodian',      header: 'Custodian' },
       { key: 'latitude',       header: 'Latitude' },
       { key: 'longitude',      header: 'Longitude' },
       { key: 'serialNumber',   header: 'Serial Number' },
@@ -221,6 +222,7 @@ assetsRouter.post('/', requireAnyPermission('asset:write'),
     body('name').notEmpty().withMessage('Asset name required'),
     body('clientRequestId').optional({ nullable: true }).isString().isLength({ max: 64 }),
     body('conditionGrade').optional({ nullable: true }).isInt({ min: 1, max: 5 }).toInt(),
+    body('custodian').optional({ nullable: true }).isString().isLength({ max: 120 }),
   ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
@@ -241,7 +243,10 @@ assetsRouter.post('/', requireAnyPermission('asset:write'),
 );
 
 assetsRouter.patch('/:id', requireAnyPermission('asset:write'),
-  [body('conditionGrade').optional({ nullable: true }).isInt({ min: 1, max: 5 }).toInt()],
+  [
+    body('conditionGrade').optional({ nullable: true }).isInt({ min: 1, max: 5 }).toInt(),
+    body('custodian').optional({ nullable: true }).isString().isLength({ max: 120 }),
+  ],
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }

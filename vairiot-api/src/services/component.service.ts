@@ -6,6 +6,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../lib/errors';
 import { money, sumMoney, type Money } from '../lib/money';
 import { prisma } from '../lib/prisma';
 
+import { recordCustodianEvent } from './asset-change-events.service';
 import { recordAuditEvent } from './audit-event.service';
 import { computeDepreciation } from './depreciation/projection';
 import { recognitionFor } from './recognition.service';
@@ -19,7 +20,7 @@ import { tenantFeatureEnabled } from './tenant-features.service';
 // All of this needs the `ipsas` module.
 
 const POSITION = ['latitude', 'longitude', 'geoAccuracyMeters', 'geoSource', 'geoCapturedAt'] as const;
-type Located = { siteId: string | null; locationId: string | null } & Partial<Record<(typeof POSITION)[number], unknown>>;
+type Located = { siteId: string | null; locationId: string | null; custodian?: string | null } & Partial<Record<(typeof POSITION)[number], unknown>>;
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
@@ -34,6 +35,7 @@ function inheritedPlace(parent: Located, input: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
   if (input.siteId === undefined) out.siteId = parent.siteId;
   if (input.locationId === undefined) out.locationId = parent.locationId;
+  if (input.custodian === undefined) out.custodian = parent.custodian ?? null;
   if (input.latitude === undefined && input.longitude === undefined && parent.latitude != null) {
     for (const f of POSITION) out[f] = parent[f];
   }
@@ -83,16 +85,24 @@ async function recomputeOwnRecognition(tenantId: string, assetId: string) {
  * again; a parent's components follow the site, location and position it left,
  * where they were still with it.
  */
-export async function afterAssetWrite(tenantId: string, asset: Located & { id: string; parentAssetId: string | null }, before?: Located) {
+export async function afterAssetWrite(
+  tenantId: string, asset: Located & { id: string; parentAssetId: string | null }, before?: Located, actorId?: string,
+) {
   if (!(await tenantFeatureEnabled(tenantId, 'ipsas'))) return;
   if (asset.parentAssetId) { await recomputeGroupRecognition(tenantId, asset.parentAssetId); return; }
-  if (before) await followParent(tenantId, asset, before);
+  if (before) await followParent(tenantId, asset, before, actorId);
   await recomputeGroupRecognition(tenantId, asset.id);
 }
 
 /** Moves the components that were where the parent was. Also used by transfers. */
-export async function followParent(tenantId: string, after: Located & { id: string }, before: Located) {
+export async function followParent(tenantId: string, after: Located & { id: string }, before: Located, actorId?: string) {
   const children = { tenantId, parentAssetId: after.id, deletedAt: null };
+  if (!same(before.custodian, after.custodian)) {
+    // The accountable person follows too, each change on the part's ledger (stage 2.7).
+    const following = await prisma.asset.findMany({ where: { ...children, custodian: before.custodian ?? null }, select: { id: true } });
+    await prisma.asset.updateMany({ where: { id: { in: following.map((p) => p.id) } }, data: { custodian: after.custodian ?? null } });
+    for (const p of following) await recordCustodianEvent(tenantId, p.id, actorId ?? null, before.custodian ?? null, after.custodian ?? null);
+  }
   if (!same(before.siteId, after.siteId)) {
     await prisma.asset.updateMany({ where: { ...children, siteId: before.siteId }, data: { siteId: after.siteId } });
   }

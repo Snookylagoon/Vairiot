@@ -72,6 +72,8 @@ export interface Asset {
   recognitionStatus?: 'RECOGNISED' | 'EXPENSED' | 'PENDING_REVIEW' | null;
   recognitionOverride?: boolean;
   recognitionOverrideReason?: string | null;
+  /** Accountable person or unit (stage 2.7). */
+  custodian?: string | null;
   // Components (stages 2.5–2.6)
   parentAssetId?: string | null;
   componentRole?: string | null;

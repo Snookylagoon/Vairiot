@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { NotFoundError } from '../lib/errors';
 import { prisma } from '../lib/prisma';
 
+import { recordAssetChanges } from './asset-change-events.service';
 import { afterAssetWrite } from './component.service';
 import { dispatchWebhookEvent } from './webhook.service';
 
@@ -61,7 +62,7 @@ export async function createTransfer(tenantId: string, actorId: string, input: T
         toSiteId: input.toSiteId,
         fromLocationId: input.fromLocationId,
         toLocationId: input.toLocationId,
-        fromCustodian: input.fromCustodian,
+        fromCustodian: input.fromCustodian ?? asset.custodian ?? undefined,
         toCustodian: input.toCustodian,
         transferDate: input.transferDate ? new Date(input.transferDate) : new Date(),
         reason: input.reason,
@@ -74,6 +75,8 @@ export async function createTransfer(tenantId: string, actorId: string, input: T
     const assetUpdate: Prisma.AssetUpdateInput = {};
     if (input.toSiteId) assetUpdate.site = { connect: { id: input.toSiteId } };
     if (input.toLocationId) assetUpdate.location = { connect: { id: input.toLocationId } };
+    // The transfer's custodian becomes the asset's (stage 2.7).
+    if (input.toCustodian?.trim()) assetUpdate.custodian = input.toCustodian.trim().slice(0, 120);
     if (Object.keys(assetUpdate).length > 0) {
       await tx.asset.update({ where: { id: input.assetId }, data: assetUpdate });
     }
@@ -83,7 +86,8 @@ export async function createTransfer(tenantId: string, actorId: string, input: T
 
   // A parent's components follow it where they were still with it (S2.2).
   const moved = await prisma.asset.findUniqueOrThrow({ where: { id: input.assetId } });
-  await afterAssetWrite(tenantId, moved, asset);
+  await recordAssetChanges(tenantId, input.assetId, actorId, asset, moved);
+  await afterAssetWrite(tenantId, moved, asset, actorId);
   void dispatchWebhookEvent(tenantId, 'transfer.created', transfer).catch(() => {});
   return transfer;
 }
