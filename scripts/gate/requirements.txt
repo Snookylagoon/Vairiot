@@ -1,0 +1,4 @@
+# The exit-gate scripts (scripts/gate): standard library plus these.
+# Python 3.10 or later (Pillow 12); Pillow matches vairiot-reports.
+openpyxl==3.1.5
+pillow==12.3.0

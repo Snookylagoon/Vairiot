@@ -2,6 +2,13 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.13.1] — 2026-10-17
+
+### Added
+
+- The exit-gate scripts for the Docker stack, so the Phase 1 and Phase 2 gates and the import budget can be run again before a release (stage 2.17)
+- Browser tests of the Periods page (prepare, post and reverse a run) and of the import wizard up to the review (stage 2.17)
+
 ## [2.13.0] — 2026-10-17
 
 ### Security
