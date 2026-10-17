@@ -3,7 +3,7 @@
 | Item                     | Detail                                                                                                                                          |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Phase                    | 2 (Sprint S2, decision D1)                                                                                                                      |
-| Status                   | In progress — W1 (2.7.0), W2 (2.8.0), W3 (2.9.0) and W4 (2.10.0, stages 2.8–2.10) merged; W5 (impairment, 2.11.0) merged; W6 (staged import) built, stages 2.13–2.14, 2.12.0 |
+| Status                   | In progress — W1 (2.7.0), W2 (2.8.0), W3 (2.9.0) and W4 (2.10.0, stages 2.8–2.10) merged; W5 (impairment, 2.11.0) merged; W6 (staged import, 2.12.0) merged; W7 (security) under way: row-level security at stage 2.15 |
 | Revision                 | 0.1 (16 October 2026)                                                                                                                           |
 | Builds on                | Phase 1, accepted 16 October 2026 (stage 1.22, [record](04-phase-1-record.md)); version 2.6.1                                                   |
 | Modules                  | `ipsas`: classes, policies, periods, depreciation, impairment. Import is core; its IPSAS columns need `ipsas`                                   |
@@ -118,7 +118,7 @@ S3.1 brings the maker–checker framework. Until then (D17):
 | `import/staged-import.test.ts` | Clean, duplicate, bad-date and Georgian-header fixtures; error rows excluded and downloadable; update mode changes no asset numbers |
 | Import budget | 10,000 rows from upload to commit in under 2 minutes on the Docker stack (test plan §3.6) |
 | S2 toggle matrix | With `ipsas` off every ledger route answers 404 and no ledger screen shows; on again, data unchanged |
-| Tenancy (W7) | With RLS on every tenant table, a request in one tenant reads and writes nothing of another's, over every route |
+| Tenancy (W7) | With RLS on every tenant table, a request in one tenant reads and writes nothing of another's, over every route — `security/row-level-security-coverage.test.ts` (every tenant and child table has a forced policy) and `security/cross-tenant-routes.test.ts` (every documented GET route, B's ids in the paths, with a positive control) (stage 2.15) |
 | Playwright | Periods page: preview, post and reverse a run on the mocked API; import wizard to the review step |
 
 ## 4. Decisions

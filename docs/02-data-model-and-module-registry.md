@@ -23,7 +23,7 @@
 | Database                        | PostgreSQL 16; PostGIS image only in the standalone overlay and **not used by any migration**                                         |
 | Identifiers                     | `cuid()` strings, except `ScanSession.id` (the mobile session UUID, so retries upsert)                                                |
 | Tenant column                   | `tenantId String` on 38 models; the other 19 are listed in §2.13                                                                      |
-| Row-level security              | **None**. Isolation is the service layer's `where: { tenantId }` (D5 adds RLS, W4)                                                    |
+| Row-level security              | On every tenant table and every child table through its parent (D5; stage 1.19 for assets, audit events and photos, Phase 2 tables from creation, the rest at stage 2.15); platform tables unscoped. The service layer's `where: { tenantId }` stays |
 | Soft delete                     | `User` and `Asset` (`deletedAt`); everything else is a hard delete                                                                    |
 | Constraints Prisma cannot model | Kept in migration SQL: coordinate pair and range checks, `AssetEvent` hash-chain trigger and no-update rules, GIAI derivation trigger |
 

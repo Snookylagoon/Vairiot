@@ -22,10 +22,11 @@ export interface AssetHeadroom {
 export async function getAssetHeadroom(tenantId: string): Promise<AssetHeadroom> {
   const rootTenantId = await getRootTenantId(tenantId);
 
-  const licence = await prisma.licence.findFirst({
+  // A sub-tenant's cap is its parent's licence, so this read crosses tenants (RLS, D5).
+  const licence = await withoutTenantScope(() => prisma.licence.findFirst({
     where: { tenantId: rootTenantId, status: { in: ['active', 'expiring'] } },
     include: { tier: true },
-  });
+  }));
 
   if (!licence) {
     throw new ForbiddenError('No active licence — cannot create assets');

@@ -1,5 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { runWithTenant, withoutTenantScope } from '../../lib/tenant-context';
+import { getAssetHeadroom } from '../../services/asset-cap.service';
+import { ensureTestLicence, removeTestLicence } from '../helpers/test-licence';
 
 // Row-level security (D5, stage 1.19): inside a tenant scope the database
 // itself returns only that tenant's assets, audit events and photos, even
@@ -71,6 +73,26 @@ describe('outside a tenant scope', () => {
     await runWithTenant(A, async () => await prisma.asset.count());
     const rows = await prisma.$queryRaw<{ who: string }[]>`SELECT current_user AS who`;
     expect(rows[0].who).not.toBe('vairiot_rls');
+  });
+});
+
+describe('reads a tenant family needs (stage 2.15)', () => {
+  const PARENT = 'test-rls-family-parent';
+  const CHILD = 'test-rls-family-child';
+  beforeAll(async () => {
+    await prisma.tenant.upsert({ where: { id: PARENT }, update: {}, create: { id: PARENT, name: PARENT } });
+    await prisma.tenant.upsert({ where: { id: CHILD }, update: {}, create: { id: CHILD, name: CHILD, parentTenantId: PARENT } });
+    await ensureTestLicence(PARENT);
+  });
+  afterAll(async () => {
+    await removeTestLicence(PARENT);
+    await prisma.tenant.deleteMany({ where: { id: { in: [CHILD, PARENT] } } });
+  });
+
+  it('a sub-tenant reaches its parent’s licence for the cap, but not its parent’s rows', async () => {
+    const headroom = await runWithTenant(CHILD, () => getAssetHeadroom(CHILD));
+    expect(headroom.maxAssets).toBe(500);
+    expect(await runWithTenant(CHILD, async () => await prisma.licence.count({ where: { tenantId: PARENT } }))).toBe(0);
   });
 });
 
