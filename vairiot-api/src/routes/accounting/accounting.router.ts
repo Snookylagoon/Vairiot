@@ -1,7 +1,7 @@
 import { Router, type Response } from 'express';
 import {
   assetClassSchema, assetClassUpdateSchema, componentLinkSchema, componentTemplateSchema, componentTemplateUpdateSchema,
-  instantiateTemplateSchema, recognitionOverrideSchema,
+  accountingPeriodSchema, assetUsageSchema, instantiateTemplateSchema, recognitionOverrideSchema, reverseRunSchema,
 } from 'vairiot-shared';
 import type { z } from 'zod';
 
@@ -15,6 +15,9 @@ import {
   createComponentTemplate, instantiateComponentTemplate, listComponentTemplates, updateComponentTemplate,
 } from '../../services/component-template.service';
 import { getComponentGroup, setComponentParent } from '../../services/component.service';
+import {
+  assetDepreciationHistory, discardRun, listPeriods, openPeriod, postRun, prepareRun, reverseRun, setPeriodStatus, setUsage,
+} from '../../services/depreciation/runs.service';
 import { listPendingReview, overrideRecognition, setCategoryClass } from '../../services/recognition.service';
 import type { Request } from '../../types/http';
 
@@ -132,5 +135,67 @@ accountingRouter.patch('/component-templates/:id', requireAnyPermission('account
 accountingRouter.post('/component-templates/:id/assets', requireAnyPermission('accounting:write'), requireAnyPermission('asset:write'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     res.status(201).json(await instantiateComponentTemplate(req.user!.tenantId, req.user!.sub, req.params.id, parse(instantiateTemplateSchema, req.body)));
+  }),
+);
+
+// ── Periods and depreciation runs (S2.3) ─────────────────────────────────────
+// Prepare and discard need accounting:write; post, reverse, reopen and lock
+// need accounting:approve, and the preparer cannot post (D17).
+
+accountingRouter.get('/periods', requireAnyPermission('accounting:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await listPeriods(req.user!.tenantId));
+  }),
+);
+
+accountingRouter.post('/periods', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { year, month } = parse(accountingPeriodSchema, req.body);
+    res.status(201).json(await openPeriod(req.user!.tenantId, req.user!.sub, year, month));
+  }),
+);
+
+accountingRouter.post('/periods/:id/runs', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json(await prepareRun(req.user!.tenantId, req.user!.sub, req.params.id));
+  }),
+);
+
+for (const [action, to] of [['reopen', 'OPEN'], ['lock', 'LOCKED']] as const) {
+  accountingRouter.post(`/periods/:id/${action}`, requireAnyPermission('accounting:approve'),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      res.json(await setPeriodStatus(req.user!.tenantId, req.user!.sub, req.params.id, to));
+    }),
+  );
+}
+
+accountingRouter.put('/periods/:id/usage/:assetId', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { units } = parse(assetUsageSchema, req.body);
+    res.json(await setUsage(req.user!.tenantId, req.user!.sub, req.params.id, req.params.assetId, units));
+  }),
+);
+
+accountingRouter.post('/runs/:id/post', requireAnyPermission('accounting:approve'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await postRun(req.user!.tenantId, req.user!.sub, req.params.id));
+  }),
+);
+
+accountingRouter.post('/runs/:id/discard', requireAnyPermission('accounting:write'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await discardRun(req.user!.tenantId, req.params.id));
+  }),
+);
+
+accountingRouter.post('/runs/:id/reverse', requireAnyPermission('accounting:approve'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json(await reverseRun(req.user!.tenantId, req.user!.sub, req.params.id, parse(reverseRunSchema, req.body ?? {}).notes));
+  }),
+);
+
+accountingRouter.get('/assets/:id/depreciation', requireAnyPermission('accounting:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await assetDepreciationHistory(req.user!.tenantId, req.params.id));
   }),
 );
