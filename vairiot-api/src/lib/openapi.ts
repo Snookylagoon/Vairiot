@@ -453,7 +453,7 @@ export const openApiSpec = {
         tags: ['Assets'], summary: 'Dispose of an asset',
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['disposalDate', 'disposalMethod'], properties: { disposalDate: { type: 'string', format: 'date' }, disposalMethod: { type: 'string', enum: ['sale', 'donation', 'recycled', 'scrapped', 'trade_in', 'write_off'] }, disposalValue: { type: 'number' }, disposalReason: { type: 'string' }, approvedBy: { type: 'string' }, notes: { type: 'string' } } } } } },
-        responses: { 200: { description: 'Disposed asset', content: { 'application/json': { schema: { $ref: '#/components/schemas/Asset' } } } } },
+        responses: { 200: { description: 'Disposed asset', content: { 'application/json': { schema: { $ref: '#/components/schemas/Asset' } } } }, 202: { description: 'Waiting for approval (a rule covers it, S3.1): { approvalRequest }' } },
       },
     },
     // ── Categories ──
@@ -584,7 +584,7 @@ export const openApiSpec = {
       post: {
         tags: ['Transfers'], summary: 'Create a transfer',
         requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['assetId'], properties: { assetId: { type: 'string' }, toSiteId: { type: 'string' }, toLocationId: { type: 'string' }, toCustodian: { type: 'string' }, reason: { type: 'string' } } } } } },
-        responses: { 200: { description: 'Transfer record' } },
+        responses: { 200: { description: 'Transfer record' }, 202: { description: 'Waiting for approval (a rule covers it, S3.1): { approvalRequest }' } },
       },
     },
     // ── Exceptions ──

@@ -19,6 +19,8 @@ async function wipeTuda() {
   await prisma.auditEvent.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
   await prisma.loginAttempt.deleteMany({ where: { email: ADMIN } });
   await prisma.userInvitation.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
+  await prisma.approvalRequest.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
+  await prisma.approvalRule.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
   await prisma.userRole.deleteMany({ where: { userId: { in: ids } } });
   await prisma.user.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
   await prisma.role.deleteMany({ where: { tenantId: TUDA_TENANT_ID } });
@@ -83,9 +85,10 @@ describe('seed:tuda', () => {
   });
 
   it('gives Administrator everything the built-in Company Admin has, plus audits', () => {
-    // Except posting the ledger: at TUDA that is Finance's alone (D16).
+    // Except posting the ledger and deciding approvals: at TUDA those are
+    // Finance's and the Inventory Manager's (D16, D22).
     const companyAdmin = ROLE_PERMISSION_MATRIX.find((r) => r.name === 'Company Admin')!.permissions
-      .filter((perm) => perm !== 'accounting:approve');
+      .filter((perm) => perm !== 'accounting:approve' && perm !== 'approval:decide');
     for (const perm of companyAdmin) expect(TUDA_ROLES.Administrator).toContain(perm);
     expect(TUDA_ROLES.Administrator).toEqual(expect.arrayContaining(['audit:write', 'scan:execute']));
   });

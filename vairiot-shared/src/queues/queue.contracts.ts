@@ -10,6 +10,7 @@ export const QUEUE_NAMES = {
   storageMetering: 'storage-metering',
   depreciationRun: 'depreciation-run',
   registerImport: 'register-import',
+  approvalNotify: 'approval-notify',
 } as const;
 
 export interface WebhookDeliverJob {
@@ -84,4 +85,11 @@ export interface RegisterImportJob {
   tenantId: string;
   batchId: string;
   step: 'parse' | 'validate' | 'commit';
+}
+
+/** An approval to tell people about (stage 3.2): the approvers when asked, the requester when decided. */
+export interface ApprovalNotifyJob {
+  tenantId: string;
+  approvalId: string;
+  event: 'requested' | 'decided';
 }

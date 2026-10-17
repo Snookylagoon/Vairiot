@@ -8,6 +8,7 @@ import { logger } from './logger';
 import { sendMail, verifyMailer } from './mailer';
 import { initMonitoring, captureException } from './monitoring';
 import { handleAlertDigest } from './processors/alert-digest';
+import { handleApprovalNotify } from './processors/approval-notify';
 import { handleAuditComplete } from './processors/audit-complete';
 import { handleDepreciationRun } from './processors/depreciation-run';
 import { handleSchedulerTick, setDigestQueue } from './processors/notification-scheduler';
@@ -15,7 +16,7 @@ import { handleRegisterImport } from './processors/register-import';
 import { handleStorageMetering } from './processors/storage-metering';
 import { handleUserInvite } from './processors/user-invite';
 import { handleWebhookDeliver } from './processors/webhook-deliver';
-import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, DepreciationRunJob, RegisterImportJob, UserInviteJob, SchedulerTickJob, WebhookDeliverJob } from './queues';
+import { QUEUE_NAMES, AuditCompleteJob, AlertDigestJob, ApprovalNotifyJob, DepreciationRunJob, RegisterImportJob, UserInviteJob, SchedulerTickJob, WebhookDeliverJob } from './queues';
 
 initMonitoring();
 if (process.env.NODE_ENV === 'production') assertEncryptionKey();
@@ -118,6 +119,18 @@ const registerImportWorker = new Worker<RegisterImportJob>(
 registerImportWorker.on('failed', (job, err) => {
   logger.error(`register-import job ${job?.id ?? '?'} failed: ${err.message}`);
   reportIfExhausted(QUEUE_NAMES.registerImport, job, err);
+});
+
+// Approval emails (stage 3.2): to the approvers of a new request, to the requester of a decision.
+const approvalNotifyWorker = new Worker<ApprovalNotifyJob>(
+  QUEUE_NAMES.approvalNotify,
+  handleApprovalNotify,
+  { connection, concurrency: 2 },
+);
+
+approvalNotifyWorker.on('failed', (job, err) => {
+  logger.error(`approval-notify job ${job?.id ?? '?'} failed: ${err.message}`);
+  reportIfExhausted(QUEUE_NAMES.approvalNotify, job, err);
 });
 
 const storageMeteringWorker = new Worker(
@@ -236,6 +249,7 @@ async function shutdown(signal: string): Promise<void> {
   await storageMeteringWorker.close();
   await depreciationRunWorker.close();
   await registerImportWorker.close();
+  await approvalNotifyWorker.close();
   await schedulerQueue.close();
   await meteringQueue.close();
   await digestQueue.close();

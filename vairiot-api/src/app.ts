@@ -23,6 +23,7 @@ import { platformRouter } from './routes/admin/platform.router';
 import { tenantModulesRouter } from './routes/admin/tenant-modules.router';
 import { usersRouter }      from './routes/admin/users.router';
 import { alertsRouter }       from './routes/alerts/alerts.router';
+import { approvalsRouter } from './routes/approvals/approvals.router';
 import { assetsRouter }     from './routes/assets/assets.router';
 import { auditPhotosRouter } from './routes/audits/audit-photos.router';
 import { auditsRouter }     from './routes/audits/audits.router';
@@ -137,6 +138,7 @@ export function createApp(): Application {
   gated.use(requireActiveLicence({ exemptPrefixes: ['/licences', '/company/switch-context'] }));
 
   gated.use('/imports',      importsRouter);      // staged register import (stage 2.13)
+  gated.use('/approvals',    approvalsRouter);    // maker-checker approvals (stage 3.2)
   gated.use('/assets',       assetsRouter);
   gated.use('/categories',   categoriesRouter);
   gated.use('/sites',        sitesRouter);

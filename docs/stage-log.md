@@ -615,3 +615,14 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Tests     | New `security/restorable-backups.test.ts` (5) and the TCP healthcheck assertion in `security/compose-healthchecks.test.ts`; API 528/528; the restore test on staging's real data |
 | Decisions | D22–D31 approved (Phase 3 plan §4, project brief) |
 | Notes     | The field checks P1.1 and P1.2 are the owner's, on a Meferi with the staging build, after switching GIS on for the `demo` tenant (platform console, so it is audited); iOS waits for the production promotion. Staging has no off-host backups (`BACKUP_*` unset): its archives stay on the host. Production is unchanged |
+
+### Stage 3.2 — Maker–checker approvals: the API, the rules and the emails (W1, S3.1, D22)
+
+| Item      | Detail |
+| --------- | ------ |
+| Date      | 17 October 2026 |
+| Version   | 2.13.3 (2.14.0 at the end of W1) |
+| Activity  | `ApprovalRequest` and `ApprovalRule` with row-level security, a partial unique index (one pending request per action and item) and a check that a disposal or write-off is never decided by its requester. Disposal, transfer, the audit adjustments (write-off, register-new) and capitalising an expensed item now go through `throughApproval`: when a rule covers the action and amount (the tier with the highest `minAmount` at or below it), the route answers 202 with the request and nothing changes; with no rule the action proceeds as before. Approving applies the stored payload through the action's own service as the requester, with `approvedBy` set to the decider; if that fails (e.g. the asset was disposed of meanwhile) the request is FAILED with the reason. Rejection needs a reason; the requester can withdraw. `/approvals` lists requests, `/approvals/inbox` what the caller may decide (requests in the rule's role, and depreciation runs and impairments prepared by someone else, awaiting their post step), `/approvals/rules` sets the tiers (company:manage). Emails to approvers on a request and to the requester on the decision, from the worker (`approval-notify` queue). Permissions `approval:read` and `approval:decide` granted to the built-in and TUDA roles; TUDA's seed sets the rules (capitalisation and disposal to Finance; transfer, register-new and write-off to the Inventory Manager, write-off from GEL 5,000 to Finance), placeholders for D2 |
+| Output    | Migration `20261017090000_approvals`; `services/approvals/`, `routes/approvals/`, `lib/openapi-approvals.ts`; shared `approval.schemas.ts`; worker `approvals/approval-mail.ts`, `processors/approval-notify.ts` |
+| Tests     | New `approvals/maker-checker.test.ts` (11), shared `approval.test.ts`, worker `approval-mail.test.ts` (4); the OpenAPI contract test walks the approvals router too; the TUDA seed test clears the rules and keeps deciding approvals off the Administrator; API 541 passed (1 skipped) |
+| Notes     | The web inbox, badge and "awaiting approval" are stage 3.3 |

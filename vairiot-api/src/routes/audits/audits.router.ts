@@ -7,8 +7,9 @@ import { enqueueAuditComplete } from '../../lib/queue';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import { requireFeature } from '../../middleware/require-feature';
+import { requestAdjustment } from '../../services/approvals/approval-wiring';
 import { listScanPositions } from '../../services/audit-scan.service';
-import { listCampaigns, createCampaign, startCampaign, recordScan, submitZone, listZoneSubmissions, completeCampaign, getReconciliation, postAdjustment, listAdjustments, getCampaignReport, getCampaignReportRows, getComparison } from '../../services/audit.service';
+import { listCampaigns, createCampaign, startCampaign, recordScan, submitZone, listZoneSubmissions, completeCampaign, getReconciliation, listAdjustments, getCampaignReport, getCampaignReportRows, getComparison } from '../../services/audit.service';
 import { getCampaignMap } from '../../services/campaign-map.service';
 import { photoWarnings } from '../../services/condition.service';
 import type { Request } from '../../types/http';
@@ -181,7 +182,10 @@ auditsRouter.post('/:id/adjustments', requireAnyPermission('audit:approve'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const errs = validationResult(req);
     if (!errs.isEmpty()) { res.status(400).json({ errors: errs.array() }); return; }
-    res.status(201).json(await postAdjustment(req.user!.tenantId, req.params.id, req.user!.sub, req.body));
+    // Write-offs and register-new go through approval when the tenant's rules ask (S3.1).
+    const r = await requestAdjustment(req.user!.tenantId, req.params.id, req.user!.sub, req.body);
+    if (r.approval) { res.status(202).json({ approvalRequest: r.approval }); return; }
+    res.status(201).json(r.result);
   }),
 );
 

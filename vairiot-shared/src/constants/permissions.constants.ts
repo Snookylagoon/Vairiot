@@ -30,6 +30,12 @@ export const Permission = {
   AccountingWrite:   'accounting:write',
   AccountingApprove: 'accounting:approve',
 
+  // Maker-checker approvals (S3.1, D22): read sees the inbox; decide
+  // approves or rejects, for the actions whose rule names one of the
+  // user's roles (or any action whose rule names none).
+  ApprovalRead:   'approval:read',
+  ApprovalDecide: 'approval:decide',
+
   // Reports
   ReportRead:     'report:read',
   ReportExport:   'report:export',

@@ -376,19 +376,14 @@ export interface PostAdjustmentInput {
   applyToRegister?: boolean;
 }
 
-export async function postAdjustment(
-  tenantId: string,
-  campaignId: string,
-  actorId: string,
-  input: PostAdjustmentInput,
-) {
+/** The checks an adjustment must pass, also run when it is first requested for approval (S3.1). */
+export async function assertAdjustmentAllowed(tenantId: string, campaignId: string, actorId: string, reconciliationItemId: string) {
   const c = await prisma.auditCampaign.findFirst({ where: { id: campaignId, tenantId } });
   if (!c) throw new NotFoundError('Campaign not found');
   if (c.status !== 'completed') throw new ConflictError('Campaign must be completed before posting adjustments', 'CAMPAIGN_NOT_COMPLETED');
 
   const item = await prisma.auditReconciliationItem.findFirst({
-    where: { id: input.reconciliationItemId, campaignId },
-    include: { snapshotAsset: true, scanEvent: true },
+    where: { id: reconciliationItemId, campaignId }, include: { snapshotAsset: true, scanEvent: true },
   });
   if (!item) throw new NotFoundError('Reconciliation item not found');
 
@@ -402,6 +397,11 @@ export async function postAdjustment(
       throw new ForbiddenError('You cannot approve adjustments for a zone you audited');
     }
   }
+  return item;
+}
+
+export async function postAdjustment(tenantId: string, campaignId: string, actorId: string, input: PostAdjustmentInput) {
+  const item = await assertAdjustmentAllowed(tenantId, campaignId, actorId, input.reconciliationItemId);
 
   // Determine the before value from the snapshot or current asset
   let valueBefore: string | undefined;
