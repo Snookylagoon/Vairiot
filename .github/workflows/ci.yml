@@ -318,16 +318,15 @@ jobs:
             | tar -xz gitleaks
           ./gitleaks git --redact --no-banner -c .gitleaks.toml .
 
-      # Vulnerabilities, misconfiguration and secrets all block. The app images
-      # run unprivileged (W6). MinIO still runs as root over root-owned data
-      # (G32), and the Dockerfile.dev images only run on developers' machines.
+      # Vulnerabilities, misconfiguration and secrets all block. Every image runs
+      # unprivileged (W6; MinIO since stage 2.16, G32); the Dockerfile.dev
+      # images only run on developers' machines.
       - name: Trivy (dependencies, misconfiguration, secrets)
         run: >-
           docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:0.75.0
           fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL
           --exit-code 1 --ignorefile .trivyignore --skip-version-check
-          --skip-dirs node_modules --skip-files infra/minio/Dockerfile
-          --skip-files '**/Dockerfile.dev' .
+          --skip-dirs node_modules --skip-files '**/Dockerfile.dev' .
 
       # OWASP Top Ten rules. Findings that predate stage 0.10 are triaged in
       # docs/standard-adoption-plan.md (G27); only new ones fail the build.

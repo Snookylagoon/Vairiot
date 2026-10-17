@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { Router, Response } from 'express';
 
 import { ValidationError } from '../../lib/errors';
-import { MapSettingsSchema, resolveMapSettings } from '../../lib/map-settings';
+import { MapSettingsSchema, resolveMapSettings, tileHostAllowed } from '../../lib/map-settings';
 import { prisma } from '../../lib/prisma';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
@@ -25,6 +25,9 @@ gisRouter.put('/map-settings', requireAnyPermission('company:manage'),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const parsed = MapSettingsSchema.safeParse(req.body);
     if (!parsed.success) throw new ValidationError(parsed.error.issues.map((i) => i.message).join('; '));
+    if (!tileHostAllowed(parsed.data.tileUrl)) {
+      throw new ValidationError('The web console may not load tiles from this server: ask the operator to add its origin to CSP_TILE_HOSTS');
+    }
     const tenantId = req.user!.tenantId;
     const before = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { mapSettings: true } });
     await prisma.tenant.update({ where: { id: tenantId }, data: { mapSettings: parsed.data } });

@@ -2,6 +2,7 @@ import { NextFunction, Response } from 'express';
 import { PLATFORM_ROLES, type RoleName } from 'vairiot-shared';
 
 import { prisma } from '../lib/prisma';
+import { withoutTenantScope } from '../lib/tenant-context';
 import { getRootTenantId } from '../services/licence.service';
 import type { Request } from '../types/http';
 
@@ -32,11 +33,12 @@ export function requireActiveLicence(options: { exemptPrefixes?: string[] } = {}
 
     try {
       const rootTenantId = await getRootTenantId(req.user.tenantId);
-      const licence = await prisma.licence.findFirst({
+      // A sub-tenant writes under its parent's licence: a deliberate read across tenants (RLS, D5).
+      const licence = await withoutTenantScope(() => prisma.licence.findFirst({
         where: { tenantId: rootTenantId, status: { notIn: ['revoked'] } },
         orderBy: { createdAt: 'desc' },
         select: { status: true, expiresAt: true, gracePeriodDays: true },
-      });
+      }));
 
       if (!licence) {
         res.status(403).json({ error: 'No active licence found', code: 'NO_LICENCE' });

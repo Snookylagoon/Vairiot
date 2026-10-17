@@ -58,6 +58,8 @@ mkdir -p "${WORK}/minio-restore"
 tar -C "${WORK}/minio-restore" -xzf "${WORK}/minio.tgz"
 docker exec "$MINIO_CONTAINER" rm -rf /tmp/minio-restore
 docker cp "${WORK}/minio-restore" "${MINIO_CONTAINER}:/tmp/minio-restore"
+# MinIO runs unprivileged (G32): give it the copy so it can read and remove it.
+docker exec -u 0 "$MINIO_CONTAINER" chown -R 10001:10001 /tmp/minio-restore
 docker exec "$MINIO_CONTAINER" sh -c '
     mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 &&
     for b in vairiot-photos vairiot-documents vairiot-mobile-releases; do

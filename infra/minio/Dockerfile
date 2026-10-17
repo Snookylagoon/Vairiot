@@ -50,15 +50,17 @@ LABEL org.opencontainers.image.title="MinIO (built from source for Vairiot)" \
       org.opencontainers.image.version="${MINIO_RELEASE}" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.source="https://github.com/minio/minio"
-RUN apk add --no-cache ca-certificates curl tzdata
+RUN apk add --no-cache ca-certificates curl tzdata \
+ && addgroup -S -g 10001 minio && adduser -S -D -H -u 10001 -G minio minio \
+ && mkdir -p /data && chown minio:minio /data
 COPY --from=build /out/minio /out/mc /usr/bin/
 # mc keeps its aliases here; /tmp is writable whatever user runs the container.
 ENV MC_CONFIG_DIR=/tmp/.mc
 EXPOSE 9000 9001
 VOLUME ["/data"]
-# Still root: existing servers keep MinIO data in root-owned host directories,
-# so a non-root switch needs a one-off chown on each server first (G32).
-# nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint, dockerfile.security.missing-user.missing-user
+# Unprivileged (W7, G32, stage 2.16): uid 10001. A new named volume takes
+# /data's owner from the image; on servers that keep the data in
+# infra/data/minio, deploy.sh hands that directory to uid 10001 first.
+USER 10001
 ENTRYPOINT ["minio"]
-# nosemgrep: dockerfile.security.missing-user.missing-user
 CMD ["server", "/data"]

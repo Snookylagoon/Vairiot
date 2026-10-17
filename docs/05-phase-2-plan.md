@@ -3,7 +3,7 @@
 | Item                     | Detail                                                                                                                                          |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Phase                    | 2 (Sprint S2, decision D1)                                                                                                                      |
-| Status                   | In progress — W1 (2.7.0), W2 (2.8.0), W3 (2.9.0) and W4 (2.10.0, stages 2.8–2.10) merged; W5 (impairment, 2.11.0) merged; W6 (staged import) built, stages 2.13–2.14, 2.12.0 |
+| Status                   | In progress — W1 (2.7.0), W2 (2.8.0), W3 (2.9.0) and W4 (2.10.0, stages 2.8–2.10) merged; W5 (impairment, 2.11.0) merged; W6 (staged import, 2.12.0) merged; W7 (security) built, stages 2.15–2.16, 2.13.0 |
 | Revision                 | 0.1 (16 October 2026)                                                                                                                           |
 | Builds on                | Phase 1, accepted 16 October 2026 (stage 1.22, [record](04-phase-1-record.md)); version 2.6.1                                                   |
 | Modules                  | `ipsas`: classes, policies, periods, depreciation, impairment. Import is core; its IPSAS columns need `ipsas`                                   |
@@ -22,7 +22,7 @@
 | W4  | Depreciation engine and periods (S2.3)   | api, worker, web, reports                 | `AccountingPeriod`, `DepreciationRun`, `DepreciationEntry`; straight line, reducing balance, units of production; draft, post, reverse as worker jobs; locked periods; reports read posted entries                                      | 2.10.0 — merged, stages 2.8–2.10 |
 | W5  | Impairment (S2.4)                        | api, web, reports                         | `Impairment` IPSAS 21 / 26 with four measurement methods; draft from a grade with `impairmentIndicator`; post writes `IMPAIRED` and lowers the depreciable base; reversal capped; impairment register                                    | 2.11.0 — built, stages 2.11–2.12 |
 | W6  | Staged import (S2.5)                     | api, worker, web, scripts                 | `ImportBatch`, `ImportRow`; .xlsx and .csv to MinIO; parse, validate and commit as jobs; mapping per tenant from the profiler's JSON; update mode by `FINANCE_REF`; error rows downloadable. G33: export and profiler gain position, grade and class columns | 2.12.0 — built, stages 2.13–2.14 |
-| W7  | Security (adoption W4, second part)      | api, infra, web                           | Row-level security on the remaining tenant tables and every new one (G23), with a cross-tenant test over the routes; Content-Security-Policy that allows the tenant's tile host (G31); MinIO unprivileged (G32)                           | 2.13.0  |
+| W7  | Security (adoption W4, second part)      | api, infra, web                           | Row-level security on the remaining tenant tables and every new one (G23), with a cross-tenant test over the routes; Content-Security-Policy that allows the tenant's tile host (G31); MinIO unprivileged (G32)                           | 2.13.0 — built, stages 2.15–2.16 |
 | W8  | Phase close (S2.6)                       | all                                       | Exit gate on the Docker stack; `docs/IPSAS-LEDGER.md` with journal examples (D2, D4); `docs/06-phase-2-record.md`; S2 summary; Word report; owner acceptance; `phase-2-accepted`                                                           | 2.13.x  |
 
 Each workstream lands as one or more stages (2.1, 2.2, …) merged on a green pipeline. `feat` stages bump the minor version and fixes the patch. W7 can run beside W2–W6: it touches migrations and infrastructure, not the ledger services.
@@ -118,7 +118,7 @@ S3.1 brings the maker–checker framework. Until then (D17):
 | `import/staged-import.test.ts` | Clean, duplicate, bad-date and Georgian-header fixtures; error rows excluded and downloadable; update mode changes no asset numbers |
 | Import budget | 10,000 rows from upload to commit in under 2 minutes on the Docker stack (test plan §3.6) |
 | S2 toggle matrix | With `ipsas` off every ledger route answers 404 and no ledger screen shows; on again, data unchanged |
-| Tenancy (W7) | With RLS on every tenant table, a request in one tenant reads and writes nothing of another's, over every route |
+| Tenancy (W7) | With RLS on every tenant table, a request in one tenant reads and writes nothing of another's, over every route — `security/row-level-security-coverage.test.ts` (every tenant and child table has a forced policy) and `security/cross-tenant-routes.test.ts` (every documented GET route, B's ids in the paths, with a positive control) (stage 2.15) |
 | Playwright | Periods page: preview, post and reverse a run on the mocked API; import wizard to the review step |
 
 ## 4. Decisions
