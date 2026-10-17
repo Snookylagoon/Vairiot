@@ -2,6 +2,12 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.13.2] — 2026-10-17
+
+### Fixed
+
+- A backup could not be restored: the restore stopped at the first asset with a GS1 reference, and the full restore script carried on past the error and left those assets out. Restores now load the schema, the rows and the indexes in turn and stop at any error, and backups taken before this version restore too (stage 3.1, KFR-046)
+
 ## [2.13.1] — 2026-10-17
 
 ### Added
