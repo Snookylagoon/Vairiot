@@ -24,6 +24,7 @@ import {
 } from '../../services/impairment.service';
 import { listPendingReview, overrideRecognition, setCategoryClass } from '../../services/recognition.service';
 import { depreciationByClass } from '../../services/reports/depreciation-by-class';
+import { impairmentRegister } from '../../services/reports/impairment-register';
 import type { Request } from '../../types/http';
 
 // The IPSAS ledger (Phase 2), behind the tenant's `ipsas` module: every route
@@ -262,5 +263,12 @@ accountingRouter.post('/impairments/:id/correct', requireAnyPermission('accounti
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const body = parse(impairmentPeriodSchema, req.body);
     res.status(201).json(await correctImpairment(req.user!.tenantId, req.user!.sub, req.params.id, body.periodId, body.notes));
+  }),
+);
+
+/** Posted impairments, reversals and corrections, optionally for one period or class; also exportable as `impairment-register`. */
+accountingRouter.get('/impairment-register', requireAnyPermission('accounting:read'),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    res.json(await impairmentRegister(req.user!.tenantId, req.query as Record<string, string>));
   }),
 );

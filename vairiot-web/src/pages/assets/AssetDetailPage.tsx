@@ -9,6 +9,7 @@ import { AssetDepreciation } from '@/components/assets/AssetDepreciation';
 import { AssetDocuments } from '@/components/assets/AssetDocuments';
 import { AssetGeoPosition } from '@/components/assets/AssetGeoPosition';
 import { AssetGs1Identity } from '@/components/assets/AssetGs1Identity';
+import { AssetImpairments } from '@/components/assets/AssetImpairments';
 import { AssetPhotos } from '@/components/assets/AssetPhotos';
 import { AssetRecognition } from '@/components/assets/AssetRecognition';
 import { AssetTimeline } from '@/components/assets/AssetTimeline';
@@ -222,6 +223,7 @@ export function AssetDetailPage() {
         {hasFeature(user, 'ipsas') && <AssetRecognition asset={asset} />}
         {hasFeature(user, 'ipsas') && hasAnyPermission(user, 'accounting:read') && <AssetComponents assetId={asset.id} assetName={asset.name} />}
         {hasFeature(user, 'ipsas') && hasAnyPermission(user, 'accounting:read') && <AssetDepreciation assetId={asset.id} method={asset.depreciationMethod} />}
+        {hasFeature(user, 'ipsas') && hasAnyPermission(user, 'accounting:read') && <AssetImpairments assetId={asset.id} recognised={asset.recognitionStatus === 'RECOGNISED'} />}
         {hasFeature(user, 'gis') && <AssetGeoPosition asset={asset} />}
         <ConditionHistory assetId={asset.id} categoryId={asset.category?.id} />
 

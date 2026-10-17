@@ -59,6 +59,7 @@ const LicensingPage        = lazy(() => import('@/pages/licensing/LicensingPage'
 const TwoFactorPage        = lazy(() => import('@/pages/settings/TwoFactorPage').then(m => ({ default: m.TwoFactorPage })));
 const ConditionScalePage   = lazy(() => import('@/pages/admin/ConditionScalePage').then(m => ({ default: m.ConditionScalePage })));
 const PeriodsPage          = lazy(() => import('@/pages/accounting/PeriodsPage').then(m => ({ default: m.PeriodsPage })));
+const ImpairmentsPage      = lazy(() => import('@/pages/accounting/ImpairmentsPage').then(m => ({ default: m.ImpairmentsPage })));
 const AssetClassesPage     = lazy(() => import('@/pages/accounting/AssetClassesPage').then(m => ({ default: m.AssetClassesPage })));
 const MapSettingsPage      = lazy(() => import('@/pages/admin/MapSettingsPage').then(m => ({ default: m.MapSettingsPage })));
 const ChangePasswordPage   = lazy(() => import('@/pages/settings/ChangePasswordPage').then(m => ({ default: m.ChangePasswordPage })));
@@ -156,6 +157,7 @@ export default function App() {
             <Route path="admin/webhooks" element={<RequirePermission perms={['apikey:write']}><WebhooksPage /></RequirePermission>} />
             <Route path="admin/condition-scale" element={<RequirePermission perms={['company:manage']}><ConditionScalePage /></RequirePermission>} />
             <Route path="accounting/periods" element={<RequireFeature flag="ipsas" fallback="/dashboard"><RequirePermission perms={['accounting:read']}><PeriodsPage /></RequirePermission></RequireFeature>} />
+            <Route path="accounting/impairments" element={<RequireFeature flag="ipsas" fallback="/dashboard"><RequirePermission perms={['accounting:read']}><ImpairmentsPage /></RequirePermission></RequireFeature>} />
             <Route path="accounting/classes" element={<RequireFeature flag="ipsas" fallback="/dashboard"><RequirePermission perms={['accounting:read']}><AssetClassesPage /></RequirePermission></RequireFeature>} />
             <Route path="admin/map-settings" element={<RequireFeature flag="gis" fallback="/dashboard"><RequirePermission perms={['company:manage']}><MapSettingsPage /></RequirePermission></RequireFeature>} />
             <Route path="admin/custom-fields" element={<RequirePermission perms={['asset:write']}><CustomFieldsPage /></RequirePermission>} />

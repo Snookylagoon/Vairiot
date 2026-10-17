@@ -155,15 +155,15 @@ export function PeriodsPage() {
         </div>
         {!byClass?.period ? <p className="text-sm text-gray-400">Nothing posted yet.</p> : (
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-gray-400"><tr><th className="py-1">Class</th><th className="text-right">Assets</th><th className="text-right">Charge</th><th className="text-right">Accumulated</th><th className="text-right">Carrying amount</th></tr></thead>
+            <thead className="text-left text-xs text-gray-400"><tr><th className="py-1">Class</th><th className="text-right">Assets</th><th className="text-right">Charge</th><th className="text-right">Accumulated</th><th className="text-right">Impairment</th><th className="text-right">Carrying amount</th></tr></thead>
             <tbody className="divide-y divide-gray-50">
               {byClass.rows.map(r => (
                 <tr key={r.classCode}><td className="py-1.5"><span className="font-mono text-xs text-v-violet mr-2">{r.classCode}</span>{r.className}</td>
-                  <td className="text-right">{r.assetCount}</td><td className="text-right">{fmt(r.periodCharge)}</td><td className="text-right">{fmt(r.accumulated)}</td><td className="text-right">{fmt(r.carryingAmount)}</td></tr>
+                  <td className="text-right">{r.assetCount}</td><td className="text-right">{fmt(r.periodCharge)}</td><td className="text-right">{fmt(r.accumulated)}</td><td className="text-right">{fmt(r.impaired ?? 0)}</td><td className="text-right">{fmt(r.carryingAmount)}</td></tr>
               ))}
             </tbody>
             <tfoot className="font-semibold border-t border-gray-200">
-              <tr><td className="py-1.5">Total</td><td className="text-right">{byClass.totals.assetCount}</td><td className="text-right">{fmt(byClass.totals.periodCharge)}</td><td className="text-right">{fmt(byClass.totals.accumulated)}</td><td className="text-right">{fmt(byClass.totals.carryingAmount)}</td></tr>
+              <tr><td className="py-1.5">Total</td><td className="text-right">{byClass.totals.assetCount}</td><td className="text-right">{fmt(byClass.totals.periodCharge)}</td><td className="text-right">{fmt(byClass.totals.accumulated)}</td><td className="text-right">{fmt(byClass.totals.impaired ?? 0)}</td><td className="text-right">{fmt(byClass.totals.carryingAmount)}</td></tr>
             </tfoot>
           </table>
         )}

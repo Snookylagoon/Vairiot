@@ -1,3 +1,4 @@
+import axios from 'axios';
 import request from 'supertest';
 import { processDepreciationRun } from 'vairiot-worker/depreciation/run-job';
 
@@ -5,12 +6,16 @@ import { createApp } from '../../app';
 import { signAccessToken } from '../../lib/jwt';
 import { prisma } from '../../lib/prisma';
 import { flushAuditEvents } from '../../services/audit-event.service';
+import { exportAssetValuationSummary } from '../../services/report-export.service';
 import { ensureTestLicence, removeTestLicence } from '../helpers/test-licence';
 
 // S2.4 (stage 2.11): impairment. Gate (test plan §8.3): setting an asset to
 // grade 1 creates a DRAFT impairment; posting it reduces the carrying amount
 // and the next depreciation run uses the reduced base. With D17 (the assessor
 // cannot post), the reversal cap (IPSAS 21.68) and correction by an offset.
+
+jest.mock('axios');
+const post = axios.post as jest.MockedFunction<typeof axios.post>;
 
 const app = createApp();
 const TID = 'test-impairment';
@@ -22,7 +27,7 @@ const periods: Record<string, string> = {};
 
 const tokenFor = (sub: string, approve = false) => signAccessToken({
   sub, tenantId: TID, email: `${sub}@impairment.test`, roles: ['Company Admin'],
-  permissions: ['asset:read', 'asset:write', 'accounting:read', 'accounting:write', ...(approve ? ['accounting:approve'] : [])],
+  permissions: ['asset:read', 'asset:write', 'report:read', 'report:export', 'accounting:read', 'accounting:write', ...(approve ? ['accounting:approve'] : [])],
 });
 const as = (sub = preparerId, approve = false) => ({ Authorization: `Bearer ${tokenFor(sub, approve)}` });
 const approver = () => as(approverId, true);
@@ -174,5 +179,29 @@ describe('drafts', () => {
   it('asks for accounting:approve to post', async () => {
     const r = await request(app).post('/api/v1/accounting/impairments/x/post').set(as()).send({ periodId: 'p' });
     expect(r.status).toBe(403);
+  });
+});
+
+describe('reports (stage 2.12)', () => {
+  it('lists posted impairments, reversals and corrections in the register, and exports it', async () => {
+    const r = await request(app).get('/api/v1/accounting/impairment-register').set(as());
+    expect(r.body.rows.map((x: { period: string; kind: string; loss: string }) => [x.period, x.kind, x.loss])).toEqual([
+      ['2026-10', 'IMPAIRMENT', '388.10'], ['2026-11', 'REVERSAL', '-383.43'], ['2026-11', 'CORRECTION', '383.43'],
+    ]);
+    expect(r.body.rows[0]).toMatchObject({ assetNumber: expect.any(String), standard: 'IPSAS_21', method: 'DRC', carryingAmount: '988.10', recoverableAmount: '600.00', postedBy: 'approver', assessedBy: 'preparer' });
+    expect(r.body.totals).toEqual({ count: 3, losses: '771.53', reversals: '-383.43', net: '388.10' });
+    const oct = await request(app).get('/api/v1/accounting/impairment-register?year=2026&month=10').set(as());
+    expect(oct.body.totals.count).toBe(1);
+    post.mockResolvedValue({ data: Buffer.from('pdf') });
+    expect((await request(app).get('/api/v1/reports/export/impairment-register?format=pdf').set(as())).status).toBe(200);
+    expect(post.mock.calls.at(-1)![1]).toMatchObject({ report_type: 'impairment-register', summary: { records: 3, net: 388.1 } });
+  });
+
+  it('shows the impairment in the valuation summary', async () => {
+    post.mockResolvedValue({ data: Buffer.from('pdf') });
+    await exportAssetValuationSummary(TID, { format: 'pdf', filters: {} });
+    const payload = post.mock.calls.at(-1)![1] as { totals: Record<string, number>; summary: Record<string, number> };
+    expect(payload.totals).toMatchObject({ totalImpairment: 388.1 });
+    expect(payload.summary).toMatchObject({ grandTotalImpairment: 388.1 });
   });
 });

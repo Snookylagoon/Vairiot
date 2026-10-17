@@ -73,7 +73,7 @@ export const MODULES: readonly ModuleDefinition[] = [
       { method: 'GET', path: '/accounting/periods' },
       { method: 'GET', path: '/accounting/impairments' },
     ],
-    webRoutes: ['/accounting/classes', '/accounting/periods'],
+    webRoutes: ['/accounting/classes', '/accounting/periods', '/accounting/impairments'],
   },
   {
     key: ModuleKey.Reconciliation,

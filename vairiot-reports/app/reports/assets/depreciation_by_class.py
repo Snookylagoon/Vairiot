@@ -2,7 +2,8 @@
 Depreciation by asset class — portrait A4 (Phase 2, S2.3).
 
 For one posted period: each IPSAS asset class's charge that month, its
-accumulated depreciation to the end of it, its cost and carrying amount.
+accumulated depreciation to the end of it, the impairment posted up to it
+(stage 2.12), its cost and carrying amount.
 """
 
 from app.config import ColumnDef, ColType, ReportDef
@@ -16,12 +17,13 @@ report = register(ReportDef(
     show_totals=True,
     totals_label="Total",
     columns=[
-        ColumnDef(key="classCode",      header="Class",          col_type=ColType.TEXT,     width_pct=9,  align="left"),
-        ColumnDef(key="className",      header="Name",           col_type=ColType.TEXT,     width_pct=25, align="left"),
-        ColumnDef(key="assetCount",     header="Assets",         col_type=ColType.INTEGER,  width_pct=8,  align="center"),
-        ColumnDef(key="periodCharge",   header="Charge",         col_type=ColType.CURRENCY, width_pct=14, align="right"),
-        ColumnDef(key="accumulated",    header="Accum. depr.",   col_type=ColType.CURRENCY, width_pct=15, align="right"),
-        ColumnDef(key="cost",           header="Cost",           col_type=ColType.CURRENCY, width_pct=14, align="right"),
+        ColumnDef(key="classCode",      header="Class",          col_type=ColType.TEXT,     width_pct=8,  align="left"),
+        ColumnDef(key="className",      header="Name",           col_type=ColType.TEXT,     width_pct=20, align="left"),
+        ColumnDef(key="assetCount",     header="Assets",         col_type=ColType.INTEGER,  width_pct=7,  align="center"),
+        ColumnDef(key="periodCharge",   header="Charge",         col_type=ColType.CURRENCY, width_pct=12, align="right"),
+        ColumnDef(key="accumulated",    header="Accum. depr.",   col_type=ColType.CURRENCY, width_pct=13, align="right"),
+        ColumnDef(key="impaired",       header="Impairment",     col_type=ColType.CURRENCY, width_pct=12, align="right"),
+        ColumnDef(key="cost",           header="Cost",           col_type=ColType.CURRENCY, width_pct=13, align="right"),
         ColumnDef(key="carryingAmount", header="Carrying amount", col_type=ColType.CURRENCY, width_pct=15, align="right"),
     ],
     summary_fields=[
