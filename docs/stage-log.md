@@ -603,3 +603,15 @@ Started before Phase 0 was accepted, so stages 1.1–1.3 come before the hand-ov
 | Output    | `docs/07-phase-3-plan.md`; `project.md` phase table and documents |
 | Decisions | D22–D31 proposed (plan §4), awaiting the owner |
 | Notes     | W0 changes staging (the PostGIS switch after a backup and restore test) and W8 production; production is promoted only on the owner's go-ahead at the freeze |
+
+### Stage 3.1 — D22–D31 approved; staging on Phases 1–2 with PostGIS; two restore defects fixed (W0)
+
+| Item      | Detail |
+| --------- | ------ |
+| Date      | 17 October 2026 |
+| Version   | 2.13.3 |
+| Activity  | Owner approved D22–D31 as recommended. Staging promoted from its 14 October build to `dev`, as D30 sets out. Pre-flight read-only: disk, containers, every setting the new version needs (`INTERNAL_API_TOKEN` set at stage 2.13), the host nginx (200 MB uploads; `/internal` not proxied to the API). `.env`'s `SMTP_FROM` quoted so the backup scripts can read it (Compose reads it the same). Backup, then the restore test, which failed twice and found two defects, both fixed and merged before anything changed: **KFR-046** (#103), a dump could not be restored because a CHECK constraint calls functions without a schema under pg_restore's empty search path, and `restore.sh` did not stop on errors (it would have left out every asset with a GS1 reference); **KFR-047** (#104), the restore test's database restarted under the restore because the healthcheck called the image's temporary init-time server healthy. With both fixed, the restore test passed on staging (58 tables, MinIO and Redis match). Then a fresh backup, the database recreated on `postgis/postgis:16-3.5-alpine` (PostgreSQL 16.15, data reused), and `deploy.sh`: 56 migrations applied, MinIO handed to uid 10001, every container healthy, `/health/ready` 200. Checked after: PostGIS 3.5.7, row-level security forced on 62 tables, MinIO's existing photo and release readable, both consoles sending the Content-Security-Policy (the admin console's `connect-src` naming the API origin), `/internal` unreachable from outside. Android staging build 37 (`2.13.3-staging`, signed with the same key as build 36) built and published through the server-side script, its stored hash matching the APK |
+| Output    | #103 (KFR-046, 2.13.2), #104 (KFR-047, 2.13.3); `DEPLOY.md` (quoting `.env` values), `docs/testing/manual-checks.md` (the field checks on staging); staging at `59bb16e` |
+| Tests     | New `security/restorable-backups.test.ts` (5) and the TCP healthcheck assertion in `security/compose-healthchecks.test.ts`; API 528/528; the restore test on staging's real data |
+| Decisions | D22–D31 approved (Phase 3 plan §4, project brief) |
+| Notes     | The field checks P1.1 and P1.2 are the owner's, on a Meferi with the staging build, after switching GIS on for the `demo` tenant (platform console, so it is audited); iOS waits for the production promotion. Staging has no off-host backups (`BACKUP_*` unset): its archives stay on the host. Production is unchanged |
