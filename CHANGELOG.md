@@ -2,6 +2,18 @@
 
 All notable changes to Vairiot Asset Intelligence, newest first. One product version covers every package, service and app (standard §8.1). Each line ends with the stage it came from; entries before 2.0.0 are back-filled from the commit history and predate stage numbering.
 
+## [2.13.0] — 2026-10-17
+
+### Security
+
+- The database keeps every organisation's data apart on every table, not only on assets, audit events, photos and the IPSAS ledger: inside a request, no query can read or change another organisation's rows (stage 2.15)
+- The web and admin consoles send a Content-Security-Policy: scripts only from Vairiot itself, map tiles only from the allowed tile servers (stage 2.16)
+- MinIO, the file store, no longer runs as root (stage 2.16)
+
+### Changed
+
+- A tenant's own map tile server must be on the operator's allowed list (`CSP_TILE_HOSTS`) before it can be set; the console says so if it is not (stage 2.16)
+
 ## [2.12.0] — 2026-10-17
 
 ### Added
