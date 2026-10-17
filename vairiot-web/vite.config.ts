@@ -35,7 +35,7 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**'],
       exclude: ['src/**/__tests__/**', 'src/test-setup.ts'],
-      thresholds: { lines: 17 },
+      thresholds: { lines: 19 },
     },
   },
 });

@@ -71,7 +71,7 @@ const MAPPING = {
 };
 
 beforeAll(async () => {
-  await prisma.tenant.upsert({ where: { id: TID }, update: { onboardingComplete: true, featureFlags: { ipsas: true } }, create: { id: TID, name: TID, onboardingComplete: true, featureFlags: { ipsas: true } } });
+  await prisma.tenant.upsert({ where: { id: TID }, update: { onboardingComplete: true, featureFlags: { ipsas: true, gis: true } }, create: { id: TID, name: TID, onboardingComplete: true, featureFlags: { ipsas: true, gis: true } } });
   userId = (await prisma.user.upsert({ where: { tenantId_email: { tenantId: TID, email: 'importer@import.test' } }, update: {}, create: { tenantId: TID, email: 'importer@import.test', name: 'Importer' } })).id;
   await ensureTestLicence(TID);
   await prisma.assetClass.create({ data: { tenantId: TID, code: 'SGN', name: 'Signs', ipsasClass: 'INFRASTRUCTURE', capitalisationThreshold: 500, defaultUsefulLifeMonths: 84 } });
@@ -164,6 +164,40 @@ describe('a create import, step by step', () => {
     expect(row.slice(1, 3)).toEqual([3, 'COMMITTED']);
     expect(String(row[3])).toMatch(/\S/); // the asset number
     expect(row[6]).toBe('F-1');
+  });
+});
+
+describe('corrections in the review step (stage 2.14)', () => {
+  it('corrects a row, refuses to commit until validated again, then imports it', async () => {
+    const file = await xlsx([['Name', 'Cost', 'Ref'], ['Lamp post', 'lots', 'F-30'], ['Bench', '120', 'F-31']]);
+    const id = (await request(app).post('/api/v1/imports').set(as()).attach('file', file, 'fix.xlsx')).body.id;
+    await work(id, 'parse');
+    await request(app).put(`/api/v1/imports/${id}/mapping`).set(as()).send({ mapping: { fields: { name: 'Name', purchaseCost: 'Cost', financeRef: 'Ref' } } });
+    await work(id, 'validate');
+    const [bad] = (await request(app).get(`/api/v1/imports/${id}/rows?status=ERROR`).set(as())).body.rows;
+    expect((await request(app).patch(`/api/v1/imports/${id}/rows/${bad.id}`).set(as()).send({ cells: { Colour: 'red' } })).status).toBe(400);
+    const fixed = await request(app).patch(`/api/v1/imports/${id}/rows/${bad.id}`).set(as()).send({ cells: { Cost: '450' } });
+    expect(fixed.body).toMatchObject({ status: 'PENDING', raw: { Name: 'Lamp post', Cost: '450' } });
+    expect((await request(app).post(`/api/v1/imports/${id}/commit`).set(as())).body.code).toBe('REVALIDATE');
+    expect((await request(app).post(`/api/v1/imports/${id}/validate`).set(as())).status).toBe(202);
+    await work(id, 'validate');
+    expect(await batch(id)).toMatchObject({ status: 'VALIDATED', validCount: 2, errorCount: 0 });
+    await request(app).post(`/api/v1/imports/${id}/commit`).set(as());
+    await work(id, 'commit');
+    expect(await batch(id)).toMatchObject({ status: 'COMMITTED', committedCount: 2 });
+    const row = (await request(app).get(`/api/v1/imports/${id}/rows`).set(as())).body.rows[0];
+    expect((await request(app).patch(`/api/v1/imports/${id}/rows/${row.id}`).set(as()).send({ cells: { Cost: '1' } })).body.code).toBe('NOT_EDITABLE');
+  });
+});
+
+describe('the register export (G33)', () => {
+  it('carries the grade, position source, class and references, under headers the import maps', async () => {
+    const csv = (await request(app).get('/api/v1/assets/export.csv?search=Stop').set(as())).text;
+    const [header, row] = csv.trim().split('\n');
+    const cols = header.split(',');
+    for (const h of ['Condition Grade', 'Position Accuracy (m)', 'Position Source', 'Asset Class', 'Finance Reference', 'Legacy Asset Number']) expect(cols).toContain(h);
+    const cell = (h: string) => row.split(',')[cols.indexOf(h)];
+    expect([cell('Condition Grade'), cell('Position Source'), cell('Asset Class'), cell('Finance Reference'), cell('Legacy Asset Number')]).toEqual(['4', 'import', 'SGN', 'F-1', 'INV-1']);
   });
 });
 

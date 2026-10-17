@@ -88,10 +88,37 @@ export async function setMapping(tenantId: string, actorId: string, batchId: str
   return updated;
 }
 
+/**
+ * Corrects a row's cells in the review step (stage 2.14). The row goes back
+ * to PENDING; the batch must be validated again before it is committed.
+ */
+export async function editRow(tenantId: string, actorId: string, batchId: string, rowId: string, cells: Record<string, string | number | null>) {
+  const batch = await findBatch(tenantId, batchId);
+  if (!['PARSED', 'VALIDATED', 'FAILED'].includes(batch.status) || batch.rowCount === 0) throw new ConflictError('Rows can be corrected once the file is read, until it is committed', 'NOT_EDITABLE');
+  const unknown = Object.keys(cells).filter((c) => !batch.columns.includes(c));
+  if (unknown.length) throw new ValidationError(`The file has no column ${unknown.map((c) => `"${c}"`).join(', ')}`);
+  const row = await prisma.importRow.findFirst({ where: { id: rowId, batchId } });
+  if (!row) throw new NotFoundError('Row not found');
+  if (row.status === 'COMMITTED') throw new ConflictError('The row is already imported', 'ROW_COMMITTED');
+  const updated = await prisma.importRow.update({
+    where: { id: rowId }, data: { raw: { ...(row.raw as Record<string, unknown>), ...cells } as Prisma.InputJsonValue, status: 'PENDING', messages: [] },
+  });
+  recordAuditEvent({ tenantId, actor: actorId, entityType: 'import_batch', entityId: batchId, action: 'row_corrected', after: { rowNumber: row.rowNumber, cells: Object.keys(cells) } });
+  return updated;
+}
+
+/** Validates again with the mapping already set, after rows were corrected. */
+export async function revalidateBatch(tenantId: string, actorId: string, batchId: string) {
+  const batch = await findBatch(tenantId, batchId);
+  if (!batch.mapping) throw new ConflictError('Map the columns first', 'NOT_MAPPED');
+  return setMapping(tenantId, actorId, batchId, { mapping: batch.mapping });
+}
+
 /** Queues the VALID and WARNING rows to be written; ERROR rows are left out. */
 export async function commitBatch(tenantId: string, actorId: string, batchId: string) {
   const batch = await findBatch(tenantId, batchId);
   if (batch.status !== 'VALIDATED') throw new ConflictError('Validate the import before committing it', 'NOT_VALIDATED');
+  if (await prisma.importRow.count({ where: { batchId, status: 'PENDING' } })) throw new ConflictError('Rows were corrected: validate again before committing', 'REVALIDATE');
   if (batch.validCount + batch.warningCount === 0) throw new ConflictError('No row can be imported', 'NOTHING_TO_COMMIT');
   const updated = await prisma.importBatch.update({ where: { id: batchId }, data: { status: 'COMMITTING', committedBy: actorId, jobError: null } });
   recordAuditEvent({ tenantId, actor: actorId, entityType: 'import_batch', entityId: batchId, action: 'commit_requested', after: { rows: batch.validCount + batch.warningCount, mode: batch.mode } });

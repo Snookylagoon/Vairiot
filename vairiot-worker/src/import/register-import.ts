@@ -56,8 +56,9 @@ async function parse(deps: ImportDeps, batch: Batch) {
 
 /** What validation needs from the register, read once per batch. */
 async function lookups(db: PrismaClient, tenantId: string) {
-  const ipsas = await db.tenant.findUnique({ where: { id: tenantId }, select: { featureFlags: true } })
-    .then((t) => (t?.featureFlags as Record<string, unknown> | null)?.ipsas === true);
+  const flags = await db.tenant.findUnique({ where: { id: tenantId }, select: { featureFlags: true } })
+    .then((t) => (t?.featureFlags ?? {}) as Record<string, unknown>);
+  const ipsas = flags.ipsas === true;
   const [classes, sites, categories, refs, serials] = await Promise.all([
     ipsas ? db.assetClass.findMany({ where: { tenantId, active: true }, select: { id: true, code: true, capitalisationThreshold: true } }) : [],
     db.site.findMany({ where: { tenantId }, select: { id: true, name: true } }),
@@ -69,6 +70,7 @@ async function lookups(db: PrismaClient, tenantId: string) {
   for (const r of refs) byRef.set(r.value, [...(byRef.get(r.value) ?? []), r.assetId]);
   return {
     ipsas,
+    gis: flags.gis === true,
     classes: new Map(classes.map((c) => [c.code.toUpperCase(), c])),
     sites: new Map(sites.map((s) => [s.name.trim().toLowerCase(), s.id])),
     categories: new Map(categories.map((c) => [c.name.trim().toLowerCase(), c.id])),
@@ -137,6 +139,7 @@ export function checkRow(
   const lat = values.latitude;
   const lng = values.longitude;
   if ((lat === undefined) !== (lng === undefined)) err('A position needs both latitude and longitude', lat === undefined ? 'latitude' : 'longitude');
+  if ((lat !== undefined || lng !== undefined) && !l.gis) warn('Map positions are not used by this organisation: the position is ignored', 'latitude');
   if (lat !== undefined && !(Math.abs(Number(lat)) <= 90)) err('Latitude must be between -90 and 90', 'latitude');
   if (lng !== undefined && !(Math.abs(Number(lng)) <= 180)) err('Longitude must be between -180 and 180', 'longitude');
 

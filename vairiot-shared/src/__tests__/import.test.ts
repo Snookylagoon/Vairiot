@@ -1,4 +1,4 @@
-import { importMappingSchema, mappingFromProfile } from '../import/fields.js';
+import { importMappingSchema, mappingFromProfile, suggestImportMapping } from '../import/fields.js';
 import { mapRow, parseDate, parseDecimal } from '../import/parse.js';
 
 // Stage 2.13: reading register rows for the staged import.
@@ -70,5 +70,18 @@ describe('mapping contracts', () => {
     });
     expect(m.fields).toEqual({ name: 'Наименование', legacyAssetNumber: 'Inv No' });
     expect(() => mappingFromProfile({ nope: 1 })).toThrow();
+  });
+});
+
+describe('suggestImportMapping', () => {
+  it('maps the register export’s own headers, and common names in three languages', () => {
+    expect(suggestImportMapping(['Asset Number', 'Name', 'Condition Grade', 'Asset Class', 'Finance Reference', 'Latitude', 'Longitude', 'Created'])).toEqual({
+      name: 'Name', conditionGrade: 'Condition Grade', classCode: 'Asset Class', financeRef: 'Finance Reference', latitude: 'Latitude', longitude: 'Longitude', legacyAssetNumber: 'Asset Number',
+    });
+    expect(suggestImportMapping(['დასახელება', 'Стоимость', 'Inv. No', 'Cost (GEL)'])).toEqual({ name: 'დასახელება', purchaseCost: 'Стоимость', legacyAssetNumber: 'Inv. No' });
+  });
+
+  it('falls back to a header that starts with a synonym, using each column once', () => {
+    expect(suggestImportMapping(['Purchase cost GEL', 'Site name', 'Site'])).toEqual({ purchaseCost: 'Purchase cost GEL', siteName: 'Site' });
   });
 });

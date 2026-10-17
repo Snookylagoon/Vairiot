@@ -423,13 +423,6 @@ export const openApiSpec = {
         responses: { 200: { description: 'CSV file', content: { 'text/csv': { schema: { type: 'string' } } } } },
       },
     },
-    '/assets/import': {
-      post: {
-        tags: ['Assets'], summary: 'Bulk import assets from CSV rows',
-        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['rows'], properties: { rows: { type: 'array', items: { type: 'object' }, minItems: 1 } } } } } },
-        responses: { 200: { description: 'Import results' } },
-      },
-    },
     '/assets/tag/{tag}': {
       get: {
         tags: ['Assets'], summary: 'Look up asset by barcode or RFID tag',

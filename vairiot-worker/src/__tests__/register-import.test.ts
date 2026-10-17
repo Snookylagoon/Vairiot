@@ -44,7 +44,7 @@ describe('readRegister', () => {
 describe('checkRow', () => {
   const mapping = importMappingSchema.parse({ fields: { name: 'N', financeRef: 'R', serialNumber: 'S', classCode: 'C', purchaseCost: 'P', condition: 'K', status: 'T', usefulLifeMonths: 'L', categoryName: 'G', legacyAssetNumber: 'I' } });
   const l = {
-    ipsas: true, classes: new Map([['SGN', { id: 'c1', code: 'SGN', capitalisationThreshold: '500' as never }]]), sites: new Map(), categories: new Map([['signs', 'g1']]),
+    ipsas: true, gis: true, classes: new Map([['SGN', { id: 'c1', code: 'SGN', capitalisationThreshold: '500' as never }]]), sites: new Map(), categories: new Map([['signs', 'g1']]),
     byRef: new Map([['F-OLD', ['a1']], ['F-TWICE', ['a2', 'a3']]]), serials: new Set(['s-old']),
   };
   const seen = () => ({ financeRef: new Map(), serialNumber: new Map(), legacyAssetNumber: new Map() });
@@ -76,6 +76,12 @@ describe('checkRow', () => {
     expect(checkRow({ R: 'F-OLD' }, mapping, 'UPDATE', l, seen(), 2)).toMatchObject({ status: 'VALID', refs: { assetId: 'a1' } });
     expect(checkRow({ R: 'F-TWICE' }, mapping, 'UPDATE', l, seen(), 2).messages[0].message).toBe('2 assets have finance reference F-TWICE');
     expect(checkRow({ N: 'x' }, mapping, 'UPDATE', l, seen(), 2).messages[0].message).toMatch(/required in update mode/);
+  });
+
+  it('ignores a position, with a warning, when the organisation does not use map positions', () => {
+    const m = importMappingSchema.parse({ fields: { name: 'N', latitude: 'Y', longitude: 'X' } });
+    expect(checkRow({ N: 'A', Y: 41.7, X: 44.8 }, m, 'CREATE', { ...l, gis: false }, seen(), 2)).toMatchObject({ status: 'WARNING', messages: [{ message: expect.stringMatching(/positions are not used/) }] });
+    expect(checkRow({ N: 'A', Y: 41.7 }, m, 'CREATE', l, seen(), 2).messages[0].message).toBe('A position needs both latitude and longitude');
   });
 
   it('ignores the class, with a warning, when the organisation does not use classes', () => {

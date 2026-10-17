@@ -46,10 +46,9 @@ DATE_MIN = dt.date(1990, 1, 1)
 SAMPLE_VALUES = 5
 
 # ─── Vairiot asset fields and the header words that suggest them ───────────────
-# Keys are the asset importer's field names (vairiot-api import.service.ts
-# ImportRow; the web import page maps CSV headers to the same keys). Synonyms
-# are matched against normalised headers (lower case, no punctuation); a
-# bilingual header such as "ინვ. № / Inventory No" is matched on each part.
+# Keys are the staged import's fields (vairiot-shared import/fields.ts, stage
+# 2.13), which takes this file's mapping JSON. Synonyms match normalised headers
+# (lower case, no punctuation), each part of a bilingual "ინვ. № / Inventory No".
 FIELD_SYNONYMS: dict[str, list[str]] = {
     "name": ["name", "asset name", "description of asset", "item", "title", "დასახელება", "სახელწოდება", "наименование", "название"],
     "description": ["description", "details", "აღწერა", "описание"],
@@ -76,18 +75,19 @@ FIELD_SYNONYMS: dict[str, list[str]] = {
     "supplier": ["supplier", "vendor", "მომწოდებელი", "поставщик"],
     "warrantyExpiry": ["warranty expiry", "warranty", "warranty end", "საგარანტიო", "гарантия"],
     "condition": ["condition", "state", "მდგომარეობა", "состояние"],
+    "conditionGrade": ["condition grade", "grade", "condition score", "შეფასება", "კლასი მდგომარეობის", "оценка состояния"],
     "status": ["status", "სტატუსი", "статус"],
     "notes": ["notes", "remarks", "comment", "შენიშვნა", "примечание"],
+    "financeRef": ["finance reference", "finance ref", "accounting code", "gl reference", "ბუღალტრული კოდი", "бухгалтерский код"],
     "purchaseOrderNumber": ["po number", "purchase order", "order number", "შეკვეთის ნომერი", "номер заказа"],
     "invoiceNumber": ["invoice number", "invoice", "ინვოისი", "ზედნადები", "номер счета", "накладная"],
     "residualValue": ["residual value", "salvage value", "ნარჩენი ღირებულება", "остаточная стоимость"],
     "usefulLifeMonths": ["useful life", "useful life months", "life months", "სასარგებლო ვადა", "срок полезного использования"],
     "depreciationMethod": ["depreciation method", "ცვეთის მეთოდი", "метод амортизации"],
     "depreciationStartDate": ["depreciation start", "depreciation start date", "in service date", "ექსპლუატაციაში შესვლა"],
-    # Recognised, but the importer has no field for them yet: reported, not
-    # silently dropped.
+    # The old register's number: imported as LEGACY_TAG (stage 2.13).
     "legacyAssetNumber": [
-        "asset number", "asset no", "inventory number", "inventory no", "inv no", "asset id",
+        "legacy asset number", "legacy number", "asset number", "asset no", "inventory number", "inventory no", "inv no", "asset id",
         "asset tag", "tag number", "register number",
         "ინვენტარის ნომერი", "ინვ", "ინვენტარული ნომერი", "საინვენტარო ნომერი",
         "инвентарный номер", "инв номер", "инв",
@@ -97,8 +97,7 @@ FIELD_SYNONYMS: dict[str, list[str]] = {
 }
 
 NOT_IMPORTABLE = {
-    "legacyAssetNumber": "Vairiot allocates its own asset numbers; keep this one (S2 import will carry it as the legacy reference). Until then map it to notes if needed.",
-    "locationName": "The importer sets the site only; locations are added after import (or in S2).",
+    "locationName": "The importer sets the site only; locations are added after import.",
 }
 
 # What each check needs from the mapping.

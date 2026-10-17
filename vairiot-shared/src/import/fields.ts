@@ -43,6 +43,12 @@ export const importMappingSaveSchema = z.object({ name: z.string().trim().min(1)
 
 export const importModeSchema = z.enum(['CREATE', 'UPDATE']);
 
+/** A row's cells corrected in the review step, by column header (stage 2.14). */
+export const importRowEditSchema = z.object({
+  cells: z.record(z.string().min(1).max(200), z.union([z.string().max(2000), z.number(), z.null()]))
+    .refine((c) => Object.keys(c).length > 0 && Object.keys(c).length <= 200, 'Between 1 and 200 cells'),
+});
+
 /** The profiler's JSON: `mappings` of `{ column, field, importable }`. */
 const profileSchema = z.object({
   mappings: z.array(z.object({ column: z.string(), field: z.string().nullable() })),
@@ -60,4 +66,58 @@ export function mappingFromProfile(doc: unknown): ImportMapping {
     if (m.field && m.field in IMPORT_FIELDS && !fields[m.field as ImportField]) fields[m.field as ImportField] = m.column;
   }
   return importMappingSchema.parse({ fields });
+}
+
+// Header words for each field, for the wizard's first guess (stage 2.14): the
+// register export's own headers first, then common English, Georgian and
+// Russian ones (scripts/profile-register.py keeps the fuller list).
+const SYNONYMS: Record<ImportField, string[]> = {
+  name: ['name', 'asset name', 'item', 'დასახელება', 'наименование'],
+  description: ['description', 'details', 'აღწერა', 'описание'],
+  categoryName: ['category', 'type', 'group', 'კატეგორია', 'категория'],
+  classCode: ['asset class', 'class code', 'class', 'კლასი', 'класс'],
+  siteName: ['site', 'facility', 'building', 'depot', 'ობიექტი', 'объект'],
+  serialNumber: ['serial number', 'serial no', 'serial', 'სერიული ნომერი', 'серийный номер', 'заводской номер'],
+  modelNumber: ['model number', 'model', 'მოდელი', 'модель'],
+  manufacturer: ['manufacturer', 'make', 'brand', 'მწარმოებელი', 'производитель'],
+  barcode: ['manufacturer ean', 'barcode', 'ean', 'შტრიხკოდი', 'штрихкод'],
+  rfidTag: ['rfid tag', 'rfid', 'epc'],
+  purchaseCost: ['purchase cost', 'cost', 'acquisition cost', 'value', 'price', 'ღირებულება', 'стоимость'],
+  purchaseDate: ['purchase date', 'acquisition date', 'date acquired', 'შეძენის თარიღი', 'дата приобретения'],
+  supplier: ['supplier', 'vendor', 'მომწოდებელი', 'поставщик'],
+  warrantyExpiry: ['warranty expiry', 'warranty', 'საგარანტიო', 'гарантия'],
+  condition: ['condition', 'state', 'მდგომარეობა', 'состояние'],
+  conditionGrade: ['condition grade', 'grade', 'condition score'],
+  status: ['status', 'სტატუსი', 'статус'],
+  notes: ['notes', 'remarks', 'comment', 'შენიშვნა', 'примечание'],
+  purchaseOrderNumber: ['po number', 'purchase order', 'order number'],
+  invoiceNumber: ['invoice number', 'invoice', 'ინვოისი', 'накладная'],
+  residualValue: ['residual value', 'salvage value', 'ნარჩენი ღირებულება'],
+  usefulLifeMonths: ['useful life months', 'useful life', 'life months', 'სასარგებლო ვადა'],
+  depreciationMethod: ['depreciation method', 'ცვეთის მეთოდი', 'метод амортизации'],
+  depreciationStartDate: ['depreciation start date', 'depreciation start', 'in service date'],
+  latitude: ['latitude', 'lat', 'განედი', 'широта'],
+  longitude: ['longitude', 'lon', 'lng', 'long', 'გრძედი', 'долгота'],
+  custodian: ['custodian', 'responsible person', 'responsible', 'პასუხისმგებელი', 'ответственный'],
+  financeRef: ['finance reference', 'finance ref', 'accounting code', 'gl reference'],
+  legacyAssetNumber: ['legacy asset number', 'legacy number', 'inventory number', 'inventory no', 'inv no', 'asset number', 'ინვენტარის ნომერი', 'инвентарный номер'],
+};
+
+const normalise = (t: string) => t.normalize('NFKC').toLowerCase().replace(/\(.*?\)|№|#/g, ' ').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+
+/**
+ * A first mapping from the file's headers: exact matches first, then a header
+ * that starts with a synonym; each field and each column used once.
+ */
+export function suggestImportMapping(columns: string[]): Partial<Record<ImportField, string>> {
+  const out: Partial<Record<ImportField, string>> = {};
+  const taken = new Set<string>();
+  for (const exact of [true, false]) {
+    for (const field of IMPORT_FIELD_NAMES) {
+      if (out[field]) continue;
+      const hit = columns.find((c) => !taken.has(c) && SYNONYMS[field].some((w) => (exact ? normalise(c) === w : normalise(c).startsWith(`${w} `))));
+      if (hit) { out[field] = hit; taken.add(hit); }
+    }
+  }
+  return out;
 }

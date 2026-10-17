@@ -2,15 +2,15 @@ import { timingSafeEqual } from 'node:crypto';
 
 import { Router, type NextFunction, type Response } from 'express';
 import multer from 'multer';
-import { importMappingSaveSchema, importModeSchema } from 'vairiot-shared';
+import { importMappingSaveSchema, importModeSchema, importRowEditSchema } from 'vairiot-shared';
 
 import { ForbiddenError, UnauthorizedError, ValidationError } from '../../lib/errors';
 import { runWithTenant } from '../../lib/tenant-context';
 import { requireAnyPermission } from '../../middleware/authorise';
 import { asyncHandler } from '../../middleware/error-handler';
 import {
-  cancelBatch, commitBatch, errorRowsWorkbook, getBatch, listBatches, listMappings, listRows, MAX_BYTES, reconciliationWorkbook,
-  saveMapping, setMapping, uploadBatch,
+  cancelBatch, commitBatch, editRow, errorRowsWorkbook, getBatch, listBatches, listMappings, listRows, MAX_BYTES, reconciliationWorkbook,
+  revalidateBatch, saveMapping, setMapping, uploadBatch,
 } from '../../services/import/batches.service';
 import { commitChunk, commitStart } from '../../services/import/commit.service';
 import type { Request } from '../../types/http';
@@ -75,6 +75,16 @@ importsRouter.put('/:id/mapping', requireAnyPermission('asset:write'),
     if (m) assertMayUpdate(req, m);
     res.status(202).json(await setMapping(req.user!.tenantId, req.user!.sub, req.params.id, { mapping: req.body.mapping, profile: req.body.profile, mode: m }));
   }));
+
+importsRouter.patch('/:id/rows/:rowId', requireAnyPermission('asset:write'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const r = importRowEditSchema.safeParse(req.body);
+    if (!r.success) throw new ValidationError('cells: the corrected values by column');
+    res.json(await editRow(req.user!.tenantId, req.user!.sub, req.params.id, req.params.rowId, r.data.cells));
+  }));
+
+importsRouter.post('/:id/validate', requireAnyPermission('asset:write'),
+  asyncHandler(async (req: Request, res: Response) => { res.status(202).json(await revalidateBatch(req.user!.tenantId, req.user!.sub, req.params.id)); }));
 
 importsRouter.post('/:id/commit', requireAnyPermission('asset:write'),
   asyncHandler(async (req: Request, res: Response) => {

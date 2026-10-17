@@ -57,11 +57,20 @@ export const importPaths = {
       responses: { 202: accepted, 400: { description: 'Invalid, or a column the file does not have' }, 409: { description: 'NOT_MAPPABLE' } },
     },
   },
+  '/imports/{id}/rows/{rowId}': {
+    patch: {
+      tags, summary: 'Correct a row’s cells, by column header; the row goes back to PENDING until the batch is validated again (asset:write)',
+      parameters: [...id, { name: 'rowId', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['cells'], properties: { cells: { type: 'object', additionalProperties: { oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'null' }] } } } } } } },
+      responses: { 200: { description: 'The row' }, 400: { description: 'A column the file does not have' }, 409: { description: 'NOT_EDITABLE or ROW_COMMITTED' } },
+    },
+  },
+  '/imports/{id}/validate': { post: { tags, summary: 'Validate again with the mapping already set (asset:write)', parameters: id, responses: { 202: accepted, 409: { description: 'NOT_MAPPED or NOT_MAPPABLE' } } } },
   '/imports/{id}/commit': {
     post: {
       tags, summary: 'Queue the VALID and WARNING rows to be written; ERROR rows are left out (asset:write; update mode also accounting:write)',
       description: 'The licence cap is checked for the whole batch first (KFR-039). Each row gets its FINANCE_REF and LEGACY_TAG identifiers and a MIGRATED event; update mode matches by FINANCE_REF and changes no asset number.',
-      parameters: id, responses: { 202: accepted, 409: { description: 'NOT_VALIDATED or NOTHING_TO_COMMIT' } },
+      parameters: id, responses: { 202: accepted, 409: { description: 'NOT_VALIDATED, REVALIDATE or NOTHING_TO_COMMIT' } },
     },
   },
   '/imports/{id}/cancel': { post: { tags, summary: 'Cancel a batch not yet being committed (asset:write)', parameters: id, responses: { 200: { description: 'Cancelled' }, 409: { description: 'NOT_CANCELLABLE' } } } },
