@@ -11,6 +11,7 @@ All notable changes to Vairiot Asset Intelligence, newest first. One product ver
 - Component templates, including TUDA's "Signalised junction" with placeholder figures; creating from one makes the asset and its parts with the cost split exactly (stage 2.5)
 - The asset list marks parents and parts and can roll parts up into their parents; the fixed asset register and the valuation summary have the same roll-up option (stage 2.6)
 - The Android and iOS apps show an asset's parts, or the asset a part belongs to, and open them (stage 2.6)
+- A custodian on every asset: the person or unit accountable for it, on the asset form and page, in the import and export, and changed by a transfer that names one; each change is on the asset's history, and parts take and follow their parent's custodian (stage 2.7)
 
 ### Changed
 
