@@ -11,8 +11,11 @@ services:
       POSTGRES_USER: restoretest
       POSTGRES_PASSWORD: restoretest
       POSTGRES_DB: restoretest
+    # Over TCP (KFR-047): while the image initialises it runs a temporary
+    # server on the socket only, then restarts; a socket check passes against
+    # that one, and a restore started then is cut off by the restart.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U restoretest -d restoretest"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U restoretest -d restoretest"]
       interval: 2s
       timeout: 3s
       retries: 30

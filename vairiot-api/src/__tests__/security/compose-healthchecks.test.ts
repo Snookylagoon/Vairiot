@@ -26,3 +26,17 @@ it('every nginx site still listens on IPv4 port 80, which the healthcheck relies
     expect(readFileSync(path.join(INFRA, 'nginx', conf), 'utf8')).toMatch(/listen 80 default_server;/);
   }
 });
+
+// KFR-047 (stage 3.1): the Postgres images initialise a fresh data directory
+// with a temporary server on the socket only, then restart it. A socket check
+// called that one healthy, and the restore test's restore was cut off by the
+// restart. Every Postgres healthcheck asks over TCP, which only the real
+// server answers.
+it('every Postgres healthcheck asks over TCP', () => {
+  const files = ['docker-compose.prod.yml', 'docker-compose.yml', 'docker-compose.infra.yml', 'docker-compose.test.yml', 'docker-compose.restoretest.yml'];
+  for (const f of files) {
+    const checks = readFileSync(path.join(INFRA, f), 'utf8').match(/pg_isready[^"'\]]*/g) ?? [];
+    expect([f, checks.length > 0]).toEqual([f, true]);
+    for (const c of checks) expect([f, c]).toEqual([f, expect.stringContaining('-h 127.0.0.1')]);
+  }
+});
