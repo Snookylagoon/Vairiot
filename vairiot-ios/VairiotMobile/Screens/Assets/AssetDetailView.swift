@@ -107,6 +107,9 @@ struct AssetDetailView: View {
             VStack(spacing: 16) {
                 headerCard(asset)
                 infoSection(asset)
+                if FeatureFlags.shared.ipsasEnabled, asset.parentAsset != nil || !(asset.components ?? []).isEmpty {
+                    AssetComponentsSection(asset: asset, apiClient: apiClient)
+                }
                 if FeatureFlags.shared.gisEnabled, let position = AssetPosition(asset) {
                     positionSection(position, assetName: asset.name)
                 }

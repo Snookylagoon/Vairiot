@@ -131,10 +131,10 @@ data class AssetResponse(
     val geoAccuracyMeters: Double? = null,
     val geoSource:         String? = null,
     val geoCapturedAt:     String? = null,
-    // IPSAS class and recognition (stage 2.4), shown read-only; see AssetRefModels.kt
+    // IPSAS (stages 2.4–2.6), read-only: class, recognition, parent and parts; see AssetRefModels.kt
     val assetClass: AssetClassRefResponse? = null, val recognitionStatus: String? = null,
+    val parentAsset: AssetSummaryRef? = null, val components: List<ComponentRefResponse>? = null,
 )
-
 
 data class AssetListResponse(
     val assets:     List<AssetResponse>,

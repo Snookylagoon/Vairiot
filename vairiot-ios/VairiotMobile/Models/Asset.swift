@@ -59,6 +59,28 @@ struct LocationRefResponse: Codable, Identifiable, Hashable {
     let name: String
 }
 
+/// Another asset by number and name: a component's parent (stage 2.6).
+struct AssetSummaryRef: Codable, Identifiable, Hashable {
+    let id: String
+    let assetNumber: String
+    let name: String
+}
+
+/// One part of an asset held as components (stage 2.6).
+struct ComponentRefResponse: Codable, Identifiable, Hashable {
+    let id: String
+    let assetNumber: String
+    let name: String
+    let componentRole: String?
+    let status: String
+
+    /// "Controller · AST-000123 Junction — Controller"
+    var label: String {
+        [componentRole.map { $0.prefix(1).uppercased() + $0.dropFirst() }, "\(assetNumber) \(name)"]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
 /// The asset's IPSAS class (stage 2.4). The apps show it; Finance sets it on the web.
 struct AssetClassRefResponse: Codable, Identifiable, Hashable {
     let id: String
@@ -94,6 +116,9 @@ struct AssetResponse: Codable, Identifiable {
     // IPSAS class and recognition (stage 2.4), shown read-only
     var assetClass: AssetClassRefResponse? = nil
     var recognitionStatus: String? = nil
+    // Held as parts (stage 2.6)
+    var parentAsset: AssetSummaryRef? = nil
+    var components: [ComponentRefResponse]? = nil
 
     /// The "Asset class" row: "SGN · Road signs (recognised)", "None yet (waiting
     /// for Finance)", or nil when the tenant keeps no IPSAS ledger.

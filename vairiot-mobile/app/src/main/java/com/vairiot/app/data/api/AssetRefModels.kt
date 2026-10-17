@@ -10,6 +10,16 @@ data class LocationRefResponse(val id: String, val name: String)
 /** The asset's IPSAS class (stage 2.4). The apps show it; Finance sets it on the web. */
 data class AssetClassRefResponse(val id: String, val code: String, val name: String)
 
+/** Another asset, by number and name: a component's parent (stage 2.6). */
+data class AssetSummaryRef(val id: String, val assetNumber: String, val name: String)
+
+/** One part of an asset held as components (stage 2.6). */
+data class ComponentRefResponse(val id: String, val assetNumber: String, val name: String, val componentRole: String?, val status: String)
+
+/** "Controller · AST-000123 Junction — Controller" for the parts list. */
+fun componentLabel(c: ComponentRefResponse): String =
+    listOfNotNull(c.componentRole?.replaceFirstChar { it.uppercase() }, "${c.assetNumber} ${c.name}").joinToString(" · ")
+
 private val RECOGNITION_LABELS = mapOf(
     "RECOGNISED" to "recognised",
     "EXPENSED" to "expensed, below threshold",
