@@ -36,6 +36,11 @@ const HISTORY = {
   accumulated: '125.00', carryingAmount: '4875.00',
 };
 
+const USAGE = [
+  { id: 'a1', assetNumber: 'TRK-001', name: 'Truck', expectedTotalUnits: '200000', units: '1000' },
+  { id: 'a2', assetNumber: 'TRK-002', name: 'Lorry', expectedTotalUnits: '150000', units: null },
+];
+
 function signIn(permissions: string[]) {
   useAuthStore.setState({ user: { userId: 'me', permissions, roles: [], featureFlags: { ipsas: true } } as never, loading: false });
 }
@@ -49,6 +54,7 @@ beforeEach(() => {
     path === '/api/v1/accounting/periods' ? PERIODS
     : path === '/api/v1/accounting/depreciation-by-class' ? BY_CLASS
     : path === '/api/v1/accounting/assets/a1/depreciation' ? HISTORY
+    : path === '/api/v1/accounting/periods/p11/usage' ? USAGE
     : [],
   }));
 });
@@ -57,7 +63,7 @@ describe('PeriodsPage', () => {
   it('lists periods with their runs and previews, and depreciation by class', async () => {
     signIn(['accounting:read']);
     wrap(<PeriodsPage />);
-    expect(await screen.findByText('October 2026')).toBeInTheDocument();
+    expect(await screen.findByText('October 2026', { selector: 'span' })).toBeInTheDocument();
     expect(screen.getAllByText('Left out: 1 not recognised (expensed or waiting for Finance)').length).toBeGreaterThan(0);
     const total = (await screen.findByText('Total')).closest('tr')!;
     expect(within(total).getByText(/976\.20/)).toBeInTheDocument();
@@ -67,7 +73,7 @@ describe('PeriodsPage', () => {
   it('lets an approver post a run someone else prepared, not their own', async () => {
     signIn(['accounting:read', 'accounting:write', 'accounting:approve']);
     wrap(<PeriodsPage />);
-    await screen.findByText('November 2026');
+    await screen.findByText('November 2026', { selector: 'span' });
     const posts = screen.getAllByRole('button', { name: 'Post' });
     expect(posts[0]).toBeEnabled();     // November: prepared by someone else
     expect(posts[1]).toBeDisabled();    // October: prepared by me
@@ -87,6 +93,29 @@ describe('PeriodsPage', () => {
     fireEvent.change(screen.getByLabelText('Reason for the reversal'), { target: { value: 'Wrong usage' } });
     fireEvent.click(screen.getByText('Reverse run'));
     await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/accounting/runs/r0/reverse', { notes: 'Wrong usage' }));
+  });
+
+  it('shows the worker at work and why a job was not done, and offers nothing meanwhile', async () => {
+    signIn(['accounting:read', 'accounting:write', 'accounting:approve']);
+    const busy = [
+      { ...PERIODS[0], runs: [{ ...run('r2', 'DRAFT', 'someone-else'), jobState: 'RUNNING', pendingAction: 'POST' }] },
+      { ...PERIODS[1], runs: [{ ...run('r1', 'DRAFT', 'me'), jobState: 'FAILED', pendingAction: 'POST', jobError: 'The period is not open' }] },
+    ];
+    get.mockImplementation((path: string) => Promise.resolve({ data: path === '/api/v1/accounting/periods' ? busy : [] }));
+    wrap(<PeriodsPage />);
+    expect(await screen.findByText('Posting…')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Not done: The period is not open');
+    expect(screen.getAllByRole('button', { name: 'Post' })).toHaveLength(1); // only the failed one, again
+  });
+
+  it('enters usage for units-of-production assets in bulk, saving only the changes', async () => {
+    signIn(['accounting:read', 'accounting:write']);
+    wrap(<PeriodsPage />);
+    expect(await screen.findByText('TRK-002')).toBeInTheDocument();
+    expect(screen.getByLabelText('Units for TRK-001')).toHaveValue(1000);
+    fireEvent.change(screen.getByLabelText('Units for TRK-002'), { target: { value: '750' } });
+    fireEvent.click(screen.getByText('Save 1 change'));
+    await waitFor(() => expect(put).toHaveBeenCalledWith('/api/v1/accounting/periods/p11/usage', { rows: [{ assetId: 'a2', units: 750 }] }));
   });
 });
 

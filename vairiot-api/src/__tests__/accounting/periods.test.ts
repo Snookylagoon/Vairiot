@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { processDepreciationRun } from 'vairiot-worker/depreciation/run-job';
 
 import { createApp } from '../../app';
 import { signAccessToken } from '../../lib/jwt';
@@ -27,6 +28,8 @@ const preparer = () => ({ Authorization: `Bearer ${tokenFor(preparerId)}` });
 const approver = () => ({ Authorization: `Bearer ${tokenFor(approverId, true)}` });
 const api = (method: 'get' | 'post' | 'put', path: string, auth = preparer()) => request(app)[method](`/api/v1/accounting${path}`).set(auth);
 const openPeriod = async (year: number, month: number) => (await api('post', '/periods').send({ year, month })).body.id as string;
+/** What the worker would do with the run's queued action (stage 2.10). */
+const work = (runId: string) => processDepreciationRun(prisma, { tenantId: TID, runId });
 
 beforeAll(async () => {
   await prisma.tenant.upsert({ where: { id: TID }, update: { onboardingComplete: true, featureFlags: { ipsas: true } }, create: { id: TID, name: TID, onboardingComplete: true, featureFlags: { ipsas: true } } });
@@ -76,15 +79,21 @@ describe('S2.3 gate', () => {
   it('running October 2026 previews, then posts entries', async () => {
     october = await openPeriod(2026, 10);
     await api('put', `/periods/${october}/usage/${pumpId}`).send({ units: 2500 });
-    const draft = await api('post', `/periods/${october}/runs`);
-    expect(draft.status).toBe(201);
-    runId = draft.body.id;
-    expect(draft.body).toMatchObject({ status: 'DRAFT', assetCount: 2, totalCharge: '136.9' });
+    const queued = await api('post', `/periods/${october}/runs`);
+    expect(queued.status).toBe(202);
+    runId = queued.body.id;
+    expect(queued.body).toMatchObject({ status: 'DRAFT', jobState: 'QUEUED', pendingAction: 'PREPARE' });
+    await work(runId);
+    const draft = { body: await prisma.depreciationRun.findUniqueOrThrow({ where: { id: runId } }) };
+    expect(draft.body).toMatchObject({ status: 'DRAFT', jobState: 'DONE', assetCount: 2 });
+    expect(draft.body.totalCharge.toFixed(2)).toBe('136.90');
     expect(draft.body.preview).toMatchObject({ byClass: [{ classCode: 'SGN', count: 2, charge: '136.90' }], skipped: { not_recognised: 1, not_started: 1 } });
 
     expect((await api('post', `/runs/${runId}/post`, { Authorization: `Bearer ${tokenFor(preparerId, true)}` })).status).toBe(403);
-    const posted = await api('post', `/runs/${runId}/post`, approver());
-    expect(posted.body).toMatchObject({ status: 'POSTED', postedBy: approverId });
+    expect((await api('post', `/runs/${runId}/post`, approver())).status).toBe(202);
+    await work(runId);
+    const posted = { body: await prisma.depreciationRun.findUniqueOrThrow({ where: { id: runId } }) };
+    expect(posted.body).toMatchObject({ status: 'POSTED', postedBy: approverId, jobState: 'DONE' });
     const entries = await prisma.depreciationEntry.findMany({ where: { runId }, orderBy: { charge: 'asc' } });
     expect(entries.map((e) => [e.method, e.charge.toFixed(2), e.closingNbv.toFixed(2)])).toEqual([
       ['straight_line', '11.90', '988.10'], ['units_of_production', '125.00', '4875.00'],
@@ -108,15 +117,19 @@ describe('S2.3 gate', () => {
   it('corrects by reversal, never by editing, and runs again', async () => {
     await expect(prisma.depreciationEntry.updateMany({ where: { runId }, data: { charge: 0 } })).rejects.toThrow(/append-only/);
     const reversal = await api('post', `/runs/${runId}/reverse`, approver()).send({ notes: 'Wrong usage' });
-    expect(reversal.status).toBe(201);
+    expect(reversal.status).toBe(202);
+    await work(runId);
+    expect(await prisma.depreciationRun.findFirst({ where: { reversalOfRunId: runId } })).toMatchObject({ notes: 'Wrong usage', status: 'POSTED' });
     const history = await api('get', `/assets/${signId}/depreciation`);
     expect(history.body.entries.map((e: { runStatus: string; charge: string }) => [e.runStatus, e.charge])).toEqual([['REVERSED', '11.9'], ['REVERSAL', '-11.9']]);
     expect(history.body).toMatchObject({ accumulated: '0.00', carryingAmount: null });
     // Run again, with the right usage.
     await api('put', `/periods/${october}/usage/${pumpId}`).send({ units: 1000 });
     const again = await api('post', `/periods/${october}/runs`);
-    const posted = await api('post', `/runs/${again.body.id}/post`, approver());
-    expect(posted.body.totalCharge).toBe('61.9');
+    await work(again.body.id);
+    await api('post', `/runs/${again.body.id}/post`, approver());
+    await work(again.body.id);
+    expect((await prisma.depreciationRun.findUniqueOrThrow({ where: { id: again.body.id } })).totalCharge.toFixed(2)).toBe('61.90');
     const after = await api('get', `/assets/${signId}/depreciation`);
     expect(after.body).toMatchObject({ accumulated: '11.90', carryingAmount: '988.10' });
   });
@@ -131,7 +144,10 @@ describe('S2.3 gate', () => {
   it('discards a draft, and a new draft replaces an older one', async () => {
     const december = await openPeriod(2026, 12);
     const first = await api('post', `/periods/${december}/runs`);
+    expect((await api('post', `/periods/${december}/runs`)).body.code).toBe('RUN_BUSY'); // the worker has not got to it yet
+    await work(first.body.id);
     const second = await api('post', `/periods/${december}/runs`);
+    await work(second.body.id);
     expect((await prisma.depreciationRun.findUniqueOrThrow({ where: { id: first.body.id } })).status).toBe('DISCARDED');
     expect((await api('post', `/runs/${second.body.id}/discard`)).body.status).toBe('DISCARDED');
     expect((await api('post', `/runs/${second.body.id}/post`, approver())).body.code).toBe('NOT_DRAFT');
@@ -141,5 +157,47 @@ describe('S2.3 gate', () => {
     const run = await prisma.depreciationRun.findFirstOrThrow({ where: { tenantId: TID, status: 'POSTED', reversalOfRunId: null } });
     expect((await api('post', `/runs/${run.id}/reverse`)).status).toBe(403);
     expect((await api('post', `/periods/${run.periodId}/lock`)).status).toBe(403);
+  });
+});
+
+describe('worker (stage 2.10)', () => {
+  it('records a refused post as FAILED with the reason, and leaves the run a draft', async () => {
+    const january = await openPeriod(2027, 1);
+    const run = (await api('post', `/periods/${january}/runs`)).body.id;
+    await work(run);
+    expect((await api('post', `/runs/${run}/post`, approver())).status).toBe(202);
+    // The month is closed by hand before the worker gets to the post.
+    await prisma.accountingPeriod.update({ where: { id: january }, data: { status: 'CLOSED' } });
+    await work(run);
+    expect(await prisma.depreciationRun.findUniqueOrThrow({ where: { id: run } })).toMatchObject({
+      status: 'DRAFT', jobState: 'FAILED', jobError: 'The period is not open', pendingAction: null,
+    });
+    expect(await prisma.depreciationEntry.count({ where: { runId: run } })).toBe(0);
+  });
+
+  it('does nothing for a run with nothing queued', async () => {
+    const done = await prisma.depreciationRun.findFirstOrThrow({ where: { tenantId: TID, jobState: 'DONE', status: 'POSTED' } });
+    await work(done.id);
+    expect((await prisma.depreciationRun.findUniqueOrThrow({ where: { id: done.id } })).updatedAt).toEqual(done.updatedAt);
+  });
+});
+
+describe('bulk usage (stage 2.10)', () => {
+  it('lists the units-of-production assets and saves their usage together', async () => {
+    const february = await openPeriod(2027, 2);
+    const list = await api('get', `/periods/${february}/usage`);
+    expect(list.body.map((a: { id: string; units: unknown }) => [a.id, a.units])).toEqual([[pumpId, null]]);
+    const saved = await api('put', `/periods/${february}/usage`).send({ rows: [{ assetId: pumpId, units: 750 }] });
+    expect(saved.status).toBe(200);
+    expect((await api('get', `/periods/${february}/usage`)).body[0].units).toBe('750');
+  });
+
+  it('refuses the whole list for an unknown asset, a repeat or a closed period', async () => {
+    const february = (await prisma.accountingPeriod.findFirstOrThrow({ where: { tenantId: TID, year: 2027, month: 2 } })).id;
+    expect((await api('put', `/periods/${february}/usage`).send({ rows: [{ assetId: pumpId, units: 1 }, { assetId: 'nope', units: 1 }] })).status).toBe(404);
+    expect((await api('put', `/periods/${february}/usage`).send({ rows: [{ assetId: pumpId, units: 1 }, { assetId: pumpId, units: 2 }] })).status).toBe(400);
+    expect((await api('get', `/periods/${february}/usage`)).body[0].units).toBe('750');
+    const january = (await prisma.accountingPeriod.findFirstOrThrow({ where: { tenantId: TID, year: 2027, month: 1 } })).id;
+    expect((await api('put', `/periods/${january}/usage`).send({ rows: [{ assetId: pumpId, units: 1 }] })).body.code).toBe('PERIOD_NOT_OPEN');
   });
 });

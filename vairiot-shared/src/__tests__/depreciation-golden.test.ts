@@ -1,5 +1,5 @@
-import { money, ZERO } from '../../lib/money';
-import { chargeFor, ledgerState, monthIn, type EngineAsset, type LedgerState, type Period } from '../../services/depreciation/engine';
+import { chargeFor, ledgerState, monthIn, type EngineAsset, type LedgerState, type Period } from '../depreciation/engine.js';
+import { money, ZERO } from '../depreciation/money.js';
 
 // Golden figures (test plan §3.4), worked by hand: each method over a life,
 // the residual floor, the last month taking the remainder (D14), and the

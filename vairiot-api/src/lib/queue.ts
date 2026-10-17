@@ -1,10 +1,10 @@
 import { Queue, ConnectionOptions } from 'bullmq';
-import { QUEUE_NAMES, type AuditCompleteJob, type UserInviteJob, type WebhookDeliverJob } from 'vairiot-shared';
+import { QUEUE_NAMES, type AuditCompleteJob, type DepreciationRunJob, type UserInviteJob, type WebhookDeliverJob } from 'vairiot-shared';
 
 import { logger } from './logger';
 
 export { QUEUE_NAMES };
-export type { AuditCompleteJob, UserInviteJob, WebhookDeliverJob };
+export type { AuditCompleteJob, DepreciationRunJob, UserInviteJob, WebhookDeliverJob };
 
 let cachedAuditQueue: Queue<AuditCompleteJob> | null = null;
 let cachedInviteQueue: Queue<UserInviteJob> | null = null;
@@ -86,6 +86,25 @@ export async function enqueueWebhookDeliver(payload: WebhookDeliverJob): Promise
     return true;
   } catch (e) {
     logger.error(`Failed to enqueue webhook-deliver: ${(e as Error).message}`);
+    return false;
+  }
+}
+
+let cachedDepreciationQueue: Queue<DepreciationRunJob> | null = null;
+
+/**
+ * Hands a depreciation run to the worker (stage 2.10). One job per run at a
+ * time (the job id is the run's): the run row records what was asked.
+ * False when no queue is available (WORKER_DISABLED=1, or Redis down).
+ */
+export async function enqueueDepreciationRun(payload: DepreciationRunJob): Promise<boolean> {
+  if (isWorkerDisabled()) return false;
+  cachedDepreciationQueue ??= new Queue<DepreciationRunJob>(QUEUE_NAMES.depreciationRun, { connection: connection() });
+  try {
+    await cachedDepreciationQueue.add('run', payload, { removeOnComplete: 100, removeOnFail: 200, attempts: 1 });
+    return true;
+  } catch (e) {
+    logger.error(`Failed to enqueue depreciation-run: ${(e as Error).message}`);
     return false;
   }
 }

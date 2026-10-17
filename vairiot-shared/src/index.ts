@@ -25,6 +25,9 @@ export * from './gs1/index.js';
 // Switchable modules (Tenant.featureFlags, D7)
 export * from './modules/index.js';
 
+// Depreciation engine and its decimal money (stage 2.10)
+export * from './depreciation/index.js';
+
 // BullMQ queue names and job payloads (API and worker)
 export * from './queues/index.js';
 

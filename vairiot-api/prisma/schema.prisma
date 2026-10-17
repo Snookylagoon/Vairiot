@@ -355,25 +355,32 @@ enum PeriodStatus {
 }
 
 model DepreciationRun {
-  id              String    @id @default(cuid())
+  id              String      @id @default(cuid())
   tenantId        String
   periodId        String
-  status          RunStatus @default(DRAFT)
+  status          RunStatus   @default(DRAFT)
   /// What posting would write: count and charge in total and by class.
   preview         Json?
-  assetCount      Int       @default(0)
-  totalCharge     Decimal   @default(0) @db.Decimal(16, 2)
+  assetCount      Int         @default(0)
+  totalCharge     Decimal     @default(0) @db.Decimal(16, 2)
   preparedBy      String
-  preparedAt      DateTime  @default(now())
+  preparedAt      DateTime    @default(now())
   postedBy        String?
   postedAt        DateTime?
   reversedBy      String?
   reversedAt      DateTime?
   /// Set on the run that offsets another.
-  reversalOfRunId String?   @unique
+  reversalOfRunId String?     @unique
   notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  /// The worker's progress on what was last asked of this run (stage 2.10).
+  jobState        RunJobState @default(QUEUED)
+  pendingAction   RunAction?
+  /// Who asked for the pending post or reversal (the poster or reverser).
+  pendingBy       String?
+  pendingNotes    String?
+  jobError        String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   tenant     Tenant              @relation(fields: [tenantId], references: [id])
   period     AccountingPeriod    @relation(fields: [periodId], references: [id])
@@ -390,6 +397,20 @@ enum RunStatus {
   POSTED
   REVERSED
   DISCARDED
+}
+
+/// The worker's progress on a run's pending action (stage 2.10).
+enum RunJobState {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum RunAction {
+  PREPARE
+  POST
+  REVERSE
 }
 
 /// One asset's charge for one period from one run. Append-only.

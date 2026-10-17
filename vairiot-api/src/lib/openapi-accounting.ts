@@ -100,13 +100,22 @@ export const accountingPaths = {
   },
   '/accounting/periods/{id}/runs': {
     post: {
-      tags: ['Accounting'], summary: 'Prepare a draft depreciation run with its preview (accounting:write)',
-      description: 'The period must be open, with no posted run, and no later period posted. An earlier draft for the period is discarded.',
-      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 201: { description: 'Draft run: assetCount, totalCharge, preview by class and skipped reasons' }, 409: { description: 'Not open, already posted, or a later period posted' } },
+      tags: ['Accounting'], summary: 'Queue a draft depreciation run for the worker to preview (accounting:write)',
+      description: 'The period must be open, with no posted run, no later period posted, and no job in flight. An earlier draft for the period is discarded. The worker fills in the preview; `jobState` on the run shows its progress.',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 202: { description: 'Draft run, jobState QUEUED' }, 409: { description: 'Not open, already posted, a later period posted, or RUN_BUSY' } },
     },
   },
   '/accounting/periods/{id}/reopen': { post: { tags: ['Accounting'], summary: 'Reopen a closed period (accounting:approve)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Period' }, 409: { description: 'Not closed, or locked' } } } },
   '/accounting/periods/{id}/lock': { post: { tags: ['Accounting'], summary: 'Lock a period for good (accounting:approve)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Period' }, 409: { description: 'Locked already, or a draft pending' } } } },
+  '/accounting/periods/{id}/usage': {
+    get: { tags: ['Accounting'], summary: 'Units-of-production assets with their usage for the period (accounting:read)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'id, assetNumber, name, expectedTotalUnits, units' } } },
+    put: {
+      tags: ['Accounting'], summary: 'Usage for many assets in an open period at once, all or nothing (accounting:write)',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['rows'], properties: { rows: { type: 'array', minItems: 1, maxItems: 2000, items: { type: 'object', required: ['assetId', 'units'], properties: { assetId: { type: 'string' }, units: { type: 'number', minimum: 0 } } } } } } } } },
+      responses: { 200: { description: 'Usage rows' }, 400: { description: 'Invalid, or an asset twice' }, 404: { description: 'An asset not found' }, 409: { description: 'Period not open' } },
+    },
+  },
   '/accounting/periods/{id}/usage/{assetId}': {
     put: {
       tags: ['Accounting'], summary: 'Units an asset delivered in an open period, for units of production (accounting:write)',
@@ -117,15 +126,15 @@ export const accountingPaths = {
   },
   '/accounting/runs/{id}/post': {
     post: {
-      tags: ['Accounting'], summary: 'Post a draft run (accounting:approve; not by its preparer, D17): writes entries, closes the period',
-      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Posted run' }, 403: { description: 'Preparer cannot post' }, 409: { description: 'Not a draft, period not open, or out of order' } },
+      tags: ['Accounting'], summary: 'Queue a draft run for posting (accounting:approve; not by its preparer, D17); the worker writes the entries and closes the period',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 202: { description: 'Run, jobState QUEUED' }, 403: { description: 'Preparer cannot post' }, 409: { description: 'Not a draft, period not open, or out of order' } },
     },
   },
   '/accounting/runs/{id}/discard': { post: { tags: ['Accounting'], summary: 'Discard a draft run (accounting:write)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Run' }, 409: { description: 'Not a draft' } } } },
   '/accounting/runs/{id}/reverse': {
     post: {
-      tags: ['Accounting'], summary: 'Reverse a posted run with offsetting entries (accounting:approve); the period must not be locked',
-      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 201: { description: 'The reversal run' }, 409: { description: 'Not posted, locked, or a later period posted' } },
+      tags: ['Accounting'], summary: 'Queue the reversal of a posted run (accounting:approve); the worker writes the offsetting entries. The period must not be locked',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 202: { description: 'Run, jobState QUEUED' }, 409: { description: 'Not posted, locked, or a later period posted' } },
     },
   },
   '/accounting/assets/{id}/depreciation': {

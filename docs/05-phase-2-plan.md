@@ -89,7 +89,7 @@ S3.1 brings the maker–checker framework. Until then (D17):
 | Units of production | `AssetUsage` table | Units entered per asset and period on the web; no device feed in S2 (D21) |
 | Excel | `exceljs/xlsx`, .xls accepted | `exceljs`; .xls refused (D18) |
 | Job status | Not specified | Run and batch rows carry status and counts; no BullMQ ids leave the API |
-| Depreciation as worker jobs | Draft, post, reverse as BullMQ jobs | Run in the API process, in one transaction per post or reversal, with status on the run row; a worker job when volumes need it (stage 2.8) |
+| Depreciation as worker jobs | Draft, post, reverse as BullMQ jobs | Worker jobs (stage 2.10, at the owner's request; stage 2.8 had run them in the API): the API checks and queues, the `depreciation-run` worker prepares, posts or reverses in one transaction, checking again, and records `jobState` (QUEUED, RUNNING, DONE, FAILED) and the reason on the run row; one job per period at a time |
 | Draft entries | Entries written for a draft, discarded with it | A draft stores only its preview (count, charge by class, why assets were left out); posting computes again and writes the entries, so entries are append-only from the start (stage 2.8) |
 | Reducing balance and units | Rate on the asset or from life; `AssetUsage` | `Asset.reducingBalanceRatePct` (else double the straight-line rate) and `Asset.expectedTotalUnits`; `AssetUsage` per asset and period (stage 2.8) |
 | Mobile | Class read-only; components under the parent | As specified. No accounting screens on mobile |

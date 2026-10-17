@@ -1,5 +1,6 @@
 import axios from 'axios';
 import request from 'supertest';
+import { processDepreciationRun } from 'vairiot-worker/depreciation/run-job';
 
 import { createApp } from '../../app';
 import { signAccessToken } from '../../lib/jwt';
@@ -33,8 +34,10 @@ const as = (sub = preparerId, approve = false) => ({ Authorization: `Bearer ${to
 async function postMonth(year: number, month: number) {
   const period = (await request(app).post('/api/v1/accounting/periods').set(as()).send({ year, month })).body.id;
   const run = (await request(app).post(`/api/v1/accounting/periods/${period}/runs`).set(as())).body.id;
+  await processDepreciationRun(prisma, { tenantId: TID, runId: run });
   const r = await request(app).post(`/api/v1/accounting/runs/${run}/post`).set(as(approverId, true));
-  expect(r.status).toBe(200);
+  expect(r.status).toBe(202);
+  await processDepreciationRun(prisma, { tenantId: TID, runId: run });
 }
 
 beforeAll(async () => {

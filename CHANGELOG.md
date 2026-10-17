@@ -10,10 +10,12 @@ All notable changes to Vairiot Asset Intelligence, newest first. One product ver
 - Straight-line, reducing-balance and units-of-production depreciation, with usage entered on the asset for the last (stages 2.8–2.9)
 - The asset page shows its posted depreciation month by month and its carrying amount (stage 2.9)
 - A depreciation-by-class report for a posted month, on screen and as an export (stage 2.9)
+- Usage for units of production entered for every such asset at once, on the Depreciation page (stage 2.10)
 
 ### Changed
 
 - Once a month is posted, the register, the asset page, the reports and the net book value at disposal use the posted figures instead of the projection (stage 2.9)
+- Depreciation runs are prepared, posted and reversed by the background worker; the Depreciation page shows the work in progress and why a run was not done (stage 2.10)
 
 ## [2.9.0] — 2026-10-17
 

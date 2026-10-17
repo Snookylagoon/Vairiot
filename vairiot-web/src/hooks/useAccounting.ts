@@ -151,7 +151,13 @@ export interface DepreciationRunSummary {
   id: string; status: 'DRAFT' | 'POSTED' | 'REVERSED' | 'DISCARDED'; assetCount: number; totalCharge: string;
   preparedBy: string; postedBy: string | null; postedAt: string | null; reversalOfRunId: string | null; createdAt: string;
   preview?: { byClass: Array<{ classCode: string; count: number; charge: string }>; skipped: Record<string, number> } | null;
+  /** The worker's progress on what was last asked (stage 2.10). */
+  jobState?: 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED';
+  pendingAction?: 'PREPARE' | 'POST' | 'REVERSE' | null;
+  jobError?: string | null;
 }
+
+export const isBusy = (r: Pick<DepreciationRunSummary, 'jobState'>) => r.jobState === 'QUEUED' || r.jobState === 'RUNNING';
 
 export interface AccountingPeriod {
   id: string; year: number; month: number; status: 'OPEN' | 'CLOSED' | 'LOCKED';
@@ -172,10 +178,30 @@ export interface DepreciationByClass {
 
 const apiError = (fallback: string) => (err: { response?: { data?: { error?: string } } }) => err.response?.data?.error ?? fallback;
 
+/** Periods with their runs; polled every two seconds while the worker is on a run. */
 export function usePeriods() {
   return useQuery<AccountingPeriod[]>({
     queryKey: ['accounting', 'periods'],
     queryFn: () => api.get('/api/v1/accounting/periods').then(r => r.data),
+    refetchInterval: (q) => (q.state.data?.some(p => p.runs.some(isBusy)) ? 2000 : false),
+  });
+}
+
+export interface UsageRow { id: string; assetNumber: string; name: string; expectedTotalUnits: string | null; units: string | null }
+
+/** Units-of-production assets with their usage for a period (stage 2.10). */
+export function useUsage(periodId: string) {
+  return useQuery<UsageRow[]>({
+    queryKey: ['accounting', 'usage', periodId],
+    queryFn: () => api.get(`/api/v1/accounting/periods/${periodId}/usage`).then(r => r.data),
+    enabled: !!periodId,
+  });
+}
+
+export function useSaveUsage(periodId: string) {
+  return useMutationWithToast<unknown, Array<{ assetId: string; units: number }>>({
+    mutationFn: (rows) => api.put(`/api/v1/accounting/periods/${periodId}/usage`, { rows }).then(r => r.data),
+    invalidate: ['accounting'], success: 'Usage saved', error: apiError('Could not save the usage'),
   });
 }
 

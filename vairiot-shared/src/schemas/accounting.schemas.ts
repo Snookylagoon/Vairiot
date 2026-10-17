@@ -112,3 +112,8 @@ export type AccountingPeriodInput = z.infer<typeof accountingPeriodSchema>;
 export const assetUsageSchema = z.object({ units: z.coerce.number().finite().min(0).max(1e14) });
 
 export const reverseRunSchema = z.object({ notes: z.string().trim().max(500).optional() });
+
+/** Usage for many assets in one period (stage 2.10, the bulk screen). */
+export const assetUsageBulkSchema = z.object({
+  rows: z.array(z.object({ assetId: z.string().min(1), units: z.coerce.number().finite().min(0).max(1e14) })).min(1).max(2000),
+});

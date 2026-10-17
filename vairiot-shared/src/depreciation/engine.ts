@@ -1,9 +1,9 @@
-import type { Prisma } from '@prisma/client';
-
-import { maxMoney, minMoney, money, roundMoney, sumMoney, ZERO, type Money, type MoneyInput } from '../../lib/money';
+import { isBlank, maxMoney, minMoney, money, roundMoney, sumMoney, ZERO, type Money, type MoneyInput } from './money.js';
 
 // The depreciation engine (Phase 2, S2.3): one asset's charge for one month,
-// from what the ledger has already posted. Pure: no database, no clock.
+// from what the ledger has already posted. Pure: no database, no clock. In
+// vairiot-shared since stage 2.10, so the worker that runs depreciation and
+// the API that checks requests use the same rules.
 //
 // Conventions (Phase 2 plan §2.2, D14, D15):
 // - monthly periods in the tenant's time zone; a full month's charge in the
@@ -52,15 +52,13 @@ export function monthIn(date: Date, timeZone: string): Period {
 const index = (p: Period) => p.year * 12 + (p.month - 1);
 
 export function costOf(asset: Pick<EngineAsset, 'capitalisedCost' | 'costParts'>): Money {
-  if (asset.capitalisedCost !== null && asset.capitalisedCost !== undefined && asset.capitalisedCost !== '') return money(asset.capitalisedCost);
+  if (!isBlank(asset.capitalisedCost)) return money(asset.capitalisedCost);
   return sumMoney(asset.costParts ?? []);
 }
 
 /** The annual reducing-balance rate in %: the asset's own, else double the straight-line rate. */
 export function reducingRatePct(asset: Pick<EngineAsset, 'reducingBalanceRatePct' | 'usefulLifeMonths'>): Money | null {
-  if (asset.reducingBalanceRatePct !== null && asset.reducingBalanceRatePct !== undefined && asset.reducingBalanceRatePct !== '') {
-    return money(asset.reducingBalanceRatePct);
-  }
+  if (!isBlank(asset.reducingBalanceRatePct)) return money(asset.reducingBalanceRatePct);
   return asset.usefulLifeMonths ? money(200).times(12).dividedBy(asset.usefulLifeMonths) : null;
 }
 
@@ -93,7 +91,7 @@ export function chargeFor(asset: EngineAsset, period: Period, ledger: LedgerStat
     charge = lastMonth ? remaining : roundMoney(opening.times(rate).dividedBy(100).dividedBy(12));
   } else {
     const expected = asset.expectedTotalUnits;
-    if (expected === null || expected === undefined || expected === '' || !money(expected).greaterThan(0) || !money(units ?? 0).greaterThan(0)) {
+    if (isBlank(expected) || !money(expected).greaterThan(0) || !money(units ?? 0).greaterThan(0)) {
       return { ok: false, skip: 'no_units' };
     }
     charge = roundMoney(cost.minus(residual).times(money(units)).dividedBy(money(expected)));
@@ -107,6 +105,6 @@ export function chargeFor(asset: EngineAsset, period: Period, ledger: LedgerStat
 }
 
 /** Ledger state from posted entries' charges (reversals already excluded by the caller). */
-export function ledgerState(charges: Prisma.Decimal[]): LedgerState {
-  return { accumulated: sumMoney(charges), monthsCharged: charges.filter((c) => c.greaterThan(0)).length };
+export function ledgerState(charges: MoneyInput[]): LedgerState {
+  return { accumulated: sumMoney(charges), monthsCharged: charges.filter((c) => money(c).greaterThan(0)).length };
 }

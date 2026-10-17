@@ -28,6 +28,8 @@ module.exports = {
   moduleNameMapper: {
     '^otplib$': '<rootDir>/src/__mocks__/otplib.ts',
     '^vairiot-shared$': '<rootDir>/../vairiot-shared/src/index.ts',
+    // Tests run the worker's depreciation job against their own database (stage 2.10).
+    '^vairiot-worker/(.*)$': '<rootDir>/../vairiot-worker/src/$1',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
 };

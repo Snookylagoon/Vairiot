@@ -3,8 +3,9 @@ import { useState } from 'react';
 import { ReportExportButton } from '@/components/reports/ReportExportButton';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { useDepreciationByClass, useOpenPeriod, usePeriodAction, usePeriods, type AccountingPeriod, type DepreciationRunSummary } from '@/hooks/useAccounting';
+import { isBusy, useDepreciationByClass, useOpenPeriod, usePeriodAction, usePeriods, type AccountingPeriod, type DepreciationRunSummary } from '@/hooks/useAccounting';
 import { useCurrency } from '@/hooks/useCurrency';
+import { UsageSection } from '@/pages/accounting/UsageSection';
 import { hasAnyPermission, useAuthStore } from '@/stores/auth.store';
 
 const FIELD = 'rounded-lg border border-gray-200 px-2 py-1.5 text-sm bg-white';
@@ -16,6 +17,7 @@ const SKIPS: Record<string, string> = {
   not_started: 'not started yet', disposed: 'disposed', no_life: 'no useful life', no_units: 'no usage entered', fully_depreciated: 'fully depreciated',
 };
 const label = (p: { year: number; month: number }) => `${MONTHS[p.month - 1]} ${p.year}`;
+const WORKING = { PREPARE: 'Preparing…', POST: 'Posting…', REVERSE: 'Reversing…' } as const;
 
 function RunCard({ run, canApprove, canWrite, myId }: { run: DepreciationRunSummary; canApprove: boolean; canWrite: boolean; myId?: string }) {
   const action = usePeriodAction();
@@ -24,14 +26,17 @@ function RunCard({ run, canApprove, canWrite, myId }: { run: DepreciationRunSumm
   const [notes, setNotes] = useState('');
   const mine = run.preparedBy === myId;
   const reversal = !!run.reversalOfRunId;
+  // The worker does the work (stage 2.10); nothing else is offered meanwhile.
+  const busy = isBusy(run);
   return (
     <div className="rounded-lg border border-gray-100 p-3 space-y-2 text-sm" aria-label={`Run ${run.status.toLowerCase()}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-2">
           <Badge variant={run.status === 'POSTED' ? 'green' : run.status === 'DRAFT' ? 'yellow' : 'gray'} label={reversal ? 'Reversal' : run.status.toLowerCase()} />
-          <span>{run.assetCount} assets · {fmt(run.totalCharge)}</span>
+          {busy ? <span className="text-gray-500" role="status">{WORKING[run.pendingAction ?? 'PREPARE']}</span>
+            : <span>{run.assetCount} assets · {fmt(run.totalCharge)}</span>}
         </span>
-        <span className="flex gap-2">
+        {!busy && <span className="flex gap-2">
           {run.status === 'DRAFT' && canApprove && (
             <Button size="sm" disabled={mine} title={mine ? 'You prepared this run: another approver posts it' : undefined}
               loading={action.isPending} onClick={() => action.mutate({ path: `/runs/${run.id}/post`, done: 'Posted' })}>Post</Button>
@@ -42,8 +47,9 @@ function RunCard({ run, canApprove, canWrite, myId }: { run: DepreciationRunSumm
           {run.status === 'POSTED' && !reversal && canApprove && !reversing && (
             <Button size="sm" variant="secondary" onClick={() => setReversing(true)}>Reverse</Button>
           )}
-        </span>
+        </span>}
       </div>
+      {run.jobState === 'FAILED' && run.jobError && <p className="text-xs text-red-600" role="alert">Not done: {run.jobError}</p>}
       {run.status === 'DRAFT' && mine && canApprove && <p className="text-xs text-gray-500">You prepared this run, so another approver posts it.</p>}
       {run.preview && run.status !== 'DISCARDED' && !reversal && (
         <div className="text-xs text-gray-600 space-y-1">
@@ -73,7 +79,7 @@ function PeriodRow({ period, canApprove, canWrite, myId }: { period: AccountingP
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-2 font-medium text-v-charcoal">{label(period)} <Badge variant={STATUS[period.status]} label={period.status.toLowerCase()} /></span>
         <span className="flex gap-2">
-          {period.status === 'OPEN' && canWrite && !runs.some(r => r.status === 'DRAFT') && (
+          {period.status === 'OPEN' && canWrite && !runs.some(r => r.status === 'DRAFT' || isBusy(r)) && (
             <Button size="sm" loading={action.isPending} onClick={() => action.mutate({ path: `/periods/${period.id}/runs`, done: 'Prepared' })}>Prepare run</Button>
           )}
           {period.status === 'CLOSED' && canApprove && (
@@ -132,6 +138,14 @@ export function PeriodsPage() {
         <ul className="divide-y divide-gray-50">
           {periods.map(p => <PeriodRow key={p.id} period={p} canApprove={canApprove} canWrite={canWrite} myId={user?.userId} />)}
         </ul>
+      </section>
+
+      <section className={SECTION}>
+        <div>
+          <h2 className="font-semibold text-v-charcoal">Usage for units of production</h2>
+          <p className="text-xs text-gray-500">Units each asset delivered in the month; the run uses them.</p>
+        </div>
+        <UsageSection periods={periods} canWrite={canWrite} />
       </section>
 
       <section className={SECTION}>
