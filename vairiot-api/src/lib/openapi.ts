@@ -2,7 +2,7 @@ export const openApiSpec = {
   openapi: '3.1.0',
   info: {
     title: 'Vairiot Asset Management API',
-    version: '1.0.0',
+    version: '2.14.0',
     description: 'Multi-tenant asset management platform API',
   },
   servers: [
