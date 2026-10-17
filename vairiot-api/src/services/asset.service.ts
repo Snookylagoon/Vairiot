@@ -59,12 +59,15 @@ export interface AssetListParams {
   search?: string; categoryId?: string; siteId?: string; status?: string; condition?: string;
   sortBy?: string; sortOrder?: string; page?: number; pageSize?: number;
   includeDeleted?: boolean;
+  /** Parents and standalone assets only, components folded into their parents (S2.2). */
+  rollUp?: boolean;
 }
 
 function buildAssetWhere(tenantId: string, params: AssetListParams): Prisma.AssetWhereInput {
-  const { search, categoryId, siteId, status, condition, includeDeleted } = params;
+  const { search, categoryId, siteId, status, condition, includeDeleted, rollUp } = params;
   return {
     tenantId,
+    ...(rollUp && { parentAssetId: null }),
     ...(!includeDeleted && { deletedAt: null }),
     ...(status && { status }),
     ...(condition && { condition }),
@@ -82,7 +85,12 @@ function buildAssetWhere(tenantId: string, params: AssetListParams): Prisma.Asse
   };
 }
 
-const assetInclude = { category: true, site: true, location: true, disposal: true, assetClass: { select: { id: true, code: true, name: true } } } as const;
+const assetInclude = {
+  category: true, site: true, location: true, disposal: true, assetClass: { select: { id: true, code: true, name: true } },
+  // Components (S2.2): the parent of a part, and how many parts a parent has.
+  parentAsset: { select: { id: true, assetNumber: true, name: true } },
+  _count: { select: { components: { where: { deletedAt: null } } } },
+} as const;
 
 // Moved to depreciation/projection.ts (stage 2.3); re-exported for its callers.
 export { computeDepreciation };
@@ -245,7 +253,10 @@ export async function getAssetStats(tenantId: string) {
 }
 
 export async function getAsset(tenantId: string, id: string) {
-  const asset = await prisma.asset.findFirst({ where: { id, tenantId }, include: assetInclude });
+  const asset = await prisma.asset.findFirst({ where: { id, tenantId }, include: {
+    ...assetInclude,
+    components: { where: { deletedAt: null }, select: { id: true, assetNumber: true, name: true, componentRole: true, status: true }, orderBy: { assetNumber: 'asc' } },
+  } });
   if (!asset) throw new NotFoundError('Asset not found');
   return enrichAssetWithDepreciation(asset);
 }

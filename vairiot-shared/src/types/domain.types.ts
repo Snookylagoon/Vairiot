@@ -72,6 +72,12 @@ export interface Asset {
   recognitionStatus?: 'RECOGNISED' | 'EXPENSED' | 'PENDING_REVIEW' | null;
   recognitionOverride?: boolean;
   recognitionOverrideReason?: string | null;
+  // Components (stages 2.5–2.6)
+  parentAssetId?: string | null;
+  componentRole?: string | null;
+  parentAsset?: { id: string; assetNumber: string; name: string } | null;
+  components?: Array<{ id: string; assetNumber: string; name: string; componentRole: string | null; status: string }>;
+  _count?: { components: number };
   warrantyExpiry?: string;
   notes?:       string;
   disposal?:    Disposal | null;

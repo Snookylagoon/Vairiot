@@ -73,9 +73,13 @@ export type ComponentTemplateInput = z.infer<typeof componentTemplateSchema>;
 export const componentTemplateUpdateSchema = componentTemplateSchema.partial();
 export type ComponentTemplateUpdateInput = z.infer<typeof componentTemplateUpdateSchema>;
 
-/** Create a parent and its components from a template. */
+/**
+ * Create a parent and its components from a template, or, with
+ * `parentAssetId`, add the template's components to an existing asset.
+ */
 export const instantiateTemplateSchema = z.object({
   name: z.string().trim().min(1).max(200),
+  parentAssetId: z.string().min(1).nullable().optional(),
   totalCost: amount.nullable().optional(),
   categoryId: z.string().min(1).nullable().optional(),
   siteId: z.string().min(1).nullable().optional(),

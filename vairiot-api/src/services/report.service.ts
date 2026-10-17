@@ -120,24 +120,34 @@ const FIXED_ASSET_SORT_KEYS = [
   'purchaseDate', 'purchaseCost', 'capitalizedCost', 'netBookValue',
 ] as const;
 
-export async function fixedAssetRegister(tenantId: string, filters: ReportFilters & ReportListOpts = {}) {
+/**
+ * Every asset with its financial summary. `rollUp` (S2.2): one row per parent
+ * or standalone asset, its figures including its components'.
+ */
+export async function fixedAssetRegister(tenantId: string, filters: ReportFilters & ReportListOpts & { rollUp?: string | boolean } = {}) {
+  const rollUp = filters.rollUp === true || filters.rollUp === 'true';
   const assets = await prisma.asset.findMany({
-    where: baseWhere(tenantId, filters),
+    where: { ...baseWhere(tenantId, filters), ...(rollUp && { parentAssetId: null }) },
     select: {
       ...assetFinancialSelect,
       serialNumber: true, modelNumber: true, manufacturer: true,
       barcode: true, rfidTag: true,
       createdAt: true,
       assetClass: { select: { code: true } },
+      ...(rollUp && { components: { where: { deletedAt: null }, select: assetFinancialSelect } }),
     },
     orderBy: { assetNumber: 'asc' },
   });
 
   const rows = assets.map(a => {
-    const dep = computeDepreciation(a);
+    const parts = ('components' in a ? a.components : []) as Array<Parameters<typeof computeDepreciation>[0] & { purchaseCost: Prisma.Decimal | null }>;
+    const deps = [computeDepreciation(a), ...parts.map((p) => computeDepreciation(p))];
+    const total = (k: 'capitalizedCost' | 'accumulatedDepreciation' | 'netBookValue') =>
+      Math.round(deps.reduce((t, d) => t + d[k], 0) * 100) / 100;
+    const dep = { capitalizedCost: total('capitalizedCost'), accumulatedDepreciation: total('accumulatedDepreciation'), netBookValue: total('netBookValue') };
     return {
       assetNumber: a.assetNumber,
-      name: a.name,
+      name: parts.length ? `${a.name} (+${parts.length} ${parts.length === 1 ? 'part' : 'parts'})` : a.name,
       category: a.category?.name ?? null,
       site: a.site?.name ?? null,
       location: a.location?.name ?? null,
@@ -149,7 +159,7 @@ export async function fixedAssetRegister(tenantId: string, filters: ReportFilter
       serialNumber: a.serialNumber,
       manufacturer: a.manufacturer,
       purchaseDate: a.purchaseDate,
-      purchaseCost: Number(a.purchaseCost ?? 0),
+      purchaseCost: Math.round(parts.reduce((t, p) => t + Number(p.purchaseCost ?? 0), Number(a.purchaseCost ?? 0)) * 100) / 100,
       capitalizedCost: dep.capitalizedCost,
       accumulatedDepreciation: dep.accumulatedDepreciation,
       netBookValue: dep.netBookValue,

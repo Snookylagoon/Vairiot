@@ -51,7 +51,9 @@ export async function resolveComponentFields(tenantId: string, input: Record<str
   if (!parent) throw new ValidationError('Unknown parent asset');
   if (parent.parentAssetId) throw new ValidationError('A component cannot have components');
   const role = typeof input.componentRole === 'string' && input.componentRole.trim() ? input.componentRole.trim().slice(0, 40) : 'other';
-  return { parentAssetId: parent.id, componentRole: role, ...inheritedPlace(parent, input) };
+  // A new part also takes the parent's category, unless sent; it is not followed later.
+  const category = input.categoryId === undefined ? { categoryId: parent.categoryId } : {};
+  return { parentAssetId: parent.id, componentRole: role, ...category, ...inheritedPlace(parent, input) };
 }
 
 /** The threshold rule on the whole: tested on the roll-up cost, applied to parent and parts. */

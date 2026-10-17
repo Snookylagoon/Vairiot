@@ -74,7 +74,13 @@ export async function instantiateComponentTemplate(tenantId: string, actorId: st
   if (!tpl) throw new NotFoundError('Component template not found');
   const lines = linesSchema.parse(tpl.lines);
   await checkClasses(tenantId, { assetClassId: tpl.assetClassId, lines });
-  await enforceAssetCap(tenantId, lines.length + 1);
+  // Onto an existing asset: only the parts, named after it; its own cost stays.
+  const existing = input.parentAssetId
+    ? await prisma.asset.findFirst({ where: { id: input.parentAssetId, tenantId, deletedAt: null } })
+    : null;
+  if (input.parentAssetId && !existing) throw new NotFoundError('Asset not found');
+  if (existing?.parentAssetId) throw new ValidationError('A component cannot have components');
+  await enforceAssetCap(tenantId, lines.length + (existing ? 0 : 1));
 
   const cost = splitTemplateCost(input.totalCost, lines);
   const shared = {
@@ -82,13 +88,13 @@ export async function instantiateComponentTemplate(tenantId: string, actorId: st
     purchaseDate: input.purchaseDate?.toISOString(),
     depreciationStartDate: input.depreciationStartDate?.toISOString(),
   };
-  const parent = await createAsset(tenantId, actorId, {
+  const parent = existing ?? await createAsset(tenantId, actorId, {
     ...shared, name: input.name, siteId: input.siteId ?? undefined, locationId: input.locationId ?? undefined,
     assetClassId: tpl.assetClassId, purchaseCost: cost.parent === null ? undefined : Number(cost.parent.toFixed(2)),
   });
   for (const [i, line] of lines.entries()) {
     await createAsset(tenantId, actorId, {
-      ...shared, name: `${input.name} — ${line.name}`,
+      ...shared, name: `${existing?.name ?? input.name} — ${line.name}`,
       parentAssetId: parent.id, componentRole: line.role,
       assetClassId: line.assetClassId ?? tpl.assetClassId,
       usefulLifeMonths: line.lifeMonths ?? undefined,

@@ -56,6 +56,7 @@ assetsRouter.get('/',
       page:       Number(req.query.page) || 1,
       pageSize:   Number(req.query.pageSize) || 50,
       includeDeleted: req.query.includeDeleted === 'true',
+      rollUp:     req.query.rollUp === 'true',
     }));
   }),
 );
